@@ -1,0 +1,736 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MarketplaceAI — Agent Intégrateur</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+  * { font-family: 'Inter', sans-serif; }
+  .gradient-bg { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+  .card-hover { transition: all 0.2s ease; }
+  .card-hover:hover { transform: translateY(-2px); box-shadow: 0 10px 40px rgba(0,0,0,0.12); }
+  .drop-zone { border: 2px dashed #c4b5fd; background: #faf5ff; transition: all 0.2s; }
+  .drop-zone.drag-over { border-color: #7c3aed; background: #ede9fe; }
+  .seo-bar { height: 8px; border-radius: 4px; transition: width 0.6s ease; }
+  .tab-active { border-bottom: 3px solid #7c3aed; color: #7c3aed; font-weight: 600; }
+  .spinner { border: 3px solid #e5e7eb; border-top-color: #7c3aed; border-radius: 50%; width: 24px; height: 24px; animation: spin 0.8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .badge-active { background: #d1fae5; color: #065f46; }
+  .badge-beta { background: #fef3c7; color: #92400e; }
+  pre { white-space: pre-wrap; word-break: break-word; }
+  .pulse { animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
+</style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+
+<!-- Header -->
+<header class="gradient-bg text-white shadow-lg">
+  <div class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+    <div class="flex items-center gap-3">
+      <div class="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center text-xl">🤖</div>
+      <div>
+        <h1 class="text-xl font-bold">MarketplaceAI</h1>
+        <p class="text-purple-200 text-xs">Agent Intégrateur — Powered by Claude</p>
+      </div>
+    </div>
+    <div class="flex items-center gap-4">
+      <div id="healthBadge" class="flex items-center gap-2 bg-white/10 rounded-lg px-3 py-1.5 text-sm">
+        <div class="w-2 h-2 rounded-full bg-gray-300 pulse"></div>
+        <span>Vérification...</span>
+      </div>
+      <select id="marketplaceSelector" class="bg-white/10 border border-white/20 text-white rounded-lg px-3 py-1.5 text-sm">
+        <option value="amazon_fr">🇫🇷 Amazon France</option>
+        <option value="amazon_de">🇩🇪 Amazon Allemagne</option>
+        <option value="amazon_it">🇮🇹 Amazon Italie</option>
+        <option value="amazon_es">🇪🇸 Amazon Espagne</option>
+        <option value="amazon_uk">🇬🇧 Amazon UK</option>
+        <option value="cdiscount">🇫🇷 Cdiscount</option>
+        <option value="fnac">🇫🇷 Fnac</option>
+        <option value="bol">🇳🇱 Bol.com</option>
+      </select>
+    </div>
+  </div>
+</header>
+
+<!-- Main -->
+<main class="max-w-7xl mx-auto px-6 py-8">
+
+  <!-- Pipeline steps -->
+  <div class="flex items-center gap-2 mb-8 text-sm">
+    <div id="step1" class="flex items-center gap-2 px-4 py-2 rounded-full bg-purple-600 text-white font-medium">
+      <span>1</span> Import données
+    </div>
+    <div class="h-px flex-1 bg-gray-300"></div>
+    <div id="step2" class="flex items-center gap-2 px-4 py-2 rounded-full bg-gray-200 text-gray-500 font-medium">
+      <span>2</span> Génération IA
+    </div>
+    <div class="h-px flex-1 bg-gray-300"></div>
+    <div id="step3" class="flex items-center gap-2 px-4 py-2 rounded-full bg-gray-200 text-gray-500 font-medium">
+      <span>3</span> Optimisation & Export
+    </div>
+    <div class="h-px flex-1 bg-gray-300"></div>
+    <div id="step4" class="flex items-center gap-2 px-4 py-2 rounded-full bg-gray-200 text-gray-500 font-medium">
+      <span>4</span> Publication
+    </div>
+  </div>
+
+  <div class="grid grid-cols-12 gap-6">
+
+    <!-- LEFT PANEL: Input -->
+    <div class="col-span-12 lg:col-span-4 space-y-4">
+
+      <!-- Upload card -->
+      <div class="bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
+        <h2 class="font-semibold text-gray-800 mb-4 flex items-center gap-2">
+          <span class="text-purple-600">📂</span> Import Produits
+        </h2>
+
+        <!-- Drop zone -->
+        <div id="dropZone" class="drop-zone rounded-xl p-8 text-center cursor-pointer mb-4"
+             onclick="document.getElementById('fileInput').click()">
+          <div class="text-4xl mb-3">📋</div>
+          <p class="text-gray-600 font-medium">Glissez votre fichier ici</p>
+          <p class="text-gray-400 text-sm mt-1">CSV, Excel (.xlsx), JSON</p>
+          <p class="text-purple-500 text-sm mt-3 font-medium">ou cliquez pour parcourir</p>
+        </div>
+        <input type="file" id="fileInput" accept=".csv,.xlsx,.xls,.json" class="hidden">
+
+        <!-- File info -->
+        <div id="fileInfo" class="hidden bg-purple-50 rounded-lg p-3 mb-4 flex items-center gap-3">
+          <span class="text-2xl" id="fileIcon">📄</span>
+          <div>
+            <p id="fileName" class="font-medium text-gray-800 text-sm"></p>
+            <p id="fileSize" class="text-gray-400 text-xs"></p>
+          </div>
+          <button onclick="clearFile()" class="ml-auto text-gray-400 hover:text-red-500">✕</button>
+        </div>
+
+        <!-- Or paste demo data -->
+        <div class="border-t border-gray-100 pt-4">
+          <p class="text-xs text-gray-400 mb-3 font-medium uppercase tracking-wide">Ou tester avec données démo</p>
+          <button onclick="loadDemoData()" class="w-full bg-purple-50 hover:bg-purple-100 text-purple-700 rounded-lg py-2.5 text-sm font-medium transition">
+            ⚡ Charger 3 produits de démo
+          </button>
+        </div>
+      </div>
+
+      <!-- Options card -->
+      <div class="bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
+        <h2 class="font-semibold text-gray-800 mb-4 flex items-center gap-2">
+          <span class="text-purple-600">⚙️</span> Paramètres IA
+        </h2>
+
+        <div class="space-y-4">
+          <div>
+            <label class="text-sm font-medium text-gray-700 block mb-1.5">Mots-clés prioritaires</label>
+            <input id="focusKeywords" type="text" placeholder="qualité, premium, livraison rapide..."
+              class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-purple-300 focus:border-transparent outline-none">
+            <p class="text-xs text-gray-400 mt-1">Séparés par des virgules</p>
+          </div>
+
+          <div>
+            <label class="text-sm font-medium text-gray-700 block mb-1.5">Ton de rédaction</label>
+            <select id="styleTone" class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-purple-300 outline-none">
+              <option value="professionnel">Professionnel</option>
+              <option value="enthousiaste">Enthousiaste</option>
+              <option value="technique">Technique</option>
+              <option value="premium_luxe">Premium / Luxe</option>
+              <option value="eco_responsable">Éco-responsable</option>
+            </select>
+          </div>
+
+          <div class="flex items-center gap-2">
+            <input type="checkbox" id="generateAPlus" class="w-4 h-4 accent-purple-600" checked>
+            <label for="generateAPlus" class="text-sm text-gray-700">Générer le contenu A+</label>
+          </div>
+        </div>
+
+        <button id="generateBtn" onclick="generateListings()"
+          class="mt-5 w-full gradient-bg text-white rounded-xl py-3 font-semibold text-sm shadow-md hover:shadow-lg hover:opacity-90 transition flex items-center justify-center gap-2 disabled:opacity-50"
+          disabled>
+          <span>🚀</span> Générer les fiches
+        </button>
+      </div>
+
+      <!-- Products list (after parse) -->
+      <div id="productsList" class="bg-white rounded-2xl shadow-sm p-6 border border-gray-100 hidden">
+        <h2 class="font-semibold text-gray-800 mb-3 flex items-center gap-2">
+          <span class="text-purple-600">📦</span> Produits détectés
+          <span id="productsCount" class="ml-auto bg-purple-100 text-purple-700 text-xs font-bold px-2 py-0.5 rounded-full"></span>
+        </h2>
+        <div id="productsListItems" class="space-y-2 max-h-64 overflow-y-auto"></div>
+      </div>
+    </div>
+
+    <!-- RIGHT PANEL: Results -->
+    <div class="col-span-12 lg:col-span-8">
+
+      <!-- Empty state -->
+      <div id="emptyState" class="bg-white rounded-2xl shadow-sm border border-gray-100 flex flex-col items-center justify-center py-24 text-center">
+        <div class="text-6xl mb-4">🤖</div>
+        <h3 class="text-xl font-semibold text-gray-700 mb-2">Agent prêt</h3>
+        <p class="text-gray-400 max-w-sm">Importez votre fichier produits et configurez les paramètres pour lancer la génération IA</p>
+        <div class="mt-6 grid grid-cols-3 gap-4 text-sm">
+          <div class="bg-purple-50 rounded-xl p-4">
+            <div class="text-2xl mb-2">📊</div>
+            <p class="font-medium text-gray-700">CSV / Excel / PIM</p>
+            <p class="text-gray-400 text-xs mt-1">Import multi-format</p>
+          </div>
+          <div class="bg-purple-50 rounded-xl p-4">
+            <div class="text-2xl mb-2">✍️</div>
+            <p class="font-medium text-gray-700">SEO optimisé</p>
+            <p class="text-gray-400 text-xs mt-1">Titre, bullets, A+</p>
+          </div>
+          <div class="bg-purple-50 rounded-xl p-4">
+            <div class="text-2xl mb-2">🚀</div>
+            <p class="font-medium text-gray-700">Publication directe</p>
+            <p class="text-gray-400 text-xs mt-1">Seller Central API</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Loading state -->
+      <div id="loadingState" class="hidden bg-white rounded-2xl shadow-sm border border-gray-100 flex flex-col items-center justify-center py-24">
+        <div class="spinner mb-6"></div>
+        <h3 class="text-lg font-semibold text-gray-700 mb-2" id="loadingText">Génération en cours...</h3>
+        <p class="text-gray-400 text-sm" id="loadingSubText">Claude analyse et optimise vos fiches produits</p>
+        <div class="mt-6 w-64 bg-gray-100 rounded-full h-2">
+          <div id="progressBar" class="bg-purple-500 h-2 rounded-full transition-all duration-500" style="width:0%"></div>
+        </div>
+        <p id="progressText" class="text-xs text-gray-400 mt-2">0 / 0 produits traités</p>
+      </div>
+
+      <!-- Results -->
+      <div id="resultsState" class="hidden space-y-4">
+
+        <!-- Stats bar -->
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+          <div class="flex items-center justify-between mb-4">
+            <div>
+              <h2 class="font-semibold text-gray-800">Fiches générées</h2>
+              <p id="statsText" class="text-sm text-gray-400 mt-0.5"></p>
+            </div>
+            <div class="flex gap-2">
+              <button onclick="exportResults('csv')" class="bg-green-50 hover:bg-green-100 text-green-700 rounded-lg px-3 py-2 text-sm font-medium transition flex items-center gap-1.5">
+                📊 CSV
+              </button>
+              <button onclick="exportResults('flat')" class="bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg px-3 py-2 text-sm font-medium transition flex items-center gap-1.5">
+                📋 Flat File Amazon
+              </button>
+              <button onclick="exportResults('json')" class="bg-gray-50 hover:bg-gray-100 text-gray-700 rounded-lg px-3 py-2 text-sm font-medium transition flex items-center gap-1.5">
+                { } JSON
+              </button>
+              <button onclick="showPublishModal()" class="gradient-bg text-white rounded-lg px-4 py-2 text-sm font-semibold transition hover:opacity-90 flex items-center gap-1.5">
+                🚀 Publier
+              </button>
+            </div>
+          </div>
+          <!-- Summary stats -->
+          <div class="grid grid-cols-4 gap-3">
+            <div class="bg-purple-50 rounded-xl p-3 text-center">
+              <p id="statTotal" class="text-2xl font-bold text-purple-700">0</p>
+              <p class="text-xs text-gray-500 mt-0.5">Total produits</p>
+            </div>
+            <div class="bg-green-50 rounded-xl p-3 text-center">
+              <p id="statSuccess" class="text-2xl font-bold text-green-600">0</p>
+              <p class="text-xs text-gray-500 mt-0.5">Générés</p>
+            </div>
+            <div class="bg-yellow-50 rounded-xl p-3 text-center">
+              <p id="statAvgSeo" class="text-2xl font-bold text-yellow-600">0</p>
+              <p class="text-xs text-gray-500 mt-0.5">Score SEO moyen</p>
+            </div>
+            <div class="bg-red-50 rounded-xl p-3 text-center">
+              <p id="statFailed" class="text-2xl font-bold text-red-500">0</p>
+              <p class="text-xs text-gray-500 mt-0.5">Échecs</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Listings cards -->
+        <div id="listingsContainer" class="space-y-4"></div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<!-- Publish Modal -->
+<div id="publishModal" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
+    <div class="flex items-center justify-between mb-5">
+      <h3 class="text-lg font-bold text-gray-800">🚀 Publier sur la Marketplace</h3>
+      <button onclick="closePublishModal()" class="text-gray-400 hover:text-gray-600">✕</button>
+    </div>
+    <div class="space-y-4">
+      <div class="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-800">
+        ⚠️ Mode <strong id="publishModeLabel">Dry Run</strong> — aucune vraie publication sans credentials Amazon SP-API
+      </div>
+      <div>
+        <label class="text-sm font-medium text-gray-700 block mb-1.5">Marketplace</label>
+        <select id="publishMarketplace" class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm">
+          <option value="amazon_fr">🇫🇷 Amazon France</option>
+          <option value="amazon_de">🇩🇪 Amazon Allemagne</option>
+          <option value="amazon_it">🇮🇹 Amazon Italie</option>
+          <option value="amazon_es">🇪🇸 Amazon Espagne</option>
+          <option value="amazon_uk">🇬🇧 Amazon UK</option>
+        </select>
+      </div>
+      <div class="flex items-center gap-2">
+        <input type="checkbox" id="dryRunCheck" class="w-4 h-4 accent-purple-600" checked>
+        <label for="dryRunCheck" class="text-sm text-gray-700">Mode Dry Run (simulation)</label>
+      </div>
+      <p class="text-xs text-gray-400">En mode live, configurez AMAZON_REFRESH_TOKEN, AMAZON_LWA_CLIENT_ID, AMAZON_LWA_CLIENT_SECRET dans votre .env</p>
+    </div>
+    <div class="flex gap-3 mt-6">
+      <button onclick="closePublishModal()" class="flex-1 border border-gray-200 rounded-xl py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-50 transition">
+        Annuler
+      </button>
+      <button onclick="publishListings()" class="flex-1 gradient-bg text-white rounded-xl py-2.5 text-sm font-semibold hover:opacity-90 transition">
+        Confirmer
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div id="toast" class="hidden fixed bottom-6 right-6 bg-gray-900 text-white rounded-xl px-5 py-3 shadow-2xl text-sm font-medium z-50 flex items-center gap-2 max-w-sm">
+  <span id="toastIcon">✓</span>
+  <span id="toastMsg"></span>
+</div>
+
+<script>
+const API = '';
+let parsedProducts = [];
+let generatedListings = [];
+
+// ── Health check ─────────────────────────────────────────────────────────────
+async function checkHealth() {
+  try {
+    const r = await fetch(`${API}/health`);
+    const data = await r.json();
+    const badge = document.getElementById('healthBadge');
+    if (data.ai_ready) {
+      badge.innerHTML = '<div class="w-2 h-2 rounded-full bg-green-400"></div><span>IA prête</span>';
+    } else {
+      badge.innerHTML = '<div class="w-2 h-2 rounded-full bg-yellow-400"></div><span>Clé API manquante</span>';
+    }
+  } catch {
+    document.getElementById('healthBadge').innerHTML = '<div class="w-2 h-2 rounded-full bg-red-400"></div><span>Hors ligne</span>';
+  }
+}
+checkHealth();
+
+// ── File handling ─────────────────────────────────────────────────────────────
+const dropZone = document.getElementById('dropZone');
+const fileInput = document.getElementById('fileInput');
+
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropZone.classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if (file) handleFile(file);
+});
+fileInput.addEventListener('change', e => {
+  if (e.target.files[0]) handleFile(e.target.files[0]);
+});
+
+async function handleFile(file) {
+  const icons = { csv: '📊', xlsx: '📗', xls: '📗', json: '📋' };
+  const ext = file.name.split('.').pop().toLowerCase();
+  document.getElementById('fileIcon').textContent = icons[ext] || '📄';
+  document.getElementById('fileName').textContent = file.name;
+  document.getElementById('fileSize').textContent = `${(file.size / 1024).toFixed(1)} KB`;
+  document.getElementById('fileInfo').classList.remove('hidden');
+  dropZone.classList.add('hidden');
+
+  // Parse file
+  const formData = new FormData();
+  formData.append('file', file);
+  try {
+    showToast('⏳', 'Analyse du fichier...');
+    const r = await fetch(`${API}/api/ingest`, { method: 'POST', body: formData });
+    if (!r.ok) { const e = await r.json(); throw new Error(e.detail || 'Erreur'); }
+    parsedProducts = await r.json();
+    showProductsList(parsedProducts);
+    document.getElementById('generateBtn').disabled = false;
+    setStep(2);
+    showToast('✅', `${parsedProducts.length} produit(s) détecté(s)`);
+  } catch (e) {
+    showToast('❌', `Erreur: ${e.message}`, true);
+  }
+}
+
+function clearFile() {
+  parsedProducts = [];
+  document.getElementById('fileInfo').classList.add('hidden');
+  dropZone.classList.remove('hidden');
+  document.getElementById('productsList').classList.add('hidden');
+  document.getElementById('generateBtn').disabled = true;
+  fileInput.value = '';
+  setStep(1);
+}
+
+function showProductsList(products) {
+  const container = document.getElementById('productsListItems');
+  container.innerHTML = '';
+  document.getElementById('productsCount').textContent = products.length;
+  products.forEach(p => {
+    container.innerHTML += `
+      <div class="flex items-center gap-3 p-2.5 bg-gray-50 rounded-lg text-sm">
+        <span class="text-purple-500 font-mono text-xs bg-purple-50 px-2 py-0.5 rounded">${p.sku}</span>
+        <span class="text-gray-700 truncate">${p.name}</span>
+        ${p.brand ? `<span class="ml-auto text-gray-400 text-xs">${p.brand}</span>` : ''}
+      </div>`;
+  });
+  document.getElementById('productsList').classList.remove('hidden');
+}
+
+// ── Demo data ─────────────────────────────────────────────────────────────────
+function loadDemoData() {
+  parsedProducts = [
+    {
+      sku: "CASQ-PRO-001",
+      name: "Casque Audio Sans Fil Bluetooth Premium",
+      brand: "SoundMax",
+      category: "Électronique",
+      description: "Casque audio haute fidélité avec réduction de bruit active",
+      price: 89.99,
+      ean: "3760123456789",
+      weight_kg: 0.28,
+      color: "Noir",
+      material: "Plastique ABS / Cuir synthétique",
+      features: ["Autonomie 30h", "Bluetooth 5.2", "ANC active", "Pliable", "Microphone intégré"],
+      extra: {}
+    },
+    {
+      sku: "CAFE-BIO-042",
+      name: "Café Éthiopien Bio Grain Arabica",
+      brand: "CaféTerre",
+      category: "Alimentation",
+      description: "Café single origin d'Éthiopie, torréfaction artisanale, notes de fruits et fleurs",
+      price: 14.90,
+      ean: "3760987654321",
+      weight_kg: 0.25,
+      features: ["Bio certifié", "Single origin", "Commerce équitable", "Torréfaction artisanale"],
+      extra: { "intensité": "5/10", "origine": "Yirgacheffe, Éthiopie" }
+    },
+    {
+      sku: "YOGA-MAT-007",
+      name: "Tapis de Yoga Antidérapant TPE Écologique",
+      brand: "ZenFit",
+      category: "Sport & Loisirs",
+      description: "Tapis yoga professionnel en TPE recyclé, double couche, épaisseur 6mm",
+      price: 39.95,
+      ean: "3760111222333",
+      weight_kg: 1.1,
+      dimensions_cm: "183 x 61 x 0.6",
+      color: "Violet / Gris",
+      material: "TPE recyclé",
+      features: ["Antidérapant", "Écologique", "6mm d'épaisseur", "Sangle incluse"],
+      extra: {}
+    }
+  ];
+  showProductsList(parsedProducts);
+  document.getElementById('generateBtn').disabled = false;
+  document.getElementById('fileInfo').classList.add('hidden');
+  dropZone.innerHTML = `<div class="text-3xl mb-2">✅</div><p class="text-purple-700 font-medium">3 produits démo chargés</p>`;
+  setStep(2);
+  showToast('✅', '3 produits de démo chargés');
+}
+
+// ── Generation ─────────────────────────────────────────────────────────────────
+async function generateListings() {
+  if (!parsedProducts.length) return;
+  const marketplace = document.getElementById('marketplaceSelector').value;
+  const focusKeywords = document.getElementById('focusKeywords').value;
+  const styleTone = document.getElementById('styleTone').value;
+
+  showLoadingState();
+  setStep(2);
+
+  // Simulated progress
+  let pct = 0;
+  const progressInterval = setInterval(() => {
+    pct = Math.min(pct + (100 / parsedProducts.length / 3), 90);
+    document.getElementById('progressBar').style.width = pct + '%';
+  }, 400);
+
+  try {
+    const payload = {
+      products: parsedProducts,
+      marketplace,
+      language: "fr",
+      style_tone: styleTone,
+      focus_keywords: focusKeywords ? focusKeywords.split(',').map(k => k.trim()).filter(Boolean) : []
+    };
+
+    const r = await fetch(`${API}/api/generate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    clearInterval(progressInterval);
+    document.getElementById('progressBar').style.width = '100%';
+
+    if (!r.ok) {
+      const e = await r.json();
+      throw new Error(e.detail || 'Erreur API');
+    }
+
+    const result = await r.json();
+    generatedListings = result.listings;
+    showResults(result);
+    setStep(3);
+    showToast('✅', `${result.success_count} fiche(s) générée(s) avec succès`);
+  } catch (e) {
+    clearInterval(progressInterval);
+    hideLoadingState();
+    showToast('❌', `Erreur: ${e.message}`, true);
+  }
+}
+
+function showLoadingState() {
+  document.getElementById('emptyState').classList.add('hidden');
+  document.getElementById('resultsState').classList.add('hidden');
+  document.getElementById('loadingState').classList.remove('hidden');
+  document.getElementById('loadingState').classList.add('flex');
+  document.getElementById('progressText').textContent = `0 / ${parsedProducts.length} produits traités`;
+}
+
+function hideLoadingState() {
+  document.getElementById('loadingState').classList.add('hidden');
+  document.getElementById('loadingState').classList.remove('flex');
+  document.getElementById('emptyState').classList.remove('hidden');
+}
+
+function showResults(result) {
+  document.getElementById('loadingState').classList.add('hidden');
+  document.getElementById('loadingState').classList.remove('flex');
+  document.getElementById('emptyState').classList.add('hidden');
+  document.getElementById('resultsState').classList.remove('hidden');
+
+  document.getElementById('statTotal').textContent = result.total;
+  document.getElementById('statSuccess').textContent = result.success_count;
+  document.getElementById('statFailed').textContent = result.failed.length;
+
+  const avgSeo = result.listings.length
+    ? Math.round(result.listings.reduce((a, l) => a + (l.seo_score || 0), 0) / result.listings.length)
+    : 0;
+  document.getElementById('statAvgSeo').textContent = avgSeo;
+  document.getElementById('statsText').textContent = `${result.marketplace} — Score SEO moyen: ${avgSeo}/100`;
+
+  const container = document.getElementById('listingsContainer');
+  container.innerHTML = '';
+  result.listings.forEach((listing, idx) => {
+    container.appendChild(createListingCard(listing, idx));
+  });
+
+  if (result.failed.length > 0) {
+    result.failed.forEach(f => {
+      container.innerHTML += `
+        <div class="bg-red-50 border border-red-200 rounded-2xl p-4 flex items-center gap-3">
+          <span class="text-2xl">❌</span>
+          <div>
+            <p class="font-medium text-red-800">SKU: ${f.sku}</p>
+            <p class="text-sm text-red-600">${f.error}</p>
+          </div>
+        </div>`;
+    });
+  }
+}
+
+function createListingCard(listing, idx) {
+  const seoColor = listing.seo_score >= 70 ? 'green' : listing.seo_score >= 40 ? 'yellow' : 'red';
+  const seoLabel = listing.seo_score >= 70 ? 'Excellent' : listing.seo_score >= 40 ? 'Moyen' : 'Faible';
+
+  const card = document.createElement('div');
+  card.className = 'bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden card-hover';
+  card.innerHTML = `
+    <div class="p-5">
+      <!-- Header -->
+      <div class="flex items-start justify-between mb-4">
+        <div>
+          <div class="flex items-center gap-2 mb-1">
+            <span class="font-mono text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded">${listing.sku}</span>
+            <span class="text-xs text-gray-400">${listing.marketplace}</span>
+          </div>
+          <h3 class="font-semibold text-gray-900 text-sm leading-snug">${listing.title}</h3>
+        </div>
+        <div class="text-center ml-4 flex-shrink-0">
+          <div class="w-14 h-14 rounded-full flex items-center justify-center border-4 border-${seoColor}-200 bg-${seoColor}-50">
+            <span class="text-${seoColor}-700 font-bold text-lg">${listing.seo_score}</span>
+          </div>
+          <p class="text-xs text-gray-400 mt-1">SEO</p>
+        </div>
+      </div>
+
+      <!-- SEO bar -->
+      <div class="bg-gray-100 rounded-full h-1.5 mb-4">
+        <div class="seo-bar bg-${seoColor}-500" style="width:${listing.seo_score}%"></div>
+      </div>
+
+      <!-- Tabs -->
+      <div class="border-b border-gray-100 flex gap-4 mb-4 text-sm">
+        <button onclick="switchTab(${idx}, 'bullets')" class="tab-active pb-2" id="tab-${idx}-bullets">Bullet Points</button>
+        <button onclick="switchTab(${idx}, 'desc')" class="pb-2 text-gray-400" id="tab-${idx}-desc">Description</button>
+        <button onclick="switchTab(${idx}, 'kw')" class="pb-2 text-gray-400" id="tab-${idx}-kw">Mots-clés</button>
+        <button onclick="switchTab(${idx}, 'aplus')" class="pb-2 text-gray-400" id="tab-${idx}-aplus">Contenu A+</button>
+      </div>
+
+      <!-- Bullet points -->
+      <div id="content-${idx}-bullets">
+        <ul class="space-y-2">
+          ${listing.bullet_points.map(bp => `
+            <li class="flex gap-2 text-sm text-gray-700">
+              <span class="text-purple-500 flex-shrink-0 mt-0.5">▸</span>
+              <span>${bp}</span>
+            </li>`).join('')}
+        </ul>
+      </div>
+
+      <!-- Description -->
+      <div id="content-${idx}-desc" class="hidden">
+        <div class="text-sm text-gray-700 leading-relaxed max-h-48 overflow-y-auto">
+          ${listing.description}
+        </div>
+      </div>
+
+      <!-- Keywords -->
+      <div id="content-${idx}-kw" class="hidden">
+        <div class="bg-gray-50 rounded-lg p-3">
+          <p class="text-xs text-gray-500 mb-2 font-medium">Backend Keywords (${listing.backend_keywords.length} caractères)</p>
+          <p class="text-sm text-gray-700 font-mono leading-relaxed">${listing.backend_keywords}</p>
+        </div>
+      </div>
+
+      <!-- A+ Content -->
+      <div id="content-${idx}-aplus" class="hidden">
+        ${listing.a_plus_content ? `
+          <div class="space-y-3">
+            <div class="bg-purple-50 rounded-lg p-3">
+              <p class="font-semibold text-purple-800 text-sm mb-1">✨ ${listing.a_plus_content.headline}</p>
+            </div>
+            ${(listing.a_plus_content.modules || []).map(m => `
+              <div class="border border-gray-100 rounded-lg p-3">
+                <p class="font-medium text-gray-700 text-xs uppercase tracking-wide mb-1.5">${m.type?.replace('_', ' ') || ''}</p>
+                <p class="font-semibold text-gray-800 text-sm mb-1">${m.title || ''}</p>
+                <p class="text-gray-600 text-sm">${m.body || ''}</p>
+              </div>`).join('')}
+          </div>
+        ` : '<p class="text-gray-400 text-sm">Contenu A+ non disponible</p>'}
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="border-t border-gray-50 px-5 py-3 bg-gray-50/50 flex items-center gap-3">
+      ${listing.price ? `<span class="text-sm font-bold text-gray-800">${listing.price.toFixed(2)} €</span>` : ''}
+      ${listing.ean ? `<span class="text-xs text-gray-400">EAN: ${listing.ean}</span>` : ''}
+      <button onclick="copyListing(${idx})" class="ml-auto text-xs text-gray-500 hover:text-purple-600 flex items-center gap-1">
+        📋 Copier JSON
+      </button>
+    </div>
+  `;
+  return card;
+}
+
+function switchTab(idx, tab) {
+  const tabs = ['bullets', 'desc', 'kw', 'aplus'];
+  tabs.forEach(t => {
+    document.getElementById(`content-${idx}-${t}`)?.classList.add('hidden');
+    const tabBtn = document.getElementById(`tab-${idx}-${t}`);
+    if (tabBtn) { tabBtn.classList.remove('tab-active'); tabBtn.classList.add('text-gray-400'); }
+  });
+  document.getElementById(`content-${idx}-${tab}`)?.classList.remove('hidden');
+  const activeTab = document.getElementById(`tab-${idx}-${tab}`);
+  if (activeTab) { activeTab.classList.add('tab-active'); activeTab.classList.remove('text-gray-400'); }
+}
+
+function copyListing(idx) {
+  const listing = generatedListings[idx];
+  navigator.clipboard.writeText(JSON.stringify(listing, null, 2));
+  showToast('📋', 'JSON copié dans le presse-papiers');
+}
+
+// ── Export ─────────────────────────────────────────────────────────────────────
+async function exportResults(format) {
+  if (!generatedListings.length) return;
+  const endpoints = { csv: '/api/export/csv', json: '/api/export/json', flat: '/api/export/flat-file' };
+  const filenames = { csv: 'listings.csv', json: 'listings.json', flat: 'amazon_flat_file.txt' };
+  try {
+    const r = await fetch(`${API}${endpoints[format]}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(generatedListings)
+    });
+    const blob = await r.blob();
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = filenames[format];
+    a.click();
+    showToast('✅', `Export ${format.toUpperCase()} téléchargé`);
+  } catch (e) {
+    showToast('❌', `Erreur export: ${e.message}`, true);
+  }
+}
+
+// ── Publish ─────────────────────────────────────────────────────────────────────
+function showPublishModal() {
+  document.getElementById('publishModal').classList.remove('hidden');
+}
+function closePublishModal() {
+  document.getElementById('publishModal').classList.add('hidden');
+}
+
+async function publishListings() {
+  if (!generatedListings.length) return;
+  const marketplace = document.getElementById('publishMarketplace').value;
+  const dryRun = document.getElementById('dryRunCheck').checked;
+
+  closePublishModal();
+  showToast('⏳', `Publication ${dryRun ? 'Dry Run' : 'live'} en cours...`);
+
+  try {
+    const r = await fetch(`${API}/api/publish`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ listings: generatedListings, marketplace, dry_run: dryRun })
+    });
+    const result = await r.json();
+    showToast('✅', `${result.published} fiche(s) publiée(s) — ${result.failed} erreur(s)`);
+    setStep(4);
+  } catch (e) {
+    showToast('❌', `Erreur: ${e.message}`, true);
+  }
+}
+
+// ── UI helpers ─────────────────────────────────────────────────────────────────
+function setStep(n) {
+  for (let i = 1; i <= 4; i++) {
+    const el = document.getElementById(`step${i}`);
+    if (i < n) {
+      el.className = 'flex items-center gap-2 px-4 py-2 rounded-full bg-green-500 text-white font-medium';
+    } else if (i === n) {
+      el.className = 'flex items-center gap-2 px-4 py-2 rounded-full bg-purple-600 text-white font-medium';
+    } else {
+      el.className = 'flex items-center gap-2 px-4 py-2 rounded-full bg-gray-200 text-gray-500 font-medium';
+    }
+  }
+}
+
+let toastTimeout;
+function showToast(icon, msg, isError = false) {
+  const toast = document.getElementById('toast');
+  document.getElementById('toastIcon').textContent = icon;
+  document.getElementById('toastMsg').textContent = msg;
+  toast.className = `fixed bottom-6 right-6 ${isError ? 'bg-red-700' : 'bg-gray-900'} text-white rounded-xl px-5 py-3 shadow-2xl text-sm font-medium z-50 flex items-center gap-2 max-w-sm`;
+  clearTimeout(toastTimeout);
+  toastTimeout = setTimeout(() => toast.classList.add('hidden'), 3000);
+}
+</script>
+</body>
+</html>
