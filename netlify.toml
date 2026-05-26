@@ -3,13 +3,13 @@
 
 [[redirects]]
   from = "/api/*"
-  to = "https://placeholder-railway-url.railway.app/api/:splat"
+  to = "https://web-production-393ef.up.railway.app/api/:splat"
   status = 200
   force = true
   headers = {X-From = "Netlify"}
 
 [[redirects]]
   from = "/health"
-  to = "https://placeholder-railway-url.railway.app/health"
+  to = "https://web-production-393ef.up.railway.app/health"
   status = 200
   force = true
