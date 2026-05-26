@@ -3,14 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>MarketplaceAI — Agent Intégrateur</title>
+<title>SynqIO — MarketplaceAI</title>
 <script src="https://cdn.tailwindcss.com"></script>
-<script src="https://identity.netlify.com/v1/netlify-identity-widget.js"></script>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
   * { font-family: 'Inter', sans-serif; }
   .gradient-bg { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
-  .gradient-text { background: linear-gradient(135deg, #667eea, #764ba2); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
   .card-hover { transition: all 0.2s ease; }
   .card-hover:hover { transform: translateY(-2px); box-shadow: 0 10px 40px rgba(0,0,0,0.12); }
   .drop-zone { border: 2px dashed #c4b5fd; background: #faf5ff; transition: all 0.2s; }
@@ -22,18 +20,20 @@
   .pulse { animation: pulse 2s infinite; }
   @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
   #login-screen { background: linear-gradient(135deg, #0f0c29, #302b63, #24243e); }
-  .login-card { backdrop-filter: blur(20px); background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); }
+  .login-card { backdrop-filter: blur(20px); background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); }
   .feature-item { border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.03); }
+  .input-auth { background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); color: white; }
+  .input-auth::placeholder { color: rgba(255,255,255,0.35); }
+  .input-auth:focus { outline: none; border-color: #a78bfa; background: rgba(255,255,255,0.12); }
+  .btn-login { background: linear-gradient(135deg, #667eea, #764ba2); transition: opacity 0.2s; }
+  .btn-login:hover { opacity: 0.9; }
+  .btn-login:disabled { opacity: 0.5; cursor: not-allowed; }
 </style>
 </head>
 <body class="bg-gray-50 min-h-screen">
 
-<!-- ═══════════════════════════════════════════════════════════════
-     LOGIN SCREEN
-═══════════════════════════════════════════════════════════════ -->
+<!-- ═══════════════════ LOGIN SCREEN ═══════════════════ -->
 <div id="login-screen" class="fixed inset-0 z-50 flex items-center justify-center p-4">
-
-  <!-- Background decorations -->
   <div class="absolute inset-0 overflow-hidden pointer-events-none">
     <div class="absolute top-1/4 left-1/4 w-96 h-96 bg-purple-600/20 rounded-full blur-3xl"></div>
     <div class="absolute bottom-1/4 right-1/4 w-80 h-80 bg-blue-600/20 rounded-full blur-3xl"></div>
@@ -41,117 +41,93 @@
 
   <div class="relative w-full max-w-5xl flex gap-12 items-center">
 
-    <!-- LEFT: Branding -->
+    <!-- Branding gauche -->
     <div class="hidden lg:flex flex-col flex-1 text-white">
       <div class="flex items-center gap-4 mb-10">
         <div class="w-14 h-14 bg-white/10 rounded-2xl flex items-center justify-center text-3xl border border-white/20">🤖</div>
         <div>
-          <h1 class="text-2xl font-bold">MarketplaceAI</h1>
-          <p class="text-white/50 text-sm">Agent Intégrateur — Powered by Claude</p>
+          <h1 class="text-2xl font-bold">SynqIO</h1>
+          <p class="text-white/50 text-sm">MarketplaceAI — Powered by Claude</p>
         </div>
       </div>
-
       <h2 class="text-4xl font-bold leading-tight mb-4">
         Transformez vos données<br>
         <span class="text-purple-300">en fiches produits</span><br>
         prêtes à vendre
       </h2>
-      <p class="text-white/60 text-lg mb-10">
-        L'IA génère automatiquement vos titres SEO, bullet points, mots-clés et contenu A+ optimisés pour Amazon et les marketplaces européennes.
-      </p>
-
+      <p class="text-white/60 text-lg mb-10">L'IA génère automatiquement vos titres SEO, bullet points, mots-clés et contenu A+ optimisés pour Amazon et les marketplaces européennes.</p>
       <div class="space-y-3">
         <div class="feature-item rounded-xl px-4 py-3 flex items-center gap-3">
           <span class="text-2xl">📊</span>
-          <div>
-            <p class="font-medium text-white/90">Import CSV, Excel, JSON, PIM</p>
-            <p class="text-white/40 text-sm">Glissez votre catalogue, l'agent fait le reste</p>
-          </div>
+          <div><p class="font-medium text-white/90">Import CSV, Excel, JSON</p><p class="text-white/40 text-sm">Glissez votre catalogue, l'agent fait le reste</p></div>
         </div>
         <div class="feature-item rounded-xl px-4 py-3 flex items-center gap-3">
           <span class="text-2xl">✨</span>
-          <div>
-            <p class="font-medium text-white/90">SEO Amazon optimisé par IA</p>
-            <p class="text-white/40 text-sm">Titre, 5 bullets, keywords, contenu A+</p>
-          </div>
-        </div>
-        <div class="feature-item rounded-xl px-4 py-3 flex items-center gap-3">
-          <span class="text-2xl">🌍</span>
-          <div>
-            <p class="font-medium text-white/90">8 marketplaces européennes</p>
-            <p class="text-white/40 text-sm">Amazon FR/DE/IT/ES/UK, Cdiscount, Fnac, Bol</p>
-          </div>
+          <div><p class="font-medium text-white/90">SEO Amazon optimisé par IA</p><p class="text-white/40 text-sm">Titre, 5 bullets, keywords, contenu A+</p></div>
         </div>
         <div class="feature-item rounded-xl px-4 py-3 flex items-center gap-3">
           <span class="text-2xl">🚀</span>
-          <div>
-            <p class="font-medium text-white/90">Publication directe Seller Central</p>
-            <p class="text-white/40 text-sm">Injection via Amazon SP-API</p>
-          </div>
+          <div><p class="font-medium text-white/90">Publication directe Seller Central</p><p class="text-white/40 text-sm">8 marketplaces européennes</p></div>
         </div>
       </div>
     </div>
 
-    <!-- RIGHT: Login card -->
+    <!-- Formulaire login -->
     <div class="login-card rounded-3xl p-8 w-full max-w-md mx-auto">
       <div class="text-center mb-8">
         <div class="w-16 h-16 gradient-bg rounded-2xl flex items-center justify-center text-3xl mx-auto mb-4 shadow-lg">🤖</div>
         <h3 class="text-white text-2xl font-bold">Accès client</h3>
-        <p class="text-white/50 mt-1 text-sm">Connectez-vous à votre espace MarketplaceAI</p>
+        <p class="text-white/50 mt-1 text-sm">Connectez-vous à votre espace SynqIO</p>
       </div>
 
-      <!-- Loading state -->
-      <div id="auth-loading" class="text-center py-8">
-        <div class="spinner mx-auto mb-3" style="border-top-color: #a78bfa;"></div>
-        <p class="text-white/40 text-sm">Vérification...</p>
-      </div>
+      <div id="loginError" class="hidden mb-4 bg-red-500/20 border border-red-500/30 rounded-xl px-4 py-3 text-red-300 text-sm text-center"></div>
 
-      <!-- Login button (Netlify Identity) -->
-      <div id="auth-buttons" class="hidden space-y-3">
-        <button onclick="netlifyIdentity.open('login')"
-          class="w-full gradient-bg text-white rounded-xl py-3.5 font-semibold text-base shadow-lg hover:opacity-90 transition flex items-center justify-center gap-2">
-          <span>→</span> Se connecter
+      <div class="space-y-4">
+        <div>
+          <label class="text-white/70 text-sm font-medium block mb-1.5">Email</label>
+          <input id="loginEmail" type="email" placeholder="vous@exemple.com"
+            class="input-auth w-full rounded-xl px-4 py-3 text-sm"
+            onkeydown="if(event.key==='Enter') doLogin()">
+        </div>
+        <div>
+          <label class="text-white/70 text-sm font-medium block mb-1.5">Mot de passe</label>
+          <div class="relative">
+            <input id="loginPassword" type="password" placeholder="••••••••"
+              class="input-auth w-full rounded-xl px-4 py-3 text-sm pr-12"
+              onkeydown="if(event.key==='Enter') doLogin()">
+            <button onclick="togglePwd()" class="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 hover:text-white/70 text-lg">👁</button>
+          </div>
+        </div>
+        <button id="loginBtn" onclick="doLogin()"
+          class="btn-login w-full text-white rounded-xl py-3.5 font-semibold text-base shadow-lg mt-2">
+          Se connecter →
         </button>
-        <p class="text-center text-white/30 text-xs pt-2">
-          Accès réservé aux clients abonnés.<br>
-          Contactez-nous pour obtenir votre accès.
-        </p>
       </div>
 
-      <!-- Logged in state (brief) -->
-      <div id="auth-success" class="hidden text-center py-4">
-        <div class="text-4xl mb-3">✅</div>
-        <p class="text-white font-semibold">Connecté !</p>
-        <p class="text-white/50 text-sm mt-1">Chargement de votre espace...</p>
-      </div>
-
-      <div class="mt-8 pt-6 border-t border-white/10 text-center">
-        <p class="text-white/20 text-xs">MarketplaceAI — Propulsé par Claude d'Anthropic</p>
+      <div class="mt-8 pt-6 border-t border-white/10 text-center space-y-2">
+        <p class="text-white/30 text-xs">Accès réservé aux clients abonnés</p>
+        <p class="text-white/20 text-xs">SynqIO — Propulsé par Claude d'Anthropic</p>
       </div>
     </div>
   </div>
 </div>
 
 
-<!-- ═══════════════════════════════════════════════════════════════
-     MAIN APP (hidden until logged in)
-═══════════════════════════════════════════════════════════════ -->
+<!-- ═══════════════════ APP PRINCIPAL ═══════════════════ -->
 <div id="app" class="hidden">
 
-<!-- Header -->
 <header class="gradient-bg text-white shadow-lg">
   <div class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
     <div class="flex items-center gap-3">
       <div class="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center text-xl">🤖</div>
       <div>
-        <h1 class="text-xl font-bold">MarketplaceAI</h1>
-        <p class="text-purple-200 text-xs">Agent Intégrateur — Powered by Claude</p>
+        <h1 class="text-xl font-bold">SynqIO</h1>
+        <p class="text-purple-200 text-xs">MarketplaceAI — Powered by Claude</p>
       </div>
     </div>
-    <div class="flex items-center gap-4">
+    <div class="flex items-center gap-3">
       <div id="healthBadge" class="flex items-center gap-2 bg-white/10 rounded-lg px-3 py-1.5 text-sm">
-        <div class="w-2 h-2 rounded-full bg-gray-300 pulse"></div>
-        <span>Vérification...</span>
+        <div class="w-2 h-2 rounded-full bg-gray-300 pulse"></div><span>...</span>
       </div>
       <select id="marketplaceSelector" class="bg-white/10 border border-white/20 text-white rounded-lg px-3 py-1.5 text-sm">
         <option value="amazon_fr">🇫🇷 Amazon France</option>
@@ -164,57 +140,43 @@
         <option value="bol">🇳🇱 Bol.com</option>
       </select>
       <!-- User menu -->
-      <div id="userMenu" class="flex items-center gap-2 bg-white/10 rounded-lg px-3 py-1.5 text-sm cursor-pointer hover:bg-white/20 transition" onclick="toggleUserMenu()">
-        <div class="w-6 h-6 bg-white/30 rounded-full flex items-center justify-center text-xs font-bold" id="userAvatar">?</div>
-        <span id="userEmail" class="max-w-32 truncate">...</span>
-        <span class="text-white/50">▾</span>
-      </div>
-      <div id="userDropdown" class="hidden absolute right-6 top-16 bg-white rounded-xl shadow-2xl border border-gray-100 py-2 w-48 z-40">
-        <div class="px-4 py-2 border-b border-gray-100">
-          <p class="text-xs text-gray-400">Connecté en tant que</p>
-          <p class="text-sm font-medium text-gray-800 truncate" id="userEmailDropdown"></p>
-        </div>
-        <button onclick="logout()" class="w-full text-left px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition">
-          Se déconnecter
+      <div class="relative">
+        <button onclick="toggleUserMenu()" class="flex items-center gap-2 bg-white/10 hover:bg-white/20 rounded-lg px-3 py-1.5 text-sm transition">
+          <div id="userAvatar" class="w-6 h-6 bg-white/30 rounded-full flex items-center justify-center text-xs font-bold">?</div>
+          <span id="userEmailHeader" class="max-w-32 truncate text-xs">...</span>
+          <span class="text-white/50 text-xs">▾</span>
         </button>
+        <div id="userDropdown" class="hidden absolute right-0 top-10 bg-white rounded-xl shadow-2xl border border-gray-100 py-2 w-52 z-40">
+          <div class="px-4 py-2 border-b border-gray-100">
+            <p class="text-xs text-gray-400">Connecté en tant que</p>
+            <p id="userEmailFull" class="text-sm font-medium text-gray-800 truncate"></p>
+          </div>
+          <button onclick="showAdminPanel()" class="w-full text-left px-4 py-2.5 text-sm text-purple-600 hover:bg-purple-50 transition">⚙️ Administration</button>
+          <button onclick="doLogout()" class="w-full text-left px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition">Se déconnecter</button>
+        </div>
       </div>
     </div>
   </div>
 </header>
 
-<!-- Main -->
 <main class="max-w-7xl mx-auto px-6 py-8">
-
   <!-- Pipeline steps -->
   <div class="flex items-center gap-2 mb-8 text-sm">
-    <div id="step1" class="flex items-center gap-2 px-4 py-2 rounded-full bg-purple-600 text-white font-medium">
-      <span>1</span> Import données
-    </div>
+    <div id="step1" class="flex items-center gap-2 px-4 py-2 rounded-full bg-purple-600 text-white font-medium"><span>1</span> Import données</div>
     <div class="h-px flex-1 bg-gray-300"></div>
-    <div id="step2" class="flex items-center gap-2 px-4 py-2 rounded-full bg-gray-200 text-gray-500 font-medium">
-      <span>2</span> Génération IA
-    </div>
+    <div id="step2" class="flex items-center gap-2 px-4 py-2 rounded-full bg-gray-200 text-gray-500 font-medium"><span>2</span> Génération IA</div>
     <div class="h-px flex-1 bg-gray-300"></div>
-    <div id="step3" class="flex items-center gap-2 px-4 py-2 rounded-full bg-gray-200 text-gray-500 font-medium">
-      <span>3</span> Optimisation & Export
-    </div>
+    <div id="step3" class="flex items-center gap-2 px-4 py-2 rounded-full bg-gray-200 text-gray-500 font-medium"><span>3</span> Export</div>
     <div class="h-px flex-1 bg-gray-300"></div>
-    <div id="step4" class="flex items-center gap-2 px-4 py-2 rounded-full bg-gray-200 text-gray-500 font-medium">
-      <span>4</span> Publication
-    </div>
+    <div id="step4" class="flex items-center gap-2 px-4 py-2 rounded-full bg-gray-200 text-gray-500 font-medium"><span>4</span> Publication</div>
   </div>
 
   <div class="grid grid-cols-12 gap-6">
-
-    <!-- LEFT PANEL -->
+    <!-- LEFT -->
     <div class="col-span-12 lg:col-span-4 space-y-4">
-
       <div class="bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
-        <h2 class="font-semibold text-gray-800 mb-4 flex items-center gap-2">
-          <span class="text-purple-600">📂</span> Import Produits
-        </h2>
-        <div id="dropZone" class="drop-zone rounded-xl p-8 text-center cursor-pointer mb-4"
-             onclick="document.getElementById('fileInput').click()">
+        <h2 class="font-semibold text-gray-800 mb-4 flex items-center gap-2"><span class="text-purple-600">📂</span> Import Produits</h2>
+        <div id="dropZone" class="drop-zone rounded-xl p-8 text-center cursor-pointer mb-4" onclick="document.getElementById('fileInput').click()">
           <div class="text-4xl mb-3">📋</div>
           <p class="text-gray-600 font-medium">Glissez votre fichier ici</p>
           <p class="text-gray-400 text-sm mt-1">CSV, Excel (.xlsx), JSON</p>
@@ -223,30 +185,20 @@
         <input type="file" id="fileInput" accept=".csv,.xlsx,.xls,.json" class="hidden">
         <div id="fileInfo" class="hidden bg-purple-50 rounded-lg p-3 mb-4 flex items-center gap-3">
           <span class="text-2xl" id="fileIcon">📄</span>
-          <div>
-            <p id="fileName" class="font-medium text-gray-800 text-sm"></p>
-            <p id="fileSize" class="text-gray-400 text-xs"></p>
-          </div>
+          <div><p id="fileName" class="font-medium text-gray-800 text-sm"></p><p id="fileSize" class="text-gray-400 text-xs"></p></div>
           <button onclick="clearFile()" class="ml-auto text-gray-400 hover:text-red-500">✕</button>
         </div>
         <div class="border-t border-gray-100 pt-4">
-          <p class="text-xs text-gray-400 mb-3 font-medium uppercase tracking-wide">Ou tester avec données démo</p>
-          <button onclick="loadDemoData()" class="w-full bg-purple-50 hover:bg-purple-100 text-purple-700 rounded-lg py-2.5 text-sm font-medium transition">
-            ⚡ Charger 3 produits de démo
-          </button>
+          <button onclick="loadDemoData()" class="w-full bg-purple-50 hover:bg-purple-100 text-purple-700 rounded-lg py-2.5 text-sm font-medium transition">⚡ Charger 3 produits de démo</button>
         </div>
       </div>
 
       <div class="bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
-        <h2 class="font-semibold text-gray-800 mb-4 flex items-center gap-2">
-          <span class="text-purple-600">⚙️</span> Paramètres IA
-        </h2>
+        <h2 class="font-semibold text-gray-800 mb-4 flex items-center gap-2"><span class="text-purple-600">⚙️</span> Paramètres IA</h2>
         <div class="space-y-4">
           <div>
             <label class="text-sm font-medium text-gray-700 block mb-1.5">Mots-clés prioritaires</label>
-            <input id="focusKeywords" type="text" placeholder="qualité, premium, livraison rapide..."
-              class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-purple-300 focus:border-transparent outline-none">
-            <p class="text-xs text-gray-400 mt-1">Séparés par des virgules</p>
+            <input id="focusKeywords" type="text" placeholder="qualité, premium, livraison rapide..." class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-purple-300 outline-none">
           </div>
           <div>
             <label class="text-sm font-medium text-gray-700 block mb-1.5">Ton de rédaction</label>
@@ -258,15 +210,10 @@
               <option value="eco_responsable">Éco-responsable</option>
             </select>
           </div>
-          <div class="flex items-center gap-2">
-            <input type="checkbox" id="generateAPlus" class="w-4 h-4 accent-purple-600" checked>
-            <label for="generateAPlus" class="text-sm text-gray-700">Générer le contenu A+</label>
-          </div>
         </div>
         <button id="generateBtn" onclick="generateListings()"
-          class="mt-5 w-full gradient-bg text-white rounded-xl py-3 font-semibold text-sm shadow-md hover:shadow-lg hover:opacity-90 transition flex items-center justify-center gap-2 disabled:opacity-50"
-          disabled>
-          <span>🚀</span> Générer les fiches
+          class="mt-5 w-full gradient-bg text-white rounded-xl py-3 font-semibold text-sm shadow-md hover:opacity-90 transition flex items-center justify-center gap-2 disabled:opacity-40" disabled>
+          🚀 Générer les fiches
         </button>
       </div>
 
@@ -279,72 +226,40 @@
       </div>
     </div>
 
-    <!-- RIGHT PANEL -->
+    <!-- RIGHT -->
     <div class="col-span-12 lg:col-span-8">
       <div id="emptyState" class="bg-white rounded-2xl shadow-sm border border-gray-100 flex flex-col items-center justify-center py-24 text-center">
         <div class="text-6xl mb-4">🤖</div>
         <h3 class="text-xl font-semibold text-gray-700 mb-2">Agent prêt</h3>
-        <p class="text-gray-400 max-w-sm">Importez votre fichier produits et configurez les paramètres pour lancer la génération IA</p>
+        <p class="text-gray-400 max-w-sm">Importez votre fichier et lancez la génération</p>
         <div class="mt-6 grid grid-cols-3 gap-4 text-sm">
-          <div class="bg-purple-50 rounded-xl p-4">
-            <div class="text-2xl mb-2">📊</div>
-            <p class="font-medium text-gray-700">CSV / Excel / PIM</p>
-            <p class="text-gray-400 text-xs mt-1">Import multi-format</p>
-          </div>
-          <div class="bg-purple-50 rounded-xl p-4">
-            <div class="text-2xl mb-2">✍️</div>
-            <p class="font-medium text-gray-700">SEO optimisé</p>
-            <p class="text-gray-400 text-xs mt-1">Titre, bullets, A+</p>
-          </div>
-          <div class="bg-purple-50 rounded-xl p-4">
-            <div class="text-2xl mb-2">🚀</div>
-            <p class="font-medium text-gray-700">Publication directe</p>
-            <p class="text-gray-400 text-xs mt-1">Seller Central API</p>
-          </div>
+          <div class="bg-purple-50 rounded-xl p-4"><div class="text-2xl mb-2">📊</div><p class="font-medium text-gray-700">CSV / Excel</p><p class="text-gray-400 text-xs mt-1">Import multi-format</p></div>
+          <div class="bg-purple-50 rounded-xl p-4"><div class="text-2xl mb-2">✍️</div><p class="font-medium text-gray-700">SEO optimisé</p><p class="text-gray-400 text-xs mt-1">Titre, bullets, A+</p></div>
+          <div class="bg-purple-50 rounded-xl p-4"><div class="text-2xl mb-2">🚀</div><p class="font-medium text-gray-700">Publication</p><p class="text-gray-400 text-xs mt-1">Seller Central API</p></div>
         </div>
       </div>
-
       <div id="loadingState" class="hidden bg-white rounded-2xl shadow-sm border border-gray-100 flex-col items-center justify-center py-24">
         <div class="spinner mb-6"></div>
         <h3 class="text-lg font-semibold text-gray-700 mb-2">Génération en cours...</h3>
         <p class="text-gray-400 text-sm">Claude analyse et optimise vos fiches produits</p>
-        <div class="mt-6 w-64 bg-gray-100 rounded-full h-2">
-          <div id="progressBar" class="bg-purple-500 h-2 rounded-full transition-all duration-500" style="width:0%"></div>
-        </div>
-        <p id="progressText" class="text-xs text-gray-400 mt-2">0 / 0 produits traités</p>
+        <div class="mt-6 w-64 bg-gray-100 rounded-full h-2"><div id="progressBar" class="bg-purple-500 h-2 rounded-full transition-all duration-500" style="width:0%"></div></div>
       </div>
-
       <div id="resultsState" class="hidden space-y-4">
         <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
           <div class="flex items-center justify-between mb-4">
-            <div>
-              <h2 class="font-semibold text-gray-800">Fiches générées</h2>
-              <p id="statsText" class="text-sm text-gray-400 mt-0.5"></p>
-            </div>
+            <div><h2 class="font-semibold text-gray-800">Fiches générées</h2><p id="statsText" class="text-sm text-gray-400 mt-0.5"></p></div>
             <div class="flex gap-2">
               <button onclick="exportResults('csv')" class="bg-green-50 hover:bg-green-100 text-green-700 rounded-lg px-3 py-2 text-sm font-medium transition">📊 CSV</button>
               <button onclick="exportResults('flat')" class="bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg px-3 py-2 text-sm font-medium transition">📋 Flat File</button>
               <button onclick="exportResults('json')" class="bg-gray-50 hover:bg-gray-100 text-gray-700 rounded-lg px-3 py-2 text-sm font-medium transition">{ } JSON</button>
-              <button onclick="showPublishModal()" class="gradient-bg text-white rounded-lg px-4 py-2 text-sm font-semibold transition hover:opacity-90">🚀 Publier</button>
+              <button onclick="showPublishModal()" class="gradient-bg text-white rounded-lg px-4 py-2 text-sm font-semibold hover:opacity-90 transition">🚀 Publier</button>
             </div>
           </div>
           <div class="grid grid-cols-4 gap-3">
-            <div class="bg-purple-50 rounded-xl p-3 text-center">
-              <p id="statTotal" class="text-2xl font-bold text-purple-700">0</p>
-              <p class="text-xs text-gray-500 mt-0.5">Total produits</p>
-            </div>
-            <div class="bg-green-50 rounded-xl p-3 text-center">
-              <p id="statSuccess" class="text-2xl font-bold text-green-600">0</p>
-              <p class="text-xs text-gray-500 mt-0.5">Générés</p>
-            </div>
-            <div class="bg-yellow-50 rounded-xl p-3 text-center">
-              <p id="statAvgSeo" class="text-2xl font-bold text-yellow-600">0</p>
-              <p class="text-xs text-gray-500 mt-0.5">Score SEO moyen</p>
-            </div>
-            <div class="bg-red-50 rounded-xl p-3 text-center">
-              <p id="statFailed" class="text-2xl font-bold text-red-500">0</p>
-              <p class="text-xs text-gray-500 mt-0.5">Échecs</p>
-            </div>
+            <div class="bg-purple-50 rounded-xl p-3 text-center"><p id="statTotal" class="text-2xl font-bold text-purple-700">0</p><p class="text-xs text-gray-500 mt-0.5">Total</p></div>
+            <div class="bg-green-50 rounded-xl p-3 text-center"><p id="statSuccess" class="text-2xl font-bold text-green-600">0</p><p class="text-xs text-gray-500 mt-0.5">Générés</p></div>
+            <div class="bg-yellow-50 rounded-xl p-3 text-center"><p id="statAvgSeo" class="text-2xl font-bold text-yellow-600">0</p><p class="text-xs text-gray-500 mt-0.5">Score SEO</p></div>
+            <div class="bg-red-50 rounded-xl p-3 text-center"><p id="statFailed" class="text-2xl font-bold text-red-500">0</p><p class="text-xs text-gray-500 mt-0.5">Échecs</p></div>
           </div>
         </div>
         <div id="listingsContainer" class="space-y-4"></div>
@@ -355,6 +270,58 @@
 </div><!-- /app -->
 
 
+<!-- ═══════════════════ ADMIN PANEL ═══════════════════ -->
+<div id="adminModal" class="hidden fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+    <div class="p-6 border-b border-gray-100 flex items-center justify-between">
+      <h3 class="text-lg font-bold text-gray-800">⚙️ Administration — Gestion des accès</h3>
+      <button onclick="closeAdminPanel()" class="text-gray-400 hover:text-gray-600 text-xl">✕</button>
+    </div>
+
+    <!-- Admin auth -->
+    <div id="adminAuth" class="p-6">
+      <p class="text-gray-600 text-sm mb-4">Entrez votre clé admin pour accéder à la gestion des utilisateurs.</p>
+      <div class="flex gap-3">
+        <input id="adminSecretInput" type="password" placeholder="Clé admin..."
+          class="flex-1 border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-purple-300 outline-none"
+          onkeydown="if(event.key==='Enter') adminLogin()">
+        <button onclick="adminLogin()" class="gradient-bg text-white px-5 py-2.5 rounded-lg text-sm font-semibold">Accéder</button>
+      </div>
+      <div id="adminAuthError" class="hidden mt-3 text-red-600 text-sm"></div>
+    </div>
+
+    <!-- Admin dashboard -->
+    <div id="adminDashboard" class="hidden p-6 space-y-6">
+      <!-- Add user -->
+      <div class="bg-purple-50 rounded-xl p-5">
+        <h4 class="font-semibold text-gray-800 mb-4">➕ Ajouter un client</h4>
+        <div class="grid grid-cols-2 gap-3 mb-3">
+          <input id="newUserName" type="text" placeholder="Nom du client" class="border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-purple-300">
+          <input id="newUserEmail" type="email" placeholder="email@client.com" class="border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-purple-300">
+        </div>
+        <div class="flex gap-3">
+          <input id="newUserPassword" type="text" placeholder="Mot de passe" class="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-purple-300">
+          <button onclick="generatePassword()" class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-2 rounded-lg text-xs font-medium transition">🎲 Générer</button>
+          <button onclick="addUser()" class="gradient-bg text-white px-5 py-2 rounded-lg text-sm font-semibold">Créer</button>
+        </div>
+        <div id="addUserMsg" class="hidden mt-3 text-sm"></div>
+      </div>
+
+      <!-- Users list -->
+      <div>
+        <div class="flex items-center justify-between mb-3">
+          <h4 class="font-semibold text-gray-800">👥 Clients actifs</h4>
+          <button onclick="loadUsers()" class="text-purple-600 text-sm hover:underline">↻ Actualiser</button>
+        </div>
+        <div id="usersList" class="space-y-2">
+          <div class="text-gray-400 text-sm text-center py-4">Chargement...</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
 <!-- Publish Modal -->
 <div id="publishModal" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
   <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
@@ -363,9 +330,7 @@
       <button onclick="closePublishModal()" class="text-gray-400 hover:text-gray-600">✕</button>
     </div>
     <div class="space-y-4">
-      <div class="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-800">
-        ⚠️ Mode <strong>Dry Run</strong> — simulation sans envoi réel
-      </div>
+      <div class="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-800">⚠️ Mode Dry Run activé par défaut — simulation sans envoi réel</div>
       <div>
         <label class="text-sm font-medium text-gray-700 block mb-1.5">Marketplace</label>
         <select id="publishMarketplace" class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm">
@@ -382,134 +347,238 @@
       </div>
     </div>
     <div class="flex gap-3 mt-6">
-      <button onclick="closePublishModal()" class="flex-1 border border-gray-200 rounded-xl py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-50 transition">Annuler</button>
-      <button onclick="publishListings()" class="flex-1 gradient-bg text-white rounded-xl py-2.5 text-sm font-semibold hover:opacity-90 transition">Confirmer</button>
+      <button onclick="closePublishModal()" class="flex-1 border border-gray-200 rounded-xl py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-50">Annuler</button>
+      <button onclick="publishListings()" class="flex-1 gradient-bg text-white rounded-xl py-2.5 text-sm font-semibold hover:opacity-90">Confirmer</button>
     </div>
   </div>
 </div>
 
 <!-- Toast -->
 <div id="toast" class="hidden fixed bottom-6 right-6 bg-gray-900 text-white rounded-xl px-5 py-3 shadow-2xl text-sm font-medium z-50 flex items-center gap-2 max-w-sm">
-  <span id="toastIcon">✓</span>
-  <span id="toastMsg"></span>
+  <span id="toastIcon">✓</span><span id="toastMsg"></span>
 </div>
 
 <script>
-// ── Netlify Identity Auth ─────────────────────────────────────────────────────
-window.netlifyIdentity = window.netlifyIdentity || {};
+const API = '';
+let token = localStorage.getItem('synqio_token') || '';
+let currentUser = null;
+let parsedProducts = [];
+let generatedListings = [];
+let adminSecret = '';
 
-function initAuth() {
-  // Check if running locally (no Netlify Identity)
-  const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-
-  if (isLocal) {
-    // Skip auth on localhost
-    showApp(null);
-    return;
+// ── Auth ──────────────────────────────────────────────────────────────────────
+async function initApp() {
+  if (!token) { showLoginScreen(); return; }
+  try {
+    const r = await authFetch('/api/auth/me');
+    if (!r.ok) throw new Error();
+    const data = await r.json();
+    currentUser = data;
+    showApp(data.email);
+  } catch {
+    localStorage.removeItem('synqio_token');
+    token = '';
+    showLoginScreen();
   }
-
-  if (typeof netlifyIdentity === 'undefined' || !netlifyIdentity.currentUser) {
-    // Script not loaded yet, retry
-    setTimeout(initAuth, 200);
-    return;
-  }
-
-  const user = netlifyIdentity.currentUser();
-  if (user) {
-    showApp(user);
-  } else {
-    document.getElementById('auth-loading').classList.add('hidden');
-    document.getElementById('auth-buttons').classList.remove('hidden');
-  }
-
-  netlifyIdentity.on('login', user => {
-    document.getElementById('auth-buttons').classList.add('hidden');
-    document.getElementById('auth-success').classList.remove('hidden');
-    setTimeout(() => showApp(user), 800);
-    netlifyIdentity.close();
-  });
-
-  netlifyIdentity.on('logout', () => {
-    document.getElementById('app').classList.add('hidden');
-    document.getElementById('login-screen').classList.remove('hidden');
-    document.getElementById('auth-success').classList.add('hidden');
-    document.getElementById('auth-buttons').classList.remove('hidden');
-  });
 }
 
-function showApp(user) {
+function showLoginScreen() {
+  document.getElementById('login-screen').classList.remove('hidden');
+  document.getElementById('app').classList.add('hidden');
+}
+
+function showApp(email) {
   document.getElementById('login-screen').classList.add('hidden');
   document.getElementById('app').classList.remove('hidden');
-
-  if (user) {
-    const email = user.email || '';
-    const initial = email.charAt(0).toUpperCase();
-    document.getElementById('userAvatar').textContent = initial;
-    document.getElementById('userEmail').textContent = email;
-    document.getElementById('userEmailDropdown').textContent = email;
-  } else {
-    document.getElementById('userMenu').classList.add('hidden');
-  }
-
+  const initial = (email || '?').charAt(0).toUpperCase();
+  document.getElementById('userAvatar').textContent = initial;
+  document.getElementById('userEmailHeader').textContent = email;
+  document.getElementById('userEmailFull').textContent = email;
   checkHealth();
 }
 
-function logout() {
-  if (typeof netlifyIdentity !== 'undefined' && netlifyIdentity.logout) {
-    netlifyIdentity.logout();
-  } else {
-    location.reload();
+async function doLogin() {
+  const email = document.getElementById('loginEmail').value.trim();
+  const password = document.getElementById('loginPassword').value;
+  const btn = document.getElementById('loginBtn');
+  const errEl = document.getElementById('loginError');
+
+  if (!email || !password) { showLoginError('Remplissez tous les champs'); return; }
+
+  btn.disabled = true;
+  btn.textContent = 'Connexion...';
+  errEl.classList.add('hidden');
+
+  try {
+    const r = await fetch(`${API}/api/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.detail || 'Erreur');
+    token = data.token;
+    localStorage.setItem('synqio_token', token);
+    currentUser = { email: data.email };
+    showApp(data.email);
+  } catch (e) {
+    showLoginError(e.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Se connecter →';
   }
 }
 
-function toggleUserMenu() {
-  document.getElementById('userDropdown').classList.toggle('hidden');
+function showLoginError(msg) {
+  const el = document.getElementById('loginError');
+  el.textContent = msg;
+  el.classList.remove('hidden');
 }
 
-document.addEventListener('click', e => {
-  const menu = document.getElementById('userMenu');
-  const dropdown = document.getElementById('userDropdown');
-  if (menu && !menu.contains(e.target)) {
-    dropdown?.classList.add('hidden');
-  }
-});
+function doLogout() {
+  localStorage.removeItem('synqio_token');
+  token = '';
+  document.getElementById('userDropdown').classList.add('hidden');
+  showLoginScreen();
+}
 
-// Start auth check
-setTimeout(initAuth, 100);
+function togglePwd() {
+  const input = document.getElementById('loginPassword');
+  input.type = input.type === 'password' ? 'text' : 'password';
+}
 
+// Fetch avec token automatique
+function authFetch(url, options = {}) {
+  options.headers = { ...(options.headers || {}), 'Authorization': `Bearer ${token}` };
+  return fetch(API + url, options);
+}
 
-// ── Health check ─────────────────────────────────────────────────────────────
-const API = '';
-
+// ── Health ────────────────────────────────────────────────────────────────────
 async function checkHealth() {
   try {
     const r = await fetch(`${API}/health`);
     const data = await r.json();
     const badge = document.getElementById('healthBadge');
-    if (data.ai_ready) {
-      badge.innerHTML = '<div class="w-2 h-2 rounded-full bg-green-400"></div><span>IA prête</span>';
-    } else {
-      badge.innerHTML = '<div class="w-2 h-2 rounded-full bg-yellow-400"></div><span>Clé API manquante</span>';
-    }
+    badge.innerHTML = data.ai_ready
+      ? '<div class="w-2 h-2 rounded-full bg-green-400"></div><span>IA prête</span>'
+      : '<div class="w-2 h-2 rounded-full bg-yellow-400"></div><span>Clé API manquante</span>';
   } catch {
-    document.getElementById('healthBadge').innerHTML = '<div class="w-2 h-2 rounded-full bg-red-400"></div><span>Backend hors ligne</span>';
+    document.getElementById('healthBadge').innerHTML = '<div class="w-2 h-2 rounded-full bg-red-400"></div><span>Hors ligne</span>';
   }
 }
 
-// ── File handling ─────────────────────────────────────────────────────────────
-let parsedProducts = [];
-let generatedListings = [];
+// ── User menu ─────────────────────────────────────────────────────────────────
+function toggleUserMenu() {
+  document.getElementById('userDropdown').classList.toggle('hidden');
+}
+document.addEventListener('click', e => {
+  const btn = document.querySelector('[onclick="toggleUserMenu()"]');
+  if (btn && !btn.contains(e.target)) document.getElementById('userDropdown')?.classList.add('hidden');
+});
 
+// ── Admin panel ───────────────────────────────────────────────────────────────
+function showAdminPanel() {
+  document.getElementById('userDropdown').classList.add('hidden');
+  document.getElementById('adminModal').classList.remove('hidden');
+  document.getElementById('adminAuth').classList.remove('hidden');
+  document.getElementById('adminDashboard').classList.add('hidden');
+}
+function closeAdminPanel() {
+  document.getElementById('adminModal').classList.add('hidden');
+  adminSecret = '';
+  document.getElementById('adminSecretInput').value = '';
+}
+
+async function adminLogin() {
+  const secret = document.getElementById('adminSecretInput').value;
+  const errEl = document.getElementById('adminAuthError');
+  try {
+    const r = await authFetch('/api/admin/users', { headers: { 'Authorization': `Bearer ${token}`, 'x-admin-secret': secret } });
+    if (!r.ok) throw new Error('Clé incorrecte');
+    adminSecret = secret;
+    document.getElementById('adminAuth').classList.add('hidden');
+    document.getElementById('adminDashboard').classList.remove('hidden');
+    errEl.classList.add('hidden');
+    renderUsers(await r.json());
+  } catch (e) {
+    errEl.textContent = e.message;
+    errEl.classList.remove('hidden');
+  }
+}
+
+async function loadUsers() {
+  const r = await authFetch('/api/admin/users', { headers: { 'Authorization': `Bearer ${token}`, 'x-admin-secret': adminSecret } });
+  renderUsers(await r.json());
+}
+
+function renderUsers(users) {
+  const container = document.getElementById('usersList');
+  if (!users.length) { container.innerHTML = '<p class="text-gray-400 text-sm text-center py-4">Aucun utilisateur</p>'; return; }
+  container.innerHTML = users.map(u => `
+    <div class="flex items-center gap-3 p-3 bg-gray-50 rounded-xl border border-gray-100">
+      <div class="w-8 h-8 rounded-full ${u.is_active ? 'bg-green-100' : 'bg-gray-200'} flex items-center justify-center font-bold text-sm ${u.is_active ? 'text-green-700' : 'text-gray-400'}">
+        ${u.email.charAt(0).toUpperCase()}
+      </div>
+      <div class="flex-1 min-w-0">
+        <p class="font-medium text-gray-800 text-sm truncate">${u.name || u.email}</p>
+        <p class="text-gray-400 text-xs truncate">${u.email}</p>
+      </div>
+      <span class="text-xs px-2 py-0.5 rounded-full ${u.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-500'}">${u.is_active ? 'Actif' : 'Inactif'}</span>
+      <button onclick="deleteUser('${u.email}')" class="text-red-400 hover:text-red-600 text-xs px-2 py-1 hover:bg-red-50 rounded transition">Supprimer</button>
+    </div>`).join('');
+}
+
+async function addUser() {
+  const name = document.getElementById('newUserName').value.trim();
+  const email = document.getElementById('newUserEmail').value.trim();
+  const password = document.getElementById('newUserPassword').value.trim();
+  const msgEl = document.getElementById('addUserMsg');
+
+  if (!email || !password) { msgEl.textContent = 'Email et mot de passe requis'; msgEl.className = 'mt-3 text-sm text-red-600'; msgEl.classList.remove('hidden'); return; }
+
+  try {
+    const r = await authFetch('/api/admin/users', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`, 'x-admin-secret': adminSecret },
+      body: JSON.stringify({ email, password, name }),
+    });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.detail);
+    msgEl.textContent = `✅ Client "${email}" créé avec succès`;
+    msgEl.className = 'mt-3 text-sm text-green-600';
+    msgEl.classList.remove('hidden');
+    document.getElementById('newUserName').value = '';
+    document.getElementById('newUserEmail').value = '';
+    document.getElementById('newUserPassword').value = '';
+    loadUsers();
+  } catch (e) {
+    msgEl.textContent = `❌ ${e.message}`;
+    msgEl.className = 'mt-3 text-sm text-red-600';
+    msgEl.classList.remove('hidden');
+  }
+}
+
+async function deleteUser(email) {
+  if (!confirm(`Supprimer définitivement ${email} ?`)) return;
+  await authFetch(`/api/admin/users/${encodeURIComponent(email)}`, {
+    method: 'DELETE',
+    headers: { 'Authorization': `Bearer ${token}`, 'x-admin-secret': adminSecret },
+  });
+  loadUsers();
+}
+
+function generatePassword() {
+  const chars = 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#';
+  const pwd = Array.from({length: 12}, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+  document.getElementById('newUserPassword').value = pwd;
+}
+
+// ── File handling ─────────────────────────────────────────────────────────────
 const dropZone = document.getElementById('dropZone');
 const fileInput = document.getElementById('fileInput');
-
 dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
 dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
-dropZone.addEventListener('drop', e => {
-  e.preventDefault();
-  dropZone.classList.remove('drag-over');
-  if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
-});
+dropZone.addEventListener('drop', e => { e.preventDefault(); dropZone.classList.remove('drag-over'); if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]); });
 fileInput.addEventListener('change', e => { if (e.target.files[0]) handleFile(e.target.files[0]); });
 
 async function handleFile(file) {
@@ -517,24 +586,21 @@ async function handleFile(file) {
   const ext = file.name.split('.').pop().toLowerCase();
   document.getElementById('fileIcon').textContent = icons[ext] || '📄';
   document.getElementById('fileName').textContent = file.name;
-  document.getElementById('fileSize').textContent = `${(file.size / 1024).toFixed(1)} KB`;
+  document.getElementById('fileSize').textContent = `${(file.size/1024).toFixed(1)} KB`;
   document.getElementById('fileInfo').classList.remove('hidden');
   dropZone.classList.add('hidden');
-
   const formData = new FormData();
   formData.append('file', file);
   try {
     showToast('⏳', 'Analyse du fichier...');
-    const r = await fetch(`${API}/api/ingest`, { method: 'POST', body: formData });
+    const r = await authFetch('/api/ingest', { method: 'POST', body: formData });
     if (!r.ok) { const e = await r.json(); throw new Error(e.detail || 'Erreur'); }
     parsedProducts = await r.json();
     showProductsList(parsedProducts);
     document.getElementById('generateBtn').disabled = false;
     setStep(2);
     showToast('✅', `${parsedProducts.length} produit(s) détecté(s)`);
-  } catch (e) {
-    showToast('❌', `Erreur: ${e.message}`, true);
-  }
+  } catch (e) { showToast('❌', `${e.message}`, true); }
 }
 
 function clearFile() {
@@ -548,81 +614,65 @@ function clearFile() {
 }
 
 function showProductsList(products) {
-  const container = document.getElementById('productsListItems');
-  container.innerHTML = '';
   document.getElementById('productsCount').textContent = products.length;
-  products.forEach(p => {
-    container.innerHTML += `
-      <div class="flex items-center gap-3 p-2.5 bg-gray-50 rounded-lg text-sm">
-        <span class="text-purple-500 font-mono text-xs bg-purple-50 px-2 py-0.5 rounded">${p.sku}</span>
-        <span class="text-gray-700 truncate">${p.name}</span>
-        ${p.brand ? `<span class="ml-auto text-gray-400 text-xs">${p.brand}</span>` : ''}
-      </div>`;
-  });
+  document.getElementById('productsListItems').innerHTML = products.map(p => `
+    <div class="flex items-center gap-3 p-2.5 bg-gray-50 rounded-lg text-sm">
+      <span class="font-mono text-xs bg-purple-50 text-purple-700 px-2 py-0.5 rounded">${p.sku}</span>
+      <span class="text-gray-700 truncate">${p.name}</span>
+      ${p.brand ? `<span class="ml-auto text-gray-400 text-xs">${p.brand}</span>` : ''}
+    </div>`).join('');
   document.getElementById('productsList').classList.remove('hidden');
 }
 
 function loadDemoData() {
   parsedProducts = [
-    { sku: "CASQ-PRO-001", name: "Casque Audio Sans Fil Bluetooth Premium", brand: "SoundMax", category: "Électronique", description: "Casque audio haute fidélité avec réduction de bruit active", price: 89.99, ean: "3760123456789", weight_kg: 0.28, color: "Noir", material: "Plastique ABS / Cuir synthétique", features: ["Autonomie 30h", "Bluetooth 5.2", "ANC active", "Pliable", "Microphone intégré"], images: [], extra: {} },
-    { sku: "CAFE-BIO-042", name: "Café Éthiopien Bio Grain Arabica", brand: "CaféTerre", category: "Alimentation", description: "Café single origin d'Éthiopie, torréfaction artisanale, notes de fruits et fleurs", price: 14.90, ean: "3760987654321", weight_kg: 0.25, features: ["Bio certifié", "Single origin", "Commerce équitable"], images: [], extra: { "intensité": "5/10" } },
-    { sku: "YOGA-MAT-007", name: "Tapis de Yoga Antidérapant TPE Écologique", brand: "ZenFit", category: "Sport & Loisirs", description: "Tapis yoga professionnel en TPE recyclé, double couche, épaisseur 6mm", price: 39.95, ean: "3760111222333", weight_kg: 1.1, dimensions_cm: "183 x 61 x 0.6", color: "Violet / Gris", material: "TPE recyclé", features: ["Antidérapant", "Écologique", "6mm"], images: [], extra: {} }
+    { sku:"CASQ-PRO-001", name:"Casque Audio Sans Fil Bluetooth Premium", brand:"SoundMax", category:"Électronique", description:"Casque sans fil ANC haute fidélité", price:89.99, ean:"3760123456789", weight_kg:0.28, color:"Noir", material:"ABS / Cuir synthétique", features:["Autonomie 30h","Bluetooth 5.2","ANC active","Microphone intégré"], images:[], extra:{} },
+    { sku:"CAFE-BIO-042", name:"Café Éthiopien Bio Grain Arabica 250g", brand:"CaféTerre", category:"Alimentation", description:"Single origin Yirgacheffe, torréfaction artisanale", price:14.90, ean:"3760987654321", weight_kg:0.25, features:["Bio certifié","Commerce équitable","Single origin"], images:[], extra:{"intensité":"5/10"} },
+    { sku:"YOGA-MAT-007", name:"Tapis Yoga TPE Écologique 6mm", brand:"ZenFit", category:"Sport & Loisirs", description:"Tapis yoga pro TPE recyclé, double couche", price:39.95, ean:"3760111222333", weight_kg:1.1, dimensions_cm:"183x61x0.6", color:"Violet/Gris", material:"TPE recyclé", features:["Antidérapant","6mm","Sangle incluse"], images:[], extra:{} }
   ];
   showProductsList(parsedProducts);
   document.getElementById('generateBtn').disabled = false;
-  document.getElementById('fileInfo').classList.add('hidden');
-  dropZone.innerHTML = `<div class="text-3xl mb-2">✅</div><p class="text-purple-700 font-medium">3 produits démo chargés</p>`;
+  dropZone.innerHTML = '<div class="text-3xl mb-2">✅</div><p class="text-purple-700 font-medium">3 produits démo chargés</p>';
   setStep(2);
   showToast('✅', '3 produits de démo chargés');
 }
 
-// ── Generation ─────────────────────────────────────────────────────────────────
+// ── Generation ────────────────────────────────────────────────────────────────
 async function generateListings() {
   if (!parsedProducts.length) return;
-  const marketplace = document.getElementById('marketplaceSelector').value;
-  const focusKeywords = document.getElementById('focusKeywords').value;
-  const styleTone = document.getElementById('styleTone').value;
-
   document.getElementById('emptyState').classList.add('hidden');
   document.getElementById('resultsState').classList.add('hidden');
   document.getElementById('loadingState').classList.remove('hidden');
   document.getElementById('loadingState').classList.add('flex');
-  document.getElementById('progressText').textContent = `0 / ${parsedProducts.length} produits traités`;
   setStep(2);
-
   let pct = 0;
-  const progressInterval = setInterval(() => {
-    pct = Math.min(pct + (100 / parsedProducts.length / 3), 90);
-    document.getElementById('progressBar').style.width = pct + '%';
-  }, 400);
-
+  const interval = setInterval(() => { pct = Math.min(pct + 5, 85); document.getElementById('progressBar').style.width = pct + '%'; }, 500);
   try {
-    const payload = {
-      products: parsedProducts,
-      marketplace,
-      language: "fr",
-      style_tone: styleTone,
-      focus_keywords: focusKeywords ? focusKeywords.split(',').map(k => k.trim()).filter(Boolean) : []
-    };
-    const r = await fetch(`${API}/api/generate`, {
+    const r = await authFetch('/api/generate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
+      body: JSON.stringify({
+        products: parsedProducts,
+        marketplace: document.getElementById('marketplaceSelector').value,
+        language: 'fr',
+        style_tone: document.getElementById('styleTone').value,
+        focus_keywords: document.getElementById('focusKeywords').value.split(',').map(k=>k.trim()).filter(Boolean),
+      }),
     });
-    clearInterval(progressInterval);
+    clearInterval(interval);
     document.getElementById('progressBar').style.width = '100%';
     if (!r.ok) { const e = await r.json(); throw new Error(e.detail || 'Erreur API'); }
     const result = await r.json();
     generatedListings = result.listings;
     showResults(result);
     setStep(3);
-    showToast('✅', `${result.success_count} fiche(s) générée(s) avec succès`);
+    showToast('✅', `${result.success_count} fiche(s) générée(s)`);
   } catch (e) {
-    clearInterval(progressInterval);
+    clearInterval(interval);
     document.getElementById('loadingState').classList.add('hidden');
     document.getElementById('loadingState').classList.remove('flex');
     document.getElementById('emptyState').classList.remove('hidden');
-    showToast('❌', `Erreur: ${e.message}`, true);
+    showToast('❌', e.message, true);
   }
 }
 
@@ -634,16 +684,16 @@ function showResults(result) {
   document.getElementById('statTotal').textContent = result.total;
   document.getElementById('statSuccess').textContent = result.success_count;
   document.getElementById('statFailed').textContent = result.failed.length;
-  const avgSeo = result.listings.length ? Math.round(result.listings.reduce((a, l) => a + (l.seo_score || 0), 0) / result.listings.length) : 0;
-  document.getElementById('statAvgSeo').textContent = avgSeo;
-  document.getElementById('statsText').textContent = `${result.marketplace} — Score SEO moyen: ${avgSeo}/100`;
-  const container = document.getElementById('listingsContainer');
-  container.innerHTML = '';
-  result.listings.forEach((listing, idx) => container.appendChild(createListingCard(listing, idx)));
+  const avg = result.listings.length ? Math.round(result.listings.reduce((a,l)=>a+(l.seo_score||0),0)/result.listings.length) : 0;
+  document.getElementById('statAvgSeo').textContent = avg;
+  document.getElementById('statsText').textContent = `${result.marketplace} — Score SEO moyen : ${avg}/100`;
+  const c = document.getElementById('listingsContainer');
+  c.innerHTML = '';
+  result.listings.forEach((l,i) => c.appendChild(createListingCard(l,i)));
 }
 
 function createListingCard(listing, idx) {
-  const seoColor = listing.seo_score >= 70 ? 'green' : listing.seo_score >= 40 ? 'yellow' : 'red';
+  const col = listing.seo_score >= 70 ? 'green' : listing.seo_score >= 40 ? 'yellow' : 'red';
   const card = document.createElement('div');
   card.className = 'bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden card-hover';
   card.innerHTML = `
@@ -654,43 +704,26 @@ function createListingCard(listing, idx) {
             <span class="font-mono text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded">${listing.sku}</span>
             <span class="text-xs text-gray-400">${listing.marketplace}</span>
           </div>
-          <h3 class="font-semibold text-gray-900 text-sm leading-snug">${listing.title}</h3>
+          <h3 class="font-semibold text-gray-900 text-sm">${listing.title}</h3>
         </div>
         <div class="text-center ml-4 flex-shrink-0">
-          <div class="w-14 h-14 rounded-full flex items-center justify-center border-4 border-${seoColor}-200 bg-${seoColor}-50">
-            <span class="text-${seoColor}-700 font-bold text-lg">${listing.seo_score}</span>
+          <div class="w-14 h-14 rounded-full flex items-center justify-center border-4 border-${col}-200 bg-${col}-50">
+            <span class="text-${col}-700 font-bold text-lg">${listing.seo_score}</span>
           </div>
           <p class="text-xs text-gray-400 mt-1">SEO</p>
         </div>
       </div>
-      <div class="bg-gray-100 rounded-full h-1.5 mb-4">
-        <div class="seo-bar bg-${seoColor}-500" style="width:${listing.seo_score}%"></div>
-      </div>
+      <div class="bg-gray-100 rounded-full h-1.5 mb-4"><div class="seo-bar bg-${col}-500" style="width:${listing.seo_score}%"></div></div>
       <div class="border-b border-gray-100 flex gap-4 mb-4 text-sm">
         <button onclick="switchTab(${idx},'bullets')" class="tab-active pb-2" id="tab-${idx}-bullets">Bullet Points</button>
         <button onclick="switchTab(${idx},'desc')" class="pb-2 text-gray-400" id="tab-${idx}-desc">Description</button>
         <button onclick="switchTab(${idx},'kw')" class="pb-2 text-gray-400" id="tab-${idx}-kw">Mots-clés</button>
         <button onclick="switchTab(${idx},'aplus')" class="pb-2 text-gray-400" id="tab-${idx}-aplus">Contenu A+</button>
       </div>
-      <div id="content-${idx}-bullets">
-        <ul class="space-y-2">${listing.bullet_points.map(bp => `<li class="flex gap-2 text-sm text-gray-700"><span class="text-purple-500 flex-shrink-0 mt-0.5">▸</span><span>${bp}</span></li>`).join('')}</ul>
-      </div>
-      <div id="content-${idx}-desc" class="hidden">
-        <div class="text-sm text-gray-700 leading-relaxed max-h-48 overflow-y-auto">${listing.description}</div>
-      </div>
-      <div id="content-${idx}-kw" class="hidden">
-        <div class="bg-gray-50 rounded-lg p-3">
-          <p class="text-xs text-gray-500 mb-2 font-medium">Backend Keywords (${listing.backend_keywords.length} caractères)</p>
-          <p class="text-sm text-gray-700 font-mono leading-relaxed">${listing.backend_keywords}</p>
-        </div>
-      </div>
-      <div id="content-${idx}-aplus" class="hidden">
-        ${listing.a_plus_content ? `
-          <div class="space-y-3">
-            <div class="bg-purple-50 rounded-lg p-3"><p class="font-semibold text-purple-800 text-sm">✨ ${listing.a_plus_content.headline}</p></div>
-            ${(listing.a_plus_content.modules||[]).map(m=>`<div class="border border-gray-100 rounded-lg p-3"><p class="font-medium text-gray-700 text-xs uppercase tracking-wide mb-1">${m.type?.replace('_',' ')||''}</p><p class="font-semibold text-gray-800 text-sm mb-1">${m.title||''}</p><p class="text-gray-600 text-sm">${m.body||''}</p></div>`).join('')}
-          </div>` : '<p class="text-gray-400 text-sm">Non disponible</p>'}
-      </div>
+      <div id="content-${idx}-bullets"><ul class="space-y-2">${listing.bullet_points.map(b=>`<li class="flex gap-2 text-sm text-gray-700"><span class="text-purple-500 flex-shrink-0">▸</span>${b}</li>`).join('')}</ul></div>
+      <div id="content-${idx}-desc" class="hidden"><div class="text-sm text-gray-700 leading-relaxed max-h-48 overflow-y-auto">${listing.description}</div></div>
+      <div id="content-${idx}-kw" class="hidden"><div class="bg-gray-50 rounded-lg p-3"><p class="text-xs text-gray-500 mb-2 font-medium">Backend Keywords (${listing.backend_keywords.length} car.)</p><p class="text-sm font-mono text-gray-700">${listing.backend_keywords}</p></div></div>
+      <div id="content-${idx}-aplus" class="hidden">${listing.a_plus_content ? `<div class="space-y-3"><div class="bg-purple-50 rounded-lg p-3"><p class="font-semibold text-purple-800 text-sm">✨ ${listing.a_plus_content.headline}</p></div>${(listing.a_plus_content.modules||[]).map(m=>`<div class="border border-gray-100 rounded-lg p-3"><p class="text-xs text-gray-500 uppercase tracking-wide mb-1">${(m.type||'').replace('_',' ')}</p><p class="font-semibold text-gray-800 text-sm mb-1">${m.title||''}</p><p class="text-gray-600 text-sm">${m.body||''}</p></div>`).join('')}</div>` : '<p class="text-gray-400 text-sm">Non disponible</p>'}</div>
     </div>
     <div class="border-t border-gray-50 px-5 py-3 bg-gray-50/50 flex items-center gap-3">
       ${listing.price ? `<span class="text-sm font-bold text-gray-800">${listing.price.toFixed(2)} €</span>` : ''}
@@ -703,66 +736,66 @@ function createListingCard(listing, idx) {
 function switchTab(idx, tab) {
   ['bullets','desc','kw','aplus'].forEach(t => {
     document.getElementById(`content-${idx}-${t}`)?.classList.add('hidden');
-    const btn = document.getElementById(`tab-${idx}-${t}`);
-    if (btn) { btn.classList.remove('tab-active'); btn.classList.add('text-gray-400'); }
+    const b = document.getElementById(`tab-${idx}-${t}`);
+    if(b){b.classList.remove('tab-active');b.classList.add('text-gray-400');}
   });
   document.getElementById(`content-${idx}-${tab}`)?.classList.remove('hidden');
-  const active = document.getElementById(`tab-${idx}-${tab}`);
-  if (active) { active.classList.add('tab-active'); active.classList.remove('text-gray-400'); }
+  const a = document.getElementById(`tab-${idx}-${tab}`);
+  if(a){a.classList.add('tab-active');a.classList.remove('text-gray-400');}
 }
 
 function copyListing(idx) {
   navigator.clipboard.writeText(JSON.stringify(generatedListings[idx], null, 2));
-  showToast('📋', 'JSON copié dans le presse-papiers');
+  showToast('📋', 'JSON copié');
 }
 
 async function exportResults(format) {
   if (!generatedListings.length) return;
-  const endpoints = { csv: '/api/export/csv', json: '/api/export/json', flat: '/api/export/flat-file' };
-  const filenames = { csv: 'listings.csv', json: 'listings.json', flat: 'amazon_flat_file.txt' };
-  try {
-    const r = await fetch(`${API}${endpoints[format]}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(generatedListings) });
-    const blob = await r.blob();
-    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = filenames[format]; a.click();
-    showToast('✅', `Export ${format.toUpperCase()} téléchargé`);
-  } catch (e) { showToast('❌', `Erreur export: ${e.message}`, true); }
+  const ep = {csv:'/api/export/csv', json:'/api/export/json', flat:'/api/export/flat-file'};
+  const fn = {csv:'listings.csv', json:'listings.json', flat:'amazon_flat_file.txt'};
+  const r = await authFetch(ep[format], { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(generatedListings) });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(await r.blob());
+  a.download = fn[format];
+  a.click();
+  showToast('✅', `Export ${format.toUpperCase()} téléchargé`);
 }
 
 function showPublishModal() { document.getElementById('publishModal').classList.remove('hidden'); }
 function closePublishModal() { document.getElementById('publishModal').classList.add('hidden'); }
 
 async function publishListings() {
-  if (!generatedListings.length) return;
-  const marketplace = document.getElementById('publishMarketplace').value;
-  const dryRun = document.getElementById('dryRunCheck').checked;
   closePublishModal();
-  showToast('⏳', `Publication ${dryRun ? 'Dry Run' : 'live'} en cours...`);
-  try {
-    const r = await fetch(`${API}/api/publish`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ listings: generatedListings, marketplace, dry_run: dryRun }) });
-    const result = await r.json();
-    showToast('✅', `${result.published} fiche(s) publiée(s) — ${result.failed} erreur(s)`);
-    setStep(4);
-  } catch (e) { showToast('❌', `Erreur: ${e.message}`, true); }
+  const r = await authFetch('/api/publish', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ listings: generatedListings, marketplace: document.getElementById('publishMarketplace').value, dry_run: document.getElementById('dryRunCheck').checked }),
+  });
+  const result = await r.json();
+  showToast('✅', `${result.published} fiche(s) publiée(s)`);
+  setStep(4);
 }
 
 function setStep(n) {
-  for (let i = 1; i <= 4; i++) {
-    const el = document.getElementById(`step${i}`);
-    if (i < n) el.className = 'flex items-center gap-2 px-4 py-2 rounded-full bg-green-500 text-white font-medium';
-    else if (i === n) el.className = 'flex items-center gap-2 px-4 py-2 rounded-full bg-purple-600 text-white font-medium';
-    else el.className = 'flex items-center gap-2 px-4 py-2 rounded-full bg-gray-200 text-gray-500 font-medium';
+  for(let i=1;i<=4;i++){
+    const el=document.getElementById(`step${i}`);
+    if(i<n) el.className='flex items-center gap-2 px-4 py-2 rounded-full bg-green-500 text-white font-medium';
+    else if(i===n) el.className='flex items-center gap-2 px-4 py-2 rounded-full bg-purple-600 text-white font-medium';
+    else el.className='flex items-center gap-2 px-4 py-2 rounded-full bg-gray-200 text-gray-500 font-medium';
   }
 }
 
 let toastTimeout;
-function showToast(icon, msg, isError = false) {
-  const toast = document.getElementById('toast');
-  document.getElementById('toastIcon').textContent = icon;
-  document.getElementById('toastMsg').textContent = msg;
-  toast.className = `fixed bottom-6 right-6 ${isError ? 'bg-red-700' : 'bg-gray-900'} text-white rounded-xl px-5 py-3 shadow-2xl text-sm font-medium z-50 flex items-center gap-2 max-w-sm`;
+function showToast(icon, msg, isError=false) {
+  const t=document.getElementById('toast');
+  document.getElementById('toastIcon').textContent=icon;
+  document.getElementById('toastMsg').textContent=msg;
+  t.className=`fixed bottom-6 right-6 ${isError?'bg-red-700':'bg-gray-900'} text-white rounded-xl px-5 py-3 shadow-2xl text-sm font-medium z-50 flex items-center gap-2 max-w-sm`;
   clearTimeout(toastTimeout);
-  toastTimeout = setTimeout(() => toast.classList.add('hidden'), 3000);
+  toastTimeout=setTimeout(()=>t.classList.add('hidden'),3500);
 }
+
+// Start
+initApp();
 </script>
 </body>
 </html>
