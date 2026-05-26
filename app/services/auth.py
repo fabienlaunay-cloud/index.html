@@ -77,26 +77,35 @@ def authenticate_user(email: str, password: str):
     return dict(user)
 
 
-def create_user(email: str, password: str, name: str = "") -> dict:
+def create_user(email: str, password: str, name: str = "", is_admin: bool = False) -> dict:
     import sqlite3
     conn = get_db()
     try:
         conn.execute(
-            "INSERT INTO users (email, password_hash, name) VALUES (?, ?, ?)",
-            (email.lower().strip(), hash_password(password), name),
+            "INSERT INTO users (email, password_hash, name, is_admin) VALUES (?, ?, ?, ?)",
+            (email.lower().strip(), hash_password(password), name, 1 if is_admin else 0),
         )
         conn.commit()
-        return {"email": email.lower().strip(), "name": name}
+        return {"email": email.lower().strip(), "name": name, "is_admin": is_admin}
     except sqlite3.IntegrityError:
         raise ValueError(f"L'email {email} existe déjà")
     finally:
         conn.close()
 
 
+def is_admin(email: str) -> bool:
+    conn = get_db()
+    row = conn.execute(
+        "SELECT is_admin FROM users WHERE email = ? AND is_active = 1", (email.lower(),)
+    ).fetchone()
+    conn.close()
+    return bool(row and row["is_admin"])
+
+
 def list_users() -> list:
     conn = get_db()
     rows = conn.execute(
-        "SELECT email, name, is_active, created_at FROM users ORDER BY created_at DESC"
+        "SELECT email, name, is_active, is_admin, created_at FROM users ORDER BY created_at DESC"
     ).fetchall()
     conn.close()
     return [dict(r) for r in rows]

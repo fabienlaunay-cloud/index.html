@@ -20,8 +20,14 @@ def init_db():
             password_hash TEXT NOT NULL,
             name TEXT DEFAULT '',
             is_active INTEGER DEFAULT 1,
+            is_admin INTEGER DEFAULT 0,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
+    # Migration : ajoute is_admin si la table existe déjà sans cette colonne
+    try:
+        conn.execute("ALTER TABLE users ADD COLUMN is_admin INTEGER DEFAULT 0")
+    except Exception:
+        pass
     conn.commit()
     conn.close()

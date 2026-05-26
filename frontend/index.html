@@ -318,20 +318,8 @@
       <button onclick="closeAdminPanel()" class="text-gray-400 hover:text-gray-600 text-xl">✕</button>
     </div>
 
-    <!-- Admin auth -->
-    <div id="adminAuth" class="p-6">
-      <p class="text-gray-600 text-sm mb-4">Entrez votre clé admin pour accéder à la gestion des utilisateurs.</p>
-      <div class="flex gap-3">
-        <input id="adminSecretInput" type="password" placeholder="Clé admin..."
-          class="flex-1 border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-purple-300 outline-none"
-          onkeydown="if(event.key==='Enter') adminLogin()">
-        <button onclick="adminLogin()" class="gradient-bg text-white px-5 py-2.5 rounded-lg text-sm font-semibold">Accéder</button>
-      </div>
-      <div id="adminAuthError" class="hidden mt-3 text-red-600 text-sm"></div>
-    </div>
-
     <!-- Admin dashboard -->
-    <div id="adminDashboard" class="hidden p-6 space-y-6">
+    <div id="adminDashboard" class="p-6 space-y-6">
       <!-- Add user -->
       <div class="bg-purple-50 rounded-xl p-5">
         <h4 class="font-semibold text-gray-800 mb-4">➕ Ajouter un client</h4>
@@ -521,34 +509,18 @@ document.addEventListener('click', e => {
 function showAdminPanel() {
   document.getElementById('userDropdown').classList.add('hidden');
   document.getElementById('adminModal').classList.remove('hidden');
-  document.getElementById('adminAuth').classList.remove('hidden');
-  document.getElementById('adminDashboard').classList.add('hidden');
+  loadUsers();
 }
 function closeAdminPanel() {
   document.getElementById('adminModal').classList.add('hidden');
-  adminSecret = '';
-  document.getElementById('adminSecretInput').value = '';
-}
-
-async function adminLogin() {
-  const secret = document.getElementById('adminSecretInput').value;
-  const errEl = document.getElementById('adminAuthError');
-  try {
-    const r = await authFetch('/api/admin/users', { headers: { 'Authorization': `Bearer ${token}`, 'x-admin-secret': secret } });
-    if (!r.ok) throw new Error('Clé incorrecte');
-    adminSecret = secret;
-    document.getElementById('adminAuth').classList.add('hidden');
-    document.getElementById('adminDashboard').classList.remove('hidden');
-    errEl.classList.add('hidden');
-    renderUsers(await r.json());
-  } catch (e) {
-    errEl.textContent = e.message;
-    errEl.classList.remove('hidden');
-  }
 }
 
 async function loadUsers() {
-  const r = await authFetch('/api/admin/users', { headers: { 'Authorization': `Bearer ${token}`, 'x-admin-secret': adminSecret } });
+  const r = await authFetch('/api/admin/users');
+  if (!r.ok) {
+    document.getElementById('usersList').innerHTML = '<p class="text-red-500 text-sm text-center py-4">Accès refusé — compte admin requis</p>';
+    return;
+  }
   renderUsers(await r.json());
 }
 
@@ -580,7 +552,7 @@ async function addUser() {
   try {
     const r = await authFetch('/api/admin/users', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`, 'x-admin-secret': adminSecret },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password, name }),
     });
     const data = await r.json();
@@ -601,10 +573,7 @@ async function addUser() {
 
 async function deleteUser(email) {
   if (!confirm(`Supprimer définitivement ${email} ?`)) return;
-  await authFetch(`/api/admin/users/${encodeURIComponent(email)}`, {
-    method: 'DELETE',
-    headers: { 'Authorization': `Bearer ${token}`, 'x-admin-secret': adminSecret },
-  });
+  await authFetch(`/api/admin/users/${encodeURIComponent(email)}`, { method: 'DELETE' });
   loadUsers();
 }
 
