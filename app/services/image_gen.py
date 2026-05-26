@@ -112,6 +112,9 @@ async def _generate_image_dalle3(prompt: str, image_id: str) -> Optional[str]:
     if not api_key:
         return None
 
+    # DALL-E 3 limite les prompts à 4000 caractères
+    prompt = prompt[:3900] if len(prompt) > 3900 else prompt
+
     size = "1024x1024"
     headers = {
         "Authorization": f"Bearer {api_key}",
@@ -132,7 +135,9 @@ async def _generate_image_dalle3(prompt: str, image_id: str) -> Optional[str]:
             headers=headers,
             json=body,
         )
-        resp.raise_for_status()
+        if not resp.is_success:
+            error_body = resp.json() if resp.headers.get("content-type", "").startswith("application/json") else resp.text
+            raise Exception(f"OpenAI {resp.status_code}: {error_body}")
         return resp.json()["data"][0]["url"]
 
 
