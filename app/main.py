@@ -21,7 +21,7 @@ from app.db import init_db
 from app.routes.auth import router as auth_router, admin_router
 
 # Routes sans authentification
-PUBLIC_PATHS = {"/", "/health", "/api/auth/login", "/api/marketplaces"}
+PUBLIC_PATHS = {"/", "/health", "/api/auth/login", "/api/auth/setup", "/api/auth/needs-setup", "/api/marketplaces"}
 
 
 class AuthMiddleware(BaseHTTPMiddleware):

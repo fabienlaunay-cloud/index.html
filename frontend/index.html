@@ -72,42 +72,82 @@
       </div>
     </div>
 
-    <!-- Formulaire login -->
+    <!-- Formulaire login / setup -->
     <div class="login-card rounded-3xl p-8 w-full max-w-md mx-auto">
-      <div class="text-center mb-8">
-        <div class="w-16 h-16 gradient-bg rounded-2xl flex items-center justify-center text-3xl mx-auto mb-4 shadow-lg">🤖</div>
-        <h3 class="text-white text-2xl font-bold">Accès client</h3>
-        <p class="text-white/50 mt-1 text-sm">Connectez-vous à votre espace SynqIO</p>
-      </div>
 
-      <div id="loginError" class="hidden mb-4 bg-red-500/20 border border-red-500/30 rounded-xl px-4 py-3 text-red-300 text-sm text-center"></div>
-
-      <div class="space-y-4">
-        <div>
-          <label class="text-white/70 text-sm font-medium block mb-1.5">Email</label>
-          <input id="loginEmail" type="email" placeholder="vous@exemple.com"
-            class="input-auth w-full rounded-xl px-4 py-3 text-sm"
-            onkeydown="if(event.key==='Enter') doLogin()">
+      <!-- SETUP (premier lancement) -->
+      <div id="setupForm">
+        <div class="text-center mb-8">
+          <div class="w-16 h-16 gradient-bg rounded-2xl flex items-center justify-center text-3xl mx-auto mb-4 shadow-lg">🔧</div>
+          <h3 class="text-white text-2xl font-bold">Premier lancement</h3>
+          <p class="text-white/50 mt-1 text-sm">Créez votre compte administrateur</p>
         </div>
-        <div>
-          <label class="text-white/70 text-sm font-medium block mb-1.5">Mot de passe</label>
-          <div class="relative">
-            <input id="loginPassword" type="password" placeholder="••••••••"
-              class="input-auth w-full rounded-xl px-4 py-3 text-sm pr-12"
-              onkeydown="if(event.key==='Enter') doLogin()">
-            <button onclick="togglePwd()" class="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 hover:text-white/70 text-lg">👁</button>
+        <div id="setupError" class="hidden mb-4 bg-red-500/20 border border-red-500/30 rounded-xl px-4 py-3 text-red-300 text-sm text-center"></div>
+        <div class="space-y-4">
+          <div>
+            <label class="text-white/70 text-sm font-medium block mb-1.5">Votre nom</label>
+            <input id="setupName" type="text" placeholder="Fabien Launay"
+              class="input-auth w-full rounded-xl px-4 py-3 text-sm"
+              onkeydown="if(event.key==='Enter') doSetup()">
           </div>
+          <div>
+            <label class="text-white/70 text-sm font-medium block mb-1.5">Email</label>
+            <input id="setupEmail" type="email" placeholder="vous@synqio.io"
+              class="input-auth w-full rounded-xl px-4 py-3 text-sm"
+              onkeydown="if(event.key==='Enter') doSetup()">
+          </div>
+          <div>
+            <label class="text-white/70 text-sm font-medium block mb-1.5">Mot de passe</label>
+            <div class="relative">
+              <input id="setupPassword" type="password" placeholder="Choisissez un mot de passe fort"
+                class="input-auth w-full rounded-xl px-4 py-3 text-sm pr-12"
+                onkeydown="if(event.key==='Enter') doSetup()">
+              <button onclick="togglePwdSetup()" class="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 hover:text-white/70 text-lg">👁</button>
+            </div>
+          </div>
+          <button id="setupBtn" onclick="doSetup()"
+            class="btn-login w-full text-white rounded-xl py-3.5 font-semibold text-base shadow-lg mt-2">
+            Créer mon compte →
+          </button>
         </div>
-        <button id="loginBtn" onclick="doLogin()"
-          class="btn-login w-full text-white rounded-xl py-3.5 font-semibold text-base shadow-lg mt-2">
-          Se connecter →
-        </button>
+        <p class="text-white/20 text-xs text-center mt-6">SynqIO — Propulsé par Claude d'Anthropic</p>
       </div>
 
-      <div class="mt-8 pt-6 border-t border-white/10 text-center space-y-2">
-        <p class="text-white/30 text-xs">Accès réservé aux clients abonnés</p>
-        <p class="text-white/20 text-xs">SynqIO — Propulsé par Claude d'Anthropic</p>
+      <!-- LOGIN (normal) -->
+      <div id="loginForm" class="hidden">
+        <div class="text-center mb-8">
+          <div class="w-16 h-16 gradient-bg rounded-2xl flex items-center justify-center text-3xl mx-auto mb-4 shadow-lg">🤖</div>
+          <h3 class="text-white text-2xl font-bold">Accès client</h3>
+          <p class="text-white/50 mt-1 text-sm">Connectez-vous à votre espace SynqIO</p>
+        </div>
+        <div id="loginError" class="hidden mb-4 bg-red-500/20 border border-red-500/30 rounded-xl px-4 py-3 text-red-300 text-sm text-center"></div>
+        <div class="space-y-4">
+          <div>
+            <label class="text-white/70 text-sm font-medium block mb-1.5">Email</label>
+            <input id="loginEmail" type="email" placeholder="vous@exemple.com"
+              class="input-auth w-full rounded-xl px-4 py-3 text-sm"
+              onkeydown="if(event.key==='Enter') doLogin()">
+          </div>
+          <div>
+            <label class="text-white/70 text-sm font-medium block mb-1.5">Mot de passe</label>
+            <div class="relative">
+              <input id="loginPassword" type="password" placeholder="••••••••"
+                class="input-auth w-full rounded-xl px-4 py-3 text-sm pr-12"
+                onkeydown="if(event.key==='Enter') doLogin()">
+              <button onclick="togglePwd()" class="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 hover:text-white/70 text-lg">👁</button>
+            </div>
+          </div>
+          <button id="loginBtn" onclick="doLogin()"
+            class="btn-login w-full text-white rounded-xl py-3.5 font-semibold text-base shadow-lg mt-2">
+            Se connecter →
+          </button>
+        </div>
+        <div class="mt-8 pt-6 border-t border-white/10 text-center space-y-2">
+          <p class="text-white/30 text-xs">Accès réservé aux clients abonnés</p>
+          <p class="text-white/20 text-xs">SynqIO — Propulsé par Claude d'Anthropic</p>
+        </div>
       </div>
+
     </div>
   </div>
 </div>
@@ -385,6 +425,7 @@ async function initApp() {
 function showLoginScreen() {
   document.getElementById('login-screen').classList.remove('hidden');
   document.getElementById('app').classList.add('hidden');
+  checkNeedsSetup();
 }
 
 function showApp(email) {
@@ -792,6 +833,63 @@ function showToast(icon, msg, isError=false) {
   t.className=`fixed bottom-6 right-6 ${isError?'bg-red-700':'bg-gray-900'} text-white rounded-xl px-5 py-3 shadow-2xl text-sm font-medium z-50 flex items-center gap-2 max-w-sm`;
   clearTimeout(toastTimeout);
   toastTimeout=setTimeout(()=>t.classList.add('hidden'),3500);
+}
+
+// ── Setup premier lancement ───────────────────────────────────────────────────
+async function checkNeedsSetup() {
+  try {
+    const r = await fetch(`${API}/api/auth/needs-setup`);
+    const data = await r.json();
+    if (data.needs_setup) {
+      document.getElementById('setupForm').classList.remove('hidden');
+      document.getElementById('loginForm').classList.add('hidden');
+    } else {
+      document.getElementById('setupForm').classList.add('hidden');
+      document.getElementById('loginForm').classList.remove('hidden');
+    }
+  } catch {
+    document.getElementById('setupForm').classList.add('hidden');
+    document.getElementById('loginForm').classList.remove('hidden');
+  }
+}
+
+async function doSetup() {
+  const name = document.getElementById('setupName').value.trim();
+  const email = document.getElementById('setupEmail').value.trim();
+  const password = document.getElementById('setupPassword').value;
+  const btn = document.getElementById('setupBtn');
+  const errEl = document.getElementById('setupError');
+
+  if (!email || !password) { errEl.textContent = 'Email et mot de passe requis'; errEl.classList.remove('hidden'); return; }
+  if (password.length < 8) { errEl.textContent = 'Mot de passe trop court (8 caractères min)'; errEl.classList.remove('hidden'); return; }
+
+  btn.disabled = true;
+  btn.textContent = 'Création...';
+  errEl.classList.add('hidden');
+
+  try {
+    const r = await fetch(`${API}/api/auth/setup`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password, name }),
+    });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.detail || 'Erreur');
+    token = data.token;
+    localStorage.setItem('synqio_token', token);
+    currentUser = { email: data.email };
+    showApp(data.email);
+  } catch (e) {
+    errEl.textContent = e.message;
+    errEl.classList.remove('hidden');
+    btn.disabled = false;
+    btn.textContent = 'Créer mon compte →';
+  }
+}
+
+function togglePwdSetup() {
+  const input = document.getElementById('setupPassword');
+  input.type = input.type === 'password' ? 'text' : 'password';
 }
 
 // Start

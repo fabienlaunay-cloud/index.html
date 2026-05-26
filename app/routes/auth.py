@@ -1,10 +1,11 @@
 import os
 from fastapi import APIRouter, HTTPException, Header
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel
 from app.services.auth import (
     authenticate_user, create_token, verify_token,
     create_user, list_users, delete_user, toggle_user,
 )
+from app.db import get_db
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 admin_router = APIRouter(prefix="/api/admin", tags=["admin"])
@@ -36,6 +37,28 @@ def _check_admin(x_admin_secret: str = None):
 
 
 # ── Auth endpoints ────────────────────────────────────────────────────────────
+
+@router.get("/needs-setup")
+async def needs_setup():
+    """Retourne true si aucun utilisateur n'existe encore."""
+    conn = get_db()
+    count = conn.execute("SELECT COUNT(*) FROM users").fetchone()[0]
+    conn.close()
+    return {"needs_setup": count == 0}
+
+
+@router.post("/setup")
+async def setup_first_user(req: CreateUserRequest):
+    """Crée le premier compte — fonctionne uniquement si la base est vide."""
+    conn = get_db()
+    count = conn.execute("SELECT COUNT(*) FROM users").fetchone()[0]
+    conn.close()
+    if count > 0:
+        raise HTTPException(403, "Setup déjà effectué")
+    user = create_user(req.email, req.password, req.name)
+    token = create_token(req.email)
+    return {"token": token, "email": user["email"], "name": user["name"]}
+
 
 @router.post("/login")
 async def login(req: LoginRequest):
