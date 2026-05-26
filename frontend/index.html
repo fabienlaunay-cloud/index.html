@@ -5,10 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>MarketplaceAI — Agent Intégrateur</title>
 <script src="https://cdn.tailwindcss.com"></script>
+<script src="https://identity.netlify.com/v1/netlify-identity-widget.js"></script>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
   * { font-family: 'Inter', sans-serif; }
   .gradient-bg { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+  .gradient-text { background: linear-gradient(135deg, #667eea, #764ba2); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
   .card-hover { transition: all 0.2s ease; }
   .card-hover:hover { transform: translateY(-2px); box-shadow: 0 10px 40px rgba(0,0,0,0.12); }
   .drop-zone { border: 2px dashed #c4b5fd; background: #faf5ff; transition: all 0.2s; }
@@ -17,14 +19,124 @@
   .tab-active { border-bottom: 3px solid #7c3aed; color: #7c3aed; font-weight: 600; }
   .spinner { border: 3px solid #e5e7eb; border-top-color: #7c3aed; border-radius: 50%; width: 24px; height: 24px; animation: spin 0.8s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
-  .badge-active { background: #d1fae5; color: #065f46; }
-  .badge-beta { background: #fef3c7; color: #92400e; }
-  pre { white-space: pre-wrap; word-break: break-word; }
   .pulse { animation: pulse 2s infinite; }
   @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
+  #login-screen { background: linear-gradient(135deg, #0f0c29, #302b63, #24243e); }
+  .login-card { backdrop-filter: blur(20px); background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); }
+  .feature-item { border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.03); }
 </style>
 </head>
 <body class="bg-gray-50 min-h-screen">
+
+<!-- ═══════════════════════════════════════════════════════════════
+     LOGIN SCREEN
+═══════════════════════════════════════════════════════════════ -->
+<div id="login-screen" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+
+  <!-- Background decorations -->
+  <div class="absolute inset-0 overflow-hidden pointer-events-none">
+    <div class="absolute top-1/4 left-1/4 w-96 h-96 bg-purple-600/20 rounded-full blur-3xl"></div>
+    <div class="absolute bottom-1/4 right-1/4 w-80 h-80 bg-blue-600/20 rounded-full blur-3xl"></div>
+  </div>
+
+  <div class="relative w-full max-w-5xl flex gap-12 items-center">
+
+    <!-- LEFT: Branding -->
+    <div class="hidden lg:flex flex-col flex-1 text-white">
+      <div class="flex items-center gap-4 mb-10">
+        <div class="w-14 h-14 bg-white/10 rounded-2xl flex items-center justify-center text-3xl border border-white/20">🤖</div>
+        <div>
+          <h1 class="text-2xl font-bold">MarketplaceAI</h1>
+          <p class="text-white/50 text-sm">Agent Intégrateur — Powered by Claude</p>
+        </div>
+      </div>
+
+      <h2 class="text-4xl font-bold leading-tight mb-4">
+        Transformez vos données<br>
+        <span class="text-purple-300">en fiches produits</span><br>
+        prêtes à vendre
+      </h2>
+      <p class="text-white/60 text-lg mb-10">
+        L'IA génère automatiquement vos titres SEO, bullet points, mots-clés et contenu A+ optimisés pour Amazon et les marketplaces européennes.
+      </p>
+
+      <div class="space-y-3">
+        <div class="feature-item rounded-xl px-4 py-3 flex items-center gap-3">
+          <span class="text-2xl">📊</span>
+          <div>
+            <p class="font-medium text-white/90">Import CSV, Excel, JSON, PIM</p>
+            <p class="text-white/40 text-sm">Glissez votre catalogue, l'agent fait le reste</p>
+          </div>
+        </div>
+        <div class="feature-item rounded-xl px-4 py-3 flex items-center gap-3">
+          <span class="text-2xl">✨</span>
+          <div>
+            <p class="font-medium text-white/90">SEO Amazon optimisé par IA</p>
+            <p class="text-white/40 text-sm">Titre, 5 bullets, keywords, contenu A+</p>
+          </div>
+        </div>
+        <div class="feature-item rounded-xl px-4 py-3 flex items-center gap-3">
+          <span class="text-2xl">🌍</span>
+          <div>
+            <p class="font-medium text-white/90">8 marketplaces européennes</p>
+            <p class="text-white/40 text-sm">Amazon FR/DE/IT/ES/UK, Cdiscount, Fnac, Bol</p>
+          </div>
+        </div>
+        <div class="feature-item rounded-xl px-4 py-3 flex items-center gap-3">
+          <span class="text-2xl">🚀</span>
+          <div>
+            <p class="font-medium text-white/90">Publication directe Seller Central</p>
+            <p class="text-white/40 text-sm">Injection via Amazon SP-API</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT: Login card -->
+    <div class="login-card rounded-3xl p-8 w-full max-w-md mx-auto">
+      <div class="text-center mb-8">
+        <div class="w-16 h-16 gradient-bg rounded-2xl flex items-center justify-center text-3xl mx-auto mb-4 shadow-lg">🤖</div>
+        <h3 class="text-white text-2xl font-bold">Accès client</h3>
+        <p class="text-white/50 mt-1 text-sm">Connectez-vous à votre espace MarketplaceAI</p>
+      </div>
+
+      <!-- Loading state -->
+      <div id="auth-loading" class="text-center py-8">
+        <div class="spinner mx-auto mb-3" style="border-top-color: #a78bfa;"></div>
+        <p class="text-white/40 text-sm">Vérification...</p>
+      </div>
+
+      <!-- Login button (Netlify Identity) -->
+      <div id="auth-buttons" class="hidden space-y-3">
+        <button onclick="netlifyIdentity.open('login')"
+          class="w-full gradient-bg text-white rounded-xl py-3.5 font-semibold text-base shadow-lg hover:opacity-90 transition flex items-center justify-center gap-2">
+          <span>→</span> Se connecter
+        </button>
+        <p class="text-center text-white/30 text-xs pt-2">
+          Accès réservé aux clients abonnés.<br>
+          Contactez-nous pour obtenir votre accès.
+        </p>
+      </div>
+
+      <!-- Logged in state (brief) -->
+      <div id="auth-success" class="hidden text-center py-4">
+        <div class="text-4xl mb-3">✅</div>
+        <p class="text-white font-semibold">Connecté !</p>
+        <p class="text-white/50 text-sm mt-1">Chargement de votre espace...</p>
+      </div>
+
+      <div class="mt-8 pt-6 border-t border-white/10 text-center">
+        <p class="text-white/20 text-xs">MarketplaceAI — Propulsé par Claude d'Anthropic</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════════
+     MAIN APP (hidden until logged in)
+═══════════════════════════════════════════════════════════════ -->
+<div id="app" class="hidden">
 
 <!-- Header -->
 <header class="gradient-bg text-white shadow-lg">
@@ -51,6 +163,21 @@
         <option value="fnac">🇫🇷 Fnac</option>
         <option value="bol">🇳🇱 Bol.com</option>
       </select>
+      <!-- User menu -->
+      <div id="userMenu" class="flex items-center gap-2 bg-white/10 rounded-lg px-3 py-1.5 text-sm cursor-pointer hover:bg-white/20 transition" onclick="toggleUserMenu()">
+        <div class="w-6 h-6 bg-white/30 rounded-full flex items-center justify-center text-xs font-bold" id="userAvatar">?</div>
+        <span id="userEmail" class="max-w-32 truncate">...</span>
+        <span class="text-white/50">▾</span>
+      </div>
+      <div id="userDropdown" class="hidden absolute right-6 top-16 bg-white rounded-xl shadow-2xl border border-gray-100 py-2 w-48 z-40">
+        <div class="px-4 py-2 border-b border-gray-100">
+          <p class="text-xs text-gray-400">Connecté en tant que</p>
+          <p class="text-sm font-medium text-gray-800 truncate" id="userEmailDropdown"></p>
+        </div>
+        <button onclick="logout()" class="w-full text-left px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition">
+          Se déconnecter
+        </button>
+      </div>
     </div>
   </div>
 </header>
@@ -79,16 +206,13 @@
 
   <div class="grid grid-cols-12 gap-6">
 
-    <!-- LEFT PANEL: Input -->
+    <!-- LEFT PANEL -->
     <div class="col-span-12 lg:col-span-4 space-y-4">
 
-      <!-- Upload card -->
       <div class="bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
         <h2 class="font-semibold text-gray-800 mb-4 flex items-center gap-2">
           <span class="text-purple-600">📂</span> Import Produits
         </h2>
-
-        <!-- Drop zone -->
         <div id="dropZone" class="drop-zone rounded-xl p-8 text-center cursor-pointer mb-4"
              onclick="document.getElementById('fileInput').click()">
           <div class="text-4xl mb-3">📋</div>
@@ -97,8 +221,6 @@
           <p class="text-purple-500 text-sm mt-3 font-medium">ou cliquez pour parcourir</p>
         </div>
         <input type="file" id="fileInput" accept=".csv,.xlsx,.xls,.json" class="hidden">
-
-        <!-- File info -->
         <div id="fileInfo" class="hidden bg-purple-50 rounded-lg p-3 mb-4 flex items-center gap-3">
           <span class="text-2xl" id="fileIcon">📄</span>
           <div>
@@ -107,8 +229,6 @@
           </div>
           <button onclick="clearFile()" class="ml-auto text-gray-400 hover:text-red-500">✕</button>
         </div>
-
-        <!-- Or paste demo data -->
         <div class="border-t border-gray-100 pt-4">
           <p class="text-xs text-gray-400 mb-3 font-medium uppercase tracking-wide">Ou tester avec données démo</p>
           <button onclick="loadDemoData()" class="w-full bg-purple-50 hover:bg-purple-100 text-purple-700 rounded-lg py-2.5 text-sm font-medium transition">
@@ -117,12 +237,10 @@
         </div>
       </div>
 
-      <!-- Options card -->
       <div class="bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
         <h2 class="font-semibold text-gray-800 mb-4 flex items-center gap-2">
           <span class="text-purple-600">⚙️</span> Paramètres IA
         </h2>
-
         <div class="space-y-4">
           <div>
             <label class="text-sm font-medium text-gray-700 block mb-1.5">Mots-clés prioritaires</label>
@@ -130,7 +248,6 @@
               class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-purple-300 focus:border-transparent outline-none">
             <p class="text-xs text-gray-400 mt-1">Séparés par des virgules</p>
           </div>
-
           <div>
             <label class="text-sm font-medium text-gray-700 block mb-1.5">Ton de rédaction</label>
             <select id="styleTone" class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-purple-300 outline-none">
@@ -141,13 +258,11 @@
               <option value="eco_responsable">Éco-responsable</option>
             </select>
           </div>
-
           <div class="flex items-center gap-2">
             <input type="checkbox" id="generateAPlus" class="w-4 h-4 accent-purple-600" checked>
             <label for="generateAPlus" class="text-sm text-gray-700">Générer le contenu A+</label>
           </div>
         </div>
-
         <button id="generateBtn" onclick="generateListings()"
           class="mt-5 w-full gradient-bg text-white rounded-xl py-3 font-semibold text-sm shadow-md hover:shadow-lg hover:opacity-90 transition flex items-center justify-center gap-2 disabled:opacity-50"
           disabled>
@@ -155,7 +270,6 @@
         </button>
       </div>
 
-      <!-- Products list (after parse) -->
       <div id="productsList" class="bg-white rounded-2xl shadow-sm p-6 border border-gray-100 hidden">
         <h2 class="font-semibold text-gray-800 mb-3 flex items-center gap-2">
           <span class="text-purple-600">📦</span> Produits détectés
@@ -165,10 +279,8 @@
       </div>
     </div>
 
-    <!-- RIGHT PANEL: Results -->
+    <!-- RIGHT PANEL -->
     <div class="col-span-12 lg:col-span-8">
-
-      <!-- Empty state -->
       <div id="emptyState" class="bg-white rounded-2xl shadow-sm border border-gray-100 flex flex-col items-center justify-center py-24 text-center">
         <div class="text-6xl mb-4">🤖</div>
         <h3 class="text-xl font-semibold text-gray-700 mb-2">Agent prêt</h3>
@@ -192,21 +304,17 @@
         </div>
       </div>
 
-      <!-- Loading state -->
-      <div id="loadingState" class="hidden bg-white rounded-2xl shadow-sm border border-gray-100 flex flex-col items-center justify-center py-24">
+      <div id="loadingState" class="hidden bg-white rounded-2xl shadow-sm border border-gray-100 flex-col items-center justify-center py-24">
         <div class="spinner mb-6"></div>
-        <h3 class="text-lg font-semibold text-gray-700 mb-2" id="loadingText">Génération en cours...</h3>
-        <p class="text-gray-400 text-sm" id="loadingSubText">Claude analyse et optimise vos fiches produits</p>
+        <h3 class="text-lg font-semibold text-gray-700 mb-2">Génération en cours...</h3>
+        <p class="text-gray-400 text-sm">Claude analyse et optimise vos fiches produits</p>
         <div class="mt-6 w-64 bg-gray-100 rounded-full h-2">
           <div id="progressBar" class="bg-purple-500 h-2 rounded-full transition-all duration-500" style="width:0%"></div>
         </div>
         <p id="progressText" class="text-xs text-gray-400 mt-2">0 / 0 produits traités</p>
       </div>
 
-      <!-- Results -->
       <div id="resultsState" class="hidden space-y-4">
-
-        <!-- Stats bar -->
         <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
           <div class="flex items-center justify-between mb-4">
             <div>
@@ -214,21 +322,12 @@
               <p id="statsText" class="text-sm text-gray-400 mt-0.5"></p>
             </div>
             <div class="flex gap-2">
-              <button onclick="exportResults('csv')" class="bg-green-50 hover:bg-green-100 text-green-700 rounded-lg px-3 py-2 text-sm font-medium transition flex items-center gap-1.5">
-                📊 CSV
-              </button>
-              <button onclick="exportResults('flat')" class="bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg px-3 py-2 text-sm font-medium transition flex items-center gap-1.5">
-                📋 Flat File Amazon
-              </button>
-              <button onclick="exportResults('json')" class="bg-gray-50 hover:bg-gray-100 text-gray-700 rounded-lg px-3 py-2 text-sm font-medium transition flex items-center gap-1.5">
-                { } JSON
-              </button>
-              <button onclick="showPublishModal()" class="gradient-bg text-white rounded-lg px-4 py-2 text-sm font-semibold transition hover:opacity-90 flex items-center gap-1.5">
-                🚀 Publier
-              </button>
+              <button onclick="exportResults('csv')" class="bg-green-50 hover:bg-green-100 text-green-700 rounded-lg px-3 py-2 text-sm font-medium transition">📊 CSV</button>
+              <button onclick="exportResults('flat')" class="bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg px-3 py-2 text-sm font-medium transition">📋 Flat File</button>
+              <button onclick="exportResults('json')" class="bg-gray-50 hover:bg-gray-100 text-gray-700 rounded-lg px-3 py-2 text-sm font-medium transition">{ } JSON</button>
+              <button onclick="showPublishModal()" class="gradient-bg text-white rounded-lg px-4 py-2 text-sm font-semibold transition hover:opacity-90">🚀 Publier</button>
             </div>
           </div>
-          <!-- Summary stats -->
           <div class="grid grid-cols-4 gap-3">
             <div class="bg-purple-50 rounded-xl p-3 text-center">
               <p id="statTotal" class="text-2xl font-bold text-purple-700">0</p>
@@ -248,13 +347,13 @@
             </div>
           </div>
         </div>
-
-        <!-- Listings cards -->
         <div id="listingsContainer" class="space-y-4"></div>
       </div>
     </div>
   </div>
 </main>
+</div><!-- /app -->
+
 
 <!-- Publish Modal -->
 <div id="publishModal" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
@@ -265,7 +364,7 @@
     </div>
     <div class="space-y-4">
       <div class="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-800">
-        ⚠️ Mode <strong id="publishModeLabel">Dry Run</strong> — aucune vraie publication sans credentials Amazon SP-API
+        ⚠️ Mode <strong>Dry Run</strong> — simulation sans envoi réel
       </div>
       <div>
         <label class="text-sm font-medium text-gray-700 block mb-1.5">Marketplace</label>
@@ -281,15 +380,10 @@
         <input type="checkbox" id="dryRunCheck" class="w-4 h-4 accent-purple-600" checked>
         <label for="dryRunCheck" class="text-sm text-gray-700">Mode Dry Run (simulation)</label>
       </div>
-      <p class="text-xs text-gray-400">En mode live, configurez AMAZON_REFRESH_TOKEN, AMAZON_LWA_CLIENT_ID, AMAZON_LWA_CLIENT_SECRET dans votre .env</p>
     </div>
     <div class="flex gap-3 mt-6">
-      <button onclick="closePublishModal()" class="flex-1 border border-gray-200 rounded-xl py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-50 transition">
-        Annuler
-      </button>
-      <button onclick="publishListings()" class="flex-1 gradient-bg text-white rounded-xl py-2.5 text-sm font-semibold hover:opacity-90 transition">
-        Confirmer
-      </button>
+      <button onclick="closePublishModal()" class="flex-1 border border-gray-200 rounded-xl py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-50 transition">Annuler</button>
+      <button onclick="publishListings()" class="flex-1 gradient-bg text-white rounded-xl py-2.5 text-sm font-semibold hover:opacity-90 transition">Confirmer</button>
     </div>
   </div>
 </div>
@@ -301,11 +395,92 @@
 </div>
 
 <script>
-const API = '';
-let parsedProducts = [];
-let generatedListings = [];
+// ── Netlify Identity Auth ─────────────────────────────────────────────────────
+window.netlifyIdentity = window.netlifyIdentity || {};
+
+function initAuth() {
+  // Check if running locally (no Netlify Identity)
+  const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+
+  if (isLocal) {
+    // Skip auth on localhost
+    showApp(null);
+    return;
+  }
+
+  if (typeof netlifyIdentity === 'undefined' || !netlifyIdentity.currentUser) {
+    // Script not loaded yet, retry
+    setTimeout(initAuth, 200);
+    return;
+  }
+
+  const user = netlifyIdentity.currentUser();
+  if (user) {
+    showApp(user);
+  } else {
+    document.getElementById('auth-loading').classList.add('hidden');
+    document.getElementById('auth-buttons').classList.remove('hidden');
+  }
+
+  netlifyIdentity.on('login', user => {
+    document.getElementById('auth-buttons').classList.add('hidden');
+    document.getElementById('auth-success').classList.remove('hidden');
+    setTimeout(() => showApp(user), 800);
+    netlifyIdentity.close();
+  });
+
+  netlifyIdentity.on('logout', () => {
+    document.getElementById('app').classList.add('hidden');
+    document.getElementById('login-screen').classList.remove('hidden');
+    document.getElementById('auth-success').classList.add('hidden');
+    document.getElementById('auth-buttons').classList.remove('hidden');
+  });
+}
+
+function showApp(user) {
+  document.getElementById('login-screen').classList.add('hidden');
+  document.getElementById('app').classList.remove('hidden');
+
+  if (user) {
+    const email = user.email || '';
+    const initial = email.charAt(0).toUpperCase();
+    document.getElementById('userAvatar').textContent = initial;
+    document.getElementById('userEmail').textContent = email;
+    document.getElementById('userEmailDropdown').textContent = email;
+  } else {
+    document.getElementById('userMenu').classList.add('hidden');
+  }
+
+  checkHealth();
+}
+
+function logout() {
+  if (typeof netlifyIdentity !== 'undefined' && netlifyIdentity.logout) {
+    netlifyIdentity.logout();
+  } else {
+    location.reload();
+  }
+}
+
+function toggleUserMenu() {
+  document.getElementById('userDropdown').classList.toggle('hidden');
+}
+
+document.addEventListener('click', e => {
+  const menu = document.getElementById('userMenu');
+  const dropdown = document.getElementById('userDropdown');
+  if (menu && !menu.contains(e.target)) {
+    dropdown?.classList.add('hidden');
+  }
+});
+
+// Start auth check
+setTimeout(initAuth, 100);
+
 
 // ── Health check ─────────────────────────────────────────────────────────────
+const API = '';
+
 async function checkHealth() {
   try {
     const r = await fetch(`${API}/health`);
@@ -317,12 +492,14 @@ async function checkHealth() {
       badge.innerHTML = '<div class="w-2 h-2 rounded-full bg-yellow-400"></div><span>Clé API manquante</span>';
     }
   } catch {
-    document.getElementById('healthBadge').innerHTML = '<div class="w-2 h-2 rounded-full bg-red-400"></div><span>Hors ligne</span>';
+    document.getElementById('healthBadge').innerHTML = '<div class="w-2 h-2 rounded-full bg-red-400"></div><span>Backend hors ligne</span>';
   }
 }
-checkHealth();
 
 // ── File handling ─────────────────────────────────────────────────────────────
+let parsedProducts = [];
+let generatedListings = [];
+
 const dropZone = document.getElementById('dropZone');
 const fileInput = document.getElementById('fileInput');
 
@@ -331,12 +508,9 @@ dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-ove
 dropZone.addEventListener('drop', e => {
   e.preventDefault();
   dropZone.classList.remove('drag-over');
-  const file = e.dataTransfer.files[0];
-  if (file) handleFile(file);
+  if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
 });
-fileInput.addEventListener('change', e => {
-  if (e.target.files[0]) handleFile(e.target.files[0]);
-});
+fileInput.addEventListener('change', e => { if (e.target.files[0]) handleFile(e.target.files[0]); });
 
 async function handleFile(file) {
   const icons = { csv: '📊', xlsx: '📗', xls: '📗', json: '📋' };
@@ -347,7 +521,6 @@ async function handleFile(file) {
   document.getElementById('fileInfo').classList.remove('hidden');
   dropZone.classList.add('hidden');
 
-  // Parse file
   const formData = new FormData();
   formData.append('file', file);
   try {
@@ -389,50 +562,11 @@ function showProductsList(products) {
   document.getElementById('productsList').classList.remove('hidden');
 }
 
-// ── Demo data ─────────────────────────────────────────────────────────────────
 function loadDemoData() {
   parsedProducts = [
-    {
-      sku: "CASQ-PRO-001",
-      name: "Casque Audio Sans Fil Bluetooth Premium",
-      brand: "SoundMax",
-      category: "Électronique",
-      description: "Casque audio haute fidélité avec réduction de bruit active",
-      price: 89.99,
-      ean: "3760123456789",
-      weight_kg: 0.28,
-      color: "Noir",
-      material: "Plastique ABS / Cuir synthétique",
-      features: ["Autonomie 30h", "Bluetooth 5.2", "ANC active", "Pliable", "Microphone intégré"],
-      extra: {}
-    },
-    {
-      sku: "CAFE-BIO-042",
-      name: "Café Éthiopien Bio Grain Arabica",
-      brand: "CaféTerre",
-      category: "Alimentation",
-      description: "Café single origin d'Éthiopie, torréfaction artisanale, notes de fruits et fleurs",
-      price: 14.90,
-      ean: "3760987654321",
-      weight_kg: 0.25,
-      features: ["Bio certifié", "Single origin", "Commerce équitable", "Torréfaction artisanale"],
-      extra: { "intensité": "5/10", "origine": "Yirgacheffe, Éthiopie" }
-    },
-    {
-      sku: "YOGA-MAT-007",
-      name: "Tapis de Yoga Antidérapant TPE Écologique",
-      brand: "ZenFit",
-      category: "Sport & Loisirs",
-      description: "Tapis yoga professionnel en TPE recyclé, double couche, épaisseur 6mm",
-      price: 39.95,
-      ean: "3760111222333",
-      weight_kg: 1.1,
-      dimensions_cm: "183 x 61 x 0.6",
-      color: "Violet / Gris",
-      material: "TPE recyclé",
-      features: ["Antidérapant", "Écologique", "6mm d'épaisseur", "Sangle incluse"],
-      extra: {}
-    }
+    { sku: "CASQ-PRO-001", name: "Casque Audio Sans Fil Bluetooth Premium", brand: "SoundMax", category: "Électronique", description: "Casque audio haute fidélité avec réduction de bruit active", price: 89.99, ean: "3760123456789", weight_kg: 0.28, color: "Noir", material: "Plastique ABS / Cuir synthétique", features: ["Autonomie 30h", "Bluetooth 5.2", "ANC active", "Pliable", "Microphone intégré"], images: [], extra: {} },
+    { sku: "CAFE-BIO-042", name: "Café Éthiopien Bio Grain Arabica", brand: "CaféTerre", category: "Alimentation", description: "Café single origin d'Éthiopie, torréfaction artisanale, notes de fruits et fleurs", price: 14.90, ean: "3760987654321", weight_kg: 0.25, features: ["Bio certifié", "Single origin", "Commerce équitable"], images: [], extra: { "intensité": "5/10" } },
+    { sku: "YOGA-MAT-007", name: "Tapis de Yoga Antidérapant TPE Écologique", brand: "ZenFit", category: "Sport & Loisirs", description: "Tapis yoga professionnel en TPE recyclé, double couche, épaisseur 6mm", price: 39.95, ean: "3760111222333", weight_kg: 1.1, dimensions_cm: "183 x 61 x 0.6", color: "Violet / Gris", material: "TPE recyclé", features: ["Antidérapant", "Écologique", "6mm"], images: [], extra: {} }
   ];
   showProductsList(parsedProducts);
   document.getElementById('generateBtn').disabled = false;
@@ -449,10 +583,13 @@ async function generateListings() {
   const focusKeywords = document.getElementById('focusKeywords').value;
   const styleTone = document.getElementById('styleTone').value;
 
-  showLoadingState();
+  document.getElementById('emptyState').classList.add('hidden');
+  document.getElementById('resultsState').classList.add('hidden');
+  document.getElementById('loadingState').classList.remove('hidden');
+  document.getElementById('loadingState').classList.add('flex');
+  document.getElementById('progressText').textContent = `0 / ${parsedProducts.length} produits traités`;
   setStep(2);
 
-  // Simulated progress
   let pct = 0;
   const progressInterval = setInterval(() => {
     pct = Math.min(pct + (100 / parsedProducts.length / 3), 90);
@@ -467,21 +604,14 @@ async function generateListings() {
       style_tone: styleTone,
       focus_keywords: focusKeywords ? focusKeywords.split(',').map(k => k.trim()).filter(Boolean) : []
     };
-
     const r = await fetch(`${API}/api/generate`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
     });
-
     clearInterval(progressInterval);
     document.getElementById('progressBar').style.width = '100%';
-
-    if (!r.ok) {
-      const e = await r.json();
-      throw new Error(e.detail || 'Erreur API');
-    }
-
+    if (!r.ok) { const e = await r.json(); throw new Error(e.detail || 'Erreur API'); }
     const result = await r.json();
     generatedListings = result.listings;
     showResults(result);
@@ -489,23 +619,11 @@ async function generateListings() {
     showToast('✅', `${result.success_count} fiche(s) générée(s) avec succès`);
   } catch (e) {
     clearInterval(progressInterval);
-    hideLoadingState();
+    document.getElementById('loadingState').classList.add('hidden');
+    document.getElementById('loadingState').classList.remove('flex');
+    document.getElementById('emptyState').classList.remove('hidden');
     showToast('❌', `Erreur: ${e.message}`, true);
   }
-}
-
-function showLoadingState() {
-  document.getElementById('emptyState').classList.add('hidden');
-  document.getElementById('resultsState').classList.add('hidden');
-  document.getElementById('loadingState').classList.remove('hidden');
-  document.getElementById('loadingState').classList.add('flex');
-  document.getElementById('progressText').textContent = `0 / ${parsedProducts.length} produits traités`;
-}
-
-function hideLoadingState() {
-  document.getElementById('loadingState').classList.add('hidden');
-  document.getElementById('loadingState').classList.remove('flex');
-  document.getElementById('emptyState').classList.remove('hidden');
 }
 
 function showResults(result) {
@@ -513,46 +631,23 @@ function showResults(result) {
   document.getElementById('loadingState').classList.remove('flex');
   document.getElementById('emptyState').classList.add('hidden');
   document.getElementById('resultsState').classList.remove('hidden');
-
   document.getElementById('statTotal').textContent = result.total;
   document.getElementById('statSuccess').textContent = result.success_count;
   document.getElementById('statFailed').textContent = result.failed.length;
-
-  const avgSeo = result.listings.length
-    ? Math.round(result.listings.reduce((a, l) => a + (l.seo_score || 0), 0) / result.listings.length)
-    : 0;
+  const avgSeo = result.listings.length ? Math.round(result.listings.reduce((a, l) => a + (l.seo_score || 0), 0) / result.listings.length) : 0;
   document.getElementById('statAvgSeo').textContent = avgSeo;
   document.getElementById('statsText').textContent = `${result.marketplace} — Score SEO moyen: ${avgSeo}/100`;
-
   const container = document.getElementById('listingsContainer');
   container.innerHTML = '';
-  result.listings.forEach((listing, idx) => {
-    container.appendChild(createListingCard(listing, idx));
-  });
-
-  if (result.failed.length > 0) {
-    result.failed.forEach(f => {
-      container.innerHTML += `
-        <div class="bg-red-50 border border-red-200 rounded-2xl p-4 flex items-center gap-3">
-          <span class="text-2xl">❌</span>
-          <div>
-            <p class="font-medium text-red-800">SKU: ${f.sku}</p>
-            <p class="text-sm text-red-600">${f.error}</p>
-          </div>
-        </div>`;
-    });
-  }
+  result.listings.forEach((listing, idx) => container.appendChild(createListingCard(listing, idx)));
 }
 
 function createListingCard(listing, idx) {
   const seoColor = listing.seo_score >= 70 ? 'green' : listing.seo_score >= 40 ? 'yellow' : 'red';
-  const seoLabel = listing.seo_score >= 70 ? 'Excellent' : listing.seo_score >= 40 ? 'Moyen' : 'Faible';
-
   const card = document.createElement('div');
   card.className = 'bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden card-hover';
   card.innerHTML = `
     <div class="p-5">
-      <!-- Header -->
       <div class="flex items-start justify-between mb-4">
         <div>
           <div class="flex items-center gap-2 mb-1">
@@ -568,157 +663,94 @@ function createListingCard(listing, idx) {
           <p class="text-xs text-gray-400 mt-1">SEO</p>
         </div>
       </div>
-
-      <!-- SEO bar -->
       <div class="bg-gray-100 rounded-full h-1.5 mb-4">
         <div class="seo-bar bg-${seoColor}-500" style="width:${listing.seo_score}%"></div>
       </div>
-
-      <!-- Tabs -->
       <div class="border-b border-gray-100 flex gap-4 mb-4 text-sm">
-        <button onclick="switchTab(${idx}, 'bullets')" class="tab-active pb-2" id="tab-${idx}-bullets">Bullet Points</button>
-        <button onclick="switchTab(${idx}, 'desc')" class="pb-2 text-gray-400" id="tab-${idx}-desc">Description</button>
-        <button onclick="switchTab(${idx}, 'kw')" class="pb-2 text-gray-400" id="tab-${idx}-kw">Mots-clés</button>
-        <button onclick="switchTab(${idx}, 'aplus')" class="pb-2 text-gray-400" id="tab-${idx}-aplus">Contenu A+</button>
+        <button onclick="switchTab(${idx},'bullets')" class="tab-active pb-2" id="tab-${idx}-bullets">Bullet Points</button>
+        <button onclick="switchTab(${idx},'desc')" class="pb-2 text-gray-400" id="tab-${idx}-desc">Description</button>
+        <button onclick="switchTab(${idx},'kw')" class="pb-2 text-gray-400" id="tab-${idx}-kw">Mots-clés</button>
+        <button onclick="switchTab(${idx},'aplus')" class="pb-2 text-gray-400" id="tab-${idx}-aplus">Contenu A+</button>
       </div>
-
-      <!-- Bullet points -->
       <div id="content-${idx}-bullets">
-        <ul class="space-y-2">
-          ${listing.bullet_points.map(bp => `
-            <li class="flex gap-2 text-sm text-gray-700">
-              <span class="text-purple-500 flex-shrink-0 mt-0.5">▸</span>
-              <span>${bp}</span>
-            </li>`).join('')}
-        </ul>
+        <ul class="space-y-2">${listing.bullet_points.map(bp => `<li class="flex gap-2 text-sm text-gray-700"><span class="text-purple-500 flex-shrink-0 mt-0.5">▸</span><span>${bp}</span></li>`).join('')}</ul>
       </div>
-
-      <!-- Description -->
       <div id="content-${idx}-desc" class="hidden">
-        <div class="text-sm text-gray-700 leading-relaxed max-h-48 overflow-y-auto">
-          ${listing.description}
-        </div>
+        <div class="text-sm text-gray-700 leading-relaxed max-h-48 overflow-y-auto">${listing.description}</div>
       </div>
-
-      <!-- Keywords -->
       <div id="content-${idx}-kw" class="hidden">
         <div class="bg-gray-50 rounded-lg p-3">
           <p class="text-xs text-gray-500 mb-2 font-medium">Backend Keywords (${listing.backend_keywords.length} caractères)</p>
           <p class="text-sm text-gray-700 font-mono leading-relaxed">${listing.backend_keywords}</p>
         </div>
       </div>
-
-      <!-- A+ Content -->
       <div id="content-${idx}-aplus" class="hidden">
         ${listing.a_plus_content ? `
           <div class="space-y-3">
-            <div class="bg-purple-50 rounded-lg p-3">
-              <p class="font-semibold text-purple-800 text-sm mb-1">✨ ${listing.a_plus_content.headline}</p>
-            </div>
-            ${(listing.a_plus_content.modules || []).map(m => `
-              <div class="border border-gray-100 rounded-lg p-3">
-                <p class="font-medium text-gray-700 text-xs uppercase tracking-wide mb-1.5">${m.type?.replace('_', ' ') || ''}</p>
-                <p class="font-semibold text-gray-800 text-sm mb-1">${m.title || ''}</p>
-                <p class="text-gray-600 text-sm">${m.body || ''}</p>
-              </div>`).join('')}
-          </div>
-        ` : '<p class="text-gray-400 text-sm">Contenu A+ non disponible</p>'}
+            <div class="bg-purple-50 rounded-lg p-3"><p class="font-semibold text-purple-800 text-sm">✨ ${listing.a_plus_content.headline}</p></div>
+            ${(listing.a_plus_content.modules||[]).map(m=>`<div class="border border-gray-100 rounded-lg p-3"><p class="font-medium text-gray-700 text-xs uppercase tracking-wide mb-1">${m.type?.replace('_',' ')||''}</p><p class="font-semibold text-gray-800 text-sm mb-1">${m.title||''}</p><p class="text-gray-600 text-sm">${m.body||''}</p></div>`).join('')}
+          </div>` : '<p class="text-gray-400 text-sm">Non disponible</p>'}
       </div>
     </div>
-
-    <!-- Footer -->
     <div class="border-t border-gray-50 px-5 py-3 bg-gray-50/50 flex items-center gap-3">
       ${listing.price ? `<span class="text-sm font-bold text-gray-800">${listing.price.toFixed(2)} €</span>` : ''}
       ${listing.ean ? `<span class="text-xs text-gray-400">EAN: ${listing.ean}</span>` : ''}
-      <button onclick="copyListing(${idx})" class="ml-auto text-xs text-gray-500 hover:text-purple-600 flex items-center gap-1">
-        📋 Copier JSON
-      </button>
-    </div>
-  `;
+      <button onclick="copyListing(${idx})" class="ml-auto text-xs text-gray-500 hover:text-purple-600">📋 Copier JSON</button>
+    </div>`;
   return card;
 }
 
 function switchTab(idx, tab) {
-  const tabs = ['bullets', 'desc', 'kw', 'aplus'];
-  tabs.forEach(t => {
+  ['bullets','desc','kw','aplus'].forEach(t => {
     document.getElementById(`content-${idx}-${t}`)?.classList.add('hidden');
-    const tabBtn = document.getElementById(`tab-${idx}-${t}`);
-    if (tabBtn) { tabBtn.classList.remove('tab-active'); tabBtn.classList.add('text-gray-400'); }
+    const btn = document.getElementById(`tab-${idx}-${t}`);
+    if (btn) { btn.classList.remove('tab-active'); btn.classList.add('text-gray-400'); }
   });
   document.getElementById(`content-${idx}-${tab}`)?.classList.remove('hidden');
-  const activeTab = document.getElementById(`tab-${idx}-${tab}`);
-  if (activeTab) { activeTab.classList.add('tab-active'); activeTab.classList.remove('text-gray-400'); }
+  const active = document.getElementById(`tab-${idx}-${tab}`);
+  if (active) { active.classList.add('tab-active'); active.classList.remove('text-gray-400'); }
 }
 
 function copyListing(idx) {
-  const listing = generatedListings[idx];
-  navigator.clipboard.writeText(JSON.stringify(listing, null, 2));
+  navigator.clipboard.writeText(JSON.stringify(generatedListings[idx], null, 2));
   showToast('📋', 'JSON copié dans le presse-papiers');
 }
 
-// ── Export ─────────────────────────────────────────────────────────────────────
 async function exportResults(format) {
   if (!generatedListings.length) return;
   const endpoints = { csv: '/api/export/csv', json: '/api/export/json', flat: '/api/export/flat-file' };
   const filenames = { csv: 'listings.csv', json: 'listings.json', flat: 'amazon_flat_file.txt' };
   try {
-    const r = await fetch(`${API}${endpoints[format]}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(generatedListings)
-    });
+    const r = await fetch(`${API}${endpoints[format]}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(generatedListings) });
     const blob = await r.blob();
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = filenames[format];
-    a.click();
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = filenames[format]; a.click();
     showToast('✅', `Export ${format.toUpperCase()} téléchargé`);
-  } catch (e) {
-    showToast('❌', `Erreur export: ${e.message}`, true);
-  }
+  } catch (e) { showToast('❌', `Erreur export: ${e.message}`, true); }
 }
 
-// ── Publish ─────────────────────────────────────────────────────────────────────
-function showPublishModal() {
-  document.getElementById('publishModal').classList.remove('hidden');
-}
-function closePublishModal() {
-  document.getElementById('publishModal').classList.add('hidden');
-}
+function showPublishModal() { document.getElementById('publishModal').classList.remove('hidden'); }
+function closePublishModal() { document.getElementById('publishModal').classList.add('hidden'); }
 
 async function publishListings() {
   if (!generatedListings.length) return;
   const marketplace = document.getElementById('publishMarketplace').value;
   const dryRun = document.getElementById('dryRunCheck').checked;
-
   closePublishModal();
   showToast('⏳', `Publication ${dryRun ? 'Dry Run' : 'live'} en cours...`);
-
   try {
-    const r = await fetch(`${API}/api/publish`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ listings: generatedListings, marketplace, dry_run: dryRun })
-    });
+    const r = await fetch(`${API}/api/publish`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ listings: generatedListings, marketplace, dry_run: dryRun }) });
     const result = await r.json();
     showToast('✅', `${result.published} fiche(s) publiée(s) — ${result.failed} erreur(s)`);
     setStep(4);
-  } catch (e) {
-    showToast('❌', `Erreur: ${e.message}`, true);
-  }
+  } catch (e) { showToast('❌', `Erreur: ${e.message}`, true); }
 }
 
-// ── UI helpers ─────────────────────────────────────────────────────────────────
 function setStep(n) {
   for (let i = 1; i <= 4; i++) {
     const el = document.getElementById(`step${i}`);
-    if (i < n) {
-      el.className = 'flex items-center gap-2 px-4 py-2 rounded-full bg-green-500 text-white font-medium';
-    } else if (i === n) {
-      el.className = 'flex items-center gap-2 px-4 py-2 rounded-full bg-purple-600 text-white font-medium';
-    } else {
-      el.className = 'flex items-center gap-2 px-4 py-2 rounded-full bg-gray-200 text-gray-500 font-medium';
-    }
+    if (i < n) el.className = 'flex items-center gap-2 px-4 py-2 rounded-full bg-green-500 text-white font-medium';
+    else if (i === n) el.className = 'flex items-center gap-2 px-4 py-2 rounded-full bg-purple-600 text-white font-medium';
+    else el.className = 'flex items-center gap-2 px-4 py-2 rounded-full bg-gray-200 text-gray-500 font-medium';
   }
 }
 
