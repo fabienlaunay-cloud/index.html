@@ -126,7 +126,6 @@ async def _generate_image_dalle3(prompt: str, image_id: str) -> Optional[str]:
         "n": 1,
         "size": size,
         "quality": "standard",
-        "response_format": "url",
     }
 
     async with httpx.AsyncClient(timeout=60) as client:
