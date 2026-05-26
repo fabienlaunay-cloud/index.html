@@ -12,8 +12,6 @@ import httpx
 
 from app.services.ai_agent import get_client as get_claude
 
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
-
 AMAZON_IMAGE_TYPES = [
     {
         "id": "hero",
@@ -110,12 +108,13 @@ Format JSON attendu :
 
 async def _generate_image_dalle3(prompt: str, image_id: str) -> Optional[str]:
     """Génère une image via DALL-E 3 et retourne l'URL."""
-    if not OPENAI_API_KEY:
+    api_key = os.getenv("OPENAI_API_KEY", "")
+    if not api_key:
         return None
 
     size = "1024x1024"
     headers = {
-        "Authorization": f"Bearer {OPENAI_API_KEY}",
+        "Authorization": f"Bearer {api_key}",
         "Content-Type": "application/json",
     }
     body = {

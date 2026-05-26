@@ -190,12 +190,12 @@ async def generate_images(req: ImageRequest):
         material=req.material,
         selected_types=req.selected_types,
     )
-    has_openai = bool(os.getenv("OPENAI_API_KEY"))
+    openai_ok = bool(os.getenv("OPENAI_API_KEY"))
     return {
         "sku": req.sku,
         "images": images,
-        "images_generated": has_openai,
-        "openai_configured": has_openai,
+        "images_generated": openai_ok,
+        "openai_configured": openai_ok,
         "total": len(images),
     }
 
