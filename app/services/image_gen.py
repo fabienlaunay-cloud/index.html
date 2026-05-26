@@ -1,5 +1,5 @@
 """
-Génération d'images produit Amazon via Claude (prompts) + DALL-E 3 (images).
+Génération d'images produit Amazon via Claude (prompts) + gpt-image-1 (images).
 Si OPENAI_API_KEY absent → retourne uniquement les prompts.
 """
 
