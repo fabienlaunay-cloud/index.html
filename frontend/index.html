@@ -19,29 +19,31 @@
   @keyframes spin { to { transform: rotate(360deg); } }
   .pulse { animation: pulse 2s infinite; }
   @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
-  /* Landing */
-  #login-screen { background: #07070f; }
-  .login-card { backdrop-filter: blur(20px); background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); }
-  .input-auth { background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); color: white; }
-  .input-auth::placeholder { color: rgba(255,255,255,0.35); }
+  /* Landing — thème blanc */
+  #login-screen { background: #ffffff; }
+  .login-card { background: #1e1b4b; border: 1px solid rgba(255,255,255,0.1); }
+  .input-auth { background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.2); color: white; }
+  .input-auth::placeholder { color: rgba(255,255,255,0.4); }
   .input-auth:focus { outline: none; border-color: #a78bfa; background: rgba(255,255,255,0.12); }
   .btn-login { background: linear-gradient(135deg, #667eea, #764ba2); transition: opacity 0.2s; }
   .btn-login:hover { opacity: 0.9; }
   .btn-login:disabled { opacity: 0.5; cursor: not-allowed; }
-  .grad-text { background: linear-gradient(135deg, #a78bfa, #818cf8); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+  .grad-text { background: linear-gradient(135deg, #7c3aed, #4f46e5); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
   /* ROI sliders */
-  .roi-slider { -webkit-appearance: none; height: 6px; border-radius: 3px; background: rgba(255,255,255,0.12); outline: none; cursor: pointer; width: 100%; }
-  .roi-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 20px; height: 20px; border-radius: 50%; background: linear-gradient(135deg, #667eea, #764ba2); cursor: pointer; box-shadow: 0 2px 8px rgba(124,58,237,0.5); }
+  .roi-slider { -webkit-appearance: none; height: 6px; border-radius: 3px; background: #e5e7eb; outline: none; cursor: pointer; width: 100%; }
+  .roi-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 20px; height: 20px; border-radius: 50%; background: linear-gradient(135deg, #667eea, #764ba2); cursor: pointer; box-shadow: 0 2px 8px rgba(124,58,237,0.4); }
   .roi-slider::-moz-range-thumb { width: 20px; height: 20px; border-radius: 50%; background: linear-gradient(135deg, #667eea, #764ba2); cursor: pointer; border: none; }
+  /* Landing sections */
+  .land-section-alt { background: #f8f7ff; }
 </style>
 </head>
 <body class="bg-gray-50 min-h-screen">
 
 
 <!-- ═══════════════════ LOGIN MODAL ═══════════════════ -->
-<div id="loginModal" class="hidden fixed inset-0 bg-black/75 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
+<div id="loginModal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
   <div class="relative w-full max-w-md">
-    <button onclick="closeLoginModal()" class="absolute -top-4 -right-4 w-10 h-10 bg-white/10 hover:bg-white/20 rounded-full text-white flex items-center justify-center text-xl transition z-10">✕</button>
+    <button onclick="closeLoginModal()" class="absolute -top-4 -right-4 w-10 h-10 bg-gray-800 hover:bg-gray-700 rounded-full text-white flex items-center justify-center text-lg transition z-10">✕</button>
     <div class="login-card rounded-3xl p-8 w-full">
 
       <!-- SETUP -->
@@ -111,298 +113,296 @@
 <!-- ═══════════════════ LANDING PAGE ═══════════════════ -->
 <div id="login-screen" class="fixed inset-0 z-50 overflow-y-auto">
 
-  <!-- Background glow -->
-  <div class="fixed inset-0 pointer-events-none overflow-hidden" style="z-index:0">
-    <div class="absolute top-0 left-1/3 w-[700px] h-[700px] rounded-full blur-3xl" style="background:radial-gradient(circle,rgba(124,58,237,0.18),transparent 70%)"></div>
-    <div class="absolute bottom-0 right-0 w-[500px] h-[500px] rounded-full blur-3xl" style="background:radial-gradient(circle,rgba(99,102,241,0.12),transparent 70%)"></div>
-  </div>
-
-  <div class="relative" style="z-index:1">
-
   <!-- HEADER -->
-  <header class="sticky top-0 z-40 border-b border-white/5" style="background:rgba(7,7,15,0.88);backdrop-filter:blur(20px)">
+  <header class="sticky top-0 z-40 bg-white border-b border-gray-200 shadow-sm">
     <div class="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
       <div class="flex items-center gap-3">
-        <div class="w-10 h-10 rounded-xl flex items-center justify-center gradient-bg shadow-lg">
+        <div class="w-10 h-10 rounded-xl flex items-center justify-center gradient-bg shadow">
           <svg viewBox="0 0 24 24" fill="none" width="20" height="20"><path d="M12 2L2 7l10 5 10-5-10-5z" stroke="white" stroke-width="2" stroke-linejoin="round"/><path d="M2 17l10 5 10-5M2 12l10 5 10-5" stroke="white" stroke-width="2" stroke-linejoin="round"/></svg>
         </div>
-        <span class="text-white font-black text-xl">SynqIO</span>
+        <span class="text-gray-900 font-black text-xl">SynqIO</span>
       </div>
       <div class="flex items-center gap-4">
-        <a href="https://calendly.com/fabien-tmf-online/30min" target="_blank" class="text-white/50 hover:text-white/90 text-sm transition hidden sm:block">📅 Réserver une démo</a>
-        <button onclick="showLoginModal()" class="btn-login px-5 py-2.5 rounded-xl text-white text-sm font-semibold">Se connecter →</button>
+        <a href="https://calendly.com/fabien-tmf-online/30min" target="_blank" class="text-gray-500 hover:text-gray-900 text-sm font-medium transition hidden sm:block">📅 Réserver une démo</a>
+        <button onclick="showLoginModal()" class="btn-login px-5 py-2.5 rounded-xl text-white text-sm font-semibold shadow">Se connecter →</button>
       </div>
     </div>
   </header>
 
   <!-- HERO -->
-  <section class="max-w-6xl mx-auto px-6 pt-24 pb-20 text-center">
-    <div class="inline-flex items-center gap-2 bg-purple-500/10 border border-purple-500/20 rounded-full px-5 py-2 text-purple-300 text-sm mb-10 font-medium">
+  <section class="max-w-6xl mx-auto px-6 pt-20 pb-20 text-center">
+    <div class="inline-flex items-center gap-2 bg-purple-50 border border-purple-200 rounded-full px-5 py-2 text-purple-700 text-sm mb-10 font-medium">
       ⚡ Agent IA spécialisé marketplaces e-commerce
     </div>
-    <h1 class="text-5xl md:text-7xl font-black text-white leading-tight mb-8">
+    <h1 class="text-5xl md:text-7xl font-black text-gray-900 leading-tight mb-8">
       Transformez vos données<br>
       <span class="grad-text">en fiches vendantes</span>
     </h1>
-    <p class="text-xl text-white/55 max-w-2xl mx-auto mb-12 leading-relaxed">
+    <p class="text-xl text-gray-500 max-w-2xl mx-auto mb-12 leading-relaxed">
       L'agent IA génère automatiquement titres SEO, bullet points, mots-clés, contenu A+ et 7 visuels produit — et les pousse directement dans Seller Central.
     </p>
     <div class="flex flex-wrap gap-4 justify-center mb-14">
       <a href="https://calendly.com/fabien-tmf-online/30min" target="_blank"
-         class="px-8 py-4 rounded-2xl text-white font-bold text-lg shadow-2xl transition hover:opacity-90 gradient-bg">
+         class="px-8 py-4 rounded-2xl text-white font-bold text-lg shadow-lg transition hover:opacity-90 gradient-bg">
         Réserver une démo gratuite →
       </a>
       <button onclick="showLoginModal()"
-         class="px-8 py-4 rounded-2xl text-white font-semibold text-lg border border-white/20 hover:bg-white/5 transition">
+         class="px-8 py-4 rounded-2xl text-gray-700 font-semibold text-lg border-2 border-gray-200 hover:border-purple-300 hover:text-purple-700 transition bg-white">
         Accès client
       </button>
     </div>
     <div class="flex flex-wrap gap-3 justify-center">
-      <span class="bg-white/5 border border-white/10 rounded-full px-4 py-2 text-white/55 text-sm">📊 CSV / Excel / JSON</span>
-      <span class="bg-white/5 border border-white/10 rounded-full px-4 py-2 text-white/55 text-sm">✍️ Titre + Bullets + A+</span>
-      <span class="bg-white/5 border border-white/10 rounded-full px-4 py-2 text-white/55 text-sm">🎨 7 visuels IA / produit</span>
-      <span class="bg-white/5 border border-white/10 rounded-full px-4 py-2 text-white/55 text-sm">🚀 Push Seller Central</span>
-      <span class="bg-white/5 border border-white/10 rounded-full px-4 py-2 text-white/55 text-sm">🌍 8 marketplaces</span>
-      <span class="bg-white/5 border border-white/10 rounded-full px-4 py-2 text-white/55 text-sm">{ } Export JSON / CSV</span>
+      <span class="bg-gray-50 border border-gray-200 rounded-full px-4 py-2 text-gray-600 text-sm">📊 CSV / Excel / JSON</span>
+      <span class="bg-gray-50 border border-gray-200 rounded-full px-4 py-2 text-gray-600 text-sm">✍️ Titre + Bullets + A+</span>
+      <span class="bg-gray-50 border border-gray-200 rounded-full px-4 py-2 text-gray-600 text-sm">🎨 7 visuels IA / produit</span>
+      <span class="bg-gray-50 border border-gray-200 rounded-full px-4 py-2 text-gray-600 text-sm">🚀 Push Seller Central</span>
+      <span class="bg-gray-50 border border-gray-200 rounded-full px-4 py-2 text-gray-600 text-sm">🌍 8 marketplaces</span>
+      <span class="bg-gray-50 border border-gray-200 rounded-full px-4 py-2 text-gray-600 text-sm">{ } Export JSON / CSV</span>
     </div>
   </section>
 
   <!-- VIDEO DEMO -->
-  <section class="max-w-4xl mx-auto px-6 pb-28">
-    <div class="rounded-3xl overflow-hidden border border-white/10" style="background:rgba(255,255,255,0.03)">
-      <!-- Placeholder cliquable. Pour intégrer votre vidéo: remplacez src="" par votre URL YouTube embed -->
-      <div id="videoPlaceholder" class="relative cursor-pointer group" style="aspect-ratio:16/9;background:linear-gradient(135deg,rgba(124,58,237,0.2),rgba(99,102,241,0.15))"
-           onclick="document.getElementById('videoPlaceholder').style.display='none';document.getElementById('demoIframe').style.display='block'">
-        <div class="absolute inset-0 flex flex-col items-center justify-center gap-5">
-          <div class="w-20 h-20 rounded-full border-2 border-white/30 flex items-center justify-center group-hover:bg-white/10 transition" style="background:rgba(255,255,255,0.08)">
-            <svg viewBox="0 0 24 24" fill="white" width="36" height="36"><path d="M8 5v14l11-7z"/></svg>
+  <section class="land-section-alt py-16">
+    <div class="max-w-4xl mx-auto px-6">
+      <div class="text-center mb-10">
+        <h2 class="text-3xl font-black text-gray-900 mb-3">Voir l'agent en action</h2>
+        <p class="text-gray-500">Drag &amp; drop → génération SEO → 7 visuels → export JSON</p>
+      </div>
+      <div class="bg-white rounded-3xl shadow-xl border border-gray-100 overflow-hidden">
+        <!-- Placeholder vidéo. Pour intégrer une vidéo YouTube, décommentez et remplacez VIDEO_ID :
+             <iframe class="w-full" style="aspect-ratio:16/9" src="https://www.youtube.com/embed/VIDEO_ID" frameborder="0" allowfullscreen></iframe>
+        -->
+        <div class="flex flex-col items-center justify-center py-20 px-8" style="background: linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%); aspect-ratio:16/9">
+          <div class="w-20 h-20 rounded-full bg-white shadow-lg flex items-center justify-center mb-6">
+            <svg viewBox="0 0 24 24" fill="#7c3aed" width="36" height="36"><path d="M8 5v14l11-7z"/></svg>
+          </div>
+          <p class="text-gray-800 font-bold text-xl mb-2">Démo vidéo — bientôt disponible</p>
+          <p class="text-gray-500 text-sm text-center max-w-sm">La vidéo de démonstration sera publiée prochainement. Réservez un appel pour voir l'agent en direct.</p>
+          <a href="https://calendly.com/fabien-tmf-online/30min" target="_blank"
+             class="mt-6 inline-flex items-center gap-2 gradient-bg text-white px-6 py-3 rounded-xl font-semibold text-sm shadow hover:opacity-90 transition">
+            📅 Voir la démo en direct
+          </a>
+        </div>
+
+        <div class="p-6 grid grid-cols-3 gap-4 border-t border-gray-100">
+          <div class="text-center">
+            <p class="text-gray-900 font-black text-2xl">~2 min</p>
+            <p class="text-gray-400 text-sm mt-1">par fiche produit</p>
+          </div>
+          <div class="text-center border-x border-gray-100">
+            <p class="text-gray-900 font-black text-2xl">7 visuels</p>
+            <p class="text-gray-400 text-sm mt-1">IA par produit</p>
           </div>
           <div class="text-center">
-            <p class="text-white font-bold text-xl">Voir la démo en action</p>
-            <p class="text-white/50 text-sm mt-2">Drag &amp; drop → génération SEO → 7 visuels → export JSON</p>
+            <p class="text-gray-900 font-black text-2xl">8 marchés</p>
+            <p class="text-gray-400 text-sm mt-1">européens</p>
           </div>
-        </div>
-      </div>
-      <!-- Ajoutez votre URL YouTube ici: src="https://www.youtube.com/embed/VOTRE_ID?autoplay=1" -->
-      <iframe id="demoIframe" style="display:none;aspect-ratio:16/9" class="w-full" src="" frameborder="0" allowfullscreen allow="autoplay; encrypted-media"></iframe>
-
-      <div class="p-6 grid grid-cols-3 gap-4 border-t border-white/10">
-        <div class="text-center">
-          <p class="text-white font-black text-2xl">~2 min</p>
-          <p class="text-white/40 text-sm mt-1">par fiche produit</p>
-        </div>
-        <div class="text-center border-x border-white/10">
-          <p class="text-white font-black text-2xl">7 visuels</p>
-          <p class="text-white/40 text-sm mt-1">IA par produit</p>
-        </div>
-        <div class="text-center">
-          <p class="text-white font-black text-2xl">8 marchés</p>
-          <p class="text-white/40 text-sm mt-1">européens</p>
         </div>
       </div>
     </div>
   </section>
 
   <!-- CE QUE L'AGENT REMPLACE -->
-  <section class="max-w-6xl mx-auto px-6 pb-28">
+  <section class="max-w-6xl mx-auto px-6 py-20">
     <div class="text-center mb-14">
-      <h2 class="text-3xl md:text-4xl font-black text-white mb-3">Ce que l'agent remplace</h2>
-      <p class="text-white/40 text-lg">à chaque fiche produit — automatiquement</p>
+      <h2 class="text-3xl md:text-4xl font-black text-gray-900 mb-3">Ce que l'agent remplace</h2>
+      <p class="text-gray-500 text-lg">à chaque fiche produit — automatiquement</p>
     </div>
     <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-      <div class="border border-white/10 rounded-2xl p-6 text-center hover:border-purple-500/40 transition group" style="background:rgba(255,255,255,0.03)">
-        <div class="text-5xl mb-4 transition group-hover:scale-110">📸</div>
-        <p class="text-white font-bold">Photographe produit</p>
-        <p class="text-white/40 text-sm mt-2">7 visuels optimisés Amazon</p>
+      <div class="bg-white border border-gray-200 rounded-2xl p-6 text-center shadow-sm hover:shadow-md hover:border-purple-200 transition group">
+        <div class="text-5xl mb-4 group-hover:scale-110 transition">📸</div>
+        <p class="text-gray-900 font-bold">Photographe produit</p>
+        <p class="text-gray-400 text-sm mt-2">7 visuels optimisés Amazon</p>
       </div>
-      <div class="border border-white/10 rounded-2xl p-6 text-center hover:border-purple-500/40 transition group" style="background:rgba(255,255,255,0.03)">
-        <div class="text-5xl mb-4 transition group-hover:scale-110">✍️</div>
-        <p class="text-white font-bold">Rédacteur SEO Amazon</p>
-        <p class="text-white/40 text-sm mt-2">Titre, bullets, contenu A+</p>
+      <div class="bg-white border border-gray-200 rounded-2xl p-6 text-center shadow-sm hover:shadow-md hover:border-purple-200 transition group">
+        <div class="text-5xl mb-4 group-hover:scale-110 transition">✍️</div>
+        <p class="text-gray-900 font-bold">Rédacteur SEO Amazon</p>
+        <p class="text-gray-400 text-sm mt-2">Titre, bullets, contenu A+</p>
       </div>
-      <div class="border border-white/10 rounded-2xl p-6 text-center hover:border-purple-500/40 transition group" style="background:rgba(255,255,255,0.03)">
-        <div class="text-5xl mb-4 transition group-hover:scale-110">🔄</div>
-        <p class="text-white font-bold">Intégrateur catalogue</p>
-        <p class="text-white/40 text-sm mt-2">Push direct Seller Central</p>
+      <div class="bg-white border border-gray-200 rounded-2xl p-6 text-center shadow-sm hover:shadow-md hover:border-purple-200 transition group">
+        <div class="text-5xl mb-4 group-hover:scale-110 transition">🔄</div>
+        <p class="text-gray-900 font-bold">Intégrateur catalogue</p>
+        <p class="text-gray-400 text-sm mt-2">Push direct Seller Central</p>
       </div>
-      <div class="border border-white/10 rounded-2xl p-6 text-center hover:border-purple-500/40 transition group" style="background:rgba(255,255,255,0.03)">
-        <div class="text-5xl mb-4 transition group-hover:scale-110">🔍</div>
-        <p class="text-white font-bold">Expert keywords A9</p>
-        <p class="text-white/40 text-sm mt-2">Backend keywords optimisés</p>
+      <div class="bg-white border border-gray-200 rounded-2xl p-6 text-center shadow-sm hover:shadow-md hover:border-purple-200 transition group">
+        <div class="text-5xl mb-4 group-hover:scale-110 transition">🔍</div>
+        <p class="text-gray-900 font-bold">Expert keywords A9</p>
+        <p class="text-gray-400 text-sm mt-2">Backend keywords optimisés</p>
       </div>
     </div>
   </section>
 
   <!-- ROI CALCULATOR -->
-  <section class="max-w-6xl mx-auto px-6 pb-28">
-    <div class="border border-white/10 rounded-3xl p-8 md:p-12" style="background:rgba(255,255,255,0.025)">
+  <section class="land-section-alt py-20">
+    <div class="max-w-6xl mx-auto px-6">
       <div class="text-center mb-12">
-        <h2 class="text-3xl md:text-4xl font-black text-white mb-3">Calculateur ROI</h2>
-        <p class="text-white/40 text-lg">Votre situation actuelle vs. avec l'agent IA</p>
+        <h2 class="text-3xl md:text-4xl font-black text-gray-900 mb-3">Calculateur ROI</h2>
+        <p class="text-gray-500 text-lg">Votre situation actuelle vs. avec l'agent IA</p>
       </div>
-      <div class="grid md:grid-cols-2 gap-10">
+      <div class="bg-white rounded-3xl shadow-xl border border-gray-100 p-8 md:p-12">
+        <div class="grid md:grid-cols-2 gap-10">
 
-        <!-- Inputs -->
-        <div class="space-y-7">
-          <p class="text-white/45 font-semibold uppercase text-xs tracking-widest">Votre situation actuelle</p>
+          <!-- Inputs -->
+          <div class="space-y-7">
+            <p class="text-gray-400 font-semibold uppercase text-xs tracking-widest">Votre situation actuelle</p>
 
-          <div>
-            <div class="flex justify-between mb-2.5">
-              <label class="text-white/75 text-sm">Nombre de références (SKU) / mois</label>
-              <span id="roi-skus-val" class="text-purple-400 font-bold text-sm">300 SKU</span>
+            <div>
+              <div class="flex justify-between mb-2.5">
+                <label class="text-gray-700 text-sm font-medium">Nombre de références (SKU) / mois</label>
+                <span id="roi-skus-val" class="text-purple-600 font-bold text-sm">300 SKU</span>
+              </div>
+              <input type="range" id="roi-skus" min="10" max="2000" value="300" step="10" oninput="calcROI()" class="roi-slider">
             </div>
-            <input type="range" id="roi-skus" min="10" max="2000" value="300" step="10" oninput="calcROI()" class="roi-slider">
-          </div>
 
-          <div>
-            <div class="flex justify-between mb-2.5">
-              <label class="text-white/75 text-sm">Temps moyen par fiche</label>
-              <span id="roi-time-val" class="text-purple-400 font-bold text-sm">2h / fiche</span>
+            <div>
+              <div class="flex justify-between mb-2.5">
+                <label class="text-gray-700 text-sm font-medium">Temps moyen par fiche</label>
+                <span id="roi-time-val" class="text-purple-600 font-bold text-sm">2h / fiche</span>
+              </div>
+              <input type="range" id="roi-time" min="0.5" max="10" value="2" step="0.5" oninput="calcROI()" class="roi-slider">
             </div>
-            <input type="range" id="roi-time" min="0.5" max="10" value="2" step="0.5" oninput="calcROI()" class="roi-slider">
-          </div>
 
-          <div>
-            <div class="flex justify-between mb-2.5">
-              <label class="text-white/75 text-sm">Coût horaire moyen de vos équipes</label>
-              <span id="roi-hourly-val" class="text-purple-400 font-bold text-sm">30 €/h</span>
+            <div>
+              <div class="flex justify-between mb-2.5">
+                <label class="text-gray-700 text-sm font-medium">Coût horaire moyen de vos équipes</label>
+                <span id="roi-hourly-val" class="text-purple-600 font-bold text-sm">30 €/h</span>
+              </div>
+              <input type="range" id="roi-hourly" min="10" max="150" value="30" step="5" oninput="calcROI()" class="roi-slider">
             </div>
-            <input type="range" id="roi-hourly" min="10" max="150" value="30" step="5" oninput="calcROI()" class="roi-slider">
-          </div>
 
-          <div>
-            <div class="flex justify-between mb-2.5">
-              <label class="text-white/75 text-sm">Coût photographe / prestataire (par SKU)</label>
-              <span id="roi-photo-val" class="text-purple-400 font-bold text-sm">60 €/SKU</span>
+            <div>
+              <div class="flex justify-between mb-2.5">
+                <label class="text-gray-700 text-sm font-medium">Coût photographe / prestataire (par SKU)</label>
+                <span id="roi-photo-val" class="text-purple-600 font-bold text-sm">60 €/SKU</span>
+              </div>
+              <input type="range" id="roi-photo" min="0" max="300" value="60" step="10" oninput="calcROI()" class="roi-slider">
             </div>
-            <input type="range" id="roi-photo" min="0" max="300" value="60" step="10" oninput="calcROI()" class="roi-slider">
-          </div>
 
-          <!-- Offer selector -->
-          <div class="pt-4 border-t border-white/10">
-            <p class="text-white/45 font-semibold uppercase text-xs tracking-widest mb-5">Avec l'agent IA — choisissez votre offre</p>
-            <div class="grid grid-cols-3 gap-3">
-              <label class="cursor-pointer">
-                <input type="radio" name="roi-offer" value="starter" class="sr-only" checked onchange="calcROI()">
-                <div id="roi-card-starter" class="rounded-xl p-3 text-center transition" style="border:1px solid rgba(124,58,237,0.6);background:rgba(124,58,237,0.15)">
-                  <p class="text-white font-bold text-sm">Starter</p>
-                  <p class="text-purple-400 font-black text-lg">390 €</p>
-                  <p class="text-white/40 text-xs">200 SKU</p>
-                </div>
-              </label>
-              <label class="cursor-pointer">
-                <input type="radio" name="roi-offer" value="business" class="sr-only" onchange="calcROI()">
-                <div id="roi-card-business" class="rounded-xl p-3 text-center transition" style="border:1px solid rgba(255,255,255,0.15);background:transparent">
-                  <p class="text-white font-bold text-sm">Business</p>
-                  <p class="text-purple-400 font-black text-lg">790 €</p>
-                  <p class="text-white/40 text-xs">600 SKU</p>
-                </div>
-              </label>
-              <label class="cursor-pointer">
-                <input type="radio" name="roi-offer" value="scale" class="sr-only" onchange="calcROI()">
-                <div id="roi-card-scale" class="rounded-xl p-3 text-center transition" style="border:1px solid rgba(255,255,255,0.15);background:transparent">
-                  <p class="text-white font-bold text-sm">Scale</p>
-                  <p class="text-purple-400 font-black text-lg">1 490 €</p>
-                  <p class="text-white/40 text-xs">1 500 SKU</p>
-                </div>
-              </label>
-            </div>
-          </div>
-        </div>
-
-        <!-- Results -->
-        <div class="space-y-4">
-          <div class="border border-white/10 rounded-2xl p-6" style="background:rgba(255,255,255,0.03)">
-            <p class="text-white/45 font-semibold uppercase text-xs tracking-widest mb-5">Coût actuel / mois</p>
-            <div class="space-y-3">
-              <div class="flex justify-between"><span class="text-white/55 text-sm">Temps passé</span><span id="roi-hours" class="text-white font-semibold">600h</span></div>
-              <div class="flex justify-between"><span class="text-white/55 text-sm">Coût équipes</span><span id="roi-team-cost" class="text-white font-semibold">18 000 €</span></div>
-              <div class="flex justify-between"><span class="text-white/55 text-sm">Coût prestataires</span><span id="roi-photo-cost" class="text-white font-semibold">18 000 €</span></div>
-              <div class="flex justify-between border-t border-white/10 pt-3">
-                <span class="text-white font-bold">Coût total actuel</span>
-                <span id="roi-total-cost" class="text-red-400 font-black text-2xl">36 000 €</span>
+            <!-- Offer selector -->
+            <div class="pt-4 border-t border-gray-100">
+              <p class="text-gray-400 font-semibold uppercase text-xs tracking-widest mb-5">Avec l'agent IA — choisissez votre offre</p>
+              <div class="grid grid-cols-3 gap-3">
+                <label class="cursor-pointer">
+                  <input type="radio" name="roi-offer" value="starter" class="sr-only" checked onchange="calcROI()">
+                  <div id="roi-card-starter" class="rounded-xl p-3 text-center transition border-2 border-purple-500 bg-purple-50">
+                    <p class="text-gray-900 font-bold text-sm">Starter</p>
+                    <p class="text-purple-600 font-black text-lg">390 €</p>
+                    <p class="text-gray-400 text-xs">200 SKU</p>
+                  </div>
+                </label>
+                <label class="cursor-pointer">
+                  <input type="radio" name="roi-offer" value="business" class="sr-only" onchange="calcROI()">
+                  <div id="roi-card-business" class="rounded-xl p-3 text-center transition border-2 border-gray-200 hover:border-purple-300">
+                    <p class="text-gray-900 font-bold text-sm">Business</p>
+                    <p class="text-purple-600 font-black text-lg">790 €</p>
+                    <p class="text-gray-400 text-xs">600 SKU</p>
+                  </div>
+                </label>
+                <label class="cursor-pointer">
+                  <input type="radio" name="roi-offer" value="scale" class="sr-only" onchange="calcROI()">
+                  <div id="roi-card-scale" class="rounded-xl p-3 text-center transition border-2 border-gray-200 hover:border-purple-300">
+                    <p class="text-gray-900 font-bold text-sm">Scale</p>
+                    <p class="text-purple-600 font-black text-lg">1 490 €</p>
+                    <p class="text-gray-400 text-xs">1 500 SKU</p>
+                  </div>
+                </label>
               </div>
             </div>
           </div>
 
-          <div class="border rounded-2xl p-6" style="border-color:rgba(16,185,129,0.25);background:linear-gradient(135deg,rgba(16,185,129,0.08),rgba(5,150,105,0.05))">
-            <p class="text-white/45 font-semibold uppercase text-xs tracking-widest mb-5">Votre économie mensuelle</p>
-            <div class="space-y-3">
-              <div class="flex justify-between"><span class="text-white/55 text-sm">Coût actuel</span><span id="roi-current-display" class="text-white font-semibold">36 000 €</span></div>
-              <div class="flex justify-between"><span class="text-white/55 text-sm">Avec l'agent IA</span><span id="roi-ai-cost" class="text-white font-semibold">390 €</span></div>
-              <div class="flex justify-between border-t pt-3" style="border-color:rgba(16,185,129,0.2)">
-                <span class="text-white font-bold">Économie / mois</span>
-                <span id="roi-savings" class="text-green-400 font-black text-2xl">35 610 €</span>
+          <!-- Results -->
+          <div class="space-y-4">
+            <div class="bg-gray-50 border border-gray-200 rounded-2xl p-6">
+              <p class="text-gray-400 font-semibold uppercase text-xs tracking-widest mb-5">Coût actuel / mois</p>
+              <div class="space-y-3">
+                <div class="flex justify-between"><span class="text-gray-500 text-sm">Temps passé</span><span id="roi-hours" class="text-gray-900 font-semibold">600h</span></div>
+                <div class="flex justify-between"><span class="text-gray-500 text-sm">Coût équipes</span><span id="roi-team-cost" class="text-gray-900 font-semibold">18 000 €</span></div>
+                <div class="flex justify-between"><span class="text-gray-500 text-sm">Coût prestataires</span><span id="roi-photo-cost" class="text-gray-900 font-semibold">18 000 €</span></div>
+                <div class="flex justify-between border-t border-gray-200 pt-3">
+                  <span class="text-gray-900 font-bold">Coût total actuel</span>
+                  <span id="roi-total-cost" class="text-red-600 font-black text-2xl">36 000 €</span>
+                </div>
               </div>
-              <div class="flex justify-between"><span class="text-white/55 text-sm">Temps libéré</span><span id="roi-time-freed" class="text-green-400 font-bold">600h</span></div>
             </div>
-          </div>
 
-          <a href="https://calendly.com/fabien-tmf-online/30min" target="_blank"
-             class="flex items-center justify-center gap-2 w-full py-4 rounded-2xl text-white font-bold text-base transition hover:opacity-90 gradient-bg shadow-xl">
-            📅 Calculer avec mon catalogue →
-          </a>
+            <div class="bg-green-50 border border-green-200 rounded-2xl p-6">
+              <p class="text-gray-400 font-semibold uppercase text-xs tracking-widest mb-5">Votre économie mensuelle</p>
+              <div class="space-y-3">
+                <div class="flex justify-between"><span class="text-gray-500 text-sm">Coût actuel</span><span id="roi-current-display" class="text-gray-900 font-semibold">36 000 €</span></div>
+                <div class="flex justify-between"><span class="text-gray-500 text-sm">Avec l'agent IA</span><span id="roi-ai-cost" class="text-gray-900 font-semibold">390 €</span></div>
+                <div class="flex justify-between border-t border-green-200 pt-3">
+                  <span class="text-gray-900 font-bold">Économie / mois</span>
+                  <span id="roi-savings" class="text-green-600 font-black text-2xl">35 610 €</span>
+                </div>
+                <div class="flex justify-between"><span class="text-gray-500 text-sm">Temps libéré</span><span id="roi-time-freed" class="text-green-600 font-bold">600h</span></div>
+              </div>
+            </div>
+
+            <a href="https://calendly.com/fabien-tmf-online/30min" target="_blank"
+               class="flex items-center justify-center gap-2 w-full py-4 rounded-2xl text-white font-bold text-base transition hover:opacity-90 gradient-bg shadow-lg">
+              📅 Calculer avec mon catalogue →
+            </a>
+          </div>
         </div>
       </div>
     </div>
   </section>
 
   <!-- PRICING -->
-  <section class="max-w-6xl mx-auto px-6 pb-28">
+  <section class="max-w-6xl mx-auto px-6 py-20">
     <div class="text-center mb-14">
-      <h2 class="text-3xl md:text-4xl font-black text-white mb-3">Choisissez votre formule</h2>
-      <p class="text-white/40 text-lg">Setup unique + abonnement mensuel. Sans mauvaise surprise.</p>
+      <h2 class="text-3xl md:text-4xl font-black text-gray-900 mb-3">Choisissez votre formule</h2>
+      <p class="text-gray-500 text-lg">Setup unique + abonnement mensuel. Sans mauvaise surprise.</p>
     </div>
 
     <div class="grid md:grid-cols-3 gap-6 items-start">
 
       <!-- Starter -->
-      <div class="border border-white/10 rounded-3xl p-8" style="background:rgba(255,255,255,0.03)">
-        <h3 class="text-white font-black text-2xl">Starter</h3>
-        <p class="text-white/35 text-sm mt-1 mb-6">sans engagement</p>
-        <p class="text-white font-black text-4xl mb-1">390 €<span class="text-white/35 font-normal text-lg">/mois</span></p>
-        <p class="text-white/45 text-sm mb-6">+ Setup unique : <span class="text-white font-semibold">490 €</span></p>
-        <p class="text-purple-400 font-bold text-lg mb-6">200 SKU/mois</p>
+      <div class="bg-white border border-gray-200 rounded-3xl p-8 shadow-sm hover:shadow-md transition">
+        <h3 class="text-gray-900 font-black text-2xl">Starter</h3>
+        <p class="text-gray-400 text-sm mt-1 mb-6">sans engagement</p>
+        <p class="text-gray-900 font-black text-4xl mb-1">390 €<span class="text-gray-400 font-normal text-lg">/mois</span></p>
+        <p class="text-gray-500 text-sm mb-6">+ Setup unique : <span class="text-gray-900 font-semibold">490 €</span></p>
+        <p class="text-purple-600 font-bold text-lg mb-6">200 SKU/mois</p>
         <ul class="space-y-3 mb-8 text-sm">
-          <li class="flex gap-3 text-white/75"><span class="text-green-400 font-bold">✓</span>7 visuels IA + texte + push Amazon</li>
-          <li class="flex gap-3 text-white/75"><span class="text-green-400 font-bold">✓</span>Titre optimisé A+</li>
-          <li class="flex gap-3 text-white/75"><span class="text-green-400 font-bold">✓</span>Bullet points</li>
-          <li class="flex gap-3 text-white/75"><span class="text-green-400 font-bold">✓</span>Keywords optimisés</li>
-          <li class="flex gap-3 text-white/75"><span class="text-green-400 font-bold">✓</span>Push direct Amazon</li>
-          <li class="flex gap-3 text-white/75"><span class="text-green-400 font-bold">✓</span>Audit compte Amazon</li>
+          <li class="flex gap-3 text-gray-600"><span class="text-green-500 font-bold">✓</span>7 visuels IA + texte + push Amazon</li>
+          <li class="flex gap-3 text-gray-600"><span class="text-green-500 font-bold">✓</span>Titre optimisé A+</li>
+          <li class="flex gap-3 text-gray-600"><span class="text-green-500 font-bold">✓</span>Bullet points</li>
+          <li class="flex gap-3 text-gray-600"><span class="text-green-500 font-bold">✓</span>Keywords optimisés</li>
+          <li class="flex gap-3 text-gray-600"><span class="text-green-500 font-bold">✓</span>Push direct Amazon</li>
+          <li class="flex gap-3 text-gray-600"><span class="text-green-500 font-bold">✓</span>Audit compte Amazon</li>
         </ul>
-        <div class="border border-white/8 rounded-xl p-4 mb-6 text-center" style="background:rgba(255,255,255,0.03)">
-          <p class="text-white/40 text-xs mb-1">Revenu mois 1</p>
-          <p class="text-white font-bold text-sm">880 € · puis 390 €/mois</p>
-          <p class="text-white/30 text-xs mt-1">Équivalent externalisé ~4 000 – 6 000 €/mois</p>
+        <div class="bg-gray-50 border border-gray-200 rounded-xl p-4 mb-6 text-center">
+          <p class="text-gray-400 text-xs mb-1">Revenu mois 1</p>
+          <p class="text-gray-900 font-bold text-sm">880 € · puis 390 €/mois</p>
+          <p class="text-gray-400 text-xs mt-1">Équivalent externalisé ~4 000 – 6 000 €/mois</p>
         </div>
         <a href="https://buy.stripe.com/3cI8wPeWo4dQ4q5a2p7Vm07" target="_blank"
-           class="block w-full text-center py-3.5 rounded-2xl font-semibold transition text-sm"
-           style="border:1px solid rgba(124,58,237,0.5);color:#a78bfa" onmouseover="this.style.background='rgba(124,58,237,0.1)'" onmouseout="this.style.background='transparent'">
+           class="block w-full text-center py-3.5 rounded-2xl font-semibold transition text-sm border-2 border-purple-500 text-purple-600 hover:bg-purple-50">
           Commencer — 490 € setup
         </a>
       </div>
 
       <!-- Business (Recommended) -->
-      <div class="relative border-2 border-purple-500 rounded-3xl p-8" style="background:linear-gradient(135deg,rgba(124,58,237,0.12),rgba(99,102,241,0.08))">
+      <div class="relative border-2 border-purple-500 rounded-3xl p-8 shadow-lg" style="background:linear-gradient(135deg,#faf5ff,#f5f3ff)">
         <div class="absolute -top-5 left-1/2 -translate-x-1/2 text-white text-xs font-bold px-5 py-2 rounded-full shadow-lg whitespace-nowrap gradient-bg">⭐ Recommandé</div>
-        <h3 class="text-white font-black text-2xl">Business</h3>
-        <p class="text-white/35 text-sm mt-1 mb-6">engagement 3 mois</p>
-        <p class="text-white font-black text-4xl mb-1">790 €<span class="text-white/35 font-normal text-lg">/mois</span></p>
-        <p class="text-white/45 text-sm mb-6">+ Setup unique : <span class="text-white font-semibold">990 €</span></p>
-        <p class="text-purple-400 font-bold text-lg mb-6">600 SKU/mois</p>
+        <h3 class="text-gray-900 font-black text-2xl">Business</h3>
+        <p class="text-gray-400 text-sm mt-1 mb-6">engagement 3 mois</p>
+        <p class="text-gray-900 font-black text-4xl mb-1">790 €<span class="text-gray-400 font-normal text-lg">/mois</span></p>
+        <p class="text-gray-500 text-sm mb-6">+ Setup unique : <span class="text-gray-900 font-semibold">990 €</span></p>
+        <p class="text-purple-600 font-bold text-lg mb-6">600 SKU/mois</p>
         <ul class="space-y-3 mb-8 text-sm">
-          <li class="flex gap-3 text-white/75"><span class="text-green-400 font-bold">✓</span>7 visuels IA + texte + push Amazon</li>
-          <li class="flex gap-3 text-white/75"><span class="text-green-400 font-bold">✓</span>Titre optimisé A+</li>
-          <li class="flex gap-3 text-white/75"><span class="text-green-400 font-bold">✓</span>Bullet points</li>
-          <li class="flex gap-3 text-white/75"><span class="text-green-400 font-bold">✓</span>Keywords optimisés</li>
-          <li class="flex gap-3 text-white/75"><span class="text-green-400 font-bold">✓</span>Push direct Amazon</li>
-          <li class="flex gap-3 text-white/75"><span class="text-green-400 font-bold">✓</span>Audit compte / trimestre</li>
+          <li class="flex gap-3 text-gray-600"><span class="text-green-500 font-bold">✓</span>7 visuels IA + texte + push Amazon</li>
+          <li class="flex gap-3 text-gray-600"><span class="text-green-500 font-bold">✓</span>Titre optimisé A+</li>
+          <li class="flex gap-3 text-gray-600"><span class="text-green-500 font-bold">✓</span>Bullet points</li>
+          <li class="flex gap-3 text-gray-600"><span class="text-green-500 font-bold">✓</span>Keywords optimisés</li>
+          <li class="flex gap-3 text-gray-600"><span class="text-green-500 font-bold">✓</span>Push direct Amazon</li>
+          <li class="flex gap-3 text-gray-600"><span class="text-green-500 font-bold">✓</span>Audit compte / trimestre</li>
         </ul>
-        <div class="rounded-xl p-4 mb-6 text-center" style="border:1px solid rgba(124,58,237,0.2);background:rgba(124,58,237,0.08)">
-          <p class="text-white/40 text-xs mb-1">Revenu mois 1</p>
-          <p class="text-white font-bold text-sm">1 780 € · puis 790 €/mois</p>
-          <p class="text-white/30 text-xs mt-1">Équivalent externalisé ~12 000 – 20 000 €/mois</p>
+        <div class="bg-purple-50 border border-purple-200 rounded-xl p-4 mb-6 text-center">
+          <p class="text-gray-400 text-xs mb-1">Revenu mois 1</p>
+          <p class="text-gray-900 font-bold text-sm">1 780 € · puis 790 €/mois</p>
+          <p class="text-gray-400 text-xs mt-1">Équivalent externalisé ~12 000 – 20 000 €/mois</p>
         </div>
         <a href="https://buy.stripe.com/6oU5kDeWo7q2g8N7Uh7Vm08" target="_blank"
            class="block w-full text-center py-3.5 rounded-2xl text-white font-bold transition hover:opacity-90 gradient-bg shadow-lg text-sm">
@@ -411,61 +411,59 @@
       </div>
 
       <!-- Scale -->
-      <div class="border border-white/10 rounded-3xl p-8" style="background:rgba(255,255,255,0.03)">
-        <h3 class="text-white font-black text-2xl">Scale</h3>
-        <p class="text-white/35 text-sm mt-1 mb-6">engagement 6 mois</p>
-        <p class="text-white font-black text-4xl mb-1">1 490 €<span class="text-white/35 font-normal text-lg">/mois</span></p>
-        <p class="text-white/45 text-sm mb-6">+ Setup unique : <span class="text-white font-semibold">1 990 €</span></p>
-        <p class="text-purple-400 font-bold text-lg mb-6">1 500 SKU/mois</p>
+      <div class="bg-white border border-gray-200 rounded-3xl p-8 shadow-sm hover:shadow-md transition">
+        <h3 class="text-gray-900 font-black text-2xl">Scale</h3>
+        <p class="text-gray-400 text-sm mt-1 mb-6">engagement 6 mois</p>
+        <p class="text-gray-900 font-black text-4xl mb-1">1 490 €<span class="text-gray-400 font-normal text-lg">/mois</span></p>
+        <p class="text-gray-500 text-sm mb-6">+ Setup unique : <span class="text-gray-900 font-semibold">1 990 €</span></p>
+        <p class="text-purple-600 font-bold text-lg mb-6">1 500 SKU/mois</p>
         <ul class="space-y-3 mb-8 text-sm">
-          <li class="flex gap-3 text-white/75"><span class="text-green-400 font-bold">✓</span>7 visuels IA + texte + push Amazon</li>
-          <li class="flex gap-3 text-white/75"><span class="text-green-400 font-bold">✓</span>Titre optimisé A+</li>
-          <li class="flex gap-3 text-white/75"><span class="text-green-400 font-bold">✓</span>Bullet points</li>
-          <li class="flex gap-3 text-white/75"><span class="text-green-400 font-bold">✓</span>Keywords optimisés</li>
-          <li class="flex gap-3 text-white/75"><span class="text-green-400 font-bold">✓</span>Push direct Amazon</li>
-          <li class="flex gap-3 text-white/75"><span class="text-green-400 font-bold">✓</span>Audit compte mensuel</li>
-          <li class="flex gap-3 text-white/75"><span class="text-green-400 font-bold">✓</span>Multi-utilisateurs</li>
-          <li class="flex gap-3 text-white/75"><span class="text-green-400 font-bold">✓</span>Support dédié</li>
+          <li class="flex gap-3 text-gray-600"><span class="text-green-500 font-bold">✓</span>7 visuels IA + texte + push Amazon</li>
+          <li class="flex gap-3 text-gray-600"><span class="text-green-500 font-bold">✓</span>Titre optimisé A+</li>
+          <li class="flex gap-3 text-gray-600"><span class="text-green-500 font-bold">✓</span>Bullet points</li>
+          <li class="flex gap-3 text-gray-600"><span class="text-green-500 font-bold">✓</span>Keywords optimisés</li>
+          <li class="flex gap-3 text-gray-600"><span class="text-green-500 font-bold">✓</span>Push direct Amazon</li>
+          <li class="flex gap-3 text-gray-600"><span class="text-green-500 font-bold">✓</span>Audit compte mensuel</li>
+          <li class="flex gap-3 text-gray-600"><span class="text-green-500 font-bold">✓</span>Multi-utilisateurs</li>
+          <li class="flex gap-3 text-gray-600"><span class="text-green-500 font-bold">✓</span>Support dédié</li>
         </ul>
-        <div class="border border-white/8 rounded-xl p-4 mb-6 text-center" style="background:rgba(255,255,255,0.03)">
-          <p class="text-white/40 text-xs mb-1">Revenu mois 1</p>
-          <p class="text-white font-bold text-sm">3 480 € · puis 1 490 €/mois</p>
-          <p class="text-white/30 text-xs mt-1">Équivalent externalisé ~35 000 – 50 000 €/mois</p>
+        <div class="bg-gray-50 border border-gray-200 rounded-xl p-4 mb-6 text-center">
+          <p class="text-gray-400 text-xs mb-1">Revenu mois 1</p>
+          <p class="text-gray-900 font-bold text-sm">3 480 € · puis 1 490 €/mois</p>
+          <p class="text-gray-400 text-xs mt-1">Équivalent externalisé ~35 000 – 50 000 €/mois</p>
         </div>
         <a href="https://buy.stripe.com/00w28reWo39M9Kp1vT7Vm09" target="_blank"
-           class="block w-full text-center py-3.5 rounded-2xl font-semibold transition text-sm"
-           style="border:1px solid rgba(124,58,237,0.5);color:#a78bfa" onmouseover="this.style.background='rgba(124,58,237,0.1)'" onmouseout="this.style.background='transparent'">
+           class="block w-full text-center py-3.5 rounded-2xl font-semibold transition text-sm border-2 border-purple-500 text-purple-600 hover:bg-purple-50">
           Commencer — 1 990 € setup
         </a>
       </div>
     </div>
 
     <div class="mt-12 text-center">
-      <p class="text-white/35 mb-5">Plus de 2 000 SKU ou besoin d'un audit personnalisé ?</p>
+      <p class="text-gray-400 mb-5">Plus de 2 000 SKU ou besoin d'un audit personnalisé ?</p>
       <a href="https://calendly.com/fabien-tmf-online/30min" target="_blank"
-         class="inline-flex items-center gap-3 border border-white/15 hover:bg-white/5 text-white px-8 py-4 rounded-2xl font-semibold transition">
+         class="inline-flex items-center gap-3 border-2 border-gray-200 hover:border-purple-300 bg-white text-gray-700 hover:text-purple-700 px-8 py-4 rounded-2xl font-semibold transition">
         📅 Réserver 30 min — Audit gratuit
       </a>
     </div>
   </section>
 
   <!-- FOOTER -->
-  <footer class="border-t border-white/8 py-10">
+  <footer class="bg-gray-50 border-t border-gray-200 py-10">
     <div class="max-w-6xl mx-auto px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
       <div class="flex items-center gap-3">
         <div class="w-8 h-8 rounded-lg flex items-center justify-center gradient-bg">
           <svg viewBox="0 0 24 24" fill="none" width="16" height="16"><path d="M12 2L2 7l10 5 10-5-10-5z" stroke="white" stroke-width="2" stroke-linejoin="round"/><path d="M2 17l10 5 10-5M2 12l10 5 10-5" stroke="white" stroke-width="2" stroke-linejoin="round"/></svg>
         </div>
-        <span class="text-white/30 text-sm">© 2025 SynqIO — MarketplaceAI</span>
+        <span class="text-gray-400 text-sm">© 2025 SynqIO — MarketplaceAI</span>
       </div>
       <div class="flex gap-6">
-        <a href="https://calendly.com/fabien-tmf-online/30min" target="_blank" class="text-white/30 hover:text-white/60 text-sm transition">Contact</a>
-        <button onclick="showLoginModal()" class="text-white/30 hover:text-white/60 text-sm transition">Se connecter</button>
+        <a href="https://calendly.com/fabien-tmf-online/30min" target="_blank" class="text-gray-400 hover:text-gray-700 text-sm transition">Contact</a>
+        <button onclick="showLoginModal()" class="text-gray-400 hover:text-gray-700 text-sm transition">Se connecter</button>
       </div>
     </div>
   </footer>
 
-  </div><!-- /relative -->
 </div><!-- /login-screen -->
 
 
@@ -659,7 +657,6 @@
     </div>
   </div>
 </div>
-
 
 <!-- Publish Modal -->
 <div id="publishModal" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
@@ -1238,11 +1235,11 @@ function calcROI() {
     const card = document.getElementById('roi-card-' + o);
     if (!card) return;
     if (o === offer) {
-      card.style.borderColor = 'rgba(124,58,237,0.6)';
-      card.style.background = 'rgba(124,58,237,0.15)';
+      card.style.borderColor = '#7c3aed';
+      card.style.background = '#faf5ff';
     } else {
-      card.style.borderColor = 'rgba(255,255,255,0.15)';
-      card.style.background = 'transparent';
+      card.style.borderColor = '#e5e7eb';
+      card.style.background = 'white';
     }
   });
 }
