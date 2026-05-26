@@ -6,7 +6,7 @@
 <title>SynqIO — MarketplaceAI</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
   * { font-family: 'Inter', sans-serif; }
   .gradient-bg { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
   .card-hover { transition: all 0.2s ease; }
@@ -19,66 +19,37 @@
   @keyframes spin { to { transform: rotate(360deg); } }
   .pulse { animation: pulse 2s infinite; }
   @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
-  #login-screen { background: linear-gradient(135deg, #0f0c29, #302b63, #24243e); }
+  /* Landing */
+  #login-screen { background: #07070f; }
   .login-card { backdrop-filter: blur(20px); background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); }
-  .feature-item { border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.03); }
   .input-auth { background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); color: white; }
   .input-auth::placeholder { color: rgba(255,255,255,0.35); }
   .input-auth:focus { outline: none; border-color: #a78bfa; background: rgba(255,255,255,0.12); }
   .btn-login { background: linear-gradient(135deg, #667eea, #764ba2); transition: opacity 0.2s; }
   .btn-login:hover { opacity: 0.9; }
   .btn-login:disabled { opacity: 0.5; cursor: not-allowed; }
+  .grad-text { background: linear-gradient(135deg, #a78bfa, #818cf8); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+  /* ROI sliders */
+  .roi-slider { -webkit-appearance: none; height: 6px; border-radius: 3px; background: rgba(255,255,255,0.12); outline: none; cursor: pointer; width: 100%; }
+  .roi-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 20px; height: 20px; border-radius: 50%; background: linear-gradient(135deg, #667eea, #764ba2); cursor: pointer; box-shadow: 0 2px 8px rgba(124,58,237,0.5); }
+  .roi-slider::-moz-range-thumb { width: 20px; height: 20px; border-radius: 50%; background: linear-gradient(135deg, #667eea, #764ba2); cursor: pointer; border: none; }
 </style>
 </head>
 <body class="bg-gray-50 min-h-screen">
 
-<!-- ═══════════════════ LOGIN SCREEN ═══════════════════ -->
-<div id="login-screen" class="fixed inset-0 z-50 flex items-center justify-center p-4">
-  <div class="absolute inset-0 overflow-hidden pointer-events-none">
-    <div class="absolute top-1/4 left-1/4 w-96 h-96 bg-purple-600/20 rounded-full blur-3xl"></div>
-    <div class="absolute bottom-1/4 right-1/4 w-80 h-80 bg-blue-600/20 rounded-full blur-3xl"></div>
-  </div>
 
-  <div class="relative w-full max-w-5xl flex gap-12 items-center">
+<!-- ═══════════════════ LOGIN MODAL ═══════════════════ -->
+<div id="loginModal" class="hidden fixed inset-0 bg-black/75 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
+  <div class="relative w-full max-w-md">
+    <button onclick="closeLoginModal()" class="absolute -top-4 -right-4 w-10 h-10 bg-white/10 hover:bg-white/20 rounded-full text-white flex items-center justify-center text-xl transition z-10">✕</button>
+    <div class="login-card rounded-3xl p-8 w-full">
 
-    <!-- Branding gauche -->
-    <div class="hidden lg:flex flex-col flex-1 text-white">
-      <div class="flex items-center gap-4 mb-10">
-        <div class="w-14 h-14 bg-white/10 rounded-2xl flex items-center justify-center text-3xl border border-white/20">🤖</div>
-        <div>
-          <h1 class="text-2xl font-bold">SynqIO</h1>
-          <p class="text-white/50 text-sm">MarketplaceAI — Powered by Claude</p>
-        </div>
-      </div>
-      <h2 class="text-4xl font-bold leading-tight mb-4">
-        Transformez vos données<br>
-        <span class="text-purple-300">en fiches produits</span><br>
-        prêtes à vendre
-      </h2>
-      <p class="text-white/60 text-lg mb-10">L'IA génère automatiquement vos titres SEO, bullet points, mots-clés et contenu A+ optimisés pour Amazon et les marketplaces européennes.</p>
-      <div class="space-y-3">
-        <div class="feature-item rounded-xl px-4 py-3 flex items-center gap-3">
-          <span class="text-2xl">📊</span>
-          <div><p class="font-medium text-white/90">Import CSV, Excel, JSON</p><p class="text-white/40 text-sm">Glissez votre catalogue, l'agent fait le reste</p></div>
-        </div>
-        <div class="feature-item rounded-xl px-4 py-3 flex items-center gap-3">
-          <span class="text-2xl">✨</span>
-          <div><p class="font-medium text-white/90">SEO Amazon optimisé par IA</p><p class="text-white/40 text-sm">Titre, 5 bullets, keywords, contenu A+</p></div>
-        </div>
-        <div class="feature-item rounded-xl px-4 py-3 flex items-center gap-3">
-          <span class="text-2xl">🚀</span>
-          <div><p class="font-medium text-white/90">Publication directe Seller Central</p><p class="text-white/40 text-sm">8 marketplaces européennes</p></div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Formulaire login / setup -->
-    <div class="login-card rounded-3xl p-8 w-full max-w-md mx-auto">
-
-      <!-- SETUP (premier lancement) -->
+      <!-- SETUP -->
       <div id="setupForm">
         <div class="text-center mb-8">
-          <div class="w-16 h-16 gradient-bg rounded-2xl flex items-center justify-center text-3xl mx-auto mb-4 shadow-lg">🔧</div>
+          <div class="w-16 h-16 gradient-bg rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
+            <svg viewBox="0 0 24 24" fill="none" width="28" height="28"><path d="M12 2L2 7l10 5 10-5-10-5z" stroke="white" stroke-width="1.8" stroke-linejoin="round"/><path d="M2 17l10 5 10-5M2 12l10 5 10-5" stroke="white" stroke-width="1.8" stroke-linejoin="round"/></svg>
+          </div>
           <h3 class="text-white text-2xl font-bold">Premier lancement</h3>
           <p class="text-white/50 mt-1 text-sm">Créez votre compte administrateur</p>
         </div>
@@ -86,37 +57,29 @@
         <div class="space-y-4">
           <div>
             <label class="text-white/70 text-sm font-medium block mb-1.5">Votre nom</label>
-            <input id="setupName" type="text" placeholder="Fabien Launay"
-              class="input-auth w-full rounded-xl px-4 py-3 text-sm"
-              onkeydown="if(event.key==='Enter') doSetup()">
+            <input id="setupName" type="text" placeholder="Fabien Launay" class="input-auth w-full rounded-xl px-4 py-3 text-sm" onkeydown="if(event.key==='Enter') doSetup()">
           </div>
           <div>
             <label class="text-white/70 text-sm font-medium block mb-1.5">Email</label>
-            <input id="setupEmail" type="email" placeholder="vous@synqio.io"
-              class="input-auth w-full rounded-xl px-4 py-3 text-sm"
-              onkeydown="if(event.key==='Enter') doSetup()">
+            <input id="setupEmail" type="email" placeholder="vous@synqio.io" class="input-auth w-full rounded-xl px-4 py-3 text-sm" onkeydown="if(event.key==='Enter') doSetup()">
           </div>
           <div>
             <label class="text-white/70 text-sm font-medium block mb-1.5">Mot de passe</label>
             <div class="relative">
-              <input id="setupPassword" type="password" placeholder="Choisissez un mot de passe fort"
-                class="input-auth w-full rounded-xl px-4 py-3 text-sm pr-12"
-                onkeydown="if(event.key==='Enter') doSetup()">
+              <input id="setupPassword" type="password" placeholder="Choisissez un mot de passe fort" class="input-auth w-full rounded-xl px-4 py-3 text-sm pr-12" onkeydown="if(event.key==='Enter') doSetup()">
               <button onclick="togglePwdSetup()" class="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 hover:text-white/70 text-lg">👁</button>
             </div>
           </div>
-          <button id="setupBtn" onclick="doSetup()"
-            class="btn-login w-full text-white rounded-xl py-3.5 font-semibold text-base shadow-lg mt-2">
-            Créer mon compte →
-          </button>
+          <button id="setupBtn" onclick="doSetup()" class="btn-login w-full text-white rounded-xl py-3.5 font-semibold text-base shadow-lg mt-2">Créer mon compte →</button>
         </div>
-        <p class="text-white/20 text-xs text-center mt-6">SynqIO — Propulsé par Claude d'Anthropic</p>
       </div>
 
-      <!-- LOGIN (normal) -->
+      <!-- LOGIN -->
       <div id="loginForm" class="hidden">
         <div class="text-center mb-8">
-          <div class="w-16 h-16 gradient-bg rounded-2xl flex items-center justify-center text-3xl mx-auto mb-4 shadow-lg">🤖</div>
+          <div class="w-16 h-16 gradient-bg rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
+            <svg viewBox="0 0 24 24" fill="none" width="28" height="28"><path d="M12 2L2 7l10 5 10-5-10-5z" stroke="white" stroke-width="1.8" stroke-linejoin="round"/><path d="M2 17l10 5 10-5M2 12l10 5 10-5" stroke="white" stroke-width="1.8" stroke-linejoin="round"/></svg>
+          </div>
           <h3 class="text-white text-2xl font-bold">Accès client</h3>
           <p class="text-white/50 mt-1 text-sm">Connectez-vous à votre espace SynqIO</p>
         </div>
@@ -124,27 +87,19 @@
         <div class="space-y-4">
           <div>
             <label class="text-white/70 text-sm font-medium block mb-1.5">Email</label>
-            <input id="loginEmail" type="email" placeholder="vous@exemple.com"
-              class="input-auth w-full rounded-xl px-4 py-3 text-sm"
-              onkeydown="if(event.key==='Enter') doLogin()">
+            <input id="loginEmail" type="email" placeholder="vous@exemple.com" class="input-auth w-full rounded-xl px-4 py-3 text-sm" onkeydown="if(event.key==='Enter') doLogin()">
           </div>
           <div>
             <label class="text-white/70 text-sm font-medium block mb-1.5">Mot de passe</label>
             <div class="relative">
-              <input id="loginPassword" type="password" placeholder="••••••••"
-                class="input-auth w-full rounded-xl px-4 py-3 text-sm pr-12"
-                onkeydown="if(event.key==='Enter') doLogin()">
+              <input id="loginPassword" type="password" placeholder="••••••••" class="input-auth w-full rounded-xl px-4 py-3 text-sm pr-12" onkeydown="if(event.key==='Enter') doLogin()">
               <button onclick="togglePwd()" class="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 hover:text-white/70 text-lg">👁</button>
             </div>
           </div>
-          <button id="loginBtn" onclick="doLogin()"
-            class="btn-login w-full text-white rounded-xl py-3.5 font-semibold text-base shadow-lg mt-2">
-            Se connecter →
-          </button>
+          <button id="loginBtn" onclick="doLogin()" class="btn-login w-full text-white rounded-xl py-3.5 font-semibold text-base shadow-lg mt-2">Se connecter →</button>
         </div>
-        <div class="mt-8 pt-6 border-t border-white/10 text-center space-y-2">
+        <div class="mt-6 pt-4 border-t border-white/10 text-center">
           <p class="text-white/30 text-xs">Accès réservé aux clients abonnés</p>
-          <p class="text-white/20 text-xs">SynqIO — Propulsé par Claude d'Anthropic</p>
         </div>
       </div>
 
@@ -153,16 +108,379 @@
 </div>
 
 
+<!-- ═══════════════════ LANDING PAGE ═══════════════════ -->
+<div id="login-screen" class="fixed inset-0 z-50 overflow-y-auto">
+
+  <!-- Background glow -->
+  <div class="fixed inset-0 pointer-events-none overflow-hidden" style="z-index:0">
+    <div class="absolute top-0 left-1/3 w-[700px] h-[700px] rounded-full blur-3xl" style="background:radial-gradient(circle,rgba(124,58,237,0.18),transparent 70%)"></div>
+    <div class="absolute bottom-0 right-0 w-[500px] h-[500px] rounded-full blur-3xl" style="background:radial-gradient(circle,rgba(99,102,241,0.12),transparent 70%)"></div>
+  </div>
+
+  <div class="relative" style="z-index:1">
+
+  <!-- HEADER -->
+  <header class="sticky top-0 z-40 border-b border-white/5" style="background:rgba(7,7,15,0.88);backdrop-filter:blur(20px)">
+    <div class="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl flex items-center justify-center gradient-bg shadow-lg">
+          <svg viewBox="0 0 24 24" fill="none" width="20" height="20"><path d="M12 2L2 7l10 5 10-5-10-5z" stroke="white" stroke-width="2" stroke-linejoin="round"/><path d="M2 17l10 5 10-5M2 12l10 5 10-5" stroke="white" stroke-width="2" stroke-linejoin="round"/></svg>
+        </div>
+        <span class="text-white font-black text-xl">SynqIO</span>
+      </div>
+      <div class="flex items-center gap-4">
+        <a href="https://calendly.com/fabien-tmf-online/30min" target="_blank" class="text-white/50 hover:text-white/90 text-sm transition hidden sm:block">📅 Réserver une démo</a>
+        <button onclick="showLoginModal()" class="btn-login px-5 py-2.5 rounded-xl text-white text-sm font-semibold">Se connecter →</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- HERO -->
+  <section class="max-w-6xl mx-auto px-6 pt-24 pb-20 text-center">
+    <div class="inline-flex items-center gap-2 bg-purple-500/10 border border-purple-500/20 rounded-full px-5 py-2 text-purple-300 text-sm mb-10 font-medium">
+      ⚡ Agent IA spécialisé marketplaces e-commerce
+    </div>
+    <h1 class="text-5xl md:text-7xl font-black text-white leading-tight mb-8">
+      Transformez vos données<br>
+      <span class="grad-text">en fiches vendantes</span>
+    </h1>
+    <p class="text-xl text-white/55 max-w-2xl mx-auto mb-12 leading-relaxed">
+      L'agent IA génère automatiquement titres SEO, bullet points, mots-clés, contenu A+ et 7 visuels produit — et les pousse directement dans Seller Central.
+    </p>
+    <div class="flex flex-wrap gap-4 justify-center mb-14">
+      <a href="https://calendly.com/fabien-tmf-online/30min" target="_blank"
+         class="px-8 py-4 rounded-2xl text-white font-bold text-lg shadow-2xl transition hover:opacity-90 gradient-bg">
+        Réserver une démo gratuite →
+      </a>
+      <button onclick="showLoginModal()"
+         class="px-8 py-4 rounded-2xl text-white font-semibold text-lg border border-white/20 hover:bg-white/5 transition">
+        Accès client
+      </button>
+    </div>
+    <div class="flex flex-wrap gap-3 justify-center">
+      <span class="bg-white/5 border border-white/10 rounded-full px-4 py-2 text-white/55 text-sm">📊 CSV / Excel / JSON</span>
+      <span class="bg-white/5 border border-white/10 rounded-full px-4 py-2 text-white/55 text-sm">✍️ Titre + Bullets + A+</span>
+      <span class="bg-white/5 border border-white/10 rounded-full px-4 py-2 text-white/55 text-sm">🎨 7 visuels IA / produit</span>
+      <span class="bg-white/5 border border-white/10 rounded-full px-4 py-2 text-white/55 text-sm">🚀 Push Seller Central</span>
+      <span class="bg-white/5 border border-white/10 rounded-full px-4 py-2 text-white/55 text-sm">🌍 8 marketplaces</span>
+      <span class="bg-white/5 border border-white/10 rounded-full px-4 py-2 text-white/55 text-sm">{ } Export JSON / CSV</span>
+    </div>
+  </section>
+
+  <!-- VIDEO DEMO -->
+  <section class="max-w-4xl mx-auto px-6 pb-28">
+    <div class="rounded-3xl overflow-hidden border border-white/10" style="background:rgba(255,255,255,0.03)">
+      <!-- Placeholder cliquable. Pour intégrer votre vidéo: remplacez src="" par votre URL YouTube embed -->
+      <div id="videoPlaceholder" class="relative cursor-pointer group" style="aspect-ratio:16/9;background:linear-gradient(135deg,rgba(124,58,237,0.2),rgba(99,102,241,0.15))"
+           onclick="document.getElementById('videoPlaceholder').style.display='none';document.getElementById('demoIframe').style.display='block'">
+        <div class="absolute inset-0 flex flex-col items-center justify-center gap-5">
+          <div class="w-20 h-20 rounded-full border-2 border-white/30 flex items-center justify-center group-hover:bg-white/10 transition" style="background:rgba(255,255,255,0.08)">
+            <svg viewBox="0 0 24 24" fill="white" width="36" height="36"><path d="M8 5v14l11-7z"/></svg>
+          </div>
+          <div class="text-center">
+            <p class="text-white font-bold text-xl">Voir la démo en action</p>
+            <p class="text-white/50 text-sm mt-2">Drag &amp; drop → génération SEO → 7 visuels → export JSON</p>
+          </div>
+        </div>
+      </div>
+      <!-- Ajoutez votre URL YouTube ici: src="https://www.youtube.com/embed/VOTRE_ID?autoplay=1" -->
+      <iframe id="demoIframe" style="display:none;aspect-ratio:16/9" class="w-full" src="" frameborder="0" allowfullscreen allow="autoplay; encrypted-media"></iframe>
+
+      <div class="p-6 grid grid-cols-3 gap-4 border-t border-white/10">
+        <div class="text-center">
+          <p class="text-white font-black text-2xl">~2 min</p>
+          <p class="text-white/40 text-sm mt-1">par fiche produit</p>
+        </div>
+        <div class="text-center border-x border-white/10">
+          <p class="text-white font-black text-2xl">7 visuels</p>
+          <p class="text-white/40 text-sm mt-1">IA par produit</p>
+        </div>
+        <div class="text-center">
+          <p class="text-white font-black text-2xl">8 marchés</p>
+          <p class="text-white/40 text-sm mt-1">européens</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CE QUE L'AGENT REMPLACE -->
+  <section class="max-w-6xl mx-auto px-6 pb-28">
+    <div class="text-center mb-14">
+      <h2 class="text-3xl md:text-4xl font-black text-white mb-3">Ce que l'agent remplace</h2>
+      <p class="text-white/40 text-lg">à chaque fiche produit — automatiquement</p>
+    </div>
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div class="border border-white/10 rounded-2xl p-6 text-center hover:border-purple-500/40 transition group" style="background:rgba(255,255,255,0.03)">
+        <div class="text-5xl mb-4 transition group-hover:scale-110">📸</div>
+        <p class="text-white font-bold">Photographe produit</p>
+        <p class="text-white/40 text-sm mt-2">7 visuels optimisés Amazon</p>
+      </div>
+      <div class="border border-white/10 rounded-2xl p-6 text-center hover:border-purple-500/40 transition group" style="background:rgba(255,255,255,0.03)">
+        <div class="text-5xl mb-4 transition group-hover:scale-110">✍️</div>
+        <p class="text-white font-bold">Rédacteur SEO Amazon</p>
+        <p class="text-white/40 text-sm mt-2">Titre, bullets, contenu A+</p>
+      </div>
+      <div class="border border-white/10 rounded-2xl p-6 text-center hover:border-purple-500/40 transition group" style="background:rgba(255,255,255,0.03)">
+        <div class="text-5xl mb-4 transition group-hover:scale-110">🔄</div>
+        <p class="text-white font-bold">Intégrateur catalogue</p>
+        <p class="text-white/40 text-sm mt-2">Push direct Seller Central</p>
+      </div>
+      <div class="border border-white/10 rounded-2xl p-6 text-center hover:border-purple-500/40 transition group" style="background:rgba(255,255,255,0.03)">
+        <div class="text-5xl mb-4 transition group-hover:scale-110">🔍</div>
+        <p class="text-white font-bold">Expert keywords A9</p>
+        <p class="text-white/40 text-sm mt-2">Backend keywords optimisés</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ROI CALCULATOR -->
+  <section class="max-w-6xl mx-auto px-6 pb-28">
+    <div class="border border-white/10 rounded-3xl p-8 md:p-12" style="background:rgba(255,255,255,0.025)">
+      <div class="text-center mb-12">
+        <h2 class="text-3xl md:text-4xl font-black text-white mb-3">Calculateur ROI</h2>
+        <p class="text-white/40 text-lg">Votre situation actuelle vs. avec l'agent IA</p>
+      </div>
+      <div class="grid md:grid-cols-2 gap-10">
+
+        <!-- Inputs -->
+        <div class="space-y-7">
+          <p class="text-white/45 font-semibold uppercase text-xs tracking-widest">Votre situation actuelle</p>
+
+          <div>
+            <div class="flex justify-between mb-2.5">
+              <label class="text-white/75 text-sm">Nombre de références (SKU) / mois</label>
+              <span id="roi-skus-val" class="text-purple-400 font-bold text-sm">300 SKU</span>
+            </div>
+            <input type="range" id="roi-skus" min="10" max="2000" value="300" step="10" oninput="calcROI()" class="roi-slider">
+          </div>
+
+          <div>
+            <div class="flex justify-between mb-2.5">
+              <label class="text-white/75 text-sm">Temps moyen par fiche</label>
+              <span id="roi-time-val" class="text-purple-400 font-bold text-sm">2h / fiche</span>
+            </div>
+            <input type="range" id="roi-time" min="0.5" max="10" value="2" step="0.5" oninput="calcROI()" class="roi-slider">
+          </div>
+
+          <div>
+            <div class="flex justify-between mb-2.5">
+              <label class="text-white/75 text-sm">Coût horaire moyen de vos équipes</label>
+              <span id="roi-hourly-val" class="text-purple-400 font-bold text-sm">30 €/h</span>
+            </div>
+            <input type="range" id="roi-hourly" min="10" max="150" value="30" step="5" oninput="calcROI()" class="roi-slider">
+          </div>
+
+          <div>
+            <div class="flex justify-between mb-2.5">
+              <label class="text-white/75 text-sm">Coût photographe / prestataire (par SKU)</label>
+              <span id="roi-photo-val" class="text-purple-400 font-bold text-sm">60 €/SKU</span>
+            </div>
+            <input type="range" id="roi-photo" min="0" max="300" value="60" step="10" oninput="calcROI()" class="roi-slider">
+          </div>
+
+          <!-- Offer selector -->
+          <div class="pt-4 border-t border-white/10">
+            <p class="text-white/45 font-semibold uppercase text-xs tracking-widest mb-5">Avec l'agent IA — choisissez votre offre</p>
+            <div class="grid grid-cols-3 gap-3">
+              <label class="cursor-pointer">
+                <input type="radio" name="roi-offer" value="starter" class="sr-only" checked onchange="calcROI()">
+                <div id="roi-card-starter" class="rounded-xl p-3 text-center transition" style="border:1px solid rgba(124,58,237,0.6);background:rgba(124,58,237,0.15)">
+                  <p class="text-white font-bold text-sm">Starter</p>
+                  <p class="text-purple-400 font-black text-lg">390 €</p>
+                  <p class="text-white/40 text-xs">200 SKU</p>
+                </div>
+              </label>
+              <label class="cursor-pointer">
+                <input type="radio" name="roi-offer" value="business" class="sr-only" onchange="calcROI()">
+                <div id="roi-card-business" class="rounded-xl p-3 text-center transition" style="border:1px solid rgba(255,255,255,0.15);background:transparent">
+                  <p class="text-white font-bold text-sm">Business</p>
+                  <p class="text-purple-400 font-black text-lg">790 €</p>
+                  <p class="text-white/40 text-xs">600 SKU</p>
+                </div>
+              </label>
+              <label class="cursor-pointer">
+                <input type="radio" name="roi-offer" value="scale" class="sr-only" onchange="calcROI()">
+                <div id="roi-card-scale" class="rounded-xl p-3 text-center transition" style="border:1px solid rgba(255,255,255,0.15);background:transparent">
+                  <p class="text-white font-bold text-sm">Scale</p>
+                  <p class="text-purple-400 font-black text-lg">1 490 €</p>
+                  <p class="text-white/40 text-xs">1 500 SKU</p>
+                </div>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <!-- Results -->
+        <div class="space-y-4">
+          <div class="border border-white/10 rounded-2xl p-6" style="background:rgba(255,255,255,0.03)">
+            <p class="text-white/45 font-semibold uppercase text-xs tracking-widest mb-5">Coût actuel / mois</p>
+            <div class="space-y-3">
+              <div class="flex justify-between"><span class="text-white/55 text-sm">Temps passé</span><span id="roi-hours" class="text-white font-semibold">600h</span></div>
+              <div class="flex justify-between"><span class="text-white/55 text-sm">Coût équipes</span><span id="roi-team-cost" class="text-white font-semibold">18 000 €</span></div>
+              <div class="flex justify-between"><span class="text-white/55 text-sm">Coût prestataires</span><span id="roi-photo-cost" class="text-white font-semibold">18 000 €</span></div>
+              <div class="flex justify-between border-t border-white/10 pt-3">
+                <span class="text-white font-bold">Coût total actuel</span>
+                <span id="roi-total-cost" class="text-red-400 font-black text-2xl">36 000 €</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="border rounded-2xl p-6" style="border-color:rgba(16,185,129,0.25);background:linear-gradient(135deg,rgba(16,185,129,0.08),rgba(5,150,105,0.05))">
+            <p class="text-white/45 font-semibold uppercase text-xs tracking-widest mb-5">Votre économie mensuelle</p>
+            <div class="space-y-3">
+              <div class="flex justify-between"><span class="text-white/55 text-sm">Coût actuel</span><span id="roi-current-display" class="text-white font-semibold">36 000 €</span></div>
+              <div class="flex justify-between"><span class="text-white/55 text-sm">Avec l'agent IA</span><span id="roi-ai-cost" class="text-white font-semibold">390 €</span></div>
+              <div class="flex justify-between border-t pt-3" style="border-color:rgba(16,185,129,0.2)">
+                <span class="text-white font-bold">Économie / mois</span>
+                <span id="roi-savings" class="text-green-400 font-black text-2xl">35 610 €</span>
+              </div>
+              <div class="flex justify-between"><span class="text-white/55 text-sm">Temps libéré</span><span id="roi-time-freed" class="text-green-400 font-bold">600h</span></div>
+            </div>
+          </div>
+
+          <a href="https://calendly.com/fabien-tmf-online/30min" target="_blank"
+             class="flex items-center justify-center gap-2 w-full py-4 rounded-2xl text-white font-bold text-base transition hover:opacity-90 gradient-bg shadow-xl">
+            📅 Calculer avec mon catalogue →
+          </a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PRICING -->
+  <section class="max-w-6xl mx-auto px-6 pb-28">
+    <div class="text-center mb-14">
+      <h2 class="text-3xl md:text-4xl font-black text-white mb-3">Choisissez votre formule</h2>
+      <p class="text-white/40 text-lg">Setup unique + abonnement mensuel. Sans mauvaise surprise.</p>
+    </div>
+
+    <div class="grid md:grid-cols-3 gap-6 items-start">
+
+      <!-- Starter -->
+      <div class="border border-white/10 rounded-3xl p-8" style="background:rgba(255,255,255,0.03)">
+        <h3 class="text-white font-black text-2xl">Starter</h3>
+        <p class="text-white/35 text-sm mt-1 mb-6">sans engagement</p>
+        <p class="text-white font-black text-4xl mb-1">390 €<span class="text-white/35 font-normal text-lg">/mois</span></p>
+        <p class="text-white/45 text-sm mb-6">+ Setup unique : <span class="text-white font-semibold">490 €</span></p>
+        <p class="text-purple-400 font-bold text-lg mb-6">200 SKU/mois</p>
+        <ul class="space-y-3 mb-8 text-sm">
+          <li class="flex gap-3 text-white/75"><span class="text-green-400 font-bold">✓</span>7 visuels IA + texte + push Amazon</li>
+          <li class="flex gap-3 text-white/75"><span class="text-green-400 font-bold">✓</span>Titre optimisé A+</li>
+          <li class="flex gap-3 text-white/75"><span class="text-green-400 font-bold">✓</span>Bullet points</li>
+          <li class="flex gap-3 text-white/75"><span class="text-green-400 font-bold">✓</span>Keywords optimisés</li>
+          <li class="flex gap-3 text-white/75"><span class="text-green-400 font-bold">✓</span>Push direct Amazon</li>
+          <li class="flex gap-3 text-white/75"><span class="text-green-400 font-bold">✓</span>Audit compte Amazon</li>
+        </ul>
+        <div class="border border-white/8 rounded-xl p-4 mb-6 text-center" style="background:rgba(255,255,255,0.03)">
+          <p class="text-white/40 text-xs mb-1">Revenu mois 1</p>
+          <p class="text-white font-bold text-sm">880 € · puis 390 €/mois</p>
+          <p class="text-white/30 text-xs mt-1">Équivalent externalisé ~4 000 – 6 000 €/mois</p>
+        </div>
+        <a href="https://buy.stripe.com/3cI8wPeWo4dQ4q5a2p7Vm07" target="_blank"
+           class="block w-full text-center py-3.5 rounded-2xl font-semibold transition text-sm"
+           style="border:1px solid rgba(124,58,237,0.5);color:#a78bfa" onmouseover="this.style.background='rgba(124,58,237,0.1)'" onmouseout="this.style.background='transparent'">
+          Commencer — 490 € setup
+        </a>
+      </div>
+
+      <!-- Business (Recommended) -->
+      <div class="relative border-2 border-purple-500 rounded-3xl p-8" style="background:linear-gradient(135deg,rgba(124,58,237,0.12),rgba(99,102,241,0.08))">
+        <div class="absolute -top-5 left-1/2 -translate-x-1/2 text-white text-xs font-bold px-5 py-2 rounded-full shadow-lg whitespace-nowrap gradient-bg">⭐ Recommandé</div>
+        <h3 class="text-white font-black text-2xl">Business</h3>
+        <p class="text-white/35 text-sm mt-1 mb-6">engagement 3 mois</p>
+        <p class="text-white font-black text-4xl mb-1">790 €<span class="text-white/35 font-normal text-lg">/mois</span></p>
+        <p class="text-white/45 text-sm mb-6">+ Setup unique : <span class="text-white font-semibold">990 €</span></p>
+        <p class="text-purple-400 font-bold text-lg mb-6">600 SKU/mois</p>
+        <ul class="space-y-3 mb-8 text-sm">
+          <li class="flex gap-3 text-white/75"><span class="text-green-400 font-bold">✓</span>7 visuels IA + texte + push Amazon</li>
+          <li class="flex gap-3 text-white/75"><span class="text-green-400 font-bold">✓</span>Titre optimisé A+</li>
+          <li class="flex gap-3 text-white/75"><span class="text-green-400 font-bold">✓</span>Bullet points</li>
+          <li class="flex gap-3 text-white/75"><span class="text-green-400 font-bold">✓</span>Keywords optimisés</li>
+          <li class="flex gap-3 text-white/75"><span class="text-green-400 font-bold">✓</span>Push direct Amazon</li>
+          <li class="flex gap-3 text-white/75"><span class="text-green-400 font-bold">✓</span>Audit compte / trimestre</li>
+        </ul>
+        <div class="rounded-xl p-4 mb-6 text-center" style="border:1px solid rgba(124,58,237,0.2);background:rgba(124,58,237,0.08)">
+          <p class="text-white/40 text-xs mb-1">Revenu mois 1</p>
+          <p class="text-white font-bold text-sm">1 780 € · puis 790 €/mois</p>
+          <p class="text-white/30 text-xs mt-1">Équivalent externalisé ~12 000 – 20 000 €/mois</p>
+        </div>
+        <a href="https://buy.stripe.com/6oU5kDeWo7q2g8N7Uh7Vm08" target="_blank"
+           class="block w-full text-center py-3.5 rounded-2xl text-white font-bold transition hover:opacity-90 gradient-bg shadow-lg text-sm">
+          Commencer — 990 € setup
+        </a>
+      </div>
+
+      <!-- Scale -->
+      <div class="border border-white/10 rounded-3xl p-8" style="background:rgba(255,255,255,0.03)">
+        <h3 class="text-white font-black text-2xl">Scale</h3>
+        <p class="text-white/35 text-sm mt-1 mb-6">engagement 6 mois</p>
+        <p class="text-white font-black text-4xl mb-1">1 490 €<span class="text-white/35 font-normal text-lg">/mois</span></p>
+        <p class="text-white/45 text-sm mb-6">+ Setup unique : <span class="text-white font-semibold">1 990 €</span></p>
+        <p class="text-purple-400 font-bold text-lg mb-6">1 500 SKU/mois</p>
+        <ul class="space-y-3 mb-8 text-sm">
+          <li class="flex gap-3 text-white/75"><span class="text-green-400 font-bold">✓</span>7 visuels IA + texte + push Amazon</li>
+          <li class="flex gap-3 text-white/75"><span class="text-green-400 font-bold">✓</span>Titre optimisé A+</li>
+          <li class="flex gap-3 text-white/75"><span class="text-green-400 font-bold">✓</span>Bullet points</li>
+          <li class="flex gap-3 text-white/75"><span class="text-green-400 font-bold">✓</span>Keywords optimisés</li>
+          <li class="flex gap-3 text-white/75"><span class="text-green-400 font-bold">✓</span>Push direct Amazon</li>
+          <li class="flex gap-3 text-white/75"><span class="text-green-400 font-bold">✓</span>Audit compte mensuel</li>
+          <li class="flex gap-3 text-white/75"><span class="text-green-400 font-bold">✓</span>Multi-utilisateurs</li>
+          <li class="flex gap-3 text-white/75"><span class="text-green-400 font-bold">✓</span>Support dédié</li>
+        </ul>
+        <div class="border border-white/8 rounded-xl p-4 mb-6 text-center" style="background:rgba(255,255,255,0.03)">
+          <p class="text-white/40 text-xs mb-1">Revenu mois 1</p>
+          <p class="text-white font-bold text-sm">3 480 € · puis 1 490 €/mois</p>
+          <p class="text-white/30 text-xs mt-1">Équivalent externalisé ~35 000 – 50 000 €/mois</p>
+        </div>
+        <a href="https://buy.stripe.com/00w28reWo39M9Kp1vT7Vm09" target="_blank"
+           class="block w-full text-center py-3.5 rounded-2xl font-semibold transition text-sm"
+           style="border:1px solid rgba(124,58,237,0.5);color:#a78bfa" onmouseover="this.style.background='rgba(124,58,237,0.1)'" onmouseout="this.style.background='transparent'">
+          Commencer — 1 990 € setup
+        </a>
+      </div>
+    </div>
+
+    <div class="mt-12 text-center">
+      <p class="text-white/35 mb-5">Plus de 2 000 SKU ou besoin d'un audit personnalisé ?</p>
+      <a href="https://calendly.com/fabien-tmf-online/30min" target="_blank"
+         class="inline-flex items-center gap-3 border border-white/15 hover:bg-white/5 text-white px-8 py-4 rounded-2xl font-semibold transition">
+        📅 Réserver 30 min — Audit gratuit
+      </a>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer class="border-t border-white/8 py-10">
+    <div class="max-w-6xl mx-auto px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+      <div class="flex items-center gap-3">
+        <div class="w-8 h-8 rounded-lg flex items-center justify-center gradient-bg">
+          <svg viewBox="0 0 24 24" fill="none" width="16" height="16"><path d="M12 2L2 7l10 5 10-5-10-5z" stroke="white" stroke-width="2" stroke-linejoin="round"/><path d="M2 17l10 5 10-5M2 12l10 5 10-5" stroke="white" stroke-width="2" stroke-linejoin="round"/></svg>
+        </div>
+        <span class="text-white/30 text-sm">© 2025 SynqIO — MarketplaceAI</span>
+      </div>
+      <div class="flex gap-6">
+        <a href="https://calendly.com/fabien-tmf-online/30min" target="_blank" class="text-white/30 hover:text-white/60 text-sm transition">Contact</a>
+        <button onclick="showLoginModal()" class="text-white/30 hover:text-white/60 text-sm transition">Se connecter</button>
+      </div>
+    </div>
+  </footer>
+
+  </div><!-- /relative -->
+</div><!-- /login-screen -->
+
+
 <!-- ═══════════════════ APP PRINCIPAL ═══════════════════ -->
 <div id="app" class="hidden">
 
 <header class="gradient-bg text-white shadow-lg">
   <div class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
     <div class="flex items-center gap-3">
-      <div class="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center text-xl">🤖</div>
+      <div class="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
+        <svg viewBox="0 0 24 24" fill="none" width="20" height="20"><path d="M12 2L2 7l10 5 10-5-10-5z" stroke="white" stroke-width="2" stroke-linejoin="round"/><path d="M2 17l10 5 10-5M2 12l10 5 10-5" stroke="white" stroke-width="2" stroke-linejoin="round"/></svg>
+      </div>
       <div>
         <h1 class="text-xl font-bold">SynqIO</h1>
-        <p class="text-purple-200 text-xs">MarketplaceAI — Powered by Claude</p>
+        <p class="text-purple-200 text-xs">MarketplaceAI</p>
       </div>
     </div>
     <div class="flex items-center gap-3">
@@ -179,7 +497,6 @@
         <option value="fnac">🇫🇷 Fnac</option>
         <option value="bol">🇳🇱 Bol.com</option>
       </select>
-      <!-- User menu -->
       <div class="relative">
         <button onclick="toggleUserMenu()" class="flex items-center gap-2 bg-white/10 hover:bg-white/20 rounded-lg px-3 py-1.5 text-sm transition">
           <div id="userAvatar" class="w-6 h-6 bg-white/30 rounded-full flex items-center justify-center text-xs font-bold">?</div>
@@ -200,7 +517,6 @@
 </header>
 
 <main class="max-w-7xl mx-auto px-6 py-8">
-  <!-- Pipeline steps -->
   <div class="flex items-center gap-2 mb-8 text-sm">
     <div id="step1" class="flex items-center gap-2 px-4 py-2 rounded-full bg-purple-600 text-white font-medium"><span>1</span> Import données</div>
     <div class="h-px flex-1 bg-gray-300"></div>
@@ -212,7 +528,6 @@
   </div>
 
   <div class="grid grid-cols-12 gap-6">
-    <!-- LEFT -->
     <div class="col-span-12 lg:col-span-4 space-y-4">
       <div class="bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
         <h2 class="font-semibold text-gray-800 mb-4 flex items-center gap-2"><span class="text-purple-600">📂</span> Import Produits</h2>
@@ -266,10 +581,11 @@
       </div>
     </div>
 
-    <!-- RIGHT -->
     <div class="col-span-12 lg:col-span-8">
       <div id="emptyState" class="bg-white rounded-2xl shadow-sm border border-gray-100 flex flex-col items-center justify-center py-24 text-center">
-        <div class="text-6xl mb-4">🤖</div>
+        <div class="w-16 h-16 gradient-bg rounded-2xl flex items-center justify-center mx-auto mb-4">
+          <svg viewBox="0 0 24 24" fill="none" width="28" height="28"><path d="M12 2L2 7l10 5 10-5-10-5z" stroke="white" stroke-width="2" stroke-linejoin="round"/><path d="M2 17l10 5 10-5M2 12l10 5 10-5" stroke="white" stroke-width="2" stroke-linejoin="round"/></svg>
+        </div>
         <h3 class="text-xl font-semibold text-gray-700 mb-2">Agent prêt</h3>
         <p class="text-gray-400 max-w-sm">Importez votre fichier et lancez la génération</p>
         <div class="mt-6 grid grid-cols-3 gap-4 text-sm">
@@ -281,7 +597,7 @@
       <div id="loadingState" class="hidden bg-white rounded-2xl shadow-sm border border-gray-100 flex-col items-center justify-center py-24">
         <div class="spinner mb-6"></div>
         <h3 class="text-lg font-semibold text-gray-700 mb-2">Génération en cours...</h3>
-        <p class="text-gray-400 text-sm">Claude analyse et optimise vos fiches produits</p>
+        <p class="text-gray-400 text-sm">L'agent IA analyse et optimise vos fiches produits</p>
         <div class="mt-6 w-64 bg-gray-100 rounded-full h-2"><div id="progressBar" class="bg-purple-500 h-2 rounded-full transition-all duration-500" style="width:0%"></div></div>
       </div>
       <div id="resultsState" class="hidden space-y-4">
@@ -317,10 +633,7 @@
       <h3 class="text-lg font-bold text-gray-800">⚙️ Administration — Gestion des accès</h3>
       <button onclick="closeAdminPanel()" class="text-gray-400 hover:text-gray-600 text-xl">✕</button>
     </div>
-
-    <!-- Admin dashboard -->
     <div id="adminDashboard" class="p-6 space-y-6">
-      <!-- Add user -->
       <div class="bg-purple-50 rounded-xl p-5">
         <h4 class="font-semibold text-gray-800 mb-4">➕ Ajouter un client</h4>
         <div class="grid grid-cols-2 gap-3 mb-3">
@@ -334,8 +647,6 @@
         </div>
         <div id="addUserMsg" class="hidden mt-3 text-sm"></div>
       </div>
-
-      <!-- Users list -->
       <div>
         <div class="flex items-center justify-between mb-3">
           <h4 class="font-semibold text-gray-800">👥 Clients actifs</h4>
@@ -392,7 +703,6 @@ let token = localStorage.getItem('synqio_token') || '';
 let currentUser = null;
 let parsedProducts = [];
 let generatedListings = [];
-let adminSecret = '';
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
 async function initApp() {
@@ -413,11 +723,21 @@ async function initApp() {
 function showLoginScreen() {
   document.getElementById('login-screen').classList.remove('hidden');
   document.getElementById('app').classList.add('hidden');
+  closeLoginModal();
+}
+
+function showLoginModal() {
+  document.getElementById('loginModal').classList.remove('hidden');
   checkNeedsSetup();
+}
+
+function closeLoginModal() {
+  document.getElementById('loginModal').classList.add('hidden');
 }
 
 function showApp(email) {
   document.getElementById('login-screen').classList.add('hidden');
+  document.getElementById('loginModal').classList.add('hidden');
   document.getElementById('app').classList.remove('hidden');
   const initial = (email || '?').charAt(0).toUpperCase();
   document.getElementById('userAvatar').textContent = initial;
@@ -431,17 +751,11 @@ async function doLogin() {
   const password = document.getElementById('loginPassword').value;
   const btn = document.getElementById('loginBtn');
   const errEl = document.getElementById('loginError');
-
   if (!email || !password) { showLoginError('Remplissez tous les champs'); return; }
-
-  btn.disabled = true;
-  btn.textContent = 'Connexion...';
-  errEl.classList.add('hidden');
-
+  btn.disabled = true; btn.textContent = 'Connexion...'; errEl.classList.add('hidden');
   try {
     const r = await fetch(`${API}/api/auth/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password }),
     });
     const data = await r.json();
@@ -450,18 +764,13 @@ async function doLogin() {
     localStorage.setItem('synqio_token', token);
     currentUser = { email: data.email };
     showApp(data.email);
-  } catch (e) {
-    showLoginError(e.message);
-  } finally {
-    btn.disabled = false;
-    btn.textContent = 'Se connecter →';
-  }
+  } catch (e) { showLoginError(e.message); }
+  finally { btn.disabled = false; btn.textContent = 'Se connecter →'; }
 }
 
 function showLoginError(msg) {
   const el = document.getElementById('loginError');
-  el.textContent = msg;
-  el.classList.remove('hidden');
+  el.textContent = msg; el.classList.remove('hidden');
 }
 
 function doLogout() {
@@ -476,7 +785,6 @@ function togglePwd() {
   input.type = input.type === 'password' ? 'text' : 'password';
 }
 
-// Fetch avec token automatique
 function authFetch(url, options = {}) {
   options.headers = { ...(options.headers || {}), 'Authorization': `Bearer ${token}` };
   return fetch(API + url, options);
@@ -511,9 +819,7 @@ function showAdminPanel() {
   document.getElementById('adminModal').classList.remove('hidden');
   loadUsers();
 }
-function closeAdminPanel() {
-  document.getElementById('adminModal').classList.add('hidden');
-}
+function closeAdminPanel() { document.getElementById('adminModal').classList.add('hidden'); }
 
 async function loadUsers() {
   const r = await authFetch('/api/admin/users');
@@ -546,28 +852,22 @@ async function addUser() {
   const email = document.getElementById('newUserEmail').value.trim();
   const password = document.getElementById('newUserPassword').value.trim();
   const msgEl = document.getElementById('addUserMsg');
-
   if (!email || !password) { msgEl.textContent = 'Email et mot de passe requis'; msgEl.className = 'mt-3 text-sm text-red-600'; msgEl.classList.remove('hidden'); return; }
-
   try {
     const r = await authFetch('/api/admin/users', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password, name }),
     });
     const data = await r.json();
     if (!r.ok) throw new Error(data.detail);
     msgEl.textContent = `✅ Client "${email}" créé avec succès`;
-    msgEl.className = 'mt-3 text-sm text-green-600';
-    msgEl.classList.remove('hidden');
+    msgEl.className = 'mt-3 text-sm text-green-600'; msgEl.classList.remove('hidden');
     document.getElementById('newUserName').value = '';
     document.getElementById('newUserEmail').value = '';
     document.getElementById('newUserPassword').value = '';
     loadUsers();
   } catch (e) {
-    msgEl.textContent = `❌ ${e.message}`;
-    msgEl.className = 'mt-3 text-sm text-red-600';
-    msgEl.classList.remove('hidden');
+    msgEl.textContent = `❌ ${e.message}`; msgEl.className = 'mt-3 text-sm text-red-600'; msgEl.classList.remove('hidden');
   }
 }
 
@@ -579,8 +879,7 @@ async function deleteUser(email) {
 
 function generatePassword() {
   const chars = 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#';
-  const pwd = Array.from({length: 12}, () => chars[Math.floor(Math.random() * chars.length)]).join('');
-  document.getElementById('newUserPassword').value = pwd;
+  document.getElementById('newUserPassword').value = Array.from({length: 12}, () => chars[Math.floor(Math.random() * chars.length)]).join('');
 }
 
 // ── File handling ─────────────────────────────────────────────────────────────
@@ -659,8 +958,7 @@ async function generateListings() {
   const interval = setInterval(() => { pct = Math.min(pct + 5, 85); document.getElementById('progressBar').style.width = pct + '%'; }, 500);
   try {
     const r = await authFetch('/api/generate', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         products: parsedProducts,
         marketplace: document.getElementById('marketplaceSelector').value,
@@ -736,9 +1034,7 @@ function createListingCard(listing, idx) {
       <div id="content-${idx}-kw" class="hidden"><div class="bg-gray-50 rounded-lg p-3"><p class="text-xs text-gray-500 mb-2 font-medium">Backend Keywords (${listing.backend_keywords.length} car.)</p><p class="text-sm font-mono text-gray-700">${listing.backend_keywords}</p></div></div>
       <div id="content-${idx}-aplus" class="hidden">${listing.a_plus_content ? `<div class="space-y-3"><div class="bg-purple-50 rounded-lg p-3"><p class="font-semibold text-purple-800 text-sm">✨ ${listing.a_plus_content.headline}</p></div>${(listing.a_plus_content.modules||[]).map(m=>`<div class="border border-gray-100 rounded-lg p-3"><p class="text-xs text-gray-500 uppercase tracking-wide mb-1">${(m.type||'').replace('_',' ')}</p><p class="font-semibold text-gray-800 text-sm mb-1">${m.title||''}</p><p class="text-gray-600 text-sm">${m.body||''}</p></div>`).join('')}</div>` : '<p class="text-gray-400 text-sm">Non disponible</p>'}</div>
       <div id="content-${idx}-images" class="hidden">
-        <div id="images-container-${idx}" class="text-center py-6 text-gray-400 text-sm">
-          Cliquez sur "Générer les images" pour lancer la création
-        </div>
+        <div id="images-container-${idx}" class="text-center py-6 text-gray-400 text-sm">Cliquez sur "Générer les images" pour lancer la création</div>
       </div>
     </div>
     <div class="border-t border-gray-50 px-5 py-3 bg-gray-50/50 flex items-center gap-3 flex-wrap gap-y-2">
@@ -767,112 +1063,50 @@ const imagesCache = {};
 async function generateImages(idx) {
   const listing = generatedListings[idx];
   if (!listing) return;
-
   const container = document.getElementById(`images-container-${idx}`);
-  if (imagesCache[listing.sku]) {
-    renderImages(container, imagesCache[listing.sku]);
-    return;
-  }
-
-  container.innerHTML = `
-    <div class="flex flex-col items-center py-8 gap-3">
-      <div class="spinner"></div>
-      <p class="text-gray-500 text-sm">Claude génère les prompts photos...</p>
-      <p class="text-gray-400 text-xs">7 visuels Amazon en cours de création</p>
-    </div>`;
-
+  if (imagesCache[listing.sku]) { renderImages(container, imagesCache[listing.sku]); return; }
+  container.innerHTML = `<div class="flex flex-col items-center py-8 gap-3"><div class="spinner"></div><p class="text-gray-500 text-sm">Génération des prompts et visuels...</p><p class="text-gray-400 text-xs">7 visuels Amazon en cours de création</p></div>`;
   try {
     const r = await authFetch('/api/generate-images', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        sku: listing.sku,
-        product_name: listing.title,
-        brand: listing.brand || '',
-        category: listing.category || '',
-        features: listing.bullet_points || [],
-        color: '',
-        material: '',
-      }),
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sku: listing.sku, product_name: listing.title, brand: listing.brand || '', category: listing.category || '', features: listing.bullet_points || [], color: '', material: '' }),
     });
     if (!r.ok) { const e = await r.json(); throw new Error(e.detail); }
     const data = await r.json();
     imagesCache[listing.sku] = data;
     renderImages(container, data);
-  } catch (e) {
-    container.innerHTML = `<p class="text-red-500 text-sm text-center py-4">Erreur : ${e.message}</p>`;
-  }
+  } catch (e) { container.innerHTML = `<p class="text-red-500 text-sm text-center py-4">Erreur : ${e.message}</p>`; }
 }
 
 function renderImages(container, data) {
   const hasImages = data.openai_configured;
-
-  const notice = hasImages ? '' : `
-    <div class="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-4 text-sm text-blue-800">
-      <p class="font-semibold mb-1">💡 Prompts générés — Images non générées</p>
-      <p>Ajoutez <code class="bg-blue-100 px-1 rounded">OPENAI_API_KEY</code> dans Railway pour générer les images automatiquement.<br>
-      En attendant, copiez les prompts dans <strong>DALL-E</strong>, <strong>Midjourney</strong> ou <strong>Canva IA</strong>.</p>
-    </div>`;
-
+  const notice = hasImages ? '' : `<div class="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-4 text-sm text-blue-800"><p class="font-semibold mb-1">💡 Prompts générés — Images non générées</p><p>Ajoutez <code class="bg-blue-100 px-1 rounded">OPENAI_API_KEY</code> dans Railway pour générer les images. En attendant, copiez les prompts dans Midjourney ou Canva IA.</p></div>`;
   const cards = data.images.map(img => `
     <div class="border border-gray-100 rounded-xl overflow-hidden">
-      ${img.url ? `
-        <div class="relative group">
-          <img src="${img.url}" alt="${img.label}" class="w-full h-48 object-cover">
-          <div class="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition flex items-center justify-center">
-            <a href="${img.url}" target="_blank" class="hidden group-hover:flex bg-white rounded-lg px-3 py-1.5 text-xs font-medium gap-1 items-center">
-              ↗ Ouvrir
-            </a>
-          </div>
-        </div>` : `
-        <div class="h-36 bg-gradient-to-br from-gray-100 to-gray-50 flex items-center justify-center">
-          <span class="text-4xl">${img.id === 'hero' ? '📸' : img.id.includes('lifestyle') ? '🌅' : img.id === 'infographic' ? '📊' : img.id === 'detail' ? '🔍' : img.id === 'dimensions' ? '📐' : img.id === 'packaging' ? '📦' : '🖼️'}</span>
-        </div>`}
+      ${img.url ? `<div class="relative group"><img src="${img.url}" alt="${img.label}" class="w-full h-48 object-cover"><div class="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition flex items-center justify-center"><a href="${img.url}" target="_blank" class="hidden group-hover:flex bg-white rounded-lg px-3 py-1.5 text-xs font-medium gap-1 items-center">↗ Ouvrir</a></div></div>` : `<div class="h-36 bg-gradient-to-br from-gray-100 to-gray-50 flex items-center justify-center"><span class="text-4xl">${img.id === 'hero' ? '📸' : img.id.includes('lifestyle') ? '🌅' : img.id === 'infographic' ? '📊' : img.id === 'detail' ? '🔍' : img.id === 'dimensions' ? '📐' : img.id === 'packaging' ? '📦' : '🖼️'}</span></div>`}
       <div class="p-3">
         <div class="flex items-center justify-between mb-2">
-          <div>
-            <span class="font-medium text-gray-800 text-xs">${img.label}</span>
-            <span class="ml-2 text-xs bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded font-mono">${img.slot}</span>
-          </div>
-          <button onclick="copyPrompt('${img.id}', ${JSON.stringify(img.prompt).replace(/'/g, "\\'")})"
-            class="text-xs text-purple-600 hover:text-purple-800 flex items-center gap-1">
-            📋 Prompt
-          </button>
+          <div><span class="font-medium text-gray-800 text-xs">${img.label}</span><span class="ml-2 text-xs bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded font-mono">${img.slot}</span></div>
+          <button onclick="copyPrompt('${img.id}', ${JSON.stringify(img.prompt).replace(/'/g, "\\'")})" class="text-xs text-purple-600 hover:text-purple-800 flex items-center gap-1">📋 Prompt</button>
         </div>
         <p class="text-xs text-gray-400 line-clamp-2 leading-relaxed">${img.prompt.substring(0, 120)}...</p>
         ${img.error ? `<p class="text-xs text-red-500 mt-1">⚠ ${img.error}</p>` : ''}
       </div>
     </div>`).join('');
-
-  container.innerHTML = `
-    ${notice}
-    <div class="grid grid-cols-2 gap-3 mb-3">${cards}</div>
-    <button onclick="downloadAllPrompts(${JSON.stringify(data.images).replace(/"/g, '&quot;')})"
-      class="w-full bg-gray-50 hover:bg-gray-100 text-gray-700 rounded-lg py-2 text-xs font-medium transition">
-      ⬇ Télécharger tous les prompts (.txt)
-    </button>`;
+  container.innerHTML = `${notice}<div class="grid grid-cols-2 gap-3 mb-3">${cards}</div><button onclick="downloadAllPrompts(${JSON.stringify(data.images).replace(/"/g, '&quot;')})" class="w-full bg-gray-50 hover:bg-gray-100 text-gray-700 rounded-lg py-2 text-xs font-medium transition">⬇ Télécharger tous les prompts (.txt)</button>`;
 }
 
-function copyPrompt(id, prompt) {
-  navigator.clipboard.writeText(prompt);
-  showToast('📋', `Prompt ${id} copié`);
-}
+function copyPrompt(id, prompt) { navigator.clipboard.writeText(prompt); showToast('📋', `Prompt ${id} copié`); }
 
 function downloadAllPrompts(images) {
-  const lines = images.map(img =>
-    `=== ${img.label} (${img.slot}) ===\n${img.prompt}\n`
-  ).join('\n');
+  const lines = images.map(img => `=== ${img.label} (${img.slot}) ===\n${img.prompt}\n`).join('\n');
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([lines], { type: 'text/plain' }));
-  a.download = 'prompts_images_amazon.txt';
-  a.click();
+  a.download = 'prompts_images_amazon.txt'; a.click();
   showToast('✅', 'Prompts téléchargés');
 }
 
-function copyListing(idx) {
-  navigator.clipboard.writeText(JSON.stringify(generatedListings[idx], null, 2));
-  showToast('📋', 'JSON copié');
-}
+function copyListing(idx) { navigator.clipboard.writeText(JSON.stringify(generatedListings[idx], null, 2)); showToast('📋', 'JSON copié'); }
 
 async function exportResults(format) {
   if (!generatedListings.length) return;
@@ -880,9 +1114,7 @@ async function exportResults(format) {
   const fn = {csv:'listings.csv', json:'listings.json', flat:'amazon_flat_file.txt'};
   const r = await authFetch(ep[format], { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(generatedListings) });
   const a = document.createElement('a');
-  a.href = URL.createObjectURL(await r.blob());
-  a.download = fn[format];
-  a.click();
+  a.href = URL.createObjectURL(await r.blob()); a.download = fn[format]; a.click();
   showToast('✅', `Export ${format.toUpperCase()} téléchargé`);
 }
 
@@ -943,18 +1175,12 @@ async function doSetup() {
   const password = document.getElementById('setupPassword').value;
   const btn = document.getElementById('setupBtn');
   const errEl = document.getElementById('setupError');
-
   if (!email || !password) { errEl.textContent = 'Email et mot de passe requis'; errEl.classList.remove('hidden'); return; }
   if (password.length < 8) { errEl.textContent = 'Mot de passe trop court (8 caractères min)'; errEl.classList.remove('hidden'); return; }
-
-  btn.disabled = true;
-  btn.textContent = 'Création...';
-  errEl.classList.add('hidden');
-
+  btn.disabled = true; btn.textContent = 'Création...'; errEl.classList.add('hidden');
   try {
     const r = await fetch(`${API}/api/auth/setup`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password, name }),
     });
     const data = await r.json();
@@ -964,16 +1190,61 @@ async function doSetup() {
     currentUser = { email: data.email };
     showApp(data.email);
   } catch (e) {
-    errEl.textContent = e.message;
-    errEl.classList.remove('hidden');
-    btn.disabled = false;
-    btn.textContent = 'Créer mon compte →';
+    errEl.textContent = e.message; errEl.classList.remove('hidden');
+    btn.disabled = false; btn.textContent = 'Créer mon compte →';
   }
 }
 
 function togglePwdSetup() {
   const input = document.getElementById('setupPassword');
   input.type = input.type === 'password' ? 'text' : 'password';
+}
+
+// ── ROI Calculator ────────────────────────────────────────────────────────────
+function calcROI() {
+  const skus = parseInt(document.getElementById('roi-skus').value);
+  const timePerSku = parseFloat(document.getElementById('roi-time').value);
+  const hourlyRate = parseInt(document.getElementById('roi-hourly').value);
+  const photoRate = parseInt(document.getElementById('roi-photo').value);
+
+  const totalHours = skus * timePerSku;
+  const teamCost = totalHours * hourlyRate;
+  const photoCost = skus * photoRate;
+  const totalCost = teamCost + photoCost;
+
+  const offerEl = document.querySelector('input[name="roi-offer"]:checked');
+  const offer = offerEl ? offerEl.value : 'starter';
+  const prices = { starter: 390, business: 790, scale: 1490 };
+  const aiCost = prices[offer];
+  const savings = Math.max(0, totalCost - aiCost);
+
+  const fmt = n => n.toLocaleString('fr-FR') + ' €';
+  const fmtH = n => n.toLocaleString('fr-FR') + 'h';
+
+  document.getElementById('roi-skus-val').textContent = skus.toLocaleString('fr-FR') + ' SKU';
+  document.getElementById('roi-time-val').textContent = timePerSku + 'h / fiche';
+  document.getElementById('roi-hourly-val').textContent = hourlyRate + ' €/h';
+  document.getElementById('roi-photo-val').textContent = photoRate + ' €/SKU';
+  document.getElementById('roi-hours').textContent = fmtH(totalHours);
+  document.getElementById('roi-team-cost').textContent = fmt(teamCost);
+  document.getElementById('roi-photo-cost').textContent = fmt(photoCost);
+  document.getElementById('roi-total-cost').textContent = fmt(totalCost);
+  document.getElementById('roi-current-display').textContent = fmt(totalCost);
+  document.getElementById('roi-ai-cost').textContent = fmt(aiCost);
+  document.getElementById('roi-savings').textContent = fmt(savings);
+  document.getElementById('roi-time-freed').textContent = fmtH(totalHours);
+
+  ['starter','business','scale'].forEach(o => {
+    const card = document.getElementById('roi-card-' + o);
+    if (!card) return;
+    if (o === offer) {
+      card.style.borderColor = 'rgba(124,58,237,0.6)';
+      card.style.background = 'rgba(124,58,237,0.15)';
+    } else {
+      card.style.borderColor = 'rgba(255,255,255,0.15)';
+      card.style.background = 'transparent';
+    }
+  });
 }
 
 // Start
