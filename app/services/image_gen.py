@@ -115,20 +115,19 @@ async def _generate_image_dalle3(prompt: str, image_id: str) -> Optional[str]:
     # DALL-E 3 limite les prompts à 4000 caractères
     prompt = prompt[:3900] if len(prompt) > 3900 else prompt
 
-    size = "1024x1024"
     headers = {
         "Authorization": f"Bearer {api_key}",
         "Content-Type": "application/json",
     }
     body = {
-        "model": "dall-e-3",
+        "model": "gpt-image-1",
         "prompt": prompt,
         "n": 1,
-        "size": size,
-        "quality": "standard",
+        "size": "1024x1024",
+        "quality": "medium",
     }
 
-    async with httpx.AsyncClient(timeout=60) as client:
+    async with httpx.AsyncClient(timeout=120) as client:
         resp = await client.post(
             "https://api.openai.com/v1/images/generations",
             headers=headers,
@@ -140,7 +139,11 @@ async def _generate_image_dalle3(prompt: str, image_id: str) -> Optional[str]:
             except Exception:
                 detail = resp.text
             raise Exception(f"OpenAI {resp.status_code}: {detail}")
-        return resp.json()["data"][0]["url"]
+        item = resp.json()["data"][0]
+        if "url" in item:
+            return item["url"]
+        # gpt-image-1 retourne b64_json par défaut
+        return f"data:image/png;base64,{item['b64_json']}"
 
 
 async def generate_product_images(
