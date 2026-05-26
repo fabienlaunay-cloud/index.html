@@ -7,6 +7,7 @@ from fastapi import FastAPI, UploadFile, File, HTTPException, Form, Request
 from fastapi.responses import Response, HTMLResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
+from pydantic import BaseModel
 
 from app.models import (
     GenerationRequest, GenerationResult, PublishRequest, PublishResult,
@@ -16,6 +17,7 @@ from app.services.ingestion import parse_file
 from app.services.ai_agent import generate_listings_batch
 from app.services.amazon_sp import publish_listings
 from app.services.auth import verify_token
+from app.services.image_gen import generate_product_images, AMAZON_IMAGE_TYPES
 from app.utils.export import to_csv_bytes, to_json_bytes, to_amazon_flat_file_bytes
 from app.db import init_db
 from app.routes.auth import router as auth_router, admin_router
@@ -159,6 +161,48 @@ async def export_json_file(listings: List[AmazonListing]):
 async def export_flat_file(listings: List[AmazonListing]):
     return Response(content=to_amazon_flat_file_bytes(listings), media_type="text/plain",
                     headers={"Content-Disposition": "attachment; filename=amazon_flat_file.txt"})
+
+
+# ── Images ───────────────────────────────────────────────────────────────────
+
+class ImageRequest(BaseModel):
+    sku: str
+    product_name: str
+    brand: str = ""
+    category: str = ""
+    features: List[str] = []
+    color: str = ""
+    material: str = ""
+    selected_types: Optional[List[str]] = None
+
+
+@app.post("/api/generate-images")
+async def generate_images(req: ImageRequest):
+    if not os.getenv("ANTHROPIC_API_KEY"):
+        raise HTTPException(503, "ANTHROPIC_API_KEY manquante")
+    images = await generate_product_images(
+        sku=req.sku,
+        product_name=req.product_name,
+        brand=req.brand,
+        category=req.category,
+        features=req.features,
+        color=req.color,
+        material=req.material,
+        selected_types=req.selected_types,
+    )
+    has_openai = bool(os.getenv("OPENAI_API_KEY"))
+    return {
+        "sku": req.sku,
+        "images": images,
+        "images_generated": has_openai,
+        "openai_configured": has_openai,
+        "total": len(images),
+    }
+
+
+@app.get("/api/image-types")
+async def get_image_types():
+    return AMAZON_IMAGE_TYPES
 
 
 # ── Marketplaces ──────────────────────────────────────────────────────────────
