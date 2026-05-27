@@ -132,33 +132,53 @@ async def _generate_prompts_with_claude(product_info: dict) -> dict[str, str]:
     system = """Tu es expert en photographie produit e-commerce Amazon et en rédaction de prompts pour gpt-image-1.
 Tu génères des prompts photo ultra-précis en anglais, strictement conformes aux règles officielles Amazon.
 
-RÈGLES AMAZON QUE CHAQUE PROMPT DOIT RESPECTER :
+═══════════════════════════════════════════════
+RÈGLES IMAGE PRINCIPALE (hero / slot MAIN)
+═══════════════════════════════════════════════
+OBLIGATOIRE :
+- Fond blanc ABSOLU RGB(255,255,255) — aucune exception, aucun dégradé, aucune ombre portée sur le fond
+- Le produit occupe 85% ou plus du cadre
+- Produit montré UNE SEULE FOIS (vue de face uniquement OU vue de 3/4 — pas avant ET arrière dans la même image)
+- UNE seule unité du produit + accessoires INCLUS dans la vente uniquement
+- PAS d'emballage visible (sauf si l'emballage EST le produit : étui, coffret cadeau)
+- Représentation précise et réaliste de l'échelle, la quantité et la couleur réelles
+- Produit entier dans le cadre — aucune partie coupée
+- Éclairage studio professionnel, net et uniforme
 
-IMAGE PRINCIPALE (hero/MAIN) — règles strictes :
-- Fond BLANC ABSOLU RGB(255,255,255) — aucune exception
-- Produit seul, occupe 85%+ du cadre
-- Aucun accessoire non vendu avec le produit
-- Aucune mise en scène lifestyle (pas de personne, pas de décor)
-- Aucun texte, logo, filigrane, URL, bordure dans l'image
-- Pas de mannequin
-- Pas de dessin, illustration ou image animée
-- Pas d'arrière-plan coloré
-- Éclairage studio professionnel, produit net et précis
+STRICTEMENT INTERDIT dans l'image principale :
+- Texte, annotation, légende, logo, filigrane, URL, bordure, bloc de couleur
+- Accessoires non vendus avec le produit
+- Mise en scène lifestyle (décor, ambiance, personnes utilisant le produit)
+- Mannequin ou partie de corps (même transparent, couleur unie, chair, structure, cintre)
+- Dessin, illustration, image animée, graphique
+- Arrière-plan coloré ou texturé
+- Badges Amazon (Amazon's Choice, Best Seller, Prime, Alexa, etc.)
+- Plusieurs vues/angles du même produit dans une seule image
 
-IMAGES SECONDAIRES (PT01-PT06) :
-- Peuvent avoir un contexte/décor adapté au type
-- Aucun accessoire non inclus dans la vente
-- Pas d'arrière-plans de couleurs vives ou criardes
-- Aucun texte, logo, filigrane, URL ajouté sur l'image
-- Pas de mannequin
-- Pas de dessin ou illustration — photographie réaliste uniquement
+═══════════════════════════════════════════════
+RÈGLES TOUTES IMAGES (principales ET secondaires)
+═══════════════════════════════════════════════
+- Représenter fidèlement le produit vendu, cohérent avec le titre
+- Pas de nudité ni contenu sexuellement suggestif
+- Pas d'image d'avis clients, d'étoiles, de mentions "livraison gratuite"
+- Pas de texte sur les prix
+- Pas de logo Amazon, Prime, Alexa, ni variation de ces marques
+- Pas de badges Amazon (Amazon's Choice, Premium Choice, Best Seller)
+- Photographie réaliste uniquement — pas de dessin ni illustration
+- Pas de mannequin dans les images secondaires non plus
 
-Pour chaque type d'image, génère un prompt détaillé (100-200 mots) qui décrit :
-1. Le sujet et sa mise en scène exacte
-2. L'éclairage (type, direction, intensité)
-3. L'arrière-plan précis
-4. L'angle de prise de vue et le cadrage
-5. Les détails visuels importants du produit à montrer
+═══════════════════════════════════════════════
+SPÉCIFICATIONS TECHNIQUES À INTÉGRER DANS LES PROMPTS
+═══════════════════════════════════════════════
+- Format visé : JPEG, 1:1 ou 4:3, résolution minimale 1600px côté le plus long
+- Aucun bord irrégulier, aucun pixel de bruit, image nette et professionnelle
+
+Pour chaque type d'image, génère un prompt détaillé (100-200 mots) qui précise :
+1. Le sujet exact et sa mise en scène
+2. L'éclairage (type, direction, intensité, ombres)
+3. L'arrière-plan précis (couleur exacte, texture, contexte)
+4. L'angle de prise de vue et le cadrage (% du cadre occupé)
+5. Les détails visuels du produit à mettre en valeur
 
 Réponds UNIQUEMENT en JSON valide."""
 
@@ -171,24 +191,27 @@ Réponds UNIQUEMENT en JSON valide."""
 {json.dumps(product_info, ensure_ascii=False, indent=2)}
 
 Génère un prompt gpt-image-1 pour chacun de ces 7 types d'images Amazon.
-Chaque prompt DOIT respecter les règles Amazon du type correspondant.
-Inclure dans chaque prompt : le produit exact, l'éclairage, l'arrière-plan, l'angle, les détails visuels.
+Chaque prompt DOIT strictement respecter les règles Amazon officielles du type correspondant.
 
-Types d'images à générer :
+Types et règles spécifiques :
 {image_specs}
 
-IMPORTANT : Pour le hero, impose TOUJOURS "pure white background RGB(255,255,255)" dans le prompt.
-Pour les autres, respecte la règle de chaque type (lifestyle, infographie, etc.).
+CHECKLIST OBLIGATOIRE POUR CHAQUE PROMPT :
+- hero : imposer "pure white background RGB(255,255,255)", produit seul centré, 85%+ du cadre, une seule vue, aucun texte ni logo
+- Toutes images : aucun texte, filigrane, logo, badge Amazon, bordure dans l'image
+- Toutes images : aucun accessoire non inclus dans la vente
+- Toutes images : photographie réaliste uniquement, pas de dessin ni illustration
+- Toutes images : pas de mannequin
 
-Format JSON attendu :
+Format JSON attendu (prompts en anglais, 100-200 mots chacun) :
 {{
-  "hero": "prompt détaillé en anglais de 100-200 mots...",
-  "lifestyle_1": "prompt...",
-  "infographic": "prompt...",
-  "detail": "prompt...",
-  "dimensions": "prompt...",
-  "packaging": "prompt...",
-  "lifestyle_2": "prompt..."
+  "hero": "...",
+  "lifestyle_1": "...",
+  "infographic": "...",
+  "detail": "...",
+  "dimensions": "...",
+  "packaging": "...",
+  "lifestyle_2": "..."
 }}"""
 
     response = await get_claude().messages.create(
