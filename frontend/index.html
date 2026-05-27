@@ -604,7 +604,7 @@
             <div><h2 class="font-semibold text-gray-800">Fiches générées</h2><p id="statsText" class="text-sm text-gray-400 mt-0.5"></p></div>
             <div class="flex gap-2">
               <button onclick="exportResults('csv')" class="bg-green-50 hover:bg-green-100 text-green-700 rounded-lg px-3 py-2 text-sm font-medium transition">📊 CSV</button>
-              <button onclick="exportResults('flat')" class="bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg px-3 py-2 text-sm font-medium transition">📋 Flat File</button>
+              <button onclick="exportResults('flat')" class="bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg px-3 py-2 text-sm font-medium transition">⬇️ Seller Central</button>
               <button onclick="exportResults('json')" class="bg-gray-50 hover:bg-gray-100 text-gray-700 rounded-lg px-3 py-2 text-sm font-medium transition">{ } JSON</button>
               <button onclick="showPublishModal()" class="gradient-bg text-white rounded-lg px-4 py-2 text-sm font-semibold hover:opacity-90 transition">🚀 Publier</button>
             </div>
@@ -662,14 +662,26 @@
 <div id="publishModal" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
   <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
     <div class="flex items-center justify-between mb-5">
-      <h3 class="text-lg font-bold text-gray-800">🚀 Publier sur la Marketplace</h3>
+      <h3 class="text-lg font-bold text-gray-800">Mettre en ligne</h3>
       <button onclick="closePublishModal()" class="text-gray-400 hover:text-gray-600">✕</button>
     </div>
-    <div class="space-y-4">
-      <div class="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-800">⚠️ Mode Dry Run activé par défaut — simulation sans envoi réel</div>
-      <div>
-        <label class="text-sm font-medium text-gray-700 block mb-1.5">Marketplace</label>
-        <select id="publishMarketplace" class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm">
+
+    <!-- Option 1 : télécharger -->
+    <div class="border border-blue-200 bg-blue-50 rounded-xl p-4 mb-3">
+      <p class="text-sm font-semibold text-blue-800 mb-1">⬇️ Télécharger le fichier Seller Central</p>
+      <p class="text-xs text-blue-600 mb-3">Format Amazon Flat File — importez-le directement dans Inventaire → Ajouter des produits via upload.</p>
+      <button onclick="closePublishModal(); exportResults('flat')" class="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-lg py-2 text-sm font-semibold transition">
+        Télécharger le fichier (.txt)
+      </button>
+    </div>
+
+    <!-- Option 2 : API directe -->
+    <div class="border border-gray-200 rounded-xl p-4">
+      <p class="text-sm font-semibold text-gray-800 mb-1">🚀 Push direct via API <span class="text-xs font-normal text-gray-400 ml-1">(bientôt disponible)</span></p>
+      <p class="text-xs text-gray-500 mb-3">Publie automatiquement sans upload manuel. Nécessite la connexion de votre compte Seller Central.</p>
+      <div class="mb-3">
+        <label class="text-xs font-medium text-gray-600 block mb-1">Marketplace</label>
+        <select id="publishMarketplace" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm">
           <option value="amazon_fr">🇫🇷 Amazon France</option>
           <option value="amazon_de">🇩🇪 Amazon Allemagne</option>
           <option value="amazon_it">🇮🇹 Amazon Italie</option>
@@ -677,15 +689,16 @@
           <option value="amazon_uk">🇬🇧 Amazon UK</option>
         </select>
       </div>
-      <div class="flex items-center gap-2">
+      <div class="flex items-center gap-2 mb-3">
         <input type="checkbox" id="dryRunCheck" class="w-4 h-4 accent-purple-600" checked>
-        <label for="dryRunCheck" class="text-sm text-gray-700">Mode Dry Run (simulation)</label>
+        <label for="dryRunCheck" class="text-xs text-gray-600">Mode test (simulation sans envoi réel)</label>
       </div>
+      <button onclick="publishListings()" class="w-full gradient-bg text-white rounded-lg py-2 text-sm font-semibold hover:opacity-90 transition">
+        Publier via API
+      </button>
     </div>
-    <div class="flex gap-3 mt-6">
-      <button onclick="closePublishModal()" class="flex-1 border border-gray-200 rounded-xl py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-50">Annuler</button>
-      <button onclick="publishListings()" class="flex-1 gradient-bg text-white rounded-xl py-2.5 text-sm font-semibold hover:opacity-90">Confirmer</button>
-    </div>
+
+    <button onclick="closePublishModal()" class="w-full mt-3 text-sm text-gray-400 hover:text-gray-600 py-1">Annuler</button>
   </div>
 </div>
 
