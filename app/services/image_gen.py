@@ -20,16 +20,16 @@ AMAZON_IMAGE_TYPES = [
         "amazon_rule": (
             "Fond blanc ABSOLU RGB(255,255,255) obligatoire. "
             "Produit seul, aucun accessoire non inclus dans la vente. "
-            "Produit occupe 85%+ du cadre. "
-            "Aucun texte, logo, filigrane, URL, bordure. "
-            "Pas de mise en scène lifestyle. Pas de mannequin. "
-            "Pas de dessin ou illustration. Pas d'arrière-plan coloré."
+            "Produit occupe 85%+ du cadre. Une seule vue du produit. "
+            "AUCUN texte, logo, filigrane, URL, bordure. "
+            "PAS de mise en scène lifestyle. PAS de mannequin ni personne. "
+            "PAS de dessin ou illustration. PAS d'arrière-plan coloré."
         ),
         "style_hint": (
             "professional studio product photography, pure white background RGB(255,255,255), "
-            "product alone centered, fills 85% of frame, soft even studio lighting, "
-            "razor sharp focus on entire product, no shadows, no reflections, "
-            "no text overlay, no watermark, no borders, photorealistic"
+            "product alone centered, fills 85% of frame, soft even studio lighting from multiple angles, "
+            "razor sharp focus on entire product, no shadows on background, no reflections, "
+            "no text overlay, no watermark, no borders, photorealistic, commercial quality"
         ),
     },
     {
@@ -37,15 +37,17 @@ AMAZON_IMAGE_TYPES = [
         "label": "Lifestyle — en situation",
         "slot": "PT01",
         "amazon_rule": (
-            "Produit utilisé dans son contexte naturel. "
-            "Accessoires visibles uniquement s'ils sont inclus dans la vente. "
-            "Pas de fond de couleur criarde. Pas de filigrane ni texte. "
-            "Pas de mannequin. Ambiance lumineuse et positive."
+            "Produit utilisé par une vraie personne dans un contexte naturel et authentique. "
+            "Montrer un être humain réel utilisant le produit (pas de mannequin statique). "
+            "Ambiance lumineuse, positive, aspirationnelle. "
+            "Pas de fond de couleur criarde. Pas de filigrane ni texte ajouté."
         ),
         "style_hint": (
-            "lifestyle product photography, natural warm light, product in use in realistic setting, "
-            "aspirational but authentic scene, soft natural background, "
-            "no text overlay, no watermark, no logo, photorealistic, professional quality"
+            "high-end lifestyle advertising photography, real person naturally using the product, "
+            "authentic candid moment, cinematic composition, beautiful natural or urban setting, "
+            "golden hour or soft daylight, shallow depth of field, bokeh background, "
+            "editorial magazine quality, emotion and lifestyle aspiration, "
+            "no text overlay, no watermark, photorealistic, professional retouching"
         ),
     },
     {
@@ -61,7 +63,8 @@ AMAZON_IMAGE_TYPES = [
         "style_hint": (
             "product infographic photography, clean light gray or white background, "
             "product centered and sharp, clean annotation arrows pointing to key features, "
-            "professional minimal layout, no colored backgrounds, no watermark, photorealistic product"
+            "professional minimal tech layout, typography clean and modern, "
+            "no colored backgrounds, no watermark, photorealistic product"
         ),
     },
     {
@@ -69,14 +72,15 @@ AMAZON_IMAGE_TYPES = [
         "label": "Zoom matière / qualité",
         "slot": "PT03",
         "amazon_rule": (
-            "Gros plan sur une partie spécifique du produit montrant la qualité des matériaux. "
-            "Fond neutre (blanc, gris clair ou noir). "
+            "Gros plan extrême sur une partie spécifique du produit montrant la qualité des matériaux. "
+            "Fond neutre ou contextuel élégant. "
             "Aucun accessoire non vendu avec. Pas de texte ni logo."
         ),
         "style_hint": (
-            "extreme macro product photography, close-up detail of material texture and finish quality, "
-            "neutral background, studio lighting, tack sharp focus, "
-            "showing premium craftsmanship, no text, no watermark, photorealistic"
+            "extreme close-up macro product photography, tack sharp focus on material texture and craftsmanship, "
+            "premium quality details — stitching, finish, grain, surface — beautifully lit, "
+            "dark or neutral elegant background, dramatic studio lighting, "
+            "luxury brand quality, no text, no watermark, photorealistic"
         ),
     },
     {
@@ -89,9 +93,10 @@ AMAZON_IMAGE_TYPES = [
             "Fond clair ou neutre. Pas de filigrane ni URL."
         ),
         "style_hint": (
-            "product size comparison photography, product next to a human hand or common object for scale, "
+            "product size comparison photography, product held naturally in a human hand or placed next to "
+            "a recognizable everyday object for scale reference, "
             "clean neutral or white background, clear sharp image, "
-            "no text overlay, no watermark, professional studio lighting, photorealistic"
+            "soft studio lighting, no text overlay, no watermark, photorealistic"
         ),
     },
     {
@@ -104,9 +109,11 @@ AMAZON_IMAGE_TYPES = [
             "Pas de texte ajouté ni logo vendeur."
         ),
         "style_hint": (
-            "product unboxing flat lay photography, product with its original packaging and all included accessories, "
-            "overhead or slight angle shot, clean white or light gray background, "
-            "neat organized arrangement, soft studio lighting, no text overlay, no watermark, photorealistic"
+            "premium unboxing flat lay photography, product with original packaging and all included accessories "
+            "elegantly arranged, overhead shot with slight angle, "
+            "clean white or warm light gray background, "
+            "soft diffused studio lighting, neat organized composition, "
+            "Apple-style premium aesthetic, no text overlay, no watermark, photorealistic"
         ),
     },
     {
@@ -114,14 +121,18 @@ AMAZON_IMAGE_TYPES = [
         "label": "Lifestyle — angle 2",
         "slot": "PT06",
         "amazon_rule": (
-            "Deuxième mise en scène lifestyle, angle ou contexte différent du PT01. "
-            "Pas de fond de couleur criarde. Pas de filigrane ni texte. "
-            "Pas de mannequin. Ambiance complémentaire à la première lifestyle."
+            "Deuxième mise en scène lifestyle avec une personne réelle, "
+            "angle ou contexte différent du PT01 (autre activité, autre moment de la journée, autre lieu). "
+            "Ambiance complémentaire et cohérente avec la marque. "
+            "Pas de fond de couleur criarde. Pas de filigrane ni texte."
         ),
         "style_hint": (
-            "lifestyle product photography from a different angle or setting than the first lifestyle shot, "
-            "complementary natural environment, warm professional lighting, "
-            "product prominently featured, no text overlay, no watermark, no logo, photorealistic"
+            "high-end lifestyle advertising photography, different scenario from first lifestyle image, "
+            "person naturally interacting with the product in a complementary setting, "
+            "cinematic lighting, rich colors, editorial composition, "
+            "different time of day or environment than PT01, "
+            "magazine cover quality, emotion and storytelling, "
+            "no text overlay, no watermark, photorealistic"
         ),
     },
 ]
@@ -129,56 +140,35 @@ AMAZON_IMAGE_TYPES = [
 
 async def _generate_prompts_with_claude(product_info: dict) -> dict[str, str]:
     """Claude génère des prompts DALL-E optimisés pour chaque type d'image Amazon."""
-    system = """Tu es expert en photographie produit e-commerce Amazon et en rédaction de prompts pour gpt-image-1.
-Tu génères des prompts photo ultra-précis en anglais, strictement conformes aux règles officielles Amazon.
+    system = """Tu es un directeur artistique expert en photographie produit haut de gamme et en publicité e-commerce.
+Tu rédiges des prompts photo ultra-cinématiques en anglais pour gpt-image-1, au niveau d'une campagne publicitaire Apple ou Nike.
 
-═══════════════════════════════════════════════
-RÈGLES IMAGE PRINCIPALE (hero / slot MAIN)
-═══════════════════════════════════════════════
-OBLIGATOIRE :
-- Fond blanc ABSOLU RGB(255,255,255) — aucune exception, aucun dégradé, aucune ombre portée sur le fond
-- Le produit occupe 85% ou plus du cadre
-- Produit montré UNE SEULE FOIS (vue de face uniquement OU vue de 3/4 — pas avant ET arrière dans la même image)
-- UNE seule unité du produit + accessoires INCLUS dans la vente uniquement
-- PAS d'emballage visible (sauf si l'emballage EST le produit : étui, coffret cadeau)
-- Représentation précise et réaliste de l'échelle, la quantité et la couleur réelles
-- Produit entier dans le cadre — aucune partie coupée
-- Éclairage studio professionnel, net et uniforme
+═══ IMAGE PRINCIPALE (hero / MAIN) — règles strictes ═══
+- Fond blanc ABSOLU RGB(255,255,255) — aucune exception
+- Produit seul, occupe 85%+ du cadre, une seule vue
+- PAS de personne, mannequin, lifestyle, texte, logo, filigrane, bordure
+- PAS d'emballage sauf si c'est le produit lui-même
+- Éclairage studio professionnel, produit net et complet dans le cadre
 
-STRICTEMENT INTERDIT dans l'image principale :
-- Texte, annotation, légende, logo, filigrane, URL, bordure, bloc de couleur
-- Accessoires non vendus avec le produit
-- Mise en scène lifestyle (décor, ambiance, personnes utilisant le produit)
-- Mannequin ou partie de corps (même transparent, couleur unie, chair, structure, cintre)
-- Dessin, illustration, image animée, graphique
-- Arrière-plan coloré ou texturé
-- Badges Amazon (Amazon's Choice, Best Seller, Prime, Alexa, etc.)
-- Plusieurs vues/angles du même produit dans une seule image
+═══ IMAGES LIFESTYLE (PT01, PT06) — liberté créative ═══
+Les images lifestyle PEUVENT et DOIVENT montrer de vraies personnes utilisant le produit.
+- Décrire une scène précise et cinématique : qui, où, quand, quelle activité
+- Personne réelle, naturelle, authentique (pas de pose figée)
+- Décor réel et immersif (rue, appartement moderne, nature, café, bureau...)
+- Lumière naturelle ou lumière de qualité cinématographique
+- Composition photographique de qualité magazine / publicité haut de gamme
+- Émotion visible, storytelling, aspiration
 
-═══════════════════════════════════════════════
-RÈGLES TOUTES IMAGES (principales ET secondaires)
-═══════════════════════════════════════════════
-- Représenter fidèlement le produit vendu, cohérent avec le titre
-- Pas de nudité ni contenu sexuellement suggestif
-- Pas d'image d'avis clients, d'étoiles, de mentions "livraison gratuite"
-- Pas de texte sur les prix
-- Pas de logo Amazon, Prime, Alexa, ni variation de ces marques
-- Pas de badges Amazon (Amazon's Choice, Premium Choice, Best Seller)
+═══ RÈGLES COMMUNES À TOUTES LES IMAGES ═══
+- Aucun texte ajouté sur l'image, aucun filigrane, aucun logo de marque
+- Aucun badge Amazon (Amazon's Choice, Best Seller, Prime...)
 - Photographie réaliste uniquement — pas de dessin ni illustration
-- Pas de mannequin dans les images secondaires non plus
+- Pas de contenu sexuellement suggestif
 
-═══════════════════════════════════════════════
-SPÉCIFICATIONS TECHNIQUES À INTÉGRER DANS LES PROMPTS
-═══════════════════════════════════════════════
-- Format visé : JPEG, 1:1 ou 4:3, résolution minimale 1600px côté le plus long
-- Aucun bord irrégulier, aucun pixel de bruit, image nette et professionnelle
-
-Pour chaque type d'image, génère un prompt détaillé (100-200 mots) qui précise :
-1. Le sujet exact et sa mise en scène
-2. L'éclairage (type, direction, intensité, ombres)
-3. L'arrière-plan précis (couleur exacte, texture, contexte)
-4. L'angle de prise de vue et le cadrage (% du cadre occupé)
-5. Les détails visuels du produit à mettre en valeur
+═══ QUALITÉ ATTENDUE ═══
+Chaque prompt doit produire une image digne d'une campagne publicitaire professionnelle.
+Sois précis sur : le sujet, la personne (si applicable), la scène, l'éclairage, l'angle, l'ambiance, les couleurs.
+Longueur : 120-200 mots par prompt.
 
 Réponds UNIQUEMENT en JSON valide."""
 
@@ -190,20 +180,23 @@ Réponds UNIQUEMENT en JSON valide."""
     user = f"""Produit à photographier :
 {json.dumps(product_info, ensure_ascii=False, indent=2)}
 
-Génère un prompt gpt-image-1 pour chacun de ces 7 types d'images Amazon.
-Chaque prompt DOIT strictement respecter les règles Amazon officielles du type correspondant.
+Génère 7 prompts gpt-image-1 de qualité publicitaire haut de gamme pour ce produit.
 
-Types et règles spécifiques :
+RÈGLES PAR TYPE :
 {image_specs}
 
-CHECKLIST OBLIGATOIRE POUR CHAQUE PROMPT :
-- hero : imposer "pure white background RGB(255,255,255)", produit seul centré, 85%+ du cadre, une seule vue, aucun texte ni logo
-- Toutes images : aucun texte, filigrane, logo, badge Amazon, bordure dans l'image
-- Toutes images : aucun accessoire non inclus dans la vente
-- Toutes images : photographie réaliste uniquement, pas de dessin ni illustration
-- Toutes images : pas de mannequin
+INSTRUCTIONS CRÉATIVES :
+- Pour hero : fond blanc pur RGB(255,255,255), produit seul, 85%+ du cadre, aucun texte ni logo
+- Pour lifestyle_1 et lifestyle_2 : invente une scène de vie réaliste avec une vraie personne utilisant ce produit.
+  Précise : description physique de la personne (âge, style), lieu exact, activité, lumière, émotion ressentie.
+  Exemple pour un casque : "A young woman in her late 20s, wearing the headphones while walking through a sunlit Paris street,
+  light jacket, confident and joyful expression, golden hour light, shallow depth of field, bokeh background, editorial photography"
+- Pour infographic : produit sur fond clair avec annotations techniques épurées
+- Pour detail : gros plan macro sur la matière/finition la plus impressionnante du produit
+- Pour dimensions : produit tenu naturellement en main pour montrer l'échelle
+- Pour packaging : tout le contenu de la boîte disposé élégamment (flat lay Apple-style)
 
-Format JSON attendu (prompts en anglais, 100-200 mots chacun) :
+Format JSON attendu (prompts en anglais, 120-200 mots chacun) :
 {{
   "hero": "...",
   "lifestyle_1": "...",
