@@ -216,13 +216,20 @@ Format JSON attendu (prompts en anglais, 100-200 mots chacun) :
 
     response = await get_claude().messages.create(
         model="claude-opus-4-7",
-        max_tokens=2000,
+        max_tokens=4000,
         system=system,
         messages=[{"role": "user", "content": user}],
     )
     raw = response.content[0].text.strip()
+    # Nettoyer les blocs markdown éventuels
     if raw.startswith("```"):
-        raw = raw.split("\n", 1)[1].rsplit("```", 1)[0]
+        raw = raw.split("\n", 1)[1].rsplit("```", 1)[0].strip()
+    # Extraire le JSON si du texte précède ou suit
+    start = raw.find("{")
+    end = raw.rfind("}") + 1
+    if start == -1 or end == 0:
+        raise ValueError(f"Aucun JSON trouvé dans la réponse Claude : {raw[:200]}")
+    raw = raw[start:end]
     return json.loads(raw)
 
 

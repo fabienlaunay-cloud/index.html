@@ -1,4 +1,5 @@
 import os
+import json
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -180,16 +181,21 @@ class ImageRequest(BaseModel):
 async def generate_images(req: ImageRequest):
     if not os.getenv("ANTHROPIC_API_KEY"):
         raise HTTPException(503, "ANTHROPIC_API_KEY manquante")
-    images = await generate_product_images(
-        sku=req.sku,
-        product_name=req.product_name,
-        brand=req.brand,
-        category=req.category,
-        features=req.features,
-        color=req.color,
-        material=req.material,
-        selected_types=req.selected_types,
-    )
+    try:
+        images = await generate_product_images(
+            sku=req.sku,
+            product_name=req.product_name,
+            brand=req.brand,
+            category=req.category,
+            features=req.features,
+            color=req.color,
+            material=req.material,
+            selected_types=req.selected_types,
+        )
+    except json.JSONDecodeError as e:
+        raise HTTPException(502, f"Réponse Claude invalide (JSON malformé) : {str(e)}")
+    except Exception as e:
+        raise HTTPException(500, f"Erreur génération images : {str(e)}")
     openai_ok = bool(os.getenv("OPENAI_API_KEY"))
     return {
         "sku": req.sku,
