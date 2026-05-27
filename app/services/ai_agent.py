@@ -78,15 +78,40 @@ MARKETPLACE_CONSTRAINTS = {
 
 def _build_system_prompt(constraints: dict) -> str:
     return f"""Tu es un expert en e-commerce et en optimisation de fiches produits pour {constraints['platform']}.
-Tu génères des contenus SEO haute performance en {constraints['lang']}.
+Tu génères des contenus SEO haute performance en {constraints['lang']}, strictement conformes aux règles officielles Amazon.
 
-Règles strictes :
-- Titre : {constraints['title_max']} caractères max, intègre les mots-clés principaux en début de titre
-- Bullet points : exactement {constraints['bullets']} points, commencent par une majuscule, 150-200 caractères chacun
-- Mots-clés backend : {constraints['keywords_max']} caractères max, séparés par des espaces, sans répétition du titre
-- Description : 1500-2000 caractères, HTML simple autorisé, richesse sémantique
-- Contenu A+ : structure modulaire avec headline + 3 modules (comparatif, lifestyle, storytelling)
-- Score SEO : évaluation 0-100 basée sur densité keywords, longueur titre, richesse description
+══ TITRE ══
+- Maximum {constraints['title_max']} caractères — viser MOINS DE 80 caractères (recommandation Amazon qualité)
+- Commencer OBLIGATOIREMENT par la marque du produit (ex : "Samsung Galaxy S24 ...")
+- Inclure le numéro de modèle s'il existe
+- Texte ordinaire uniquement — aucun HTML, aucune balise
+- Majuscules correctes : première lettre de chaque mot important, PAS TOUT EN MAJUSCULES
+- Chiffres en format numérique (« 2 » et non « deux »)
+- INTERDITS dans le titre : % de réduction, prix, promotions, « livraison gratuite », URL,
+  nom du vendeur, mentions publicitaires, symboles ! * $ ? /
+
+══ BULLET POINTS ══
+- Exactement {constraints['bullets']} bullet points
+- Chaque bullet commence par UN MOT-CLÉ EN MAJUSCULES puis texte normal (ex : "AUTONOMIE LONGUE DURÉE — 20h de...")
+- 150-200 caractères par bullet
+- Avantages factuels et bénéfices concrets — pas de langue marketing vague
+- Pas de prix, promotions, informations non-produit
+
+══ MOTS-CLÉS BACKEND ══
+- Maximum {constraints['keywords_max']} caractères
+- Séparés par des espaces, tout en minuscules
+- Aucune répétition de mots déjà présents dans le titre
+- Synonymes, variantes orthographiques, termes de recherche complémentaires
+
+══ DESCRIPTION ══
+- 1500-2000 caractères
+- HTML simple autorisé uniquement : <b>, <br>, <ul>, <li>
+- Richesse sémantique, mots-clés secondaires intégrés naturellement
+- Pas de prix ni d'informations temporaires
+
+══ CONTENU A+ ══
+- Headline accrocheur (60 caractères max)
+- 3 modules : brand_story (histoire/valeurs), comparison (avantages vs concurrence), lifestyle (bénéfices quotidiens)
 
 Tu réponds UNIQUEMENT en JSON valide selon le schéma demandé, sans commentaire ni markdown.
 """
@@ -117,12 +142,18 @@ Ton de rédaction : {style_tone}
 Plateforme cible : {constraints['platform']}
 {kw_instruction}
 
+RAPPELS CRITIQUES AVANT DE GÉNÉRER :
+1. Le titre DOIT commencer par la marque, rester sous 80 caractères si possible, sans HTML ni symboles (!*$?)
+2. Chaque bullet point commence par un mot-clé en MAJUSCULES suivi d'un tiret
+3. Les mots-clés backend ne répètent aucun mot du titre
+4. Aucun texte promotionnel nulle part (pas de "meilleur", "unique", "garantie", "promo")
+
 Génère la fiche produit optimisée au format JSON exact suivant :
 {{
   "title": "...",
-  "bullet_points": ["...", "...", "...", "...", "..."],
+  "bullet_points": ["MOT-CLÉ — bénéfice factuel détaillé...", "...", "...", "...", "..."],
   "description": "...",
-  "backend_keywords": "...",
+  "backend_keywords": "mot1 mot2 mot3 ...",
   "a_plus_content": {{
     "headline": "...",
     "modules": [
@@ -144,11 +175,24 @@ def _compute_seo_score(listing_data: dict, constraints: dict) -> int:
 
     # Titre (30 pts)
     title_len = len(title)
-    if title_len >= 100:
-        score += 15
-    if title_len >= 150:
-        score += 10
+    if title_len > 0:
+        score += 5  # titre présent
     if title_len <= constraints["title_max"]:
+        score += 5  # dans la limite
+    if title_len <= 80:
+        score += 10  # recommandation Amazon qualité (<80 chars)
+    elif title_len <= 150:
+        score += 5   # acceptable
+    # Pénalité : ALL CAPS ou HTML dans le titre
+    if title == title.upper() and len(title) > 5:
+        score -= 5
+    if "<" in title or ">" in title:
+        score -= 5
+    # Pénalité : symboles interdits
+    if any(c in title for c in "!*$?"):
+        score -= 5
+    # Bonus : commence par une majuscule (probable = marque en tête)
+    if title and title[0].isupper():
         score += 5
 
     # Bullets (30 pts)
@@ -174,9 +218,9 @@ def _compute_seo_score(listing_data: dict, constraints: dict) -> int:
         if len(kw) <= constraints["keywords_max"]:
             score += 10
     else:
-        score += 20  # Not applicable for non-Amazon
+        score += 20  # Non applicable hors Amazon
 
-    return min(score, 100)
+    return max(0, min(score, 100))
 
 
 async def generate_listing(
