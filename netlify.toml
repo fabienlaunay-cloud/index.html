@@ -1,5 +1,10 @@
 [build]
   publish = "frontend"
+  command = ""
+  ignore = "exit 0"
+
+[build.environment]
+  NODE_VERSION = "18"
 
 [[redirects]]
   from = "/api/*"
