@@ -511,7 +511,7 @@
             <p id="userEmailFull" class="text-sm font-medium text-gray-800 truncate"></p>
             <p id="usageDetail" class="text-xs text-gray-400 mt-0.5"></p>
           </div>
-          <button onclick="showAdminPanel()" class="w-full text-left px-4 py-2.5 text-sm text-purple-600 hover:bg-purple-50 transition">⚙️ Administration</button>
+          <button id="adminMenuBtn" onclick="showAdminPanel()" class="hidden w-full text-left px-4 py-2.5 text-sm text-purple-600 hover:bg-purple-50 transition">⚙️ Administration</button>
           <button onclick="doLogout()" class="w-full text-left px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition">Se déconnecter</button>
         </div>
       </div>
@@ -629,45 +629,80 @@
 </div><!-- /app -->
 
 
-<!-- ═══════════════════ ADMIN PANEL ═══════════════════ -->
-<div id="adminModal" class="hidden fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-    <div class="p-6 border-b border-gray-100 flex items-center justify-between">
-      <h3 class="text-lg font-bold text-gray-800">⚙️ Administration — Gestion des accès</h3>
-      <button onclick="closeAdminPanel()" class="text-gray-400 hover:text-gray-600 text-xl">✕</button>
-    </div>
-    <div id="adminDashboard" class="p-6 space-y-6">
-      <div class="bg-purple-50 rounded-xl p-5">
-        <h4 class="font-semibold text-gray-800 mb-4">➕ Ajouter un client</h4>
-        <div class="grid grid-cols-2 gap-3 mb-3">
-          <input id="newUserName" type="text" placeholder="Nom du client" class="border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-purple-300">
-          <input id="newUserEmail" type="email" placeholder="email@client.com" class="border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-purple-300">
+<!-- ═══════════════════ ADMIN VIEW (full page) ═══════════════════ -->
+<div id="adminView" class="hidden min-h-screen bg-gray-50">
+
+  <header class="gradient-bg text-white shadow-lg">
+    <div class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between gap-4">
+      <div class="flex items-center gap-6">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
+            <svg viewBox="0 0 24 24" fill="none" width="20" height="20"><path d="M12 2L2 7l10 5 10-5-10-5z" stroke="white" stroke-width="2" stroke-linejoin="round"/><path d="M2 17l10 5 10-5M2 12l10 5 10-5" stroke="white" stroke-width="2" stroke-linejoin="round"/></svg>
+          </div>
+          <div>
+            <h1 class="text-xl font-bold">SynqIO</h1>
+            <p class="text-purple-200 text-xs">⚙️ Administration</p>
+          </div>
         </div>
-        <div class="flex gap-3">
+        <nav class="flex gap-1 bg-white/10 rounded-xl p-1">
+          <button id="adminTabBtnClients" onclick="switchAdminTab('clients')" class="px-4 py-2 rounded-lg text-sm font-medium bg-white/20 text-white transition">👥 Clients</button>
+          <button id="adminTabBtnUsage" onclick="switchAdminTab('usage')" class="px-4 py-2 rounded-lg text-sm font-medium text-white/70 hover:text-white hover:bg-white/10 transition">📊 Usage & Plans</button>
+        </nav>
+      </div>
+      <div class="flex items-center gap-3">
+        <span id="adminEmailBadge" class="text-white/60 text-xs hidden sm:block"></span>
+        <button onclick="showMainApp()" class="bg-white/10 hover:bg-white/20 text-white text-sm px-4 py-2 rounded-lg transition">← Utiliser l'app</button>
+        <button onclick="doLogout()" class="bg-red-500/20 hover:bg-red-500/30 text-white text-sm px-4 py-2 rounded-lg transition">Déconnexion</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Tab: Clients -->
+  <div id="adminPanelClients" class="max-w-5xl mx-auto px-6 py-8 space-y-6">
+
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+      <h4 class="font-semibold text-gray-800 text-base mb-4">➕ Créer un client</h4>
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
+        <input id="newUserName" type="text" placeholder="Nom du client" class="border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-purple-300">
+        <input id="newUserEmail" type="email" placeholder="email@client.com" class="border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-purple-300">
+        <div class="flex gap-2">
           <input id="newUserPassword" type="text" placeholder="Mot de passe" class="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-purple-300">
-          <button onclick="generatePassword()" class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-2 rounded-lg text-xs font-medium transition">🎲 Générer</button>
-          <button onclick="addUser()" class="gradient-bg text-white px-5 py-2 rounded-lg text-sm font-semibold">Créer</button>
-        </div>
-        <div id="addUserMsg" class="hidden mt-3 text-sm"></div>
-      </div>
-      <div>
-        <div class="flex items-center justify-between mb-3">
-          <h4 class="font-semibold text-gray-800">👥 Clients actifs</h4>
-          <button onclick="loadUsers()" class="text-purple-600 text-sm hover:underline">↻ Actualiser</button>
-        </div>
-        <div id="usersList" class="space-y-2">
-          <div class="text-gray-400 text-sm text-center py-4">Chargement...</div>
+          <button onclick="generatePassword()" title="Générer un mot de passe" class="bg-gray-100 hover:bg-gray-200 text-gray-600 px-3 py-2 rounded-lg text-sm transition">🎲</button>
         </div>
       </div>
-      <div>
-        <div class="flex items-center justify-between mb-3">
-          <h4 class="font-semibold text-gray-800">📊 Usage ce mois</h4>
-          <button onclick="loadAdminUsage()" class="text-purple-600 text-sm hover:underline">↻ Actualiser</button>
-        </div>
-        <div id="adminUsageTable" class="text-gray-400 text-sm text-center py-2">Chargement...</div>
+      <button onclick="addUser()" class="gradient-bg text-white px-6 py-2 rounded-lg text-sm font-semibold hover:opacity-90 transition">Créer le client</button>
+      <div id="addUserMsg" class="hidden mt-3 text-sm"></div>
+    </div>
+
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+      <div class="flex items-center justify-between mb-4">
+        <h4 class="font-semibold text-gray-800 text-base">👥 Tous les clients</h4>
+        <button onclick="loadUsers()" class="text-purple-600 text-sm hover:underline flex items-center gap-1">↻ Actualiser</button>
+      </div>
+      <div id="usersList" class="space-y-2">
+        <div class="text-gray-400 text-sm text-center py-8">Chargement...</div>
       </div>
     </div>
+
   </div>
+
+  <!-- Tab: Usage & Plans -->
+  <div id="adminPanelUsage" class="hidden max-w-5xl mx-auto px-6 py-8 space-y-6">
+
+    <div id="adminUsageStats" class="grid grid-cols-2 sm:grid-cols-4 gap-4"></div>
+
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+      <div class="flex items-center justify-between mb-4">
+        <h4 class="font-semibold text-gray-800 text-base">📊 Consommation — <span id="adminUsageMonth" class="text-purple-600 font-normal"></span></h4>
+        <button onclick="loadAdminUsage()" class="text-purple-600 text-sm hover:underline">↻ Actualiser</button>
+      </div>
+      <div id="adminUsageTable">
+        <div class="text-gray-400 text-sm text-center py-8">Chargement...</div>
+      </div>
+    </div>
+
+  </div>
+
 </div>
 
 <!-- Publish Modal -->
@@ -771,11 +806,27 @@ function closeLoginModal() {
 function showApp(email) {
   document.getElementById('login-screen').classList.add('hidden');
   document.getElementById('loginModal').classList.add('hidden');
-  document.getElementById('app').classList.remove('hidden');
   const initial = (email || '?').charAt(0).toUpperCase();
   document.getElementById('userAvatar').textContent = initial;
   document.getElementById('userEmailHeader').textContent = email;
   document.getElementById('userEmailFull').textContent = email;
+  const isAdmin = currentUser && currentUser.is_admin;
+  const adminBtn = document.getElementById('adminMenuBtn');
+  if (adminBtn) adminBtn.classList.toggle('hidden', !isAdmin);
+  if (isAdmin) {
+    document.getElementById('app').classList.add('hidden');
+    showAdminPanel();
+  } else {
+    document.getElementById('app').classList.remove('hidden');
+    document.getElementById('adminView').classList.add('hidden');
+    checkHealth();
+    loadUsage();
+  }
+}
+
+function showMainApp() {
+  document.getElementById('adminView').classList.add('hidden');
+  document.getElementById('app').classList.remove('hidden');
   checkHealth();
   loadUsage();
 }
@@ -810,7 +861,7 @@ async function doLogin() {
     if (!r.ok) throw new Error(data.detail || 'Erreur');
     token = data.token;
     localStorage.setItem('synqio_token', token);
-    currentUser = { email: data.email };
+    currentUser = { email: data.email, is_admin: data.is_admin };
     showApp(data.email);
   } catch (e) { showLoginError(e.message); }
   finally { btn.disabled = false; btn.textContent = 'Se connecter →'; }
@@ -863,10 +914,26 @@ document.addEventListener('click', e => {
 
 // ── Admin panel ───────────────────────────────────────────────────────────────
 function showAdminPanel() {
-  document.getElementById('userDropdown').classList.add('hidden');
-  document.getElementById('adminModal').classList.remove('hidden');
+  document.getElementById('userDropdown')?.classList.add('hidden');
+  document.getElementById('app').classList.add('hidden');
+  const av = document.getElementById('adminView');
+  av.classList.remove('hidden');
+  const email = currentUser?.email || '';
+  document.getElementById('adminEmailBadge').textContent = email;
+  switchAdminTab('clients');
   loadUsers();
   loadAdminUsage();
+}
+
+function switchAdminTab(tab) {
+  const tabs = ['clients', 'usage'];
+  tabs.forEach(t => {
+    const btn = document.getElementById(`adminTabBtn${t.charAt(0).toUpperCase() + t.slice(1)}`);
+    const panel = document.getElementById(`adminPanel${t.charAt(0).toUpperCase() + t.slice(1)}`);
+    const active = t === tab;
+    btn.className = `px-4 py-2 rounded-lg text-sm font-medium transition ${active ? 'bg-white/20 text-white' : 'text-white/70 hover:text-white hover:bg-white/10'}`;
+    panel.classList.toggle('hidden', !active);
+  });
 }
 
 async function loadAdminUsage() {
@@ -874,32 +941,73 @@ async function loadAdminUsage() {
     const r = await authFetch('/api/admin/usage');
     if (!r.ok) return;
     const users = await r.json();
+
+    const now = new Date();
+    document.getElementById('adminUsageMonth').textContent =
+      now.toLocaleString('fr-FR', { month: 'long', year: 'numeric' });
+
+    // Summary stats
+    const totalSkus = users.reduce((s, u) => s + u.skus_used, 0);
+    const totalImages = users.reduce((s, u) => s + u.images_used, 0);
+    const statsEl = document.getElementById('adminUsageStats');
+    statsEl.innerHTML = [
+      { label: 'Clients actifs', value: users.length, color: 'purple' },
+      { label: 'SKUs générés', value: totalSkus, color: 'blue' },
+      { label: 'Images générées', value: totalImages, color: 'green' },
+      { label: 'Plans Scale', value: users.filter(u => u.plan === 'scale').length, color: 'amber' },
+    ].map(s => `<div class="bg-white rounded-xl border border-gray-100 p-4 shadow-sm">
+      <p class="text-2xl font-bold text-${s.color}-600">${s.value}</p>
+      <p class="text-xs text-gray-500 mt-1">${s.label}</p>
+    </div>`).join('');
+
     const container = document.getElementById('adminUsageTable');
-    if (!users.length) { container.innerHTML = '<p class="text-gray-400 text-sm text-center py-2">Aucune donnée</p>'; return; }
-    container.innerHTML = users.map(u => {
-      const pct = Math.min(100, Math.round((u.skus_used / u.skus_quota) * 100));
-      const color = pct >= 90 ? 'bg-red-500' : pct >= 70 ? 'bg-amber-400' : 'bg-green-400';
-      return `<div class="flex items-center gap-3 py-2 border-b border-gray-50 last:border-0">
-        <div class="flex-1 min-w-0">
-          <p class="text-sm font-medium text-gray-800 truncate">${u.email}</p>
-          <p class="text-xs text-gray-400">${u.plan_label || u.plan} · ${u.images_used} images</p>
-        </div>
-        <div class="text-right w-28">
-          <p class="text-xs font-mono text-gray-700">${u.skus_used}/${u.skus_quota} SKU</p>
-          <div class="w-full bg-gray-100 rounded-full h-1.5 mt-1">
-            <div class="${color} h-1.5 rounded-full" style="width:${pct}%"></div>
-          </div>
-        </div>
+    if (!users.length) { container.innerHTML = '<p class="text-gray-400 text-sm text-center py-8">Aucune donnée</p>'; return; }
+    container.innerHTML = `
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="text-left text-xs text-gray-400 border-b border-gray-100">
+              <th class="pb-3 font-medium">Client</th>
+              <th class="pb-3 font-medium">Plan</th>
+              <th class="pb-3 font-medium text-right">SKUs utilisés</th>
+              <th class="pb-3 font-medium w-40">Utilisation</th>
+              <th class="pb-3 font-medium text-right">Images</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-gray-50">
+            ${users.map(u => {
+              const pct = Math.min(100, Math.round((u.skus_used / u.skus_quota) * 100));
+              const bar = pct >= 90 ? 'bg-red-500' : pct >= 70 ? 'bg-amber-400' : 'bg-green-400';
+              const planBadge = { starter: 'bg-blue-100 text-blue-700', business: 'bg-purple-100 text-purple-700', scale: 'bg-amber-100 text-amber-700' };
+              const pc = planBadge[u.plan] || planBadge.starter;
+              return `<tr class="hover:bg-gray-50 transition">
+                <td class="py-3 pr-4">
+                  <p class="font-medium text-gray-800">${u.name || u.email}</p>
+                  <p class="text-xs text-gray-400">${u.name ? u.email : ''}</p>
+                </td>
+                <td class="py-3 pr-4"><span class="text-xs px-2 py-1 rounded-lg font-medium ${pc}">${u.plan || 'starter'}</span></td>
+                <td class="py-3 pr-4 text-right font-mono text-gray-700">${u.skus_used} / ${u.skus_quota}</td>
+                <td class="py-3 pr-4">
+                  <div class="flex items-center gap-2">
+                    <div class="flex-1 bg-gray-100 rounded-full h-2">
+                      <div class="${bar} h-2 rounded-full" style="width:${pct}%"></div>
+                    </div>
+                    <span class="text-xs text-gray-400 w-8 text-right">${pct}%</span>
+                  </div>
+                </td>
+                <td class="py-3 text-right font-mono text-gray-500">${u.images_used}</td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table>
       </div>`;
-    }).join('');
   } catch {}
 }
-function closeAdminPanel() { document.getElementById('adminModal').classList.add('hidden'); }
 
 async function loadUsers() {
   const r = await authFetch('/api/admin/users');
   if (!r.ok) {
-    document.getElementById('usersList').innerHTML = '<p class="text-red-500 text-sm text-center py-4">Accès refusé — compte admin requis</p>';
+    document.getElementById('usersList').innerHTML = '<p class="text-red-500 text-sm text-center py-4">Accès refusé</p>';
     return;
   }
   renderUsers(await r.json());
@@ -907,26 +1015,32 @@ async function loadUsers() {
 
 function renderUsers(users) {
   const container = document.getElementById('usersList');
-  if (!users.length) { container.innerHTML = '<p class="text-gray-400 text-sm text-center py-4">Aucun utilisateur</p>'; return; }
+  if (!users.length) { container.innerHTML = '<p class="text-gray-400 text-sm text-center py-8">Aucun client</p>'; return; }
   const planColors = { starter: 'bg-blue-100 text-blue-700', business: 'bg-purple-100 text-purple-700', scale: 'bg-amber-100 text-amber-700' };
   container.innerHTML = users.map(u => {
     const plan = u.plan || 'starter';
     const pc = planColors[plan] || planColors.starter;
+    const activeClass = u.is_active
+      ? 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100'
+      : 'bg-gray-100 text-gray-400 border-gray-200 hover:bg-gray-200';
     return `
-    <div class="flex items-center gap-3 p-3 bg-gray-50 rounded-xl border border-gray-100">
-      <div class="w-8 h-8 rounded-full ${u.is_active ? 'bg-green-100' : 'bg-gray-200'} flex items-center justify-center font-bold text-sm ${u.is_active ? 'text-green-700' : 'text-gray-400'}">
-        ${u.email.charAt(0).toUpperCase()}
+    <div class="flex items-center gap-3 p-4 bg-gray-50 rounded-xl border border-gray-100 hover:bg-white transition">
+      <div class="w-9 h-9 rounded-full ${u.is_active ? 'bg-purple-100' : 'bg-gray-200'} flex items-center justify-center font-bold text-sm ${u.is_active ? 'text-purple-700' : 'text-gray-400'} shrink-0">
+        ${(u.name || u.email).charAt(0).toUpperCase()}
       </div>
       <div class="flex-1 min-w-0">
-        <p class="font-medium text-gray-800 text-sm truncate">${u.name || u.email}</p>
+        <p class="font-medium text-gray-800 text-sm truncate">${u.name || '—'}</p>
         <p class="text-gray-400 text-xs truncate">${u.email}</p>
       </div>
-      <select onchange="changePlan('${u.email}', this.value)" class="text-xs border border-gray-200 rounded-lg px-2 py-1 ${pc} font-medium cursor-pointer">
+      <select onchange="changePlan('${u.email}', this.value)" class="text-xs border border-gray-200 rounded-lg px-2 py-1.5 ${pc} font-medium cursor-pointer shrink-0">
         <option value="starter" ${plan === 'starter' ? 'selected' : ''}>Starter</option>
         <option value="business" ${plan === 'business' ? 'selected' : ''}>Business</option>
         <option value="scale" ${plan === 'scale' ? 'selected' : ''}>Scale</option>
       </select>
-      <button onclick="deleteUser('${u.email}')" class="text-red-400 hover:text-red-600 text-xs px-2 py-1 hover:bg-red-50 rounded transition">Supprimer</button>
+      <button onclick="toggleUser('${u.email}', ${u.is_active ? 0 : 1})" class="text-xs px-3 py-1.5 rounded-lg border font-medium transition shrink-0 ${activeClass}">
+        ${u.is_active ? '✓ Actif' : '✗ Inactif'}
+      </button>
+      <button onclick="deleteUser('${u.email}')" class="text-red-400 hover:text-red-600 hover:bg-red-50 text-xs px-2 py-1.5 rounded-lg transition shrink-0">🗑</button>
     </div>`;
   }).join('');
 }
@@ -939,6 +1053,16 @@ async function changePlan(email, plan) {
   });
   showToast('✅', `Plan ${plan} assigné à ${email}`);
   loadAdminUsage();
+}
+
+async function toggleUser(email, active) {
+  await authFetch(`/api/admin/users/${encodeURIComponent(email)}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ active: !!active }),
+  });
+  showToast(active ? '✅' : '⛔', `${email} ${active ? 'activé' : 'désactivé'}`);
+  loadUsers();
 }
 
 async function addUser() {
@@ -1325,7 +1449,7 @@ async function doSetup() {
     if (!r.ok) throw new Error(data.detail || 'Erreur');
     token = data.token;
     localStorage.setItem('synqio_token', token);
-    currentUser = { email: data.email };
+    currentUser = { email: data.email, is_admin: data.is_admin };
     showApp(data.email);
   } catch (e) {
     errEl.textContent = e.message; errEl.classList.remove('hidden');
