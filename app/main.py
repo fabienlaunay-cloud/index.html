@@ -19,6 +19,7 @@ from app.services.ai_agent import generate_listings_batch
 from app.services.amazon_sp import publish_listings
 from app.services.auth import verify_token
 from app.services.image_gen import generate_product_images, AMAZON_IMAGE_TYPES
+from app.services.usage import log_usage, get_user_usage, get_all_users_usage
 from app.utils.export import to_csv_bytes, to_json_bytes, to_amazon_flat_file_bytes
 from app.db import init_db
 from app.routes.auth import router as auth_router, admin_router
@@ -124,7 +125,7 @@ async def ingest_file(file: UploadFile = File(...)):
 # ── Generation ────────────────────────────────────────────────────────────────
 
 @app.post("/api/generate", response_model=GenerationResult)
-async def generate(request: GenerationRequest):
+async def generate(request: GenerationRequest, req: Request):
     if not os.getenv("ANTHROPIC_API_KEY"):
         raise HTTPException(503, "ANTHROPIC_API_KEY manquante")
     if not request.products:
@@ -137,6 +138,10 @@ async def generate(request: GenerationRequest):
         focus_keywords=request.focus_keywords or [],
         style_tone=request.style_tone,
     )
+    if listings:
+        email = getattr(req.state, "user_email", None)
+        if email:
+            log_usage(email, "sku_generated", len(listings))
     return GenerationResult(
         listings=listings, failed=failed,
         total=len(request.products), success_count=len(listings),
@@ -192,7 +197,7 @@ class ImageRequest(BaseModel):
 
 
 @app.post("/api/generate-images")
-async def generate_images(req: ImageRequest):
+async def generate_images(req: ImageRequest, request: Request):
     if not os.getenv("ANTHROPIC_API_KEY"):
         raise HTTPException(503, "ANTHROPIC_API_KEY manquante")
     try:
@@ -210,6 +215,11 @@ async def generate_images(req: ImageRequest):
         raise HTTPException(502, f"Réponse Claude invalide (JSON malformé) : {str(e)}")
     except Exception as e:
         raise HTTPException(500, f"Erreur génération images : {str(e)}")
+    generated = [i for i in images if i.get("has_image")]
+    if generated:
+        email = getattr(request.state, "user_email", None)
+        if email:
+            log_usage(email, "image_generated", len(generated))
     openai_ok = bool(os.getenv("OPENAI_API_KEY"))
     return {
         "sku": req.sku,
@@ -218,6 +228,25 @@ async def generate_images(req: ImageRequest):
         "openai_configured": openai_ok,
         "total": len(images),
     }
+
+
+# ── Usage ─────────────────────────────────────────────────────────────────────
+
+@app.get("/api/usage/me")
+async def usage_me(request: Request):
+    email = getattr(request.state, "user_email", None)
+    if not email:
+        raise HTTPException(401, "Non authentifié")
+    return get_user_usage(email)
+
+
+@app.get("/api/admin/usage")
+async def usage_all(request: Request):
+    from app.services.auth import is_admin
+    email = getattr(request.state, "user_email", None)
+    if not email or not is_admin(email):
+        raise HTTPException(403, "Accès réservé aux administrateurs")
+    return get_all_users_usage()
 
 
 @app.get("/api/image-types")

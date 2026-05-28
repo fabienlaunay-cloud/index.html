@@ -49,5 +49,21 @@ def init_db():
         )
     """)
 
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS usage (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_email TEXT NOT NULL,
+            action TEXT NOT NULL,
+            count INTEGER DEFAULT 1,
+            month TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+
+    try:
+        conn.execute("ALTER TABLE users ADD COLUMN plan TEXT DEFAULT 'starter'")
+    except Exception:
+        pass
+
     conn.commit()
     conn.close()

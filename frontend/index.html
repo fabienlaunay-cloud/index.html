@@ -502,12 +502,14 @@
         <button onclick="toggleUserMenu()" class="flex items-center gap-2 bg-white/10 hover:bg-white/20 rounded-lg px-3 py-1.5 text-sm transition">
           <div id="userAvatar" class="w-6 h-6 bg-white/30 rounded-full flex items-center justify-center text-xs font-bold">?</div>
           <span id="userEmailHeader" class="max-w-32 truncate text-xs">...</span>
+          <span id="usageBadge" class="hidden text-xs bg-white/20 rounded px-1.5 py-0.5 font-mono">—</span>
           <span class="text-white/50 text-xs">▾</span>
         </button>
         <div id="userDropdown" class="hidden absolute right-0 top-10 bg-white rounded-xl shadow-2xl border border-gray-100 py-2 w-52 z-40">
           <div class="px-4 py-2 border-b border-gray-100">
             <p class="text-xs text-gray-400">Connecté en tant que</p>
             <p id="userEmailFull" class="text-sm font-medium text-gray-800 truncate"></p>
+            <p id="usageDetail" class="text-xs text-gray-400 mt-0.5"></p>
           </div>
           <button onclick="showAdminPanel()" class="w-full text-left px-4 py-2.5 text-sm text-purple-600 hover:bg-purple-50 transition">⚙️ Administration</button>
           <button onclick="doLogout()" class="w-full text-left px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition">Se déconnecter</button>
@@ -657,6 +659,13 @@
           <div class="text-gray-400 text-sm text-center py-4">Chargement...</div>
         </div>
       </div>
+      <div>
+        <div class="flex items-center justify-between mb-3">
+          <h4 class="font-semibold text-gray-800">📊 Usage ce mois</h4>
+          <button onclick="loadAdminUsage()" class="text-purple-600 text-sm hover:underline">↻ Actualiser</button>
+        </div>
+        <div id="adminUsageTable" class="text-gray-400 text-sm text-center py-2">Chargement...</div>
+      </div>
     </div>
   </div>
 </div>
@@ -768,6 +777,21 @@ function showApp(email) {
   document.getElementById('userEmailHeader').textContent = email;
   document.getElementById('userEmailFull').textContent = email;
   checkHealth();
+  loadUsage();
+}
+
+async function loadUsage() {
+  try {
+    const r = await authFetch('/api/usage/me');
+    if (!r.ok) return;
+    const u = await r.json();
+    const pct = Math.round((u.skus_used / u.skus_quota) * 100);
+    const badge = document.getElementById('usageBadge');
+    badge.textContent = `${u.skus_used}/${u.skus_quota} SKU`;
+    badge.classList.remove('hidden');
+    badge.className = `text-xs rounded px-1.5 py-0.5 font-mono ${pct >= 90 ? 'bg-red-400/80' : pct >= 70 ? 'bg-amber-400/80' : 'bg-white/20'}`;
+    document.getElementById('usageDetail').textContent = `${u.plan_label} · ${u.skus_used}/${u.skus_quota} SKUs · ${u.images_used} images`;
+  } catch {}
 }
 
 async function doLogin() {
@@ -842,6 +866,33 @@ function showAdminPanel() {
   document.getElementById('userDropdown').classList.add('hidden');
   document.getElementById('adminModal').classList.remove('hidden');
   loadUsers();
+  loadAdminUsage();
+}
+
+async function loadAdminUsage() {
+  try {
+    const r = await authFetch('/api/admin/usage');
+    if (!r.ok) return;
+    const users = await r.json();
+    const container = document.getElementById('adminUsageTable');
+    if (!users.length) { container.innerHTML = '<p class="text-gray-400 text-sm text-center py-2">Aucune donnée</p>'; return; }
+    container.innerHTML = users.map(u => {
+      const pct = Math.min(100, Math.round((u.skus_used / u.skus_quota) * 100));
+      const color = pct >= 90 ? 'bg-red-500' : pct >= 70 ? 'bg-amber-400' : 'bg-green-400';
+      return `<div class="flex items-center gap-3 py-2 border-b border-gray-50 last:border-0">
+        <div class="flex-1 min-w-0">
+          <p class="text-sm font-medium text-gray-800 truncate">${u.email}</p>
+          <p class="text-xs text-gray-400">${u.plan_label || u.plan} · ${u.images_used} images</p>
+        </div>
+        <div class="text-right w-28">
+          <p class="text-xs font-mono text-gray-700">${u.skus_used}/${u.skus_quota} SKU</p>
+          <div class="w-full bg-gray-100 rounded-full h-1.5 mt-1">
+            <div class="${color} h-1.5 rounded-full" style="width:${pct}%"></div>
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+  } catch {}
 }
 function closeAdminPanel() { document.getElementById('adminModal').classList.add('hidden'); }
 
