@@ -24,6 +24,7 @@ from app.utils.export import to_csv_bytes, to_json_bytes, to_amazon_flat_file_by
 from app.db import init_db
 from app.routes.auth import router as auth_router, admin_router
 from app.routes.amazon_oauth import router as amazon_router
+from app.routes.drive import router as drive_router
 
 # Routes sans authentification
 PUBLIC_PATHS = {"/", "/health", "/api/auth/login", "/api/auth/setup", "/api/auth/needs-setup", "/api/marketplaces", "/api/amazon/callback"}
@@ -72,6 +73,7 @@ app.add_middleware(AuthMiddleware)
 app.include_router(auth_router)
 app.include_router(admin_router)
 app.include_router(amazon_router)
+app.include_router(drive_router)
 
 
 @app.on_event("startup")

@@ -551,6 +551,61 @@
         </div>
       </div>
 
+      <!-- ═══ EXTRACTION GOOGLE DRIVE ═══ -->
+      <div class="bg-white rounded-2xl shadow-sm p-6 border border-gray-100" id="drivePanel">
+        <h2 class="font-semibold text-gray-800 mb-1 flex items-center gap-2">
+          <span class="text-green-600">🗂️</span> Extraction Drive
+          <span id="driveBadge" class="hidden ml-auto text-xs bg-green-100 text-green-700 rounded-full px-2 py-0.5 font-semibold">✓ configuré</span>
+        </h2>
+        <p class="text-gray-400 text-xs mb-4">Extrait les photos produit depuis un dossier Google Drive partagé</p>
+
+        <div class="space-y-3">
+          <div>
+            <label class="text-xs font-medium text-gray-600 block mb-1">URL ou ID du dossier Drive</label>
+            <input id="driveFolderId" type="text" placeholder="https://drive.google.com/drive/folders/1ABC… ou 1ABC…"
+              class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-green-300 outline-none">
+          </div>
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="text-xs font-medium text-gray-600 block mb-1">Marque client</label>
+              <input id="driveBrand" type="text" placeholder="Bande de Canailles"
+                class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-green-300 outline-none">
+            </div>
+            <div>
+              <label class="text-xs font-medium text-gray-600 block mb-1">Nom client</label>
+              <input id="driveClient" type="text" placeholder="Lancelot — Les Petits Citrons"
+                class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-green-300 outline-none">
+            </div>
+          </div>
+          <div>
+            <label class="text-xs font-medium text-gray-600 block mb-1">Filtres motif / mots-clés <span class="text-gray-400">(séparés par virgule)</span></label>
+            <input id="driveKeywords" type="text" placeholder="léopard, leopard, leo"
+              class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-green-300 outline-none">
+          </div>
+          <div>
+            <label class="text-xs font-medium text-gray-600 block mb-1">Filtrer par type produit <span class="text-gray-400">(laisser vide = tous)</span></label>
+            <input id="driveTypeFilter" type="text" placeholder="collier, laisse, harnais, bandana…"
+              class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-green-300 outline-none">
+          </div>
+        </div>
+
+        <div id="driveError" class="hidden mt-3 bg-red-50 border border-red-200 rounded-lg px-3 py-2 text-red-700 text-xs"></div>
+        <div id="driveResults" class="hidden mt-3"></div>
+
+        <div class="flex gap-2 mt-4">
+          <button onclick="doDriveExtract()" id="driveExtractBtn"
+            class="flex-1 bg-green-600 hover:bg-green-700 text-white rounded-lg py-2.5 text-sm font-semibold transition flex items-center justify-center gap-2">
+            <span id="driveExtractIcon">🔍</span> Extraire les photos
+          </button>
+          <button onclick="doDriveCSV()" id="driveCSVBtn"
+            class="hidden bg-green-100 hover:bg-green-200 text-green-800 rounded-lg py-2.5 px-3 text-sm font-semibold transition">
+            ⬇ CSV
+          </button>
+        </div>
+        <p class="text-gray-400 text-xs mt-2 text-center">Le dossier Drive doit être partagé avec l'email du Service Account Google</p>
+      </div>
+      <!-- ════════════════════════════════ -->
+
       <div class="bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
         <h2 class="font-semibold text-gray-800 mb-4 flex items-center gap-2"><span class="text-purple-600">⚙️</span> Paramètres IA</h2>
         <div class="space-y-4">
@@ -1509,8 +1564,130 @@ function calcROI() {
   });
 }
 
+// ══════════════════════════════════════════════
+// EXTRACTION GOOGLE DRIVE
+// ══════════════════════════════════════════════
+
+let driveLastResults = null;
+
+async function checkDriveStatus() {
+  try {
+    const r = await authFetch('/api/drive/status');
+    if (!r.ok) return;
+    const data = await r.json();
+    if (data.configured) {
+      document.getElementById('driveBadge').classList.remove('hidden');
+    }
+  } catch (_) {}
+}
+
+function parseFolderId(input) {
+  input = input.trim();
+  // URL form: .../folders/XXXX or ?id=XXXX
+  const m = input.match(/\/folders\/([a-zA-Z0-9_-]+)/) || input.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+  return m ? m[1] : input;
+}
+
+function parseKeywords(str) {
+  return str.split(',').map(s => s.trim()).filter(Boolean);
+}
+
+async function doDriveExtract() {
+  const btn = document.getElementById('driveExtractBtn');
+  const icon = document.getElementById('driveExtractIcon');
+  const errEl = document.getElementById('driveError');
+  const resEl = document.getElementById('driveResults');
+  const csvBtn = document.getElementById('driveCSVBtn');
+
+  errEl.classList.add('hidden');
+  resEl.classList.add('hidden');
+  csvBtn.classList.add('hidden');
+
+  const folderRaw = document.getElementById('driveFolderId').value;
+  if (!folderRaw.trim()) { errEl.textContent = 'Collez l\'URL ou l\'ID du dossier Drive'; errEl.classList.remove('hidden'); return; }
+
+  const folderId = parseFolderId(folderRaw);
+  const brand = document.getElementById('driveBrand').value.trim();
+  const client = document.getElementById('driveClient').value.trim();
+  const keywords = parseKeywords(document.getElementById('driveKeywords').value);
+  const typeFilter = parseKeywords(document.getElementById('driveTypeFilter').value);
+
+  btn.disabled = true;
+  icon.textContent = '⏳';
+
+  try {
+    const resp = await authFetch('/api/drive/extract', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ folder_id: folderId, brand, client, keywords, product_type_filter: typeFilter }),
+    });
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({}));
+      throw new Error(err.detail || `Erreur ${resp.status}`);
+    }
+    const data = await resp.json();
+    driveLastResults = data;
+    csvBtn.classList.remove('hidden');
+
+    // Build summary HTML
+    const byType = data.by_product_type;
+    const rows = Object.entries(byType).map(([t, n]) =>
+      `<div class="flex justify-between text-xs py-0.5"><span class="text-gray-600 capitalize">${t}</span><span class="font-semibold text-green-700">${n}</span></div>`
+    ).join('');
+
+    // Thumbnail preview (max 12)
+    const thumbs = data.files.slice(0, 12).map(f =>
+      f.thumbnail_url
+        ? `<a href="${f.web_view_link}" target="_blank" title="${f.file_name}" class="block"><img src="${f.thumbnail_url}" class="w-full h-14 object-cover rounded" onerror="this.style.display='none'"></a>`
+        : `<div class="w-full h-14 bg-gray-100 rounded flex items-center justify-center text-xs text-gray-400 text-center px-1" title="${f.file_name}">📷</div>`
+    ).join('');
+
+    resEl.innerHTML = `
+      <div class="bg-green-50 border border-green-200 rounded-lg p-3">
+        <p class="text-green-800 font-semibold text-sm mb-2">${data.total} fichier${data.total > 1 ? 's' : ''} extrait${data.total > 1 ? 's' : ''}</p>
+        <div class="divide-y divide-green-100">${rows}</div>
+      </div>
+      ${thumbs ? `<div class="grid grid-cols-6 gap-1 mt-2">${thumbs}</div>` : ''}
+      ${data.total > 12 ? `<p class="text-gray-400 text-xs text-center mt-1">+${data.total - 12} fichiers supplémentaires dans le CSV</p>` : ''}
+    `;
+    resEl.classList.remove('hidden');
+
+  } catch(e) {
+    errEl.textContent = e.message || 'Erreur lors de l\'extraction';
+    errEl.classList.remove('hidden');
+  } finally {
+    btn.disabled = false;
+    icon.textContent = '🔍';
+  }
+}
+
+async function doDriveCSV() {
+  const folderRaw = document.getElementById('driveFolderId').value;
+  const folderId = parseFolderId(folderRaw);
+  const brand = document.getElementById('driveBrand').value.trim();
+  const client = document.getElementById('driveClient').value.trim();
+  const keywords = parseKeywords(document.getElementById('driveKeywords').value);
+  const typeFilter = parseKeywords(document.getElementById('driveTypeFilter').value);
+
+  const body = JSON.stringify({ folder_id: folderId, brand, client, keywords, product_type_filter: typeFilter });
+  const resp = await authFetch('/api/drive/export/csv', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body,
+  });
+  if (!resp.ok) { alert('Erreur export CSV'); return; }
+  const blob = await resp.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `extraction_${(brand || 'drive').replace(/\s+/g,'_').toLowerCase()}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 // Start
 initApp();
+checkDriveStatus();
 </script>
 </body>
 </html>
