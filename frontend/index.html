@@ -1172,7 +1172,11 @@ async function checkAmazonStatus() {
       btn.disabled = false;
       btn.className = 'w-full bg-amber-500 hover:bg-amber-600 text-white rounded-lg py-2 text-sm font-semibold transition';
       btn.textContent = 'Connecter mon Seller Central';
-      btn.onclick = () => { window.location.href = '/api/amazon/connect'; };
+      btn.onclick = async () => {
+        const r = await authFetch('/api/amazon/connect');
+        const data = await r.json();
+        window.location.href = data.url;
+      };
     }
   } catch {
     box.className = 'mb-3 text-xs rounded-lg px-3 py-2 bg-gray-50 text-gray-400';

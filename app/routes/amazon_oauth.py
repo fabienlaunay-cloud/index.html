@@ -16,7 +16,7 @@ REDIRECT_URI = os.getenv("AMAZON_REDIRECT_URI", "https://synqio.io/api/amazon/ca
 
 @router.get("/connect")
 async def amazon_connect(request: Request):
-    """Génère l'URL d'autorisation et redirige vers Seller Central."""
+    """Retourne l'URL d'autorisation Amazon (le JS gère la redirection)."""
     email = request.state.user_email
     state = secrets.token_urlsafe(32)
     conn = get_db()
@@ -32,7 +32,7 @@ async def amazon_connect(request: Request):
         f"&state={state}"
         f"&version=beta"
     )
-    return RedirectResponse(auth_url)
+    return {"url": auth_url}
 
 
 @router.get("/callback")
