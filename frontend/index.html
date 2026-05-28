@@ -568,8 +568,15 @@
         <h2 class="font-semibold text-gray-800 mb-4 flex items-center gap-2"><span class="text-purple-600">⚙️</span> Paramètres IA</h2>
         <div class="space-y-4">
           <div>
-            <label class="text-sm font-medium text-gray-700 block mb-1.5">Mots-clés prioritaires</label>
-            <input id="focusKeywords" type="text" placeholder="qualité, premium, livraison rapide..." class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-purple-300 outline-none">
+            <div class="flex items-center justify-between mb-1.5">
+              <label class="text-sm font-medium text-gray-700">Mots-clés prioritaires</label>
+              <a href="https://sellercentral.amazon.fr/search-terms-report" target="_blank" rel="noopener" class="flex items-center gap-1 text-xs text-purple-600 hover:text-purple-800 hover:underline transition">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+                Source : Search Query Performance
+              </a>
+            </div>
+            <input id="focusKeywords" type="text" placeholder="coller les requêtes depuis Search Query Performance..." class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-purple-300 outline-none">
+            <p class="text-xs text-gray-400 mt-1.5">Seller Central → Marque → Analytique → Search Query Performance</p>
           </div>
           <div>
             <label class="text-sm font-medium text-gray-700 block mb-1.5">Ton de rédaction</label>
