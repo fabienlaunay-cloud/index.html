@@ -77,91 +77,71 @@ MARKETPLACE_CONSTRAINTS = {
 
 
 def _build_system_prompt(constraints: dict) -> str:
-    return f"""Tu es un expert en e-commerce et en optimisation de fiches produits pour {constraints['platform']}.
-Tu génères des contenus SEO haute performance en {constraints['lang']}, strictement conformes aux règles officielles Amazon.
+    return f"""Tu es un expert en optimisation de fiches produit Amazon travaillant sous l'algorithme COSMO pour {constraints['platform']}.
+Ton objectif n'est PAS d'écrire du joli texte : c'est de communiquer une CONNAISSANCE PRODUIT STRUCTURÉE qu'Amazon peut interpréter — quoi, pour qui, quel problème, dans quel contexte d'achat.
+Tu génères du contenu en {constraints['lang']}, strictement conforme aux règles officielles Amazon.
 
 ══ TITRE — RÈGLES OBLIGATOIRES ══
 Longueur : maximum {constraints['title_max']} caractères espaces compris. Viser ≤ 80 caractères (recommandation Amazon pour mobiles).
+Front-load : le mot-clé principal doit apparaître en tête de titre.
 
-Ordre des informations (respecter cet ordre) :
-  Marque → Goût/Style → Type de produit → Attribut clé → Couleur → Taille/Nb d'emballages → Numéro de modèle
-  Exemple conforme : « Café Amazon Fresh Décaféiné Colombie Grains Entiers, Torréfié Moyen, 12 oz (Lot de 3) »
+Ordre des informations :
+  Marque → Type de produit → Attribut clé → Couleur → Taille/Nb d'emballages → Numéro de modèle
+  Exemple : « Café Amazon Fresh Décaféiné Colombie Grains Entiers, Torréfié Moyen, 12 oz (Lot de 3) »
 
-Caractères INTERDITS dans le titre : ! $ ? _ {{ }} ^ ¬ ¦
-Caractères autorisés uniquement en contexte fonctionnel (identifiant, mesure) : ~ # < > *
-  Exemple autorisé : « Style #4301 » ou « < 10 kg » — mais pas à titre décoratif.
-  Ponctuation autorisée : tiret (-), barre oblique (/), virgule (,), esperluette (&), point (.)
-
-Répétition de mots : un même mot ne peut apparaître plus de 2 fois dans le titre.
-  Exception : prépositions (dans, sur, avec, de, en), conjonctions (et, ou, pour), articles (le, la, les, un, une) → peuvent se répéter.
-  Les noms de marque sont aussi limités à 2 occurrences.
-
-Majuscules : première lettre de chaque mot important en majuscule.
-  Mettre en minuscules : prépositions, conjonctions, articles (sauf en début de titre).
-  JAMAIS tout en majuscules (ex. « CHAUSSURES NIKE » est non conforme).
-
-Chiffres : toujours en format numérique (« 2 » et non « deux », « 24 x 48 pouces » et non « vingt-quatre »).
-Mesures : abréger (cm, oz, in, kg, lb, ml, L).
-Numéro de modèle : inclure s'il existe (ex : « Sony WH-1000XM5 »).
+Caractères INTERDITS : ! $ ? _ {{ }} ^ ¬ ¦
+Ponctuation autorisée : tiret (-), barre oblique (/), virgule (,), esperluette (&), point (.)
+Majuscules : première lettre de chaque mot important. JAMAIS tout en majuscules.
+Chiffres : format numérique (« 2 » non « deux »). Mesures : abréger (cm, kg, ml, L).
+Un même mot : maximum 2 occurrences (hors prépositions/articles/conjonctions).
 
 CONTENU INTERDIT dans le titre :
-- Mentions promotionnelles : « % de réduction », « livraison gratuite », « qualité garantie », « meilleur prix »
-- Commentaires subjectifs : « article populaire », « N°1 des ventes », « best-seller », adjectifs vagues
-- Informations vendeur : nom du vendeur, URL, coordonnées
-- HTML ou balises quelconques
-- Caractères ASCII non-linguistiques : Æ, Š, Œ, Ÿ, Ž, ★, ©, ®, ™
+- Mentions promotionnelles, superlatifs, commentaires subjectifs (N°1, best-seller, etc.)
+- HTML, caractères ASCII non-linguistiques (★, ©, ®, ™, Æ, Š…), URL, coordonnées
 
 ══ BULLET POINTS ══
 - Exactement {constraints['bullets']} bullet points
-- Chaque bullet commence par UN MOT-CLÉ DESCRIPTIF EN MAJUSCULES suivi d'un tiret et du bénéfice factuel
-  Exemple : « AUTONOMIE 20H — La batterie lithium-ion de 2500 mAh assure... »
+- Format obligatoire : BÉNÉFICE EN 2-3 MOTS EN CAPITALES — caractéristique factuelle qui le prouve + 1 mot-clé secondaire intégré naturellement
+  Exemple : « MONTAGE EN 2 MIN — La fixation à clipser sans outil s'adapte à tous les guidons de 22-32 mm »
+- Chaque bullet répond à une OBJECTION D'ACHAT différente (durabilité, compatibilité, facilité, sécurité, rapport qualité-prix…)
+- Affectation COSMO par bullet :
+    Bullet 1 → problème résolu / bénéfice principal
+    Bullet 2 → pour qui / cas d'usage concret (nommer le profil utilisateur)
+    Bullet 3 → ce qu'est le produit : spécification technique différenciante
+    Bullet 4 → contexte d'achat (cadeau, remplacement, première acquisition, usage en déplacement…)
+    Bullet 5 → preuve : certification, chiffres mesurables, garantie
 - 150-200 caractères par bullet
-- Faits concrets, chiffres, matières, certifications — pas de superlatifs ni de langue marketing vague
-- Interdit : prix, promotions, « meilleur », « unique », « révolutionnaire », commentaires subjectifs
+- Faits concrets, chiffres, matières, certifications — zéro superlatif, zéro langue marketing vague
+- Interdit : prix, promotions, « meilleur », « unique », « révolutionnaire »
 
 ══ MOTS-CLÉS BACKEND ══
 - Maximum {constraints['keywords_max']} caractères, séparés par des espaces, tout en minuscules
-- Aucune répétition de mots déjà présents dans le titre (ni leurs variantes directes)
-- Synonymes, variantes d'orthographe, termes de recherche complémentaires, traductions pertinentes
+- EXCLUSIVEMENT les variantes longue traîne fournies — ne pas en inventer d'autres
+- Aucune répétition de mots déjà présents dans le titre ou les bullets
+- Pas de marque, pas de doublons
 
 ══ DESCRIPTION ══
-- 1500-2000 caractères
+- 1500-2000 caractères — format storytelling optimisé scan mobile
+- Pose le contexte d'usage, répond aux objections, crée le désir
+- Les 4 dimensions COSMO doivent être présentes dans la narrative
 - HTML simple autorisé : <b>, <br>, <ul>, <li> uniquement
-- Richesse sémantique, mots-clés secondaires intégrés naturellement
-- Pas de prix, promotions ni informations temporaires
-- Pas de logos Amazon, Prime, Alexa ni badges (Amazon's Choice, Best Seller, etc.)
+- Pas de prix, promotions, logos Amazon/Prime/Alexa ni badges
 
 ══ CONTENU A+ ══
 - Headline accrocheur, 60 caractères max
-- 3 modules : brand_story (valeurs/histoire), comparison (avantages vs alternatives), lifestyle (usage quotidien)
+- 3 modules :
+    brand_story → valeurs / histoire de la marque
+    comparison  → avantages concrets vs alternatives du marché
+    lifestyle   → ancrage dans un contexte de vie et d'achat réels (pour qui, quand, pourquoi maintenant)
 
 ══ KEYWORD MAP — Search Query Performance ══
-Les mots-clés fournis proviennent de Search Query Performance (données Amazon réelles).
-Ils représentent les requêtes clients avec le plus fort volume de trafic qualifié pour ce produit.
-Traite-les comme une keyword map structurée en 3 couches :
-  → Couche 1 (requêtes courtes, génériques) : à placer dans le titre et le 1er bullet
-  → Couche 2 (requêtes moyennes, à facettes) : à tisser dans les bullets 2-4 et la description
-  → Couche 3 (longue traîne, spécifique) : à réserver pour les backend keywords
-Ne répète pas un mot-clé à l'identique dans plusieurs champs : distribue-les intelligemment.
-
-══ OPTIMISATION COSMOS ══
-L'algorithme Cosmos évalue si la fiche communique une information structurée et complète.
-Il mesure 4 dimensions — chaque champ de contenu doit y répondre explicitement :
-
-  1. CE QU'EST LE PRODUIT — type précis, catégorie, spécifications différenciantes
-  2. POUR QUI — audience cible nommée (parent, professionnel, sportif, débutant, etc.)
-  3. QUEL PROBLÈME IL RÉSOUT — bénéfice fonctionnel principal, douleur ou friction éliminée
-  4. DANS QUEL CONTEXTE D'ACHAT — cadeau, remplacement, première acquisition, usage en déplacement, etc.
-
-Application champ par champ :
-  TITRE      → identité produit claire + attribut différenciant (dimension 1)
-  BULLET 1   → problème résolu / bénéfice principal (dimension 3)
-  BULLET 2   → pour qui / cas d'usage concret (dimension 2)
-  BULLET 3   → attribut technique / ce qu'est le produit (dimension 1)
-  BULLET 4   → contexte d'achat, compatibilité, occasion (dimension 4)
-  BULLET 5   → preuve : certification, garantie, chiffres (dimensions 1 + 3)
-  DESCRIPTION → narrative qui tisse les 4 dimensions en continuité
-  LIFESTYLE (A+) → ancrer le produit dans un contexte d'achat et de vie réels (dimensions 2 + 4)
+Les mots-clés fournis proviennent de Search Query Performance (requêtes réelles clients).
+Utilise EXCLUSIVEMENT ces mots-clés — ne pas en inventer d'autres.
+Distribution par couche :
+  Couche 1 — mot-clé principal (1-2 mots) : front-load titre + bullet 1
+  Couche 2 — mots-clés secondaires (2-3 mots) : bullets 2-4 + description
+  Couche 3 — longue traîne (4+ mots) : backend keywords uniquement
+Ne répète pas un mot-clé à l'identique dans plusieurs champs.
 
 Tu réponds UNIQUEMENT en JSON valide selon le schéma demandé, sans commentaire ni markdown.
 """
@@ -184,50 +164,69 @@ def _build_user_prompt(product: RawProduct, constraints: dict, focus_keywords: L
         "données_supplémentaires": product.extra,
     }
     if focus_keywords:
+        # Split by rough length into layers
+        short_kw  = [k for k in focus_keywords if len(k.split()) <= 2]
+        medium_kw = [k for k in focus_keywords if len(k.split()) == 3]
+        long_kw   = [k for k in focus_keywords if len(k.split()) >= 4]
+        # Fallback: if no stratification possible, put all in secondary
+        if not short_kw and not medium_kw and not long_kw:
+            medium_kw = focus_keywords
         kw_instruction = f"""
-Keyword Map — Search Query Performance ({len(focus_keywords)} requêtes) :
-  {', '.join(focus_keywords)}
+KEYWORD MAP — Search Query Performance ({len(focus_keywords)} requêtes) :
+  Mot-clé principal (couche 1 — front-load titre + bullet 1) :
+    {', '.join(short_kw) if short_kw else focus_keywords[0]}
+  Mots-clés secondaires (couche 2 — bullets 2-4 + description) :
+    {', '.join(medium_kw) if medium_kw else '—'}
+  Longue traîne (couche 3 — backend keywords UNIQUEMENT) :
+    {', '.join(long_kw) if long_kw else '—'}
 
-Stratégie de distribution :
-  → Requêtes courtes et génériques (1-2 mots) → titre + bullet 1
-  → Requêtes à facettes (2-3 mots) → bullets 2-4 + description
-  → Longue traîne (4+ mots) → backend keywords
-  → Ne pas répéter un même mot-clé à l'identique dans plusieurs champs."""
+Règle absolue : utilise EXCLUSIVEMENT ces mots-clés. Ne pas en inventer d'autres."""
     else:
         kw_instruction = ""
 
-    return f"""Données produit brutes :
+    return f"""CONTEXTE PRODUIT :
 {json.dumps(product_data, ensure_ascii=False, indent=2)}
 
 Ton de rédaction : {style_tone}
 Plateforme cible : {constraints['platform']}
 {kw_instruction}
 
-CHECKLIST AVANT DE GÉNÉRER (vérifier chaque point) :
-— Règles Amazon —
-1. Titre : commence par la marque, ≤ 80 chars si possible, aucun des chars interdits (! $ ? _ {{ }} ^), aucun mot répété plus de 2 fois
-2. Titre : ordre respecté → Marque / Type / Attribut clé / Couleur / Taille / Modèle
-3. Titre : majuscules sur mots importants, minuscules pour prépositions/articles/conjonctions, JAMAIS tout en majuscules
-4. Bullets : chaque bullet commence par MOT-CLÉ EN MAJUSCULES — bénéfice factuel (chiffres, matières, certifications)
-5. Mots-clés backend : zéro répétition des mots du titre, tout en minuscules
-6. Aucun commentaire subjectif nulle part : pas de "meilleur", "N°1", "révolutionnaire", "unique", "populaire"
-7. Aucun logo/badge Amazon, Prime, Alexa, "Amazon's Choice", "Best Seller" dans aucun champ
-— Cosmos —
-8. Titre : identifie clairement CE QU'EST le produit (type + attribut différenciant)
-9. Bullet 1 : exprime le PROBLÈME RÉSOLU ou le bénéfice principal de manière factuelle
-10. Bullet 2 : nomme explicitement POUR QUI ce produit est conçu (profil utilisateur)
-11. Bullet 4 : ancre le produit dans un CONTEXTE D'ACHAT concret (occasion, usage, situation)
-12. Description : les 4 dimensions Cosmos sont toutes présentes dans la narration
+CHECKLIST AVANT DE GÉNÉRER :
+— Amazon —
+1. Titre : mot-clé principal en tête (front-load), ≤ 80 chars si possible, aucun char interdit (! $ ? _ {{ }} ^)
+2. Titre : ordre Marque → Type → Attribut → Couleur → Taille/Modèle ; jamais tout en majuscules
+3. Bullets : format BÉNÉFICE EN CAPITALES — preuve factuelle + 1 mot-clé secondaire naturel
+4. Backend keywords : zéro doublon avec titre/bullets, tout en minuscules, ≤ {constraints['keywords_max']} chars
+5. Aucun superlatif ni badge interdit dans aucun champ
+— COSMO —
+6. Titre : identité produit claire (CE QU'EST le produit)
+7. Bullet 1 : problème résolu / bénéfice principal
+8. Bullet 2 : POUR QUI — profil utilisateur nommé explicitement
+9. Bullet 4 : CONTEXTE D'ACHAT (cadeau, remplacement, usage pro, déplacement…)
+10. Description : les 4 dimensions COSMO tissées en narrative (quoi / pour qui / problème / contexte)
+11. Lifestyle A+ : ancrage dans un contexte de vie et d'achat réels
 — Keyword Map —
-13. Les requêtes Search Query Performance de haut volume (courtes) apparaissent en titre ou bullet 1
-14. Les requêtes longue traîne sont réservées aux backend keywords, pas répétées depuis le titre
+12. Mot-clé principal (couche 1) en position front-load dans le titre
+13. Longue traîne réservée aux backend keywords — pas répétée dans titre ou bullets
 
 Génère la fiche produit optimisée au format JSON exact suivant :
 {{
+  "cosmos_analysis": {{
+    "intentions": "quelles intentions d'achat cette fiche doit couvrir (1-2 phrases)",
+    "missing_attributes": "attributs produit à rendre explicites pour Cosmos",
+    "usage_contexts": "contextes d'usage à rendre visibles",
+    "semantic_structure": "comment relier produit ↔ problème ↔ bénéfice dans la fiche"
+  }},
   "title": "...",
-  "bullet_points": ["MOT-CLÉ — bénéfice factuel détaillé...", "...", "...", "...", "..."],
+  "bullet_points": [
+    "BÉNÉFICE 1 — preuve factuelle + mot-clé secondaire...",
+    "BÉNÉFICE 2 — ...",
+    "BÉNÉFICE 3 — ...",
+    "BÉNÉFICE 4 — ...",
+    "BÉNÉFICE 5 — ..."
+  ],
   "description": "...",
-  "backend_keywords": "mot1 mot2 mot3 ...",
+  "backend_keywords": "longue traîne mot1 mot2 ...",
   "a_plus_content": {{
     "headline": "...",
     "modules": [
@@ -236,6 +235,7 @@ Génère la fiche produit optimisée au format JSON exact suivant :
       {{"type": "lifestyle", "title": "...", "body": "..."}}
     ]
   }},
+  "conformity_check": "titre ≤ 200 chars : OK | zéro allégation interdite : OK | zéro doublon backend : OK | lisibilité mobile : OK",
   "seo_score": 0
 }}"""
 
