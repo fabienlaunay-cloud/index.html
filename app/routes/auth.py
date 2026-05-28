@@ -136,3 +136,19 @@ async def toggle(email: str, req: ToggleUserRequest, authorization: str = Header
     _require_admin(authorization)
     toggle_user(email, req.active)
     return {"status": "updated", "email": email, "active": req.active}
+
+
+class UpdatePlanRequest(BaseModel):
+    plan: str
+
+
+@admin_router.patch("/users/{email}/plan")
+async def update_plan(email: str, req: UpdatePlanRequest, authorization: str = Header(None)):
+    _require_admin(authorization)
+    if req.plan not in ("starter", "business", "scale"):
+        raise HTTPException(400, "Plan invalide")
+    conn = get_db()
+    conn.execute("UPDATE users SET plan = ? WHERE email = ?", (req.plan, email.lower()))
+    conn.commit()
+    conn.close()
+    return {"status": "updated", "email": email, "plan": req.plan}

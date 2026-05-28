@@ -134,7 +134,7 @@ def is_admin(email: str) -> bool:
 def list_users() -> list:
     conn = get_db()
     rows = conn.execute(
-        "SELECT email, name, is_active, is_admin, created_at FROM users ORDER BY created_at DESC"
+        "SELECT email, name, is_active, is_admin, plan, created_at FROM users ORDER BY created_at DESC"
     ).fetchall()
     conn.close()
     return [dict(r) for r in rows]

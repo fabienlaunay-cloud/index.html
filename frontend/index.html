@@ -908,7 +908,11 @@ async function loadUsers() {
 function renderUsers(users) {
   const container = document.getElementById('usersList');
   if (!users.length) { container.innerHTML = '<p class="text-gray-400 text-sm text-center py-4">Aucun utilisateur</p>'; return; }
-  container.innerHTML = users.map(u => `
+  const planColors = { starter: 'bg-blue-100 text-blue-700', business: 'bg-purple-100 text-purple-700', scale: 'bg-amber-100 text-amber-700' };
+  container.innerHTML = users.map(u => {
+    const plan = u.plan || 'starter';
+    const pc = planColors[plan] || planColors.starter;
+    return `
     <div class="flex items-center gap-3 p-3 bg-gray-50 rounded-xl border border-gray-100">
       <div class="w-8 h-8 rounded-full ${u.is_active ? 'bg-green-100' : 'bg-gray-200'} flex items-center justify-center font-bold text-sm ${u.is_active ? 'text-green-700' : 'text-gray-400'}">
         ${u.email.charAt(0).toUpperCase()}
@@ -917,9 +921,24 @@ function renderUsers(users) {
         <p class="font-medium text-gray-800 text-sm truncate">${u.name || u.email}</p>
         <p class="text-gray-400 text-xs truncate">${u.email}</p>
       </div>
-      <span class="text-xs px-2 py-0.5 rounded-full ${u.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-500'}">${u.is_active ? 'Actif' : 'Inactif'}</span>
+      <select onchange="changePlan('${u.email}', this.value)" class="text-xs border border-gray-200 rounded-lg px-2 py-1 ${pc} font-medium cursor-pointer">
+        <option value="starter" ${plan === 'starter' ? 'selected' : ''}>Starter</option>
+        <option value="business" ${plan === 'business' ? 'selected' : ''}>Business</option>
+        <option value="scale" ${plan === 'scale' ? 'selected' : ''}>Scale</option>
+      </select>
       <button onclick="deleteUser('${u.email}')" class="text-red-400 hover:text-red-600 text-xs px-2 py-1 hover:bg-red-50 rounded transition">Supprimer</button>
-    </div>`).join('');
+    </div>`;
+  }).join('');
+}
+
+async function changePlan(email, plan) {
+  await authFetch(`/api/admin/users/${encodeURIComponent(email)}/plan`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ plan }),
+  });
+  showToast('✅', `Plan ${plan} assigné à ${email}`);
+  loadAdminUsage();
 }
 
 async function addUser() {
