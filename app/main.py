@@ -22,9 +22,10 @@ from app.services.image_gen import generate_product_images, AMAZON_IMAGE_TYPES
 from app.utils.export import to_csv_bytes, to_json_bytes, to_amazon_flat_file_bytes
 from app.db import init_db
 from app.routes.auth import router as auth_router, admin_router
+from app.routes.amazon_oauth import router as amazon_router
 
 # Routes sans authentification
-PUBLIC_PATHS = {"/", "/health", "/api/auth/login", "/api/auth/setup", "/api/auth/needs-setup", "/api/marketplaces"}
+PUBLIC_PATHS = {"/", "/health", "/api/auth/login", "/api/auth/setup", "/api/auth/needs-setup", "/api/marketplaces", "/api/amazon/callback"}
 
 
 class AuthMiddleware(BaseHTTPMiddleware):
@@ -63,6 +64,7 @@ app.add_middleware(AuthMiddleware)
 
 app.include_router(auth_router)
 app.include_router(admin_router)
+app.include_router(amazon_router)
 
 
 @app.on_event("startup")
@@ -134,13 +136,14 @@ async def generate(request: GenerationRequest):
 # ── Publish ───────────────────────────────────────────────────────────────────
 
 @app.post("/api/publish", response_model=PublishResult)
-async def publish(request: PublishRequest):
-    if not request.listings:
+async def publish(request_data: PublishRequest, request: Request):
+    if not request_data.listings:
         raise HTTPException(400, "Aucune fiche à publier")
     return await publish_listings(
-        listings=request.listings,
-        marketplace=request.marketplace,
-        dry_run=request.dry_run,
+        listings=request_data.listings,
+        marketplace=request_data.marketplace,
+        dry_run=request_data.dry_run,
+        user_email=getattr(request.state, "user_email", None),
     )
 
 

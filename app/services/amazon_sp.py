@@ -13,6 +13,7 @@ from typing import List, Optional
 from datetime import datetime
 
 from app.models import AmazonListing, PublishResult, Marketplace
+from app.db import get_db
 
 DEMO_MODE = os.getenv("AMAZON_SP_MODE", "demo") == "demo"
 
@@ -27,16 +28,25 @@ MARKETPLACE_IDS = {
 SP_API_ENDPOINT = "https://sellingpartnerapi-eu.amazon.com"
 
 
-def _get_sp_credentials() -> dict:
-    return {
-        "refresh_token": os.getenv("AMAZON_REFRESH_TOKEN", ""),
-        "lwa_client_id": os.getenv("AMAZON_LWA_CLIENT_ID", ""),
-        "lwa_client_secret": os.getenv("AMAZON_LWA_CLIENT_SECRET", ""),
+def _get_sp_credentials(user_email: str = None) -> dict:
+    """Récupère les credentials SP-API : depuis la DB si user_email fourni, sinon depuis les env vars."""
+    base = {
+        "lwa_client_id": os.getenv("LWA_CLIENT_ID", ""),
+        "lwa_client_secret": os.getenv("LWA_CLIENT_SECRET", ""),
         "aws_access_key": os.getenv("AWS_ACCESS_KEY_ID", ""),
         "aws_secret_key": os.getenv("AWS_SECRET_ACCESS_KEY", ""),
-        "role_arn": os.getenv("AMAZON_ROLE_ARN", ""),
-        "seller_id": os.getenv("AMAZON_SELLER_ID", ""),
+        "role_arn": os.getenv("AWS_ROLE_ARN", ""),
     }
+    if user_email:
+        conn = get_db()
+        row = conn.execute(
+            "SELECT refresh_token, seller_id FROM amazon_credentials WHERE user_email = ?",
+            (user_email,),
+        ).fetchone()
+        conn.close()
+        if row:
+            return {**base, "refresh_token": row["refresh_token"], "seller_id": row["seller_id"]}
+    return {**base, "refresh_token": os.getenv("AMAZON_REFRESH_TOKEN", ""), "seller_id": os.getenv("AMAZON_SELLER_ID", "")}
 
 
 async def _get_lwa_token(creds: dict) -> str:
@@ -110,11 +120,12 @@ async def publish_listings(
     listings: List[AmazonListing],
     marketplace: Marketplace,
     dry_run: bool = True,
+    user_email: str = None,
 ) -> PublishResult:
     if DEMO_MODE or dry_run:
         return _demo_publish(listings, marketplace, dry_run)
 
-    creds = _get_sp_credentials()
+    creds = _get_sp_credentials(user_email)
     marketplace_id = MARKETPLACE_IDS.get(marketplace, MARKETPLACE_IDS[Marketplace.AMAZON_FR])
 
     try:

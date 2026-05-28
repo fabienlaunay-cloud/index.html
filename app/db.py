@@ -24,10 +24,30 @@ def init_db():
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
-    # Migration : ajoute is_admin si la table existe déjà sans cette colonne
     try:
         conn.execute("ALTER TABLE users ADD COLUMN is_admin INTEGER DEFAULT 0")
     except Exception:
         pass
+
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS amazon_credentials (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_email TEXT UNIQUE NOT NULL,
+            seller_id TEXT DEFAULT '',
+            refresh_token TEXT NOT NULL,
+            marketplace_id TEXT DEFAULT 'A13V1IB3VIYZZH',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS amazon_oauth_states (
+            state TEXT PRIMARY KEY,
+            user_email TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+
     conn.commit()
     conn.close()

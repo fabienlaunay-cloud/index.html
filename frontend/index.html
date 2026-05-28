@@ -680,25 +680,31 @@
 
     <!-- Option 2 : API directe -->
     <div class="border border-gray-200 rounded-xl p-4">
-      <p class="text-sm font-semibold text-gray-800 mb-1">🚀 Push direct via API <span class="text-xs font-normal text-gray-400 ml-1">(bientôt disponible)</span></p>
-      <p class="text-xs text-gray-500 mb-3">Publie automatiquement sans upload manuel. Nécessite la connexion de votre compte Seller Central.</p>
-      <div class="mb-3">
-        <label class="text-xs font-medium text-gray-600 block mb-1">Marketplace</label>
-        <select id="publishMarketplace" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm">
-          <option value="amazon_fr">🇫🇷 Amazon France</option>
-          <option value="amazon_de">🇩🇪 Amazon Allemagne</option>
-          <option value="amazon_it">🇮🇹 Amazon Italie</option>
-          <option value="amazon_es">🇪🇸 Amazon Espagne</option>
-          <option value="amazon_uk">🇬🇧 Amazon UK</option>
-        </select>
+      <p class="text-sm font-semibold text-gray-800 mb-1">🚀 Push direct via API</p>
+      <p class="text-xs text-gray-500 mb-3">Publie automatiquement sans upload manuel.</p>
+
+      <!-- Statut connexion Amazon -->
+      <div id="amazonStatusBox" class="mb-3 text-xs rounded-lg px-3 py-2 bg-gray-50 text-gray-400">Vérification connexion...</div>
+
+      <div id="publishApiForm">
+        <div class="mb-3">
+          <label class="text-xs font-medium text-gray-600 block mb-1">Marketplace</label>
+          <select id="publishMarketplace" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm">
+            <option value="amazon_fr">🇫🇷 Amazon France</option>
+            <option value="amazon_de">🇩🇪 Amazon Allemagne</option>
+            <option value="amazon_it">🇮🇹 Amazon Italie</option>
+            <option value="amazon_es">🇪🇸 Amazon Espagne</option>
+            <option value="amazon_uk">🇬🇧 Amazon UK</option>
+          </select>
+        </div>
+        <div class="flex items-center gap-2 mb-3">
+          <input type="checkbox" id="dryRunCheck" class="w-4 h-4 accent-purple-600" checked>
+          <label for="dryRunCheck" class="text-xs text-gray-600">Mode test (simulation sans envoi réel)</label>
+        </div>
+        <button id="publishApiBtn" onclick="publishListings()" class="w-full gradient-bg text-white rounded-lg py-2 text-sm font-semibold hover:opacity-90 transition">
+          Publier via API
+        </button>
       </div>
-      <div class="flex items-center gap-2 mb-3">
-        <input type="checkbox" id="dryRunCheck" class="w-4 h-4 accent-purple-600" checked>
-        <label for="dryRunCheck" class="text-xs text-gray-600">Mode test (simulation sans envoi réel)</label>
-      </div>
-      <button onclick="publishListings()" class="w-full gradient-bg text-white rounded-lg py-2 text-sm font-semibold hover:opacity-90 transition">
-        Publier via API
-      </button>
     </div>
 
     <button onclick="closePublishModal()" class="w-full mt-3 text-sm text-gray-400 hover:text-gray-600 py-1">Annuler</button>
@@ -726,6 +732,11 @@ async function initApp() {
     const data = await r.json();
     currentUser = data;
     showApp(data.email);
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('amazon') === 'connected') {
+      showToast('✅', 'Seller Central connecté avec succès !');
+      history.replaceState({}, '', '/');
+    }
   } catch {
     localStorage.removeItem('synqio_token');
     token = '';
@@ -1136,8 +1147,43 @@ async function exportResults(format) {
   showToast('✅', `Export ${format.toUpperCase()} téléchargé`);
 }
 
-function showPublishModal() { document.getElementById('publishModal').classList.remove('hidden'); }
+async function showPublishModal() {
+  document.getElementById('publishModal').classList.remove('hidden');
+  await checkAmazonStatus();
+}
 function closePublishModal() { document.getElementById('publishModal').classList.add('hidden'); }
+
+async function checkAmazonStatus() {
+  const box = document.getElementById('amazonStatusBox');
+  const btn = document.getElementById('publishApiBtn');
+  try {
+    const r = await authFetch('/api/amazon/status');
+    const data = await r.json();
+    if (data.connected) {
+      box.className = 'mb-3 text-xs rounded-lg px-3 py-2 bg-green-50 text-green-700';
+      box.innerHTML = `✅ Seller Central connecté <span class="text-green-500">(${data.seller_id})</span> — <a href="#" onclick="disconnectAmazon(); return false;" class="underline text-green-600">Déconnecter</a>`;
+      btn.disabled = false;
+      btn.className = 'w-full gradient-bg text-white rounded-lg py-2 text-sm font-semibold hover:opacity-90 transition';
+      btn.textContent = 'Publier via API';
+      btn.onclick = publishListings;
+    } else {
+      box.className = 'mb-3 text-xs rounded-lg px-3 py-2 bg-amber-50 text-amber-700';
+      box.innerHTML = '⚠️ Seller Central non connecté';
+      btn.disabled = false;
+      btn.className = 'w-full bg-amber-500 hover:bg-amber-600 text-white rounded-lg py-2 text-sm font-semibold transition';
+      btn.textContent = 'Connecter mon Seller Central';
+      btn.onclick = () => { window.location.href = '/api/amazon/connect'; };
+    }
+  } catch {
+    box.className = 'mb-3 text-xs rounded-lg px-3 py-2 bg-gray-50 text-gray-400';
+    box.textContent = 'Impossible de vérifier la connexion';
+  }
+}
+
+async function disconnectAmazon() {
+  await authFetch('/api/amazon/disconnect', { method: 'DELETE' });
+  await checkAmazonStatus();
+}
 
 async function publishListings() {
   closePublishModal();
