@@ -135,6 +135,34 @@ CONTENU INTERDIT dans le titre :
 - Headline accrocheur, 60 caractères max
 - 3 modules : brand_story (valeurs/histoire), comparison (avantages vs alternatives), lifestyle (usage quotidien)
 
+══ KEYWORD MAP — Search Query Performance ══
+Les mots-clés fournis proviennent de Search Query Performance (données Amazon réelles).
+Ils représentent les requêtes clients avec le plus fort volume de trafic qualifié pour ce produit.
+Traite-les comme une keyword map structurée en 3 couches :
+  → Couche 1 (requêtes courtes, génériques) : à placer dans le titre et le 1er bullet
+  → Couche 2 (requêtes moyennes, à facettes) : à tisser dans les bullets 2-4 et la description
+  → Couche 3 (longue traîne, spécifique) : à réserver pour les backend keywords
+Ne répète pas un mot-clé à l'identique dans plusieurs champs : distribue-les intelligemment.
+
+══ OPTIMISATION COSMOS ══
+L'algorithme Cosmos évalue si la fiche communique une information structurée et complète.
+Il mesure 4 dimensions — chaque champ de contenu doit y répondre explicitement :
+
+  1. CE QU'EST LE PRODUIT — type précis, catégorie, spécifications différenciantes
+  2. POUR QUI — audience cible nommée (parent, professionnel, sportif, débutant, etc.)
+  3. QUEL PROBLÈME IL RÉSOUT — bénéfice fonctionnel principal, douleur ou friction éliminée
+  4. DANS QUEL CONTEXTE D'ACHAT — cadeau, remplacement, première acquisition, usage en déplacement, etc.
+
+Application champ par champ :
+  TITRE      → identité produit claire + attribut différenciant (dimension 1)
+  BULLET 1   → problème résolu / bénéfice principal (dimension 3)
+  BULLET 2   → pour qui / cas d'usage concret (dimension 2)
+  BULLET 3   → attribut technique / ce qu'est le produit (dimension 1)
+  BULLET 4   → contexte d'achat, compatibilité, occasion (dimension 4)
+  BULLET 5   → preuve : certification, garantie, chiffres (dimensions 1 + 3)
+  DESCRIPTION → narrative qui tisse les 4 dimensions en continuité
+  LIFESTYLE (A+) → ancrer le produit dans un contexte d'achat et de vie réels (dimensions 2 + 4)
+
 Tu réponds UNIQUEMENT en JSON valide selon le schéma demandé, sans commentaire ni markdown.
 """
 
@@ -155,7 +183,18 @@ def _build_user_prompt(product: RawProduct, constraints: dict, focus_keywords: L
         "caractéristiques": product.features,
         "données_supplémentaires": product.extra,
     }
-    kw_instruction = f"\nMots-clés prioritaires à intégrer : {', '.join(focus_keywords)}" if focus_keywords else ""
+    if focus_keywords:
+        kw_instruction = f"""
+Keyword Map — Search Query Performance ({len(focus_keywords)} requêtes) :
+  {', '.join(focus_keywords)}
+
+Stratégie de distribution :
+  → Requêtes courtes et génériques (1-2 mots) → titre + bullet 1
+  → Requêtes à facettes (2-3 mots) → bullets 2-4 + description
+  → Longue traîne (4+ mots) → backend keywords
+  → Ne pas répéter un même mot-clé à l'identique dans plusieurs champs."""
+    else:
+        kw_instruction = ""
 
     return f"""Données produit brutes :
 {json.dumps(product_data, ensure_ascii=False, indent=2)}
@@ -165,6 +204,7 @@ Plateforme cible : {constraints['platform']}
 {kw_instruction}
 
 CHECKLIST AVANT DE GÉNÉRER (vérifier chaque point) :
+— Règles Amazon —
 1. Titre : commence par la marque, ≤ 80 chars si possible, aucun des chars interdits (! $ ? _ {{ }} ^), aucun mot répété plus de 2 fois
 2. Titre : ordre respecté → Marque / Type / Attribut clé / Couleur / Taille / Modèle
 3. Titre : majuscules sur mots importants, minuscules pour prépositions/articles/conjonctions, JAMAIS tout en majuscules
@@ -172,6 +212,15 @@ CHECKLIST AVANT DE GÉNÉRER (vérifier chaque point) :
 5. Mots-clés backend : zéro répétition des mots du titre, tout en minuscules
 6. Aucun commentaire subjectif nulle part : pas de "meilleur", "N°1", "révolutionnaire", "unique", "populaire"
 7. Aucun logo/badge Amazon, Prime, Alexa, "Amazon's Choice", "Best Seller" dans aucun champ
+— Cosmos —
+8. Titre : identifie clairement CE QU'EST le produit (type + attribut différenciant)
+9. Bullet 1 : exprime le PROBLÈME RÉSOLU ou le bénéfice principal de manière factuelle
+10. Bullet 2 : nomme explicitement POUR QUI ce produit est conçu (profil utilisateur)
+11. Bullet 4 : ancre le produit dans un CONTEXTE D'ACHAT concret (occasion, usage, situation)
+12. Description : les 4 dimensions Cosmos sont toutes présentes dans la narration
+— Keyword Map —
+13. Les requêtes Search Query Performance de haut volume (courtes) apparaissent en titre ou bullet 1
+14. Les requêtes longue traîne sont réservées aux backend keywords, pas répétées depuis le titre
 
 Génère la fiche produit optimisée au format JSON exact suivant :
 {{
