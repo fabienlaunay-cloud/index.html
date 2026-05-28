@@ -3,12 +3,41 @@ import hashlib
 import hmac
 import base64
 import json
+import time
 import datetime
+from collections import defaultdict
 from app.db import get_db
 
 SECRET_KEY = os.getenv("JWT_SECRET", "change-me-use-a-long-random-string-in-production")
 ALGORITHM = "HS256"
 TOKEN_EXPIRE_HOURS = int(os.getenv("TOKEN_EXPIRE_HOURS", "24"))
+
+# ── Rate limiting login ───────────────────────────────────────────────────────
+_RATE_LIMIT_WINDOW = 300   # 5 minutes
+_RATE_LIMIT_MAX = 5        # 5 tentatives max
+
+_login_attempts: dict = defaultdict(list)
+
+
+def check_rate_limit(ip: str) -> bool:
+    now = time.time()
+    _login_attempts[ip] = [t for t in _login_attempts[ip] if now - t < _RATE_LIMIT_WINDOW]
+    return len(_login_attempts[ip]) < _RATE_LIMIT_MAX
+
+
+def record_failed_attempt(ip: str):
+    _login_attempts[ip].append(time.time())
+
+
+def clear_attempts(ip: str):
+    _login_attempts.pop(ip, None)
+
+
+def get_retry_after(ip: str) -> int:
+    if not _login_attempts.get(ip):
+        return 0
+    oldest = min(_login_attempts[ip])
+    return max(0, int(_RATE_LIMIT_WINDOW - (time.time() - oldest)))
 
 
 def hash_password(password: str) -> str:

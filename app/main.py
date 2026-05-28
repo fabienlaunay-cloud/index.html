@@ -54,11 +54,17 @@ app = FastAPI(
     version="1.0.0",
 )
 
+_ALLOWED_ORIGINS = os.getenv(
+    "ALLOWED_ORIGINS",
+    "https://synqio.io,https://www.synqio.io",
+).split(",")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=_ALLOWED_ORIGINS,
+    allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type"],
+    allow_credentials=True,
 )
 app.add_middleware(AuthMiddleware)
 
@@ -94,11 +100,16 @@ async def health():
 
 # ── Ingestion ─────────────────────────────────────────────────────────────────
 
+MAX_UPLOAD_SIZE = 10 * 1024 * 1024  # 10 MB
+
+
 @app.post("/api/ingest", response_model=List[RawProduct])
 async def ingest_file(file: UploadFile = File(...)):
     content = await file.read()
     if not content:
         raise HTTPException(400, "Fichier vide")
+    if len(content) > MAX_UPLOAD_SIZE:
+        raise HTTPException(413, "Fichier trop volumineux (max 10 Mo)")
     try:
         products = parse_file(file.filename or "upload.csv", content)
     except ValueError as e:

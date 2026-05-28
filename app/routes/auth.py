@@ -1,11 +1,19 @@
 import os
-from fastapi import APIRouter, HTTPException, Header
+from fastapi import APIRouter, HTTPException, Header, Request
 from pydantic import BaseModel
 from app.services.auth import (
     authenticate_user, create_token, verify_token,
     create_user, list_users, delete_user, toggle_user, is_admin,
+    check_rate_limit, record_failed_attempt, clear_attempts, get_retry_after,
 )
 from app.db import get_db
+
+
+def _get_ip(request: Request) -> str:
+    forwarded = request.headers.get("X-Forwarded-For")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    return request.client.host if request.client else "unknown"
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 admin_router = APIRouter(prefix="/api/admin", tags=["admin"])
@@ -65,10 +73,20 @@ async def setup_first_user(req: CreateUserRequest):
 
 
 @router.post("/login")
-async def login(req: LoginRequest):
+async def login(req: LoginRequest, request: Request):
+    ip = _get_ip(request)
+    if not check_rate_limit(ip):
+        retry = get_retry_after(ip)
+        raise HTTPException(
+            429,
+            f"Trop de tentatives. Réessayez dans {retry // 60}m{retry % 60:02d}s.",
+            headers={"Retry-After": str(retry)},
+        )
     user = authenticate_user(req.email, req.password)
     if not user:
+        record_failed_attempt(ip)
         raise HTTPException(401, "Email ou mot de passe incorrect")
+    clear_attempts(ip)
     token = create_token(req.email)
     return {
         "token": token,
