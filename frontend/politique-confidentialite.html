@@ -40,10 +40,9 @@
 
     <h2>1. Responsable du traitement</h2>
     <p>
-      <strong>TMF-SOLUTIONS</strong> — représentée par Fabien Launay<br>
-      SIRET : 988 875 159 00010<br>
-      [Adresse à compléter]<br><br>
-      Pour toute question relative à vos données personnelles : <strong>fabien@tmf-online.com</strong>
+      <strong>TMF-SOLUTIONS</strong><br>
+      SIRET : 988 875 159 00010<br><br>
+      Pour toute question relative à vos données personnelles, contactez-nous via la page <a href="https://calendly.com/fl-synqio/30min" target="_blank" class="text-purple-600 hover:underline">Contact</a> du site synqio.io.
     </p>
 
     <h2>2. Données collectées et finalités</h2>
@@ -53,8 +52,8 @@
       </thead>
       <tbody>
         <tr><td>Adresse email</td><td>Création de compte, authentification</td><td>Exécution du contrat</td><td>Durée du compte + 3 ans</td></tr>
-        <tr><td>Mot de passe (hashé bcrypt)</td><td>Authentification sécurisée</td><td>Exécution du contrat</td><td>Durée du compte</td></tr>
-        <tr><td>Token Amazon (refresh_token)</td><td>Publication sur Seller Central</td><td>Consentement explicite</td><td>Durée du compte</td></tr>
+        <tr><td>Mot de passe (hashé)</td><td>Authentification sécurisée</td><td>Exécution du contrat</td><td>Durée du compte</td></tr>
+        <tr><td>Token de connexion marketplace</td><td>Publication sur votre compte vendeur</td><td>Consentement explicite</td><td>Durée du compte</td></tr>
         <tr><td>Données produits uploadées</td><td>Génération des fiches IA</td><td>Exécution du contrat</td><td>Non conservées — supprimées après traitement</td></tr>
         <tr><td>Fiches produits générées</td><td>Affichage et export</td><td>Exécution du contrat</td><td>Non conservées — supprimées après export</td></tr>
       </tbody>
@@ -62,29 +61,18 @@
 
     <h2>3. Transferts de données hors UE</h2>
     <p>
-      Le traitement de vos données implique des transferts vers des prestataires établis aux États-Unis. Ces transferts sont encadrés par des clauses contractuelles types (CCT) approuvées par la Commission européenne, conformément à l'article 46 du RGPD.
+      Le traitement de vos données peut impliquer des transferts vers des prestataires établis hors de l'Union européenne. Ces transferts sont encadrés par des clauses contractuelles types (CCT) approuvées par la Commission européenne, conformément à l'article 46 du RGPD.
     </p>
-
-    <h3>Sous-traitants impliqués</h3>
-    <table>
-      <thead>
-        <tr><th>Prestataire</th><th>Pays</th><th>Rôle</th><th>Garanties</th></tr>
-      </thead>
-      <tbody>
-        <tr><td>Railway Corp.</td><td>États-Unis</td><td>Hébergement backend</td><td>CCT — DPA disponible</td></tr>
-        <tr><td>Netlify, Inc.</td><td>États-Unis</td><td>Hébergement frontend</td><td>CCT — DPA disponible</td></tr>
-        <tr><td>Anthropic, PBC</td><td>États-Unis</td><td>Génération de texte (Claude API)</td><td>CCT — données non utilisées pour entraînement</td></tr>
-        <tr><td>OpenAI, LLC</td><td>États-Unis</td><td>Génération d'images (gpt-image-1)</td><td>CCT — données non utilisées pour entraînement via API</td></tr>
-        <tr><td>Amazon Services Europe</td><td>Europe / USA</td><td>Publication Seller Central (SP-API)</td><td>Finalité contractuelle</td></tr>
-      </tbody>
-    </table>
+    <p class="mt-3">
+      SynqIO fait appel à des partenaires technologiques pour l'hébergement, la génération de contenu par intelligence artificielle et la connexion aux marketplaces partenaires. La liste complète des sous-traitants est disponible sur demande.
+    </p>
 
     <h2>4. Sécurité des données</h2>
     <ul>
       <li>Toutes les communications sont chiffrées via HTTPS/TLS</li>
-      <li>Les mots de passe sont hashés (bcrypt) — jamais stockés en clair</li>
-      <li>Les tokens d'accès Amazon sont stockés de façon chiffrée</li>
-      <li>Les données produits ne sont jamais écrites sur disque — traitement en mémoire uniquement</li>
+      <li>Les mots de passe sont hashés selon les standards du secteur — jamais stockés en clair</li>
+      <li>Les tokens de connexion marketplace sont stockés de façon sécurisée</li>
+      <li>Les données produits ne sont pas conservées — traitement en mémoire uniquement</li>
       <li>Accès aux serveurs restreint et journalisé</li>
     </ul>
 
@@ -99,18 +87,17 @@
       <li><strong>Droit de limitation</strong> — limiter le traitement de vos données</li>
     </ul>
     <p class="mt-3">
-      Pour exercer ces droits : <strong>fabien@tmf-online.com</strong><br>
-      Réponse sous 30 jours maximum. En cas de réclamation non résolue, vous pouvez saisir la <strong>CNIL</strong> (cnil.fr).
+      Pour exercer ces droits, contactez-nous via la page <a href="https://calendly.com/fl-synqio/30min" target="_blank" class="text-purple-600 hover:underline">Contact</a> du site synqio.io. Réponse sous 30 jours maximum. En cas de réclamation non résolue, vous pouvez saisir la <strong>CNIL</strong> (cnil.fr).
     </p>
 
     <h2>6. Cookies et traceurs</h2>
     <p>
-      SynqIO n'utilise aucun cookie publicitaire ni analytique. Un seul token d'authentification technique (JWT) est stocké dans le <em>localStorage</em> de votre navigateur pour maintenir votre session. Ce token ne contient aucune donnée personnelle sensible et expire automatiquement.
+      SynqIO n'utilise aucun cookie publicitaire ni analytique. Un seul token d'authentification technique est stocké dans le <em>localStorage</em> de votre navigateur pour maintenir votre session. Ce token ne contient aucune donnée personnelle sensible et expire automatiquement.
     </p>
 
     <h2>7. Modifications</h2>
     <p>
-      Cette politique peut être mise à jour. En cas de modification substantielle, vous serez notifié par email. La version en vigueur est toujours disponible sur synqio.io/politique-confidentialite.html.
+      Cette politique peut être mise à jour. En cas de modification substantielle, les utilisateurs en seront informés. La version en vigueur est toujours disponible sur synqio.io/politique-confidentialite.html.
     </p>
   </main>
 
