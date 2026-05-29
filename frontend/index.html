@@ -1790,8 +1790,19 @@ function buildCardHTML(listing, idx, editMode) {
       </div>
     </div>
     <div class="border-t border-gray-50 px-5 py-3 bg-gray-50/50 flex items-center gap-3 flex-wrap gap-y-2">
-      ${listing.price ? `<span class="text-sm font-bold text-gray-800">${listing.price.toFixed(2)} €</span>` : ''}
-      ${listing.ean ? `<span class="text-xs text-gray-400">EAN: ${listing.ean}</span>` : ''}
+      ${editMode
+        ? `<div class="flex items-center gap-2">
+             <div class="flex items-center gap-1">
+               <input id="edit-price-${idx}" type="number" step="0.01" min="0" value="${listing.price || ''}" placeholder="Prix" class="w-24 border border-purple-200 rounded-lg px-2 py-1 text-sm text-gray-800 font-bold focus:ring-2 focus:ring-purple-300 outline-none">
+               <span class="text-sm text-gray-500">€</span>
+             </div>
+             <div class="flex items-center gap-1">
+               <span class="text-xs text-gray-400">EAN</span>
+               <input id="edit-ean-${idx}" type="text" value="${listing.ean || ''}" placeholder="EAN" class="w-36 border border-purple-200 rounded-lg px-2 py-1 text-xs font-mono text-gray-700 focus:ring-2 focus:ring-purple-300 outline-none">
+             </div>
+           </div>`
+        : `${listing.price ? `<span class="text-sm font-bold text-gray-800">${listing.price.toFixed(2)} €</span>` : ''}
+           ${listing.ean ? `<span class="text-xs text-gray-400">EAN: ${listing.ean}</span>` : ''}`}
       ${editMode
         ? `<button onclick="saveEdit(${idx})" class="ml-auto gradient-bg text-white rounded-lg px-3 py-1.5 text-xs font-semibold transition flex items-center gap-1"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Enregistrer</button>
            <button onclick="cancelEdit(${idx})" class="text-xs text-gray-400 hover:text-gray-600">Annuler</button>`
@@ -1832,9 +1843,13 @@ function saveEdit(idx) {
   const titleEl = document.getElementById(`edit-title-${idx}`);
   const descEl  = document.getElementById(`edit-desc-${idx}`);
   const kwEl    = document.getElementById(`edit-kw-${idx}`);
+  const priceEl = document.getElementById(`edit-price-${idx}`);
+  const eanEl   = document.getElementById(`edit-ean-${idx}`);
   if (titleEl) listing.title = titleEl.value.trim();
   if (descEl)  listing.description = descEl.value.trim();
   if (kwEl)    listing.backend_keywords = kwEl.value.trim();
+  if (priceEl) { const v = parseFloat(priceEl.value); listing.price = isNaN(v) ? listing.price : v; }
+  if (eanEl)   listing.ean = eanEl.value.trim();
   // Collect bullets
   const bulletsContainer = document.getElementById(`bullets-edit-${idx}`);
   if (bulletsContainer) {
