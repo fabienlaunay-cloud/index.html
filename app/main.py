@@ -348,7 +348,18 @@ async def upload_photos_zip(file: UploadFile = File(...)):
         _save_photo(filename, data)
         matched.append({"sku": sku, "url": f"/api/photos/{filename}", "filename": filename})
 
-    return {"matched": matched, "count": len(matched)}
+    return {"matched": matched, "skipped": skipped, "count": len(matched), "photos_dir": _PHOTOS_DIR}
+
+
+@app.get("/api/photos/list")
+async def list_photos():
+    """Debug : liste les photos stockées sur disque."""
+    try:
+        files = os.listdir(_PHOTOS_DIR)
+        image_files = [f for f in files if os.path.splitext(f)[1].lower() in _IMAGE_EXTS]
+        return {"photos_dir": _PHOTOS_DIR, "count": len(image_files), "files": sorted(image_files)}
+    except Exception as e:
+        return {"error": str(e), "photos_dir": _PHOTOS_DIR}
 
 
 @app.get("/api/photos/{filename}")
