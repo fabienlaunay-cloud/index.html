@@ -608,6 +608,23 @@
         </button>
       </div>
 
+      <!-- Présets mots-clés par segment -->
+      <div class="bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
+        <button onclick="toggleSegmentPanel()" class="w-full flex items-center justify-between text-left">
+          <h2 class="font-semibold text-gray-800 flex items-center gap-2"><span class="text-purple-600">🏷️</span> Mots-clés par segment</h2>
+          <span id="segmentChevron" class="text-gray-400 text-sm transition-transform">▼</span>
+        </button>
+        <div id="segmentPanel" class="hidden mt-4 space-y-3">
+          <p class="text-xs text-gray-400">Définissez des keywords SQP par famille produit. Ils s'appliquent automatiquement aux produits dont le segment correspond.</p>
+          <div id="segmentPresetsList" class="space-y-2"></div>
+          <div class="border-t border-gray-100 pt-3 space-y-2">
+            <input id="newSegmentName" type="text" placeholder="Segment (ex: collier chien)" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-xs focus:ring-2 focus:ring-purple-300 outline-none">
+            <textarea id="newSegmentKw" rows="2" placeholder="Mots-clés séparés par virgule (SQP)..." class="w-full border border-gray-200 rounded-lg px-3 py-2 text-xs focus:ring-2 focus:ring-purple-300 outline-none resize-none"></textarea>
+            <button onclick="addSegmentPreset()" class="w-full bg-purple-50 hover:bg-purple-100 text-purple-700 rounded-lg py-2 text-xs font-medium transition">+ Ajouter ce segment</button>
+          </div>
+        </div>
+      </div>
+
       <div id="productsList" class="bg-white rounded-2xl shadow-sm p-6 border border-gray-100 hidden">
         <h2 class="font-semibold text-gray-800 mb-3 flex items-center gap-2">
           <span class="text-purple-600">📦</span> Produits détectés
@@ -800,6 +817,8 @@ let currentUser = null;
 let parsedProducts = [];
 let generatedListings = [];
 let photoMap = {};  // sku → "/api/photos/{filename}"
+let segmentPresets = JSON.parse(localStorage.getItem('synqio_segment_presets') || '{}');
+// { "collier chien": "keyword1, keyword2, ..." }
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
 async function initApp() {
@@ -1178,13 +1197,20 @@ function clearFile() {
 
 function showProductsList(products) {
   document.getElementById('productsCount').textContent = products.length;
-  document.getElementById('productsListItems').innerHTML = products.map(p => `
-    <div class="flex items-center gap-3 p-2.5 bg-gray-50 rounded-lg text-sm">
-      <span class="font-mono text-xs bg-purple-50 text-purple-700 px-2 py-0.5 rounded">${p.sku}</span>
-      <span class="text-gray-700 truncate">${p.name}</span>
-      ${photoMap[p.sku] ? `<span class="text-indigo-500 text-xs" title="Photo associée">📸</span>` : ''}
-      ${p.brand ? `<span class="ml-auto text-gray-400 text-xs">${p.brand}</span>` : ''}
-    </div>`).join('');
+  document.getElementById('productsListItems').innerHTML = products.map(p => {
+    const cat = (p.category || '').toLowerCase().trim();
+    const hasPreset = !p.focus_keywords?.length && segmentPresets[cat];
+    const hasKwFile = p.focus_keywords?.length > 0;
+    return `
+    <div class="flex items-center gap-2 p-2.5 bg-gray-50 rounded-lg text-sm">
+      <span class="font-mono text-xs bg-purple-50 text-purple-700 px-2 py-0.5 rounded flex-shrink-0">${p.sku}</span>
+      <span class="text-gray-700 truncate flex-1">${p.name}</span>
+      ${photoMap[p.sku]  ? `<span class="text-indigo-500 text-xs flex-shrink-0" title="Photo associée">📸</span>` : ''}
+      ${hasKwFile        ? `<span class="text-green-500 text-xs flex-shrink-0" title="Mots-clés du fichier">🔑</span>` : ''}
+      ${hasPreset        ? `<span class="text-purple-400 text-xs flex-shrink-0" title="Préset segment &quot;${cat}&quot;">🏷️</span>` : ''}
+      ${p.brand ? `<span class="text-gray-400 text-xs flex-shrink-0">${p.brand}</span>` : ''}
+    </div>`;
+  }).join('');
   document.getElementById('productsList').classList.remove('hidden');
 }
 
@@ -1199,6 +1225,65 @@ function loadDemoData() {
   dropZone.innerHTML = '<div class="text-3xl mb-2">✅</div><p class="text-purple-700 font-medium">3 produits démo chargés</p>';
   setStep(2);
   showToast('✅', '3 produits de démo chargés');
+}
+
+// ── Segment keyword presets ───────────────────────────────────────────────────
+function saveSegmentPresets() {
+  localStorage.setItem('synqio_segment_presets', JSON.stringify(segmentPresets));
+}
+
+function toggleSegmentPanel() {
+  const panel = document.getElementById('segmentPanel');
+  const chevron = document.getElementById('segmentChevron');
+  const open = panel.classList.toggle('hidden');
+  chevron.style.transform = open ? '' : 'rotate(180deg)';
+}
+
+function renderSegmentPresets() {
+  const container = document.getElementById('segmentPresetsList');
+  const entries = Object.entries(segmentPresets);
+  if (entries.length === 0) {
+    container.innerHTML = '<p class="text-xs text-gray-400 italic">Aucun préset — ajoutez des mots-clés par segment ci-dessous.</p>';
+    return;
+  }
+  container.innerHTML = entries.map(([seg, kw]) => `
+    <div class="flex items-start gap-2 p-2.5 bg-purple-50 rounded-lg">
+      <div class="flex-1 min-w-0">
+        <span class="text-xs font-semibold text-purple-700">${seg}</span>
+        <p class="text-xs text-gray-500 truncate mt-0.5">${kw}</p>
+      </div>
+      <button onclick="deleteSegmentPreset(${JSON.stringify(seg)})" class="text-gray-300 hover:text-red-500 flex-shrink-0 text-sm leading-none mt-0.5">✕</button>
+    </div>`).join('');
+}
+
+function addSegmentPreset() {
+  const seg = document.getElementById('newSegmentName').value.trim().toLowerCase();
+  const kw  = document.getElementById('newSegmentKw').value.trim();
+  if (!seg || !kw) { showToast('⚠️', 'Renseignez le segment et les mots-clés', true); return; }
+  segmentPresets[seg] = kw;
+  saveSegmentPresets();
+  document.getElementById('newSegmentName').value = '';
+  document.getElementById('newSegmentKw').value = '';
+  renderSegmentPresets();
+  if (parsedProducts.length) showProductsList(parsedProducts);
+  showToast('✅', `Préset "${seg}" enregistré`);
+}
+
+function deleteSegmentPreset(seg) {
+  delete segmentPresets[seg];
+  saveSegmentPresets();
+  renderSegmentPresets();
+  if (parsedProducts.length) showProductsList(parsedProducts);
+}
+
+function applySegmentPresets(products) {
+  return products.map(p => {
+    if (p.focus_keywords && p.focus_keywords.length > 0) return p;
+    const cat = (p.category || '').toLowerCase().trim();
+    const preset = segmentPresets[cat];
+    if (!preset) return p;
+    return { ...p, focus_keywords: preset.split(',').map(k => k.trim()).filter(Boolean) };
+  });
 }
 
 // ── ZIP photo upload ──────────────────────────────────────────────────────────
@@ -1247,13 +1332,13 @@ async function generateListings() {
   document.getElementById('progressBar').style.width = '0%';
   setStep(2);
   try {
-    // ── Injecter les photos ZIP dans les produits ──
-    const productsToSend = parsedProducts.map(p => {
+    // ── Injecter les photos ZIP + présets segments ──
+    const withPhotos = parsedProducts.map(p => {
       if (!photoMap[p.sku]) return p;
       const existing = Array.isArray(p.images) ? p.images : [];
-      const alreadyHas = existing.includes(photoMap[p.sku]);
-      return { ...p, images: alreadyHas ? existing : [photoMap[p.sku], ...existing] };
+      return { ...p, images: existing.includes(photoMap[p.sku]) ? existing : [photoMap[p.sku], ...existing] };
     });
+    const productsToSend = applySegmentPresets(withPhotos);
 
     // ── Étape 1 : soumettre le job (retour instantané) ──
     const r = await authFetch('/api/generate', {
@@ -1612,6 +1697,7 @@ function calcROI() {
 }
 
 // Start
+renderSegmentPresets();
 initApp();
 </script>
 </body>
