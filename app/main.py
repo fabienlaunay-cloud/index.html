@@ -557,6 +557,7 @@ async def _run_image_job(job_id: str, req: ImageRequest, email: str):
                 "images_generated": openai_ok,
                 "openai_configured": openai_ok,
                 "total": len(images),
+                "reference_image_used": img_tokens.get("reference_image_used", False),
             },
         })
     except Exception as e:

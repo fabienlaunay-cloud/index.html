@@ -2171,6 +2171,11 @@ function _esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;
 function renderImages(container, data) {
   const hasImages = data.openai_configured;
   const sku = data.sku || '';
+  const refUsed = data.reference_image_used;
+  const refBadge = hasImages ? (refUsed
+    ? `<div class="bg-green-50 border border-green-200 rounded-xl p-3 mb-4 text-xs text-green-800 flex items-center gap-2"><span>✅</span><span><strong>Photo de référence utilisée</strong> — les visuels sont basés sur votre photo produit réelle.</span></div>`
+    : `<div class="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-4 text-xs text-amber-800 flex items-center gap-2"><span>⚠️</span><span><strong>Génération sans photo de référence</strong> — vérifiez que la colonne <code class="bg-amber-100 px-1 rounded">Image_URL</code> est remplie et que le lien Google Drive est <strong>public</strong>.</span></div>`)
+    : '';
   const notice = hasImages ? '' : `<div class="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-4 text-sm text-blue-800"><p class="font-semibold mb-1">💡 Prompts générés — Images non générées</p><p>Ajoutez <code class="bg-blue-100 px-1 rounded">OPENAI_API_KEY</code> dans Railway pour générer les images. En attendant, copiez les prompts dans Midjourney ou Canva IA.</p></div>`;
   const cards = data.images.map(img => {
     const imgHtml = img.url
@@ -2192,7 +2197,7 @@ function renderImages(container, data) {
       </div>
     </div>`;
   }).join('');
-  container.innerHTML = `${notice}<div class="grid grid-cols-2 gap-3 mb-3">${cards}</div><button data-dlsku="${_esc(sku)}" onclick="downloadAllPromptsFromSku(this)" class="w-full bg-gray-50 hover:bg-gray-100 text-gray-700 rounded-lg py-2 text-xs font-medium transition">⬇ Télécharger tous les prompts (.txt)</button>`;
+  container.innerHTML = `${notice}${refBadge}<div class="grid grid-cols-2 gap-3 mb-3">${cards}</div><button data-dlsku="${_esc(sku)}" onclick="downloadAllPromptsFromSku(this)" class="w-full bg-gray-50 hover:bg-gray-100 text-gray-700 rounded-lg py-2 text-xs font-medium transition">⬇ Télécharger tous les prompts (.txt)</button>`;
 }
 
 function copyPrompt(id, prompt) { navigator.clipboard.writeText(prompt); showToast('📋', `Prompt ${id} copié`); }

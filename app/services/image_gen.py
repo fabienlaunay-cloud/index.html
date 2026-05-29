@@ -378,4 +378,4 @@ async def generate_product_images(
     order = {t["id"]: i for i, t in enumerate(AMAZON_IMAGE_TYPES)}
     results.sort(key=lambda x: order.get(x["id"], 99))
 
-    return results, {"input_tokens": tok_in, "output_tokens": tok_out}
+    return results, {"input_tokens": tok_in, "output_tokens": tok_out, "reference_image_used": reference_image is not None}
