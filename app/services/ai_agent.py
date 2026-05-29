@@ -325,13 +325,14 @@ async def generate_listing(
     focus_keywords: List[str],
     style_tone: str,
     retries: int = 2,
-) -> AmazonListing:
+) -> tuple:  # (AmazonListing, {"input_tokens": int, "output_tokens": int})
     constraints = MARKETPLACE_CONSTRAINTS.get(marketplace, MARKETPLACE_CONSTRAINTS[Marketplace.AMAZON_FR])
     # Per-product keywords take priority; global keywords fill in after (deduped)
     product_kw = list(product.focus_keywords or [])
     merged_kw = product_kw + [k for k in (focus_keywords or []) if k not in product_kw]
     system = _build_system_prompt(constraints)
     user = _build_user_prompt(product, constraints, merged_kw, style_tone)
+    token_usage = {"input_tokens": 0, "output_tokens": 0}
 
     for attempt in range(retries + 1):
         try:
@@ -341,6 +342,10 @@ async def generate_listing(
                 system=system,
                 messages=[{"role": "user", "content": user}],
             )
+            token_usage = {
+                "input_tokens": response.usage.input_tokens,
+                "output_tokens": response.usage.output_tokens,
+            }
             raw = response.content[0].text.strip()
             # Strip markdown code fences if present
             if raw.startswith("```"):
@@ -366,7 +371,7 @@ async def generate_listing(
                 ean=product.ean,
                 marketplace=marketplace,
                 **{k: v for k, v in data.items() if k in AmazonListing.model_fields},
-            )
+            ), token_usage
         except json.JSONDecodeError:
             if attempt == retries:
                 raise
@@ -384,18 +389,22 @@ async def generate_listings_batch(
     style_tone: str,
     concurrency: int = 2,
     on_progress=None,  # callable(done: int, total: int)
-) -> tuple[List[AmazonListing], List[dict]]:
+) -> tuple:  # (listings, failed, {"input_tokens": int, "output_tokens": int})
     semaphore = asyncio.Semaphore(concurrency)
     listings = []
     failed = []
     done_count = 0
+    total_input_tokens = 0
+    total_output_tokens = 0
 
     async def _process(product: RawProduct):
-        nonlocal done_count
+        nonlocal done_count, total_input_tokens, total_output_tokens
         async with semaphore:
             try:
-                listing = await generate_listing(product, marketplace, focus_keywords, style_tone)
+                listing, tokens = await generate_listing(product, marketplace, focus_keywords, style_tone)
                 listings.append(listing)
+                total_input_tokens += tokens.get("input_tokens", 0)
+                total_output_tokens += tokens.get("output_tokens", 0)
             except Exception as e:
                 failed.append({"sku": product.sku, "error": str(e)})
             finally:
@@ -404,4 +413,4 @@ async def generate_listings_batch(
                     on_progress(done_count, len(products))
 
     await asyncio.gather(*[_process(p) for p in products])
-    return listings, failed
+    return listings, failed, {"input_tokens": total_input_tokens, "output_tokens": total_output_tokens}

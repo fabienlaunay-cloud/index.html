@@ -7,6 +7,20 @@ PLAN_QUOTAS = {
     "scale":    {"skus": 1500, "label": "Scale"},
 }
 
+# Tarifs Claude Sonnet + gpt-image-1
+_COST_PER_M_IN  = 3.0    # USD / million tokens input
+_COST_PER_M_OUT = 15.0   # USD / million tokens output
+_COST_PER_IMAGE = 0.04   # USD / image gpt-image-1 standard
+
+
+def _compute_cost(tokens_in: int, tokens_out: int, images: int) -> float:
+    return round(
+        tokens_in  * _COST_PER_M_IN  / 1_000_000 +
+        tokens_out * _COST_PER_M_OUT / 1_000_000 +
+        images     * _COST_PER_IMAGE,
+        4,
+    )
+
 
 def _current_month() -> str:
     return datetime.utcnow().strftime("%Y-%m")
@@ -37,6 +51,9 @@ def get_user_usage(user_email: str, month: str = None) -> dict:
     usage = {r["action"]: r["total"] for r in rows}
     plan = plan_row["plan"] if plan_row and plan_row["plan"] else "starter"
     quota = PLAN_QUOTAS.get(plan, PLAN_QUOTAS["starter"])
+    tokens_in  = usage.get("tokens_in", 0)
+    tokens_out = usage.get("tokens_out", 0)
+    images_used = usage.get("image_generated", 0)
 
     return {
         "month": month,
@@ -44,7 +61,11 @@ def get_user_usage(user_email: str, month: str = None) -> dict:
         "plan_label": quota["label"],
         "skus_used": usage.get("sku_generated", 0),
         "skus_quota": quota["skus"],
-        "images_used": usage.get("image_generated", 0),
+        "images_used": images_used,
+        "tokens_in": tokens_in,
+        "tokens_out": tokens_out,
+        "tokens_total": tokens_in + tokens_out,
+        "cost_usd": _compute_cost(tokens_in, tokens_out, images_used),
     }
 
 
@@ -63,13 +84,20 @@ def get_all_users_usage(month: str = None) -> list:
         usage = {r["action"]: r["total"] for r in rows}
         plan = u["plan"] or "starter"
         quota = PLAN_QUOTAS.get(plan, PLAN_QUOTAS["starter"])
+        tokens_in  = usage.get("tokens_in", 0)
+        tokens_out = usage.get("tokens_out", 0)
+        images_used = usage.get("image_generated", 0)
         result.append({
             "email": u["email"],
             "name": u["name"],
             "plan": plan,
             "skus_used": usage.get("sku_generated", 0),
             "skus_quota": quota["skus"],
-            "images_used": usage.get("image_generated", 0),
+            "images_used": images_used,
+            "tokens_in": tokens_in,
+            "tokens_out": tokens_out,
+            "tokens_total": tokens_in + tokens_out,
+            "cost_usd": _compute_cost(tokens_in, tokens_out, images_used),
         })
     conn.close()
     return result

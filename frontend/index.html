@@ -1307,12 +1307,17 @@ async function loadAdminUsage() {
     // Summary stats
     const totalSkus = users.reduce((s, u) => s + u.skus_used, 0);
     const totalImages = users.reduce((s, u) => s + u.images_used, 0);
+    const totalTokens = users.reduce((s, u) => s + (u.tokens_total || 0), 0);
+    const totalCost = users.reduce((s, u) => s + (u.cost_usd || 0), 0);
+    const fmtTokens = totalTokens >= 1000000 ? `${(totalTokens/1000000).toFixed(1)}M` : totalTokens >= 1000 ? `${(totalTokens/1000).toFixed(0)}K` : String(totalTokens);
+    const fmtCost = `$${totalCost.toFixed(2)}`;
     const statsEl = document.getElementById('adminUsageStats');
     statsEl.innerHTML = [
       { label: 'Clients actifs', value: users.length, color: 'purple' },
       { label: 'SKUs générés', value: totalSkus, color: 'blue' },
       { label: 'Images générées', value: totalImages, color: 'green' },
-      { label: 'Plans Scale', value: users.filter(u => u.plan === 'scale').length, color: 'amber' },
+      { label: 'Tokens Claude', value: fmtTokens, color: 'amber' },
+      { label: 'Coût API estimé', value: fmtCost, color: 'rose' },
     ].map(s => `<div class="bg-white rounded-xl border border-gray-100 p-4 shadow-sm">
       <p class="text-2xl font-bold text-${s.color}-600">${s.value}</p>
       <p class="text-xs text-gray-500 mt-1">${s.label}</p>
@@ -1327,9 +1332,11 @@ async function loadAdminUsage() {
             <tr class="text-left text-xs text-gray-400 border-b border-gray-100">
               <th class="pb-3 font-medium">Client</th>
               <th class="pb-3 font-medium">Plan</th>
-              <th class="pb-3 font-medium text-right">SKUs utilisés</th>
-              <th class="pb-3 font-medium w-40">Utilisation</th>
+              <th class="pb-3 font-medium text-right">SKUs</th>
+              <th class="pb-3 font-medium w-36">Quota</th>
               <th class="pb-3 font-medium text-right">Images</th>
+              <th class="pb-3 font-medium text-right">Tokens</th>
+              <th class="pb-3 font-medium text-right">Coût API</th>
             </tr>
           </thead>
           <tbody class="divide-y divide-gray-50">
@@ -1338,6 +1345,9 @@ async function loadAdminUsage() {
               const bar = pct >= 90 ? 'bg-red-500' : pct >= 70 ? 'bg-amber-400' : 'bg-green-400';
               const planBadge = { starter: 'bg-blue-100 text-blue-700', business: 'bg-purple-100 text-purple-700', scale: 'bg-amber-100 text-amber-700' };
               const pc = planBadge[u.plan] || planBadge.starter;
+              const tok = u.tokens_total || 0;
+              const tokFmt = tok >= 1000000 ? `${(tok/1000000).toFixed(1)}M` : tok >= 1000 ? `${(tok/1000).toFixed(0)}K` : String(tok);
+              const costFmt = u.cost_usd ? `$${u.cost_usd.toFixed(3)}` : '—';
               return `<tr class="hover:bg-gray-50 transition">
                 <td class="py-3 pr-4">
                   <p class="font-medium text-gray-800">${u.name || u.email}</p>
@@ -1353,7 +1363,9 @@ async function loadAdminUsage() {
                     <span class="text-xs text-gray-400 w-8 text-right">${pct}%</span>
                   </div>
                 </td>
-                <td class="py-3 text-right font-mono text-gray-500">${u.images_used}</td>
+                <td class="py-3 pr-4 text-right font-mono text-gray-500">${u.images_used}</td>
+                <td class="py-3 pr-4 text-right font-mono text-gray-500 text-xs">${tokFmt || '—'}</td>
+                <td class="py-3 text-right font-mono text-xs ${u.cost_usd > 1 ? 'text-amber-600 font-medium' : 'text-gray-500'}">${costFmt}</td>
               </tr>`;
             }).join('')}
           </tbody>

@@ -213,6 +213,8 @@ Format JSON attendu (prompts en anglais, 120-200 mots chacun) :
         system=system,
         messages=[{"role": "user", "content": user}],
     )
+    tok_in = response.usage.input_tokens
+    tok_out = response.usage.output_tokens
     raw = response.content[0].text.strip()
     # Nettoyer les blocs markdown éventuels
     if raw.startswith("```"):
@@ -223,7 +225,7 @@ Format JSON attendu (prompts en anglais, 120-200 mots chacun) :
     if start == -1 or end == 0:
         raise ValueError(f"Aucun JSON trouvé dans la réponse Claude : {raw[:200]}")
     raw = raw[start:end]
-    return json.loads(raw)
+    return json.loads(raw), tok_in, tok_out
 
 
 async def _generate_image_dalle3(prompt: str, image_id: str) -> Optional[str]:
@@ -291,7 +293,7 @@ async def generate_product_images(
     }
 
     # 1. Génération des prompts via Claude
-    prompts = await _generate_prompts_with_claude(product_info)
+    prompts, tok_in, tok_out = await _generate_prompts_with_claude(product_info)
 
     # 2. Types sélectionnés (par défaut : tous)
     types_to_generate = selected_types or [t["id"] for t in AMAZON_IMAGE_TYPES]
@@ -328,4 +330,4 @@ async def generate_product_images(
     order = {t["id"]: i for i, t in enumerate(AMAZON_IMAGE_TYPES)}
     results.sort(key=lambda x: order.get(x["id"], 99))
 
-    return results
+    return results, {"input_tokens": tok_in, "output_tokens": tok_out}

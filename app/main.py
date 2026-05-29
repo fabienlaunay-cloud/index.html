@@ -373,7 +373,7 @@ async def _run_generation_job(job_id: str, request: GenerationRequest, email: st
             _jobs[job_id]["progress"] = done
 
     try:
-        listings, failed = await generate_listings_batch(
+        listings, failed, gen_tokens = await generate_listings_batch(
             products=request.products,
             marketplace=request.marketplace,
             focus_keywords=request.focus_keywords or [],
@@ -382,6 +382,11 @@ async def _run_generation_job(job_id: str, request: GenerationRequest, email: st
         )
         if listings and email:
             log_usage(email, "sku_generated", len(listings))
+        if email and gen_tokens:
+            if gen_tokens.get("input_tokens"):
+                log_usage(email, "tokens_in", gen_tokens["input_tokens"])
+            if gen_tokens.get("output_tokens"):
+                log_usage(email, "tokens_out", gen_tokens["output_tokens"])
         result = GenerationResult(
             listings=listings, failed=failed,
             total=len(request.products), success_count=len(listings),
@@ -482,7 +487,7 @@ class ImageRequest(BaseModel):
 async def _run_image_job(job_id: str, req: ImageRequest, email: str):
     _jobs[job_id]["status"] = "running"
     try:
-        images = await generate_product_images(
+        images, img_tokens = await generate_product_images(
             sku=req.sku,
             product_name=req.product_name,
             brand=req.brand,
@@ -495,6 +500,11 @@ async def _run_image_job(job_id: str, req: ImageRequest, email: str):
         generated = [i for i in images if i.get("has_image")]
         if generated and email:
             log_usage(email, "image_generated", len(generated))
+        if email and img_tokens:
+            if img_tokens.get("input_tokens"):
+                log_usage(email, "tokens_in", img_tokens["input_tokens"])
+            if img_tokens.get("output_tokens"):
+                log_usage(email, "tokens_out", img_tokens["output_tokens"])
         openai_ok = bool(os.getenv("OPENAI_API_KEY"))
         _jobs[job_id].update({
             "status": "done",
