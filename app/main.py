@@ -81,6 +81,26 @@ app.include_router(amazon_router)
 @app.on_event("startup")
 async def startup():
     init_db()
+    _bootstrap_admin()
+
+
+def _bootstrap_admin():
+    """Crée l'admin depuis ADMIN_EMAIL / ADMIN_PASSWORD si absent de la DB."""
+    email = os.getenv("ADMIN_EMAIL", "").strip().lower()
+    password = os.getenv("ADMIN_PASSWORD", "").strip()
+    if not email or not password:
+        return
+    from app.db import get_db
+    from app.services.auth import create_user
+    conn = get_db()
+    exists = conn.execute("SELECT 1 FROM users WHERE email = ?", (email,)).fetchone()
+    conn.close()
+    if exists:
+        return
+    try:
+        create_user(email, password, name="Admin", is_admin=True)
+    except Exception:
+        pass
 
 
 # ── Frontend ─────────────────────────────────────────────────────────────────

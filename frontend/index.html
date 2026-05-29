@@ -47,7 +47,7 @@
     <div class="login-card rounded-3xl p-8 w-full">
 
       <!-- SETUP -->
-      <div id="setupForm">
+      <div id="setupForm" class="hidden">
         <div class="text-center mb-8">
           <div class="w-16 h-16 gradient-bg rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
             <svg viewBox="0 0 24 24" fill="none" width="28" height="28"><path d="M12 2L2 7l10 5 10-5-10-5z" stroke="white" stroke-width="1.8" stroke-linejoin="round"/><path d="M2 17l10 5 10-5M2 12l10 5 10-5" stroke="white" stroke-width="1.8" stroke-linejoin="round"/></svg>
@@ -1888,20 +1888,27 @@ function showToast(icon, msg, isError=false) {
 
 // ── Setup premier lancement ───────────────────────────────────────────────────
 async function checkNeedsSetup() {
-  try {
-    const r = await fetch(`${API}/api/auth/needs-setup`);
-    const data = await r.json();
-    if (data.needs_setup) {
-      document.getElementById('setupForm').classList.remove('hidden');
-      document.getElementById('loginForm').classList.add('hidden');
-    } else {
-      document.getElementById('setupForm').classList.add('hidden');
-      document.getElementById('loginForm').classList.remove('hidden');
+  // Retry up to 3× in case Railway is still starting up
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const r = await fetch(`${API}/api/auth/needs-setup`);
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      const data = await r.json();
+      if (data.needs_setup) {
+        document.getElementById('setupForm').classList.remove('hidden');
+        document.getElementById('loginForm').classList.add('hidden');
+      } else {
+        document.getElementById('setupForm').classList.add('hidden');
+        document.getElementById('loginForm').classList.remove('hidden');
+      }
+      return;
+    } catch {
+      if (attempt < 2) await new Promise(r => setTimeout(r, 1500));
     }
-  } catch {
-    document.getElementById('setupForm').classList.add('hidden');
-    document.getElementById('loginForm').classList.remove('hidden');
   }
+  // Fallback: show login form
+  document.getElementById('setupForm').classList.add('hidden');
+  document.getElementById('loginForm').classList.remove('hidden');
 }
 
 async function doSetup() {
