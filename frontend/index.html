@@ -100,8 +100,12 @@
           </div>
           <button id="loginBtn" onclick="doLogin()" class="btn-login w-full text-white rounded-xl py-3.5 font-semibold text-base shadow-lg mt-2">Se connecter →</button>
         </div>
-        <div class="mt-6 pt-4 border-t border-white/10 text-center">
-          <p class="text-white/30 text-xs">Accès réservé aux clients abonnés</p>
+        <div class="mt-6 pt-4 border-t border-white/10 text-center space-y-2">
+          <button onclick="toggleForgotPassword()" class="text-white/40 hover:text-white/70 text-xs transition">Mot de passe oublié ?</button>
+          <div id="forgotPasswordMsg" class="hidden bg-white/10 rounded-xl px-4 py-3 text-white/70 text-xs text-left">
+            Contactez-nous à <a href="mailto:support@synqio.io" class="text-purple-300 hover:text-white underline">support@synqio.io</a> en indiquant votre adresse email — nous vous enverrons un nouveau lien de connexion.
+          </div>
+          <p class="text-white/20 text-xs">Accès réservé aux clients abonnés</p>
         </div>
       </div>
 
@@ -1211,6 +1215,10 @@ function doLogout() {
   token = '';
   document.getElementById('userDropdown').classList.add('hidden');
   showLoginScreen();
+}
+
+function toggleForgotPassword() {
+  document.getElementById('forgotPasswordMsg').classList.toggle('hidden');
 }
 
 function togglePwd() {
