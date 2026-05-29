@@ -172,10 +172,21 @@ async def generate(request: GenerationRequest, req: Request):
         raise HTTPException(503, "ANTHROPIC_API_KEY manquante")
     if not request.products:
         raise HTTPException(400, "Liste de produits vide")
-    if len(request.products) > 500:
-        raise HTTPException(400, "Maximum 500 produits par requête")
 
     email = getattr(req.state, "user_email", None)
+    if email:
+        usage = get_user_usage(email)
+        remaining = usage["skus_quota"] - usage["skus_used"]
+        if remaining <= 0:
+            raise HTTPException(429,
+                f"Quota atteint — plan {usage['plan_label']} : {usage['skus_quota']} SKU/mois. "
+                "Contactez-nous pour passer à l'offre supérieure.")
+        if len(request.products) > remaining:
+            raise HTTPException(429,
+                f"Quota insuffisant — il vous reste {remaining} SKU ce mois "
+                f"(plan {usage['plan_label']} : {usage['skus_quota']}/mois). "
+                f"Vous demandez {len(request.products)} SKU.")
+
     job_id = str(uuid4())
     _jobs[job_id] = {"status": "pending", "progress": 0,
                      "total": len(request.products), "created_at": time.time()}
