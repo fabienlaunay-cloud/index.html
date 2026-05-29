@@ -376,18 +376,25 @@ async def generate_listings_batch(
     focus_keywords: List[str],
     style_tone: str,
     concurrency: int = 2,
+    on_progress=None,  # callable(done: int, total: int)
 ) -> tuple[List[AmazonListing], List[dict]]:
     semaphore = asyncio.Semaphore(concurrency)
     listings = []
     failed = []
+    done_count = 0
 
     async def _process(product: RawProduct):
+        nonlocal done_count
         async with semaphore:
             try:
                 listing = await generate_listing(product, marketplace, focus_keywords, style_tone)
                 listings.append(listing)
             except Exception as e:
                 failed.append({"sku": product.sku, "error": str(e)})
+            finally:
+                done_count += 1
+                if on_progress:
+                    on_progress(done_count, len(products))
 
     await asyncio.gather(*[_process(p) for p in products])
     return listings, failed

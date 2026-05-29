@@ -1191,10 +1191,10 @@ async function generateListings() {
   document.getElementById('resultsState').classList.add('hidden');
   document.getElementById('loadingState').classList.remove('hidden');
   document.getElementById('loadingState').classList.add('flex');
+  document.getElementById('progressBar').style.width = '0%';
   setStep(2);
-  let pct = 0;
-  const interval = setInterval(() => { pct = Math.min(pct + 5, 85); document.getElementById('progressBar').style.width = pct + '%'; }, 500);
   try {
+    // ── Étape 1 : soumettre le job (retour instantané) ──
     const r = await authFetch('/api/generate', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -1205,20 +1205,37 @@ async function generateListings() {
         focus_keywords: document.getElementById('focusKeywords').value.split(',').map(k=>k.trim()).filter(Boolean),
       }),
     });
-    clearInterval(interval);
-    document.getElementById('progressBar').style.width = '100%';
     if (!r.ok) {
       let msg = `Erreur ${r.status}`;
       try { const e = await r.json(); msg = e.detail || msg; } catch {}
       throw new Error(msg);
     }
-    const result = await r.json();
+    const { job_id, total } = await r.json();
+
+    // ── Étape 2 : poll jusqu'à completion ──
+    let result = null;
+    while (true) {
+      await new Promise(res => setTimeout(res, 2000));
+      const jr = await authFetch(`/api/jobs/${job_id}`);
+      if (!jr.ok) throw new Error('Job introuvable');
+      const job = await jr.json();
+
+      // Mise à jour barre de progression
+      const pct = total > 0 ? Math.round((job.progress / total) * 100) : 0;
+      document.getElementById('progressBar').style.width = pct + '%';
+      const loadingText = document.querySelector('#loadingState p');
+      if (loadingText) loadingText.textContent = `Génération COSMO en cours… ${job.progress}/${total} fiches`;
+
+      if (job.status === 'done') { result = job.result; break; }
+      if (job.status === 'failed') throw new Error(job.error || 'Erreur de génération');
+    }
+
+    document.getElementById('progressBar').style.width = '100%';
     generatedListings = result.listings;
     showResults(result);
     setStep(3);
     showToast('✅', `${result.success_count} fiche(s) générée(s)`);
   } catch (e) {
-    clearInterval(interval);
     document.getElementById('loadingState').classList.add('hidden');
     document.getElementById('loadingState').classList.remove('flex');
     document.getElementById('emptyState').classList.remove('hidden');

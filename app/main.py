@@ -1,5 +1,8 @@
 import os
 import json
+import time
+import asyncio
+from uuid import uuid4
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -122,31 +125,71 @@ async def ingest_file(file: UploadFile = File(...)):
     return products
 
 
+# ── Async job store ───────────────────────────────────────────────────────────
+
+_jobs: dict = {}  # job_id → {status, progress, total, result, error, created_at}
+
+
+def _cleanup_jobs():
+    cutoff = time.time() - 3600
+    for k in [k for k, v in _jobs.items() if v.get("created_at", 0) < cutoff]:
+        del _jobs[k]
+
+
+async def _run_generation_job(job_id: str, request: GenerationRequest, email: str):
+    _jobs[job_id]["status"] = "running"
+
+    def on_progress(done: int, total: int):
+        if job_id in _jobs:
+            _jobs[job_id]["progress"] = done
+
+    try:
+        listings, failed = await generate_listings_batch(
+            products=request.products,
+            marketplace=request.marketplace,
+            focus_keywords=request.focus_keywords or [],
+            style_tone=request.style_tone,
+            on_progress=on_progress,
+        )
+        if listings and email:
+            log_usage(email, "sku_generated", len(listings))
+        result = GenerationResult(
+            listings=listings, failed=failed,
+            total=len(request.products), success_count=len(listings),
+            marketplace=request.marketplace,
+        )
+        _jobs[job_id].update({"status": "done", "progress": len(request.products),
+                               "result": result.model_dump()})
+    except Exception as e:
+        _jobs[job_id].update({"status": "failed", "error": str(e)})
+
+
 # ── Generation ────────────────────────────────────────────────────────────────
 
-@app.post("/api/generate", response_model=GenerationResult)
+@app.post("/api/generate")
 async def generate(request: GenerationRequest, req: Request):
     if not os.getenv("ANTHROPIC_API_KEY"):
         raise HTTPException(503, "ANTHROPIC_API_KEY manquante")
     if not request.products:
         raise HTTPException(400, "Liste de produits vide")
-    if len(request.products) > 50:
-        raise HTTPException(400, "Maximum 50 produits par requête")
-    listings, failed = await generate_listings_batch(
-        products=request.products,
-        marketplace=request.marketplace,
-        focus_keywords=request.focus_keywords or [],
-        style_tone=request.style_tone,
-    )
-    if listings:
-        email = getattr(req.state, "user_email", None)
-        if email:
-            log_usage(email, "sku_generated", len(listings))
-    return GenerationResult(
-        listings=listings, failed=failed,
-        total=len(request.products), success_count=len(listings),
-        marketplace=request.marketplace,
-    )
+    if len(request.products) > 500:
+        raise HTTPException(400, "Maximum 500 produits par requête")
+
+    email = getattr(req.state, "user_email", None)
+    job_id = str(uuid4())
+    _jobs[job_id] = {"status": "pending", "progress": 0,
+                     "total": len(request.products), "created_at": time.time()}
+    _cleanup_jobs()
+    asyncio.create_task(_run_generation_job(job_id, request, email))
+    return {"job_id": job_id, "total": len(request.products)}
+
+
+@app.get("/api/jobs/{job_id}")
+async def get_job(job_id: str):
+    job = _jobs.get(job_id)
+    if not job:
+        raise HTTPException(404, "Job introuvable ou expiré (1h max)")
+    return job
 
 
 # ── Publish ───────────────────────────────────────────────────────────────────
