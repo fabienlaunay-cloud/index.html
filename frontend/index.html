@@ -1782,7 +1782,9 @@ function buildCardHTML(listing, idx, editMode) {
       <div class="flex items-start justify-between mb-4">
         <div class="flex-1 min-w-0 mr-4">
           <div class="flex items-center gap-2 mb-1">
-            <span class="font-mono text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded">${listing.sku}</span>
+            ${editMode
+              ? `<input id="edit-sku-${idx}" value="${listing.sku}" class="font-mono text-xs bg-purple-50 border border-purple-300 text-purple-700 px-2 py-0.5 rounded w-36 focus:ring-2 focus:ring-purple-300 outline-none">`
+              : `<span class="font-mono text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded">${listing.sku}</span>`}
             <span class="text-xs text-gray-400">${listing.marketplace}</span>
             ${editMode ? '<span class="text-xs text-purple-600 font-medium">Mode édition</span>' : ''}
           </div>
@@ -1872,11 +1874,13 @@ function removeBullet(idx, bi) {
 
 function saveEdit(idx) {
   const listing = generatedListings[idx];
+  const skuEl   = document.getElementById(`edit-sku-${idx}`);
   const titleEl = document.getElementById(`edit-title-${idx}`);
   const descEl  = document.getElementById(`edit-desc-${idx}`);
   const kwEl    = document.getElementById(`edit-kw-${idx}`);
   const priceEl = document.getElementById(`edit-price-${idx}`);
   const eanEl   = document.getElementById(`edit-ean-${idx}`);
+  if (skuEl  && skuEl.value.trim())  listing.sku   = skuEl.value.trim();
   if (titleEl) listing.title = titleEl.value.trim();
   if (descEl)  listing.description = descEl.value.trim();
   if (kwEl)    listing.backend_keywords = kwEl.value.trim();
