@@ -18,7 +18,7 @@ from app.models import (
     GenerationRequest, GenerationResult, PublishRequest, PublishResult,
     RawProduct, Marketplace, AmazonListing,
 )
-from app.services.ingestion import parse_file
+from app.services.ingestion import parse_file, get_headers_and_sample
 from app.services.ai_agent import generate_listings_batch
 from app.services.amazon_sp import publish_listings
 from app.services.auth import verify_token
@@ -310,15 +310,41 @@ async def serve_photo(filename: str):
 MAX_UPLOAD_SIZE = 10 * 1024 * 1024  # 10 MB
 
 
-@app.post("/api/ingest", response_model=List[RawProduct])
-async def ingest_file(file: UploadFile = File(...)):
+@app.post("/api/ingest/preview")
+async def ingest_preview(file: UploadFile = File(...)):
+    """Return headers, sample rows and auto-mapping info without full parsing."""
     content = await file.read()
     if not content:
         raise HTTPException(400, "Fichier vide")
     if len(content) > MAX_UPLOAD_SIZE:
         raise HTTPException(413, "Fichier trop volumineux (max 10 Mo)")
     try:
-        products = parse_file(file.filename or "upload.csv", content)
+        result = get_headers_and_sample(file.filename or "upload.csv", content)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    except Exception as e:
+        raise HTTPException(500, f"Erreur de prévisualisation: {e}")
+    return result
+
+
+@app.post("/api/ingest", response_model=List[RawProduct])
+async def ingest_file(
+    file: UploadFile = File(...),
+    custom_mapping: str = Form(default=None),
+):
+    content = await file.read()
+    if not content:
+        raise HTTPException(400, "Fichier vide")
+    if len(content) > MAX_UPLOAD_SIZE:
+        raise HTTPException(413, "Fichier trop volumineux (max 10 Mo)")
+    mapping = None
+    if custom_mapping:
+        try:
+            mapping = json.loads(custom_mapping)
+        except Exception:
+            raise HTTPException(400, "custom_mapping JSON invalide")
+    try:
+        products = parse_file(file.filename or "upload.csv", content, custom_mapping=mapping)
     except ValueError as e:
         raise HTTPException(400, str(e))
     except Exception as e:

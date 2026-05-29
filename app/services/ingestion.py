@@ -1,7 +1,7 @@
 import io
 import csv
 import json
-from typing import List, BinaryIO
+from typing import List, BinaryIO, Optional
 from app.models import RawProduct
 
 
@@ -46,16 +46,26 @@ def _normalise_header(h: str) -> str:
     return h.strip().lower().replace("_", " ")
 
 
-def _map_row(row: dict) -> dict:
+def _map_row(row: dict, custom_mapping: dict = None) -> dict:
     mapped: dict = {}
     extra: dict = {}
     for key, value in row.items():
         norm = _normalise_header(key)
-        target = COLUMN_MAP.get(norm)
-        if target:
-            mapped[target] = value
+        # custom_mapping takes priority: try exact key first, then normalised key
+        custom_target = None
+        if custom_mapping:
+            if key in custom_mapping and custom_mapping[key]:
+                custom_target = custom_mapping[key]
+            elif norm in custom_mapping and custom_mapping[norm]:
+                custom_target = custom_mapping[norm]
+        if custom_target:
+            mapped[custom_target] = value
         else:
-            extra[key] = value
+            target = COLUMN_MAP.get(norm)
+            if target:
+                mapped[target] = value
+            else:
+                extra[key] = value
     mapped.setdefault("extra", extra)
     return mapped
 
@@ -90,7 +100,77 @@ def _coerce(mapped: dict) -> RawProduct:
     return RawProduct(**{k: v for k, v in mapped.items() if v not in (None, "", [])})
 
 
-def parse_csv(content: bytes, delimiter: str = None) -> List[RawProduct]:
+def get_headers_and_sample(filename: str, content: bytes) -> dict:
+    """Parse just the headers and first 3 data rows without full RawProduct coercion.
+
+    Returns:
+        {
+            "headers": [...],
+            "sample_rows": [{...}, ...],
+            "auto_mapped": {header: field_or_None}
+        }
+    """
+    ext = filename.rsplit(".", 1)[-1].lower()
+    headers = []
+    sample_rows = []
+
+    if ext == "csv":
+        text = content.decode("utf-8-sig", errors="replace")
+        sample_text = text[:2000]
+        delimiter = ";" if sample_text.count(";") > sample_text.count(",") else ","
+        reader = csv.DictReader(io.StringIO(text), delimiter=delimiter)
+        headers = list(reader.fieldnames or [])
+        for i, row in enumerate(reader):
+            if i >= 3:
+                break
+            sample_rows.append(dict(row))
+
+    elif ext in ("xlsx", "xls"):
+        try:
+            import openpyxl
+        except ImportError:
+            raise RuntimeError("openpyxl manquant — pip install openpyxl")
+        wb = openpyxl.load_workbook(io.BytesIO(content), data_only=True)
+        ws = wb.active
+        headers = [str(cell.value or "").strip() for cell in next(ws.iter_rows(max_row=1))]
+        for i, row in enumerate(ws.iter_rows(min_row=2, values_only=True)):
+            if i >= 3:
+                break
+            row_dict = {headers[j]: (row[j] if j < len(row) else None) for j in range(len(headers))}
+            if all(v is None for v in row_dict.values()):
+                continue
+            sample_rows.append(row_dict)
+
+    elif ext == "json":
+        data = json.loads(content)
+        if isinstance(data, dict):
+            data = data.get("products", data.get("items", [data]))
+        if data:
+            # Collect all keys across first 3 items
+            seen = {}
+            for item in data[:3]:
+                for k in item.keys():
+                    seen[k] = seen.get(k, None)
+            headers = list(seen.keys())
+            for item in data[:3]:
+                sample_rows.append({h: item.get(h) for h in headers})
+    else:
+        raise ValueError(f"Format non supporté: .{ext}  (csv, xlsx, json acceptés)")
+
+    # Determine auto_mapped: header → field or None
+    auto_mapped = {}
+    for h in headers:
+        norm = _normalise_header(h)
+        auto_mapped[h] = COLUMN_MAP.get(norm)  # None if unrecognised
+
+    return {
+        "headers": headers,
+        "sample_rows": sample_rows,
+        "auto_mapped": auto_mapped,
+    }
+
+
+def parse_csv(content: bytes, delimiter: str = None, custom_mapping: dict = None) -> List[RawProduct]:
     text = content.decode("utf-8-sig", errors="replace")
     if delimiter is None:
         sample = text[:2000]
@@ -99,13 +179,13 @@ def parse_csv(content: bytes, delimiter: str = None) -> List[RawProduct]:
     products = []
     for row in reader:
         try:
-            products.append(_coerce(_map_row(dict(row))))
+            products.append(_coerce(_map_row(dict(row), custom_mapping)))
         except Exception:
             pass
     return products
 
 
-def parse_excel(content: bytes) -> List[RawProduct]:
+def parse_excel(content: bytes, custom_mapping: dict = None) -> List[RawProduct]:
     try:
         import openpyxl
     except ImportError:
@@ -120,31 +200,31 @@ def parse_excel(content: bytes) -> List[RawProduct]:
         if all(v is None for v in row_dict.values()):
             continue
         try:
-            products.append(_coerce(_map_row(row_dict)))
+            products.append(_coerce(_map_row(row_dict, custom_mapping)))
         except Exception:
             pass
     return products
 
 
-def parse_json(content: bytes) -> List[RawProduct]:
+def parse_json(content: bytes, custom_mapping: dict = None) -> List[RawProduct]:
     data = json.loads(content)
     if isinstance(data, dict):
         data = data.get("products", data.get("items", [data]))
     products = []
     for item in data:
         try:
-            products.append(_coerce(_map_row(item)))
+            products.append(_coerce(_map_row(item, custom_mapping)))
         except Exception:
             pass
     return products
 
 
-def parse_file(filename: str, content: bytes) -> List[RawProduct]:
+def parse_file(filename: str, content: bytes, custom_mapping: dict = None) -> List[RawProduct]:
     ext = filename.rsplit(".", 1)[-1].lower()
     if ext == "csv":
-        return parse_csv(content)
+        return parse_csv(content, custom_mapping=custom_mapping)
     if ext in ("xlsx", "xls"):
-        return parse_excel(content)
+        return parse_excel(content, custom_mapping=custom_mapping)
     if ext == "json":
-        return parse_json(content)
+        return parse_json(content, custom_mapping=custom_mapping)
     raise ValueError(f"Format non supporté: .{ext}  (csv, xlsx, json acceptés)")

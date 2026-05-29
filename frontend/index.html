@@ -979,6 +979,11 @@ let activeSegmentFilter = null; // null = Tous
 let generatedListings = [];
 let photoMap = {};  // sku → "/api/photos/{filename}"
 let segmentPresets = JSON.parse(localStorage.getItem('synqio_segment_presets') || '{}');
+
+// Column mapping state
+let _pendingFile = null;        // File object held while mapping modal is open
+let _pendingPreviewData = null; // preview API response held while modal is open
+let _savedMappings = JSON.parse(localStorage.getItem('synqio_col_mappings') || '{}');
 // { "collier chien": "keyword1, keyword2, ..." }
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
@@ -1494,19 +1499,51 @@ async function handleFile(file) {
   document.getElementById('fileSize').textContent = `${(file.size/1024).toFixed(1)} KB`;
   document.getElementById('fileInfo').classList.remove('hidden');
   dropZone.classList.add('hidden');
-  const formData = new FormData();
-  formData.append('file', file);
+
+  // Step 1: call preview endpoint to get headers + auto_mapped info
   try {
     showToast('⏳', 'Analyse du fichier...');
-    const r = await authFetch('/api/ingest', { method: 'POST', body: formData });
-    if (!r.ok) { const e = await r.json(); throw new Error(e.detail || 'Erreur'); }
-    parsedProducts = await r.json();
-    activeSegmentFilter = null;
-    showProductsList(parsedProducts);
-    document.getElementById('generateBtn').disabled = false;
-    setStep(2);
-    showToast('✅', `${parsedProducts.length} produit(s) détecté(s)`);
-  } catch (e) { showToast('❌', `${e.message}`, true); }
+    const previewForm = new FormData();
+    previewForm.append('file', file);
+    const pr = await authFetch('/api/ingest/preview', { method: 'POST', body: previewForm });
+    if (!pr.ok) { const e = await pr.json(); throw new Error(e.detail || 'Erreur preview'); }
+    const previewData = await pr.json();
+
+    // Check if we have a saved mapping for these headers
+    const hKey = _headerKey(previewData.headers);
+    const savedMapping = _savedMappings[hKey] || null;
+
+    // Check if there are unmapped columns
+    const unmappedHeaders = previewData.headers.filter(h => !previewData.auto_mapped[h]);
+
+    if (unmappedHeaders.length > 0 || savedMapping) {
+      // Show mapping modal — user needs to confirm/adjust
+      _pendingFile = file;
+      _pendingPreviewData = previewData;
+      showMappingModal(file, previewData);
+    } else {
+      // All columns are auto-recognized and no saved mapping — proceed directly
+      await _doIngest(file, null);
+    }
+  } catch (e) {
+    showToast('❌', `${e.message}`, true);
+  }
+}
+
+async function _doIngest(file, customMapping) {
+  const formData = new FormData();
+  formData.append('file', file);
+  if (customMapping && Object.keys(customMapping).length > 0) {
+    formData.append('custom_mapping', JSON.stringify(customMapping));
+  }
+  const r = await authFetch('/api/ingest', { method: 'POST', body: formData });
+  if (!r.ok) { const e = await r.json(); throw new Error(e.detail || 'Erreur'); }
+  parsedProducts = await r.json();
+  activeSegmentFilter = null;
+  showProductsList(parsedProducts);
+  document.getElementById('generateBtn').disabled = false;
+  setStep(2);
+  showToast('✅', `${parsedProducts.length} produit(s) détecté(s)`);
 }
 
 function clearFile() {
@@ -2236,6 +2273,156 @@ function calcROI() {
   });
 }
 
+// ── Column mapping helpers ────────────────────────────────────────────────────
+
+const _FIELD_OPTIONS = [
+  ['', '— Ignorer —'],
+  ['sku', 'SKU / Référence'],
+  ['name', 'Nom produit'],
+  ['brand', 'Marque'],
+  ['category', 'Catégorie / Segment'],
+  ['description', 'Description'],
+  ['price', 'Prix'],
+  ['ean', 'EAN / GTIN'],
+  ['weight_kg', 'Poids (kg)'],
+  ['color', 'Couleur'],
+  ['material', 'Matière'],
+  ['images', 'URL Image'],
+  ['features', 'Caractéristiques (séparées par |)'],
+  ['focus_keywords', 'Mots-clés prioritaires'],
+];
+
+const _FIELD_DISPLAY = {
+  sku: 'SKU', name: 'Nom', brand: 'Marque', category: 'Catégorie',
+  description: 'Description', price: 'Prix', ean: 'EAN', weight_kg: 'Poids',
+  color: 'Couleur', material: 'Matière', images: 'Image URL',
+  features: 'Caractéristiques', focus_keywords: 'Mots-clés',
+};
+
+function _headerKey(headers) {
+  return headers.slice().sort().join('|');
+}
+
+function showMappingModal(file, previewData) {
+  const { headers, sample_rows, auto_mapped } = previewData;
+  const hKey = _headerKey(headers);
+  const savedMapping = _savedMappings[hKey] || {};
+
+  // File name
+  document.getElementById('mappingFileName').textContent = file.name;
+
+  // Section 1 — recognized columns
+  const recognized = headers.filter(h => auto_mapped[h]);
+  const recognizedSection = document.getElementById('mappingRecognizedSection');
+  const recognizedList = document.getElementById('mappingRecognizedList');
+  document.getElementById('mappingRecognizedCount').textContent = recognized.length;
+  if (recognized.length > 0) {
+    recognizedList.innerHTML = recognized.map(h =>
+      `<span class="inline-flex items-center gap-1 bg-green-50 text-green-700 border border-green-200 rounded-full px-3 py-1 text-xs font-medium">
+        ${h} <span class="text-green-400">→</span> ${_FIELD_DISPLAY[auto_mapped[h]] || auto_mapped[h]}
+      </span>`
+    ).join('');
+    recognizedSection.classList.remove('hidden');
+  } else {
+    recognizedSection.classList.add('hidden');
+  }
+
+  // Section 2 — unmapped columns (show all non-auto columns; pre-fill from saved)
+  const unmapped = headers.filter(h => !auto_mapped[h]);
+  const unmappedSection = document.getElementById('mappingUnmappedSection');
+  const unmappedList = document.getElementById('mappingUnmappedList');
+  document.getElementById('mappingUnmappedCount').textContent = unmapped.length;
+  if (unmapped.length > 0) {
+    unmappedList.innerHTML = unmapped.map(h => {
+      const savedVal = savedMapping[h] || '';
+      const opts = _FIELD_OPTIONS.map(([val, lbl]) =>
+        `<option value="${val}" ${val === savedVal ? 'selected' : ''}>${lbl}</option>`
+      ).join('');
+      return `<div class="flex items-center gap-2">
+        <span class="text-xs text-amber-800 font-medium flex-shrink-0 w-36 truncate" title="${h}">${h}</span>
+        <span class="text-amber-400 text-xs flex-shrink-0">→</span>
+        <select data-header="${h}"
+          class="flex-1 text-xs border border-amber-300 rounded-lg px-2 py-1.5 bg-white text-gray-700 focus:outline-none focus:border-purple-400">
+          ${opts}
+        </select>
+      </div>`;
+    }).join('');
+    unmappedSection.classList.remove('hidden');
+  } else {
+    // No unmapped columns — still show modal if saved mapping exists (so user can review)
+    unmappedSection.classList.add('hidden');
+  }
+
+  // Section 3 — sample preview table (first 3 columns × first 3 rows)
+  const previewSection = document.getElementById('mappingPreviewSection');
+  const previewTable = document.getElementById('mappingPreviewTable');
+  const previewCols = headers.slice(0, 3);
+  if (previewCols.length > 0 && sample_rows.length > 0) {
+    const thead = `<thead><tr>${previewCols.map(h =>
+      `<th class="px-2 py-1.5 bg-gray-50 text-gray-500 font-semibold border-b border-gray-200 whitespace-nowrap">${h}</th>`
+    ).join('')}</tr></thead>`;
+    const tbody = `<tbody>${sample_rows.slice(0, 3).map(row =>
+      `<tr class="border-b border-gray-100 last:border-0">${previewCols.map(h =>
+        `<td class="px-2 py-1.5 text-gray-600 max-w-xs truncate">${row[h] != null ? String(row[h]).slice(0, 60) : ''}</td>`
+      ).join('')}</tr>`
+    ).join('')}</tbody>`;
+    previewTable.innerHTML = thead + tbody;
+    previewSection.classList.remove('hidden');
+  } else {
+    previewSection.classList.add('hidden');
+  }
+
+  // Clear any previous error
+  const errEl = document.getElementById('mappingError');
+  errEl.textContent = '';
+  errEl.classList.add('hidden');
+
+  document.getElementById('mappingModal').classList.remove('hidden');
+}
+
+function closeMappingModal() {
+  document.getElementById('mappingModal').classList.add('hidden');
+  _pendingFile = null;
+  _pendingPreviewData = null;
+}
+
+async function confirmMapping() {
+  if (!_pendingFile || !_pendingPreviewData) { closeMappingModal(); return; }
+
+  const btn = document.getElementById('mappingConfirmBtn');
+  const errEl = document.getElementById('mappingError');
+  errEl.classList.add('hidden');
+  btn.disabled = true;
+  btn.textContent = 'Import en cours...';
+
+  try {
+    // Collect custom mapping from dropdowns (unmapped section only)
+    const selects = document.querySelectorAll('#mappingUnmappedList select[data-header]');
+    const customMapping = {};
+    selects.forEach(sel => {
+      if (sel.value) customMapping[sel.dataset.header] = sel.value;
+    });
+
+    // Save to localStorage
+    const hKey = _headerKey(_pendingPreviewData.headers);
+    if (Object.keys(customMapping).length > 0) {
+      _savedMappings[hKey] = customMapping;
+      localStorage.setItem('synqio_col_mappings', JSON.stringify(_savedMappings));
+    }
+
+    await _doIngest(_pendingFile, customMapping);
+    document.getElementById('mappingModal').classList.add('hidden');
+    _pendingFile = null;
+    _pendingPreviewData = null;
+  } catch (e) {
+    errEl.textContent = e.message;
+    errEl.classList.remove('hidden');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Confirmer et importer';
+  }
+}
+
 // Start
 renderSegmentPresets();
 (async () => {
@@ -2249,6 +2436,66 @@ renderSegmentPresets();
   }
 })();
 </script>
+
+<!-- ═══════════════════ COLUMN MAPPING MODAL ═══════════════════ -->
+<div id="mappingModal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-[250] flex items-center justify-center p-4">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
+    <!-- Header -->
+    <div class="flex items-start justify-between px-6 pt-6 pb-4 border-b border-gray-100 flex-shrink-0">
+      <div>
+        <h3 class="text-lg font-bold text-gray-900">Vérifier le mapping des colonnes</h3>
+        <p id="mappingFileName" class="text-sm text-gray-400 mt-0.5 truncate max-w-sm"></p>
+      </div>
+      <button onclick="closeMappingModal()" class="text-gray-400 hover:text-gray-600 ml-4 flex-shrink-0 text-lg leading-none">&#x2715;</button>
+    </div>
+
+    <!-- Scrollable body -->
+    <div class="overflow-y-auto flex-1 px-6 py-4 space-y-5">
+
+      <!-- Section 1: Recognized columns -->
+      <div id="mappingRecognizedSection" class="hidden">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="w-2.5 h-2.5 rounded-full bg-green-500 flex-shrink-0"></span>
+          <p class="text-sm font-semibold text-gray-700">Colonnes reconnues automatiquement (<span id="mappingRecognizedCount">0</span>)</p>
+        </div>
+        <div id="mappingRecognizedList" class="bg-green-50 border border-green-200 rounded-xl p-3 flex flex-wrap gap-2"></div>
+      </div>
+
+      <!-- Section 2: Unmapped columns -->
+      <div id="mappingUnmappedSection" class="hidden">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="w-2.5 h-2.5 rounded-full bg-amber-400 flex-shrink-0"></span>
+          <p class="text-sm font-semibold text-gray-700">Colonnes à assigner (<span id="mappingUnmappedCount">0</span>)</p>
+        </div>
+        <div class="bg-amber-50 border border-amber-200 rounded-xl p-3 space-y-2" id="mappingUnmappedList"></div>
+      </div>
+
+      <!-- Section 3: Sample preview table -->
+      <div id="mappingPreviewSection" class="hidden">
+        <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Apercu des données</p>
+        <div class="overflow-auto max-h-36 rounded-xl border border-gray-200">
+          <table id="mappingPreviewTable" class="w-full text-xs text-left"></table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="px-6 py-4 border-t border-gray-100 flex-shrink-0 space-y-2">
+      <div id="mappingError" class="hidden text-sm text-red-600 font-medium"></div>
+      <div class="flex items-center justify-between gap-3">
+        <p class="text-xs text-gray-400">Ce mapping sera mémorisé pour vos prochains imports</p>
+        <div class="flex items-center gap-3">
+          <button onclick="closeMappingModal()" class="text-sm text-gray-400 hover:text-gray-600">Annuler</button>
+          <button id="mappingConfirmBtn" onclick="confirmMapping()"
+            class="gradient-bg text-white rounded-xl px-5 py-2.5 text-sm font-semibold hover:opacity-90 transition flex items-center gap-2">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            Confirmer et importer
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
 
 <!-- ═══════════════════ UPGRADE MODAL ═══════════════════ -->
 <div id="upgradeModal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-[300] flex items-center justify-center p-4">
