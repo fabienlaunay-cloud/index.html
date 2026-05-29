@@ -1409,17 +1409,37 @@ function createListingCard(listing, idx) {
   const col = listing.seo_score >= 70 ? 'green' : listing.seo_score >= 40 ? 'yellow' : 'red';
   const card = document.createElement('div');
   card.className = 'bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden card-hover';
-  card.innerHTML = `
+  card.id = `card-${idx}`;
+  card.innerHTML = buildCardHTML(listing, idx, false);
+  return card;
+}
+
+function buildCardHTML(listing, idx, editMode) {
+  const col = listing.seo_score >= 70 ? 'green' : listing.seo_score >= 40 ? 'yellow' : 'red';
+  const bulletsView = `<ul class="space-y-2">${listing.bullet_points.map((b,bi)=>`<li class="flex gap-2 text-sm text-gray-700"><span class="text-purple-500 flex-shrink-0">▸</span>${b}</li>`).join('')}</ul>`;
+  const bulletsEdit = `<div class="space-y-2" id="bullets-edit-${idx}">${listing.bullet_points.map((b,bi)=>`
+    <div class="flex gap-2 items-start">
+      <span class="text-purple-400 mt-2 flex-shrink-0">▸</span>
+      <textarea rows="2" class="flex-1 border border-purple-200 rounded-lg px-2 py-1.5 text-sm text-gray-700 resize-none focus:ring-2 focus:ring-purple-300 outline-none" data-bi="${bi}">${b}</textarea>
+      <button onclick="removeBullet(${idx},${bi})" class="text-gray-300 hover:text-red-500 mt-2 flex-shrink-0">✕</button>
+    </div>`).join('')}
+    <button onclick="addBullet(${idx})" class="text-xs text-purple-600 hover:text-purple-800 font-medium">+ Ajouter un bullet</button>
+  </div>`;
+
+  return `
     <div class="p-5">
       <div class="flex items-start justify-between mb-4">
-        <div>
+        <div class="flex-1 min-w-0 mr-4">
           <div class="flex items-center gap-2 mb-1">
             <span class="font-mono text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded">${listing.sku}</span>
             <span class="text-xs text-gray-400">${listing.marketplace}</span>
+            ${editMode ? '<span class="text-xs text-purple-600 font-medium">✏️ Mode édition</span>' : ''}
           </div>
-          <h3 class="font-semibold text-gray-900 text-sm">${listing.title}</h3>
+          ${editMode
+            ? `<input id="edit-title-${idx}" value="${listing.title.replace(/"/g,'&quot;')}" class="w-full border border-purple-200 rounded-lg px-3 py-1.5 text-sm font-semibold text-gray-900 focus:ring-2 focus:ring-purple-300 outline-none">`
+            : `<h3 class="font-semibold text-gray-900 text-sm">${listing.title}</h3>`}
         </div>
-        <div class="text-center ml-4 flex-shrink-0">
+        <div class="text-center flex-shrink-0">
           <div class="w-14 h-14 rounded-full flex items-center justify-center border-4 border-${col}-200 bg-${col}-50">
             <span class="text-${col}-700 font-bold text-lg">${listing.seo_score}</span>
           </div>
@@ -1434,9 +1454,17 @@ function createListingCard(listing, idx) {
         <button onclick="switchTab(${idx},'aplus')" class="pb-2 text-gray-400" id="tab-${idx}-aplus">A+</button>
         <button onclick="switchTab(${idx},'images')" class="pb-2 text-gray-400" id="tab-${idx}-images">🎨 Images</button>
       </div>
-      <div id="content-${idx}-bullets"><ul class="space-y-2">${listing.bullet_points.map(b=>`<li class="flex gap-2 text-sm text-gray-700"><span class="text-purple-500 flex-shrink-0">▸</span>${b}</li>`).join('')}</ul></div>
-      <div id="content-${idx}-desc" class="hidden"><div class="text-sm text-gray-700 leading-relaxed max-h-48 overflow-y-auto">${listing.description}</div></div>
-      <div id="content-${idx}-kw" class="hidden"><div class="bg-gray-50 rounded-lg p-3"><p class="text-xs text-gray-500 mb-2 font-medium">Backend Keywords (${listing.backend_keywords.length} car.)</p><p class="text-sm font-mono text-gray-700">${listing.backend_keywords}</p></div></div>
+      <div id="content-${idx}-bullets">${editMode ? bulletsEdit : bulletsView}</div>
+      <div id="content-${idx}-desc" class="hidden">
+        ${editMode
+          ? `<textarea id="edit-desc-${idx}" rows="5" class="w-full border border-purple-200 rounded-lg px-3 py-2 text-sm text-gray-700 resize-none focus:ring-2 focus:ring-purple-300 outline-none">${listing.description}</textarea>`
+          : `<div class="text-sm text-gray-700 leading-relaxed max-h-48 overflow-y-auto">${listing.description}</div>`}
+      </div>
+      <div id="content-${idx}-kw" class="hidden">
+        ${editMode
+          ? `<div class="bg-gray-50 rounded-lg p-3"><p class="text-xs text-gray-500 mb-2 font-medium">Backend Keywords</p><textarea id="edit-kw-${idx}" rows="3" class="w-full border border-purple-200 rounded-lg px-2 py-1.5 text-xs font-mono text-gray-700 resize-none focus:ring-2 focus:ring-purple-300 outline-none">${listing.backend_keywords}</textarea></div>`
+          : `<div class="bg-gray-50 rounded-lg p-3"><p class="text-xs text-gray-500 mb-2 font-medium">Backend Keywords (${listing.backend_keywords.length} car.)</p><p class="text-sm font-mono text-gray-700">${listing.backend_keywords}</p></div>`}
+      </div>
       <div id="content-${idx}-aplus" class="hidden">${listing.a_plus_content ? `<div class="space-y-3"><div class="bg-purple-50 rounded-lg p-3"><p class="font-semibold text-purple-800 text-sm">✨ ${listing.a_plus_content.headline}</p></div>${(listing.a_plus_content.modules||[]).map(m=>`<div class="border border-gray-100 rounded-lg p-3"><p class="text-xs text-gray-500 uppercase tracking-wide mb-1">${(m.type||'').replace('_',' ')}</p><p class="font-semibold text-gray-800 text-sm mb-1">${m.title||''}</p><p class="text-gray-600 text-sm">${m.body||''}</p></div>`).join('')}</div>` : '<p class="text-gray-400 text-sm">Non disponible</p>'}</div>
       <div id="content-${idx}-images" class="hidden">
         <div id="images-container-${idx}" class="text-center py-6 text-gray-400 text-sm">Cliquez sur "Générer les images" pour lancer la création</div>
@@ -1445,10 +1473,58 @@ function createListingCard(listing, idx) {
     <div class="border-t border-gray-50 px-5 py-3 bg-gray-50/50 flex items-center gap-3 flex-wrap gap-y-2">
       ${listing.price ? `<span class="text-sm font-bold text-gray-800">${listing.price.toFixed(2)} €</span>` : ''}
       ${listing.ean ? `<span class="text-xs text-gray-400">EAN: ${listing.ean}</span>` : ''}
-      <button onclick="switchTab(${idx},'images');generateImages(${idx})" class="ml-auto bg-pink-50 hover:bg-pink-100 text-pink-700 rounded-lg px-3 py-1.5 text-xs font-medium transition flex items-center gap-1">🎨 Générer les images</button>
-      <button onclick="copyListing(${idx})" class="text-xs text-gray-500 hover:text-purple-600">📋 Copier JSON</button>
+      ${editMode
+        ? `<button onclick="saveEdit(${idx})" class="ml-auto gradient-bg text-white rounded-lg px-3 py-1.5 text-xs font-semibold transition flex items-center gap-1">✅ Enregistrer</button>
+           <button onclick="cancelEdit(${idx})" class="text-xs text-gray-400 hover:text-gray-600">Annuler</button>`
+        : `<button onclick="switchTab(${idx},'images');generateImages(${idx})" class="ml-auto bg-pink-50 hover:bg-pink-100 text-pink-700 rounded-lg px-3 py-1.5 text-xs font-medium transition flex items-center gap-1">🎨 Générer les images</button>
+           <button onclick="enterEditMode(${idx})" class="bg-purple-50 hover:bg-purple-100 text-purple-700 rounded-lg px-3 py-1.5 text-xs font-medium transition flex items-center gap-1">✏️ Éditer</button>
+           <button onclick="copyListing(${idx})" class="text-xs text-gray-500 hover:text-purple-600">📋 Copier JSON</button>`}
     </div>`;
-  return card;
+}
+
+function enterEditMode(idx) {
+  const card = document.getElementById(`card-${idx}`);
+  if (card) { card.innerHTML = buildCardHTML(generatedListings[idx], idx, true); }
+}
+
+function cancelEdit(idx) {
+  const card = document.getElementById(`card-${idx}`);
+  if (card) { card.innerHTML = buildCardHTML(generatedListings[idx], idx, false); }
+}
+
+function addBullet(idx) {
+  generatedListings[idx].bullet_points.push('');
+  enterEditMode(idx);
+  // Focus last bullet textarea
+  const container = document.getElementById(`bullets-edit-${idx}`);
+  if (container) {
+    const txts = container.querySelectorAll('textarea');
+    if (txts.length) txts[txts.length - 1].focus();
+  }
+}
+
+function removeBullet(idx, bi) {
+  generatedListings[idx].bullet_points.splice(bi, 1);
+  enterEditMode(idx);
+}
+
+function saveEdit(idx) {
+  const listing = generatedListings[idx];
+  const titleEl = document.getElementById(`edit-title-${idx}`);
+  const descEl  = document.getElementById(`edit-desc-${idx}`);
+  const kwEl    = document.getElementById(`edit-kw-${idx}`);
+  if (titleEl) listing.title = titleEl.value.trim();
+  if (descEl)  listing.description = descEl.value.trim();
+  if (kwEl)    listing.backend_keywords = kwEl.value.trim();
+  // Collect bullets
+  const bulletsContainer = document.getElementById(`bullets-edit-${idx}`);
+  if (bulletsContainer) {
+    listing.bullet_points = Array.from(bulletsContainer.querySelectorAll('textarea'))
+      .map(t => t.value.trim()).filter(Boolean);
+  }
+  const card = document.getElementById(`card-${idx}`);
+  if (card) { card.innerHTML = buildCardHTML(listing, idx, false); }
+  showToast('✅', 'Fiche mise à jour');
 }
 
 function switchTab(idx, tab) {
