@@ -329,7 +329,7 @@ async def generate_listing(
     for attempt in range(retries + 1):
         try:
             response = await get_client().messages.create(
-                model="claude-opus-4-7",
+                model="claude-sonnet-4-6",
                 max_tokens=8192,
                 system=system,
                 messages=[{"role": "user", "content": user}],
@@ -375,7 +375,7 @@ async def generate_listings_batch(
     marketplace: Marketplace,
     focus_keywords: List[str],
     style_tone: str,
-    concurrency: int = 3,
+    concurrency: int = 2,
 ) -> tuple[List[AmazonListing], List[dict]]:
     semaphore = asyncio.Semaphore(concurrency)
     listings = []
