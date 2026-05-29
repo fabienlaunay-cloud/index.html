@@ -1742,19 +1742,35 @@ async function generateImages(idx) {
   if (imagesCache[listing.sku]) { renderImages(container, imagesCache[listing.sku]); return; }
   container.innerHTML = `<div class="flex flex-col items-center py-8 gap-3"><div class="spinner"></div><p class="text-gray-500 text-sm">Génération des prompts et visuels...</p><p class="text-gray-400 text-xs">7 visuels Amazon en cours de création</p></div>`;
   try {
+    // Step 1: start background job
     const r = await authFetch('/api/generate-images', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ sku: listing.sku, product_name: listing.title, brand: listing.brand || '', category: listing.category || '', features: listing.bullet_points || [], color: '', material: '' }),
     });
     if (!r.ok) {
       let msg = 'Erreur serveur';
-      try { const e = await r.json(); msg = e.detail || JSON.stringify(e); }
-      catch { try { msg = await r.text(); } catch {} }
+      try { const body = await r.text(); msg = JSON.parse(body).detail || body || msg; } catch {}
       throw new Error(msg);
     }
-    const data = await r.json();
-    imagesCache[listing.sku] = data;
-    renderImages(container, data);
+    const { job_id } = await r.json();
+
+    // Step 2: poll until done
+    let dots = 0;
+    while (true) {
+      await new Promise(res => setTimeout(res, 2500));
+      const jr = await authFetch(`/api/jobs/${job_id}`);
+      if (!jr.ok) throw new Error('Job introuvable');
+      const job = await jr.json();
+      dots = (dots + 1) % 4;
+      container.querySelector('p')?.setAttribute('data-dots', '.'.repeat(dots));
+      if (job.status === 'done') {
+        const data = job.result;
+        imagesCache[listing.sku] = data;
+        renderImages(container, data);
+        return;
+      }
+      if (job.status === 'failed') throw new Error(job.error || 'Erreur de génération');
+    }
   } catch (e) { container.innerHTML = `<p class="text-red-500 text-sm text-center py-4">Erreur : ${e.message}</p>`; }
 }
 

@@ -431,10 +431,8 @@ class ImageRequest(BaseModel):
     selected_types: Optional[List[str]] = None
 
 
-@app.post("/api/generate-images")
-async def generate_images(req: ImageRequest, request: Request):
-    if not os.getenv("ANTHROPIC_API_KEY"):
-        raise HTTPException(503, "ANTHROPIC_API_KEY manquante")
+async def _run_image_job(job_id: str, req: ImageRequest, email: str):
+    _jobs[job_id]["status"] = "running"
     try:
         images = await generate_product_images(
             sku=req.sku,
@@ -446,23 +444,34 @@ async def generate_images(req: ImageRequest, request: Request):
             material=req.material,
             selected_types=req.selected_types,
         )
-    except json.JSONDecodeError as e:
-        raise HTTPException(502, f"Réponse Claude invalide (JSON malformé) : {str(e)}")
-    except Exception as e:
-        raise HTTPException(500, f"Erreur génération images : {str(e)}")
-    generated = [i for i in images if i.get("has_image")]
-    if generated:
-        email = getattr(request.state, "user_email", None)
-        if email:
+        generated = [i for i in images if i.get("has_image")]
+        if generated and email:
             log_usage(email, "image_generated", len(generated))
-    openai_ok = bool(os.getenv("OPENAI_API_KEY"))
-    return {
-        "sku": req.sku,
-        "images": images,
-        "images_generated": openai_ok,
-        "openai_configured": openai_ok,
-        "total": len(images),
-    }
+        openai_ok = bool(os.getenv("OPENAI_API_KEY"))
+        _jobs[job_id].update({
+            "status": "done",
+            "result": {
+                "sku": req.sku,
+                "images": images,
+                "images_generated": openai_ok,
+                "openai_configured": openai_ok,
+                "total": len(images),
+            },
+        })
+    except Exception as e:
+        _jobs[job_id].update({"status": "failed", "error": str(e)})
+
+
+@app.post("/api/generate-images")
+async def generate_images(req: ImageRequest, request: Request):
+    if not os.getenv("ANTHROPIC_API_KEY"):
+        raise HTTPException(503, "ANTHROPIC_API_KEY manquante")
+    email = getattr(request.state, "user_email", None)
+    job_id = str(uuid4())
+    _jobs[job_id] = {"status": "pending", "progress": 0, "total": 7, "created_at": time.time()}
+    _cleanup_jobs()
+    asyncio.create_task(_run_image_job(job_id, req, email))
+    return {"job_id": job_id}
 
 
 # ── Usage ─────────────────────────────────────────────────────────────────────
