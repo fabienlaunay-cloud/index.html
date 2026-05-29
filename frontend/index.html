@@ -532,6 +532,18 @@
   </div>
 </header>
 
+<!-- ═══════════════════ QUOTA BANNER ═══════════════════ -->
+<div id="quotaBanner" class="hidden max-w-7xl mx-auto px-6 pt-4">
+  <div id="quotaBannerInner" class="rounded-xl px-5 py-3 flex items-center gap-4 text-sm">
+    <span id="quotaBannerIcon" class="text-xl flex-shrink-0"></span>
+    <div class="flex-1">
+      <p id="quotaBannerMsg" class="font-semibold"></p>
+      <p id="quotaBannerSub" class="text-xs opacity-80 mt-0.5"></p>
+    </div>
+    <button id="quotaBannerBtn" onclick="showUpgradeModal()" class="flex-shrink-0 font-semibold px-4 py-1.5 rounded-lg text-sm transition"></button>
+  </div>
+</div>
+
 <main class="max-w-7xl mx-auto px-6 py-8">
   <div class="flex items-center gap-2 mb-8 text-sm">
     <div id="step1" class="flex items-center gap-2 px-4 py-2 rounded-full bg-purple-600 text-white font-medium"><span>1</span> Import données</div>
@@ -884,18 +896,86 @@ function showMainApp() {
   loadUsage();
 }
 
+const PLAN_UPGRADES = {
+  starter:  { nextName: 'Business', skus: 600,  monthly: 790,  setup: 990,  total: 1780, link: 'https://buy.stripe.com/28E6oH8y09yag8N2zX7Vm0b' },
+  business: { nextName: 'Scale',    skus: 1500, monthly: 1490, setup: 1990, total: 3480, link: 'https://buy.stripe.com/8x2eVd4hKh0C1dT0rP7Vm0c' },
+  scale:    null,
+};
+
+let _currentUsage = null;
+
 async function loadUsage() {
   try {
     const r = await authFetch('/api/usage/me');
     if (!r.ok) return;
     const u = await r.json();
+    _currentUsage = u;
     const pct = Math.round((u.skus_used / u.skus_quota) * 100);
     const badge = document.getElementById('usageBadge');
     badge.textContent = `${u.skus_used}/${u.skus_quota} SKU`;
     badge.classList.remove('hidden');
     badge.className = `text-xs rounded px-1.5 py-0.5 font-mono ${pct >= 90 ? 'bg-red-400/80' : pct >= 70 ? 'bg-amber-400/80' : 'bg-white/20'}`;
     document.getElementById('usageDetail').textContent = `${u.plan_label} · ${u.skus_used}/${u.skus_quota} SKUs · ${u.images_used} images`;
+    updateQuotaBanner(u, pct);
   } catch {}
+}
+
+function updateQuotaBanner(u, pct) {
+  const banner = document.getElementById('quotaBanner');
+  const inner  = document.getElementById('quotaBannerInner');
+  const upgrade = PLAN_UPGRADES[u.plan];
+  if (!upgrade) { banner.classList.add('hidden'); return; }  // Scale = pas d'upgrade
+
+  if (pct >= 100) {
+    banner.classList.remove('hidden');
+    inner.className = 'rounded-xl px-5 py-3 flex items-center gap-4 text-sm bg-red-50 border border-red-200 text-red-800';
+    document.getElementById('quotaBannerIcon').textContent = '🚫';
+    document.getElementById('quotaBannerMsg').textContent = 'Quota épuisé — génération bloquée';
+    document.getElementById('quotaBannerSub').textContent = `${u.skus_used}/${u.skus_quota} SKU utilisés ce mois · Plan ${u.plan_label}`;
+    const btn = document.getElementById('quotaBannerBtn');
+    btn.textContent = `Passer au plan ${upgrade.nextName} →`;
+    btn.className = 'flex-shrink-0 font-semibold px-4 py-1.5 rounded-lg text-sm transition gradient-bg text-white shadow';
+  } else if (pct >= 80) {
+    banner.classList.remove('hidden');
+    inner.className = 'rounded-xl px-5 py-3 flex items-center gap-4 text-sm bg-amber-50 border border-amber-200 text-amber-800';
+    document.getElementById('quotaBannerIcon').textContent = '⚠️';
+    document.getElementById('quotaBannerMsg').textContent = `Plus que ${u.skus_quota - u.skus_used} SKU disponibles ce mois`;
+    document.getElementById('quotaBannerSub').textContent = `${u.skus_used}/${u.skus_quota} SKU utilisés · Plan ${u.plan_label}`;
+    const btn = document.getElementById('quotaBannerBtn');
+    btn.textContent = `Voir le plan ${upgrade.nextName}`;
+    btn.className = 'flex-shrink-0 font-semibold px-4 py-1.5 rounded-lg text-sm transition bg-amber-100 hover:bg-amber-200 text-amber-800';
+  } else {
+    banner.classList.add('hidden');
+  }
+}
+
+function showUpgradeModal(planOverride) {
+  const plan = planOverride || _currentUsage?.plan || 'starter';
+  const upgrade = PLAN_UPGRADES[plan];
+  if (!upgrade) return;
+
+  const currentLabel = _currentUsage?.plan_label || plan;
+  const currentSkus  = _currentUsage?.skus_quota || 0;
+
+  document.getElementById('upgradeCurrentPlan').innerHTML =
+    `Plan actuel : <strong>${currentLabel}</strong> — ${currentSkus} SKU/mois`;
+  document.getElementById('upgradeNextName').textContent  = upgrade.nextName;
+  document.getElementById('upgradeSkusBadge').textContent = `${upgrade.skus} SKU/mois`;
+  document.getElementById('upgradeMonthly').textContent   = `${upgrade.monthly.toLocaleString('fr-FR')} €`;
+  document.getElementById('upgradeSetup').textContent     = `+ ${upgrade.setup.toLocaleString('fr-FR')} € de setup (paiement unique)`;
+  document.getElementById('upgradeBtn').href              = upgrade.link;
+
+  if (_currentUsage?.skus_used >= _currentUsage?.skus_quota) {
+    document.getElementById('upgradeSubtitle').textContent = 'Votre quota mensuel est atteint — débloquez plus de SKU.';
+  } else {
+    document.getElementById('upgradeSubtitle').textContent = `Passez au plan ${upgrade.nextName} pour plus de capacité.`;
+  }
+
+  document.getElementById('upgradeModal').classList.remove('hidden');
+}
+
+function closeUpgradeModal() {
+  document.getElementById('upgradeModal').classList.add('hidden');
 }
 
 async function doLogin() {
@@ -1354,6 +1434,13 @@ async function generateListings() {
     if (!r.ok) {
       let msg = `Erreur ${r.status}`;
       try { const e = await r.json(); msg = e.detail || msg; } catch {}
+      if (r.status === 429) {
+        document.getElementById('loadingState').classList.add('hidden');
+        document.getElementById('loadingState').classList.remove('flex');
+        document.getElementById('emptyState').classList.remove('hidden');
+        showUpgradeModal();
+        return;
+      }
       throw new Error(msg);
     }
     const { job_id, total } = await r.json();
@@ -1776,5 +1863,46 @@ function calcROI() {
 renderSegmentPresets();
 initApp();
 </script>
+
+<!-- ═══════════════════ UPGRADE MODAL ═══════════════════ -->
+<div id="upgradeModal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-[300] flex items-center justify-center p-4">
+  <div class="relative bg-white rounded-3xl shadow-2xl w-full max-w-md p-8">
+    <button onclick="closeUpgradeModal()" class="absolute top-4 right-4 w-8 h-8 bg-gray-100 hover:bg-gray-200 rounded-full text-gray-500 flex items-center justify-center text-sm transition">✕</button>
+
+    <div class="text-center mb-6">
+      <div class="w-14 h-14 gradient-bg rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
+        <svg viewBox="0 0 24 24" fill="none" width="26" height="26"><path d="M12 2L2 7l10 5 10-5-10-5z" stroke="white" stroke-width="1.8" stroke-linejoin="round"/><path d="M2 17l10 5 10-5M2 12l10 5 10-5" stroke="white" stroke-width="1.8" stroke-linejoin="round"/></svg>
+      </div>
+      <h3 class="text-gray-900 text-xl font-black">Passez au niveau supérieur</h3>
+      <p id="upgradeSubtitle" class="text-gray-400 text-sm mt-1">Votre quota mensuel est atteint</p>
+    </div>
+
+    <!-- Plan actuel -->
+    <div id="upgradeCurrentPlan" class="bg-gray-50 rounded-xl p-4 mb-4 text-sm text-center text-gray-500"></div>
+
+    <!-- Flèche -->
+    <div class="text-center text-2xl mb-4 text-purple-400">↓</div>
+
+    <!-- Prochain plan -->
+    <div id="upgradeNextPlan" class="border-2 border-purple-500 rounded-2xl p-5 mb-6" style="background:linear-gradient(135deg,#faf5ff,#f5f3ff)">
+      <div class="flex items-center justify-between mb-3">
+        <h4 id="upgradeNextName" class="font-black text-2xl text-gray-900"></h4>
+        <span id="upgradeSkusBadge" class="text-xs bg-purple-100 text-purple-700 px-3 py-1 rounded-full font-semibold"></span>
+      </div>
+      <div class="flex items-end gap-2 mb-1">
+        <p id="upgradeMonthly" class="text-3xl font-black text-gray-900"></p>
+        <span class="text-gray-400 text-sm mb-1">/mois</span>
+      </div>
+      <p id="upgradeSetup" class="text-sm text-gray-500 mb-4"></p>
+      <a id="upgradeBtn" href="#" target="_blank"
+         class="block w-full text-center gradient-bg text-white rounded-xl py-3 font-bold text-sm shadow-md hover:opacity-90 transition">
+        Passer à ce forfait →
+      </a>
+    </div>
+
+    <p class="text-xs text-gray-400 text-center">Votre compte sera mis à jour après paiement. Contactez-nous si besoin : <a href="https://calendly.com/fl-synqio/30min" target="_blank" class="text-purple-500 hover:underline">prendre un RDV</a></p>
+  </div>
+</div>
+
 </body>
 </html>
