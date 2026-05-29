@@ -231,29 +231,44 @@ Format JSON attendu (prompts en anglais, 120-200 mots chacun) :
 
 
 async def _download_reference_image(url: str) -> Optional[bytes]:
-    """Télécharge la photo produit de référence en gérant les URLs Google Drive."""
+    """Télécharge la photo produit de référence en gérant les URLs Google Drive.
+
+    Google Drive retourne une page HTML de confirmation antivirus pour les fichiers
+    > 100 KB via uc?export=download. On utilise l'URL thumbnail en priorité car elle
+    retourne l'image directement (content-type: image/jpeg) sans page intermédiaire.
+    """
     if not url:
         return None
-    # Convertir les liens de partage Google Drive en URL de téléchargement direct
+
+    urls_to_try = [url]
+
+    # Extraire le file_id Google Drive
+    file_id = None
     m = re.search(r'drive\.google\.com/file/d/([^/?]+)', url)
     if m:
-        url = f"https://drive.google.com/uc?export=download&id={m.group(1)}"
-    else:
-        parsed = urlparse(url)
-        if 'drive.google.com' in parsed.netloc:
-            params = parse_qs(parsed.query)
-            file_id = params.get('id', [None])[0]
-            if file_id:
-                url = f"https://drive.google.com/uc?export=download&id={file_id}"
-    try:
-        async with httpx.AsyncClient(timeout=30, follow_redirects=True) as client:
-            resp = await client.get(url, headers={"User-Agent": "Mozilla/5.0"})
-            if resp.is_success and len(resp.content) > 2000:
-                ct = resp.headers.get("content-type", "")
-                if "image" in ct or "octet-stream" in ct:
-                    return resp.content
-    except Exception:
-        pass
+        file_id = m.group(1)
+    elif 'drive.google.com' in url:
+        params = parse_qs(urlparse(url).query)
+        file_id = params.get('id', [None])[0]
+
+    if file_id:
+        urls_to_try = [
+            # thumbnail: retourne l'image directement, pas de page de confirmation
+            f"https://drive.google.com/thumbnail?id={file_id}&sz=w1600",
+            # fallback: téléchargement direct (peut marcher pour petits fichiers)
+            f"https://drive.google.com/uc?export=download&id={file_id}",
+        ]
+
+    for download_url in urls_to_try:
+        try:
+            async with httpx.AsyncClient(timeout=30, follow_redirects=True) as client:
+                resp = await client.get(download_url, headers={"User-Agent": "Mozilla/5.0"})
+                if resp.is_success and len(resp.content) > 2000:
+                    ct = resp.headers.get("content-type", "")
+                    if "image" in ct or "octet-stream" in ct:
+                        return resp.content
+        except Exception:
+            continue
     return None
 
 
