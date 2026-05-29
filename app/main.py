@@ -82,8 +82,27 @@ app.include_router(amazon_router)
 
 @app.on_event("startup")
 async def startup():
+    _check_secrets()
     init_db()
     _bootstrap_admin()
+
+
+def _check_secrets():
+    import secrets as _secrets
+    jwt = os.getenv("JWT_SECRET", "")
+    insecure_default = "change-me-use-a-long-random-string-in-production"
+    if not jwt or jwt == insecure_default or len(jwt) < 32:
+        # Generate a suggestion and log a loud warning — don't crash so Railway
+        # cold-starts still work, but the problem is unmissable in logs.
+        suggestion = _secrets.token_hex(32)
+        print(
+            f"\n{'='*60}\n"
+            f"⚠️  SECURITY WARNING: JWT_SECRET is weak or missing.\n"
+            f"   Set this env var in Railway:\n"
+            f"   JWT_SECRET={suggestion}\n"
+            f"{'='*60}\n",
+            flush=True,
+        )
 
 
 def _bootstrap_admin():
@@ -121,10 +140,8 @@ async def health():
     return {
         "status": "ok",
         "ai_ready": bool(os.getenv("ANTHROPIC_API_KEY")),
-        "amazon_mode": os.getenv("AMAZON_SP_MODE", "demo"),
         "version": "1.0.0",
-        "db_path": os.path.abspath(DB_PATH),
-        "db_exists": os.path.isfile(os.path.abspath(DB_PATH)),
+        "db_ok": os.path.isfile(os.path.abspath(DB_PATH)),
     }
 
 
@@ -265,6 +282,11 @@ _IMAGE_CONTENT_TYPES = {
 }
 
 
+_ZIP_MAX_COMPRESSED   = 100 * 1024 * 1024   # 100 MB compressed
+_ZIP_MAX_UNCOMPRESSED = 500 * 1024 * 1024   # 500 MB total decompressed
+_ZIP_MAX_SINGLE_FILE  =  50 * 1024 * 1024   # 50 MB per image
+
+
 @app.post("/api/upload-photos-zip")
 async def upload_photos_zip(file: UploadFile = File(...)):
     import zipfile
@@ -272,13 +294,18 @@ async def upload_photos_zip(file: UploadFile = File(...)):
     content = await file.read()
     if not content:
         raise HTTPException(400, "Fichier vide")
-    if len(content) > 100 * 1024 * 1024:
+    if len(content) > _ZIP_MAX_COMPRESSED:
         raise HTTPException(413, "ZIP trop volumineux (max 100 Mo)")
 
     try:
         zf = zipfile.ZipFile(io.BytesIO(content))
     except Exception:
         raise HTTPException(400, "Fichier ZIP invalide")
+
+    # Zip-bomb guard: check total decompressed size before extracting anything
+    total_uncompressed = sum(i.file_size for i in zf.infolist())
+    if total_uncompressed > _ZIP_MAX_UNCOMPRESSED:
+        raise HTTPException(413, f"Contenu ZIP trop volumineux décompressé (max 500 Mo)")
 
     matched = []
     skipped = []
@@ -290,6 +317,10 @@ async def upload_photos_zip(file: UploadFile = File(...)):
         basename = entry.split("/")[-1]
         stem, ext = os.path.splitext(basename)
         if ext.lower() not in _IMAGE_EXTS:
+            continue
+        info = zf.getinfo(entry)
+        if info.file_size > _ZIP_MAX_SINGLE_FILE:
+            skipped.append(basename)
             continue
         sku = stem
         filename = f"{sku}{ext.lower()}"

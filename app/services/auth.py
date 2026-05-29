@@ -8,7 +8,15 @@ import datetime
 from collections import defaultdict
 from app.db import get_db
 
-SECRET_KEY = os.getenv("JWT_SECRET", "change-me-use-a-long-random-string-in-production")
+_JWT_SECRET_DEFAULT = "change-me-use-a-long-random-string-in-production"
+SECRET_KEY = os.getenv("JWT_SECRET", _JWT_SECRET_DEFAULT)
+if SECRET_KEY == _JWT_SECRET_DEFAULT:
+    import warnings
+    warnings.warn(
+        "JWT_SECRET is not set — using insecure default. "
+        "Set JWT_SECRET env var to a 32+ character random string.",
+        stacklevel=1,
+    )
 ALGORITHM = "HS256"
 TOKEN_EXPIRE_HOURS = int(os.getenv("TOKEN_EXPIRE_HOURS", "24"))
 
