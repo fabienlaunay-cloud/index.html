@@ -1501,7 +1501,7 @@ const fileInput = document.getElementById('fileInput');
 const zipInput  = document.getElementById('zipInput');
 dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
 dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
-dropZone.addEventListener('drop', e => { e.preventDefault(); dropZone.classList.remove('drag-over'); if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]); });
+dropZone.addEventListener('drop', e => { e.preventDefault(); dropZone.classList.remove('drag-over'); const f = e.dataTransfer.files[0]; if (!f) return; f.name.toLowerCase().endsWith('.zip') ? handleZip(f) : handleFile(f); });
 fileInput.addEventListener('change', e => { if (e.target.files[0]) handleFile(e.target.files[0]); });
 zipInput.addEventListener('change', e => { if (e.target.files[0]) handleZip(e.target.files[0]); });
 
