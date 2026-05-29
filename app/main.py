@@ -37,8 +37,8 @@ class AuthMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         path = request.url.path
 
-        # Laisser passer les routes publiques et les fichiers statiques
-        if path in PUBLIC_PATHS or not path.startswith("/api/"):
+        # Laisser passer les routes publiques, les fichiers statiques et les photos temporaires
+        if path in PUBLIC_PATHS or not path.startswith("/api/") or path.startswith("/api/photos/"):
             return await call_next(request)
 
         auth = request.headers.get("Authorization", "")
@@ -227,6 +227,60 @@ async def download_template():
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={"Content-Disposition": "attachment; filename=synqio_template.xlsx"},
     )
+
+
+# ── Temp photo store ──────────────────────────────────────────────────────────
+
+_temp_photos: dict = {}  # filename → bytes (session-scoped, ephemeral)
+
+_IMAGE_EXTS = {".jpg", ".jpeg", ".png", ".webp", ".gif"}
+_IMAGE_CONTENT_TYPES = {
+    "jpg": "image/jpeg", "jpeg": "image/jpeg", "png": "image/png",
+    "webp": "image/webp", "gif": "image/gif",
+}
+
+
+@app.post("/api/upload-photos-zip")
+async def upload_photos_zip(file: UploadFile = File(...)):
+    import zipfile
+
+    content = await file.read()
+    if not content:
+        raise HTTPException(400, "Fichier vide")
+    if len(content) > 100 * 1024 * 1024:
+        raise HTTPException(413, "ZIP trop volumineux (max 100 Mo)")
+
+    try:
+        zf = zipfile.ZipFile(io.BytesIO(content))
+    except Exception:
+        raise HTTPException(400, "Fichier ZIP invalide")
+
+    matched = []
+    skipped = []
+
+    for entry in zf.namelist():
+        # Ignorer dossiers et métadonnées macOS
+        if entry.endswith("/") or "__MACOSX" in entry or "/." in entry or entry.startswith("."):
+            continue
+        basename = entry.split("/")[-1]
+        stem, ext = os.path.splitext(basename)
+        if ext.lower() not in _IMAGE_EXTS:
+            continue
+        sku = stem
+        filename = f"{sku}{ext.lower()}"
+        _temp_photos[filename] = zf.read(entry)
+        matched.append({"sku": sku, "url": f"/api/photos/{filename}", "filename": filename})
+
+    return {"matched": matched, "count": len(matched)}
+
+
+@app.get("/api/photos/{filename}")
+async def serve_photo(filename: str):
+    photo = _temp_photos.get(filename)
+    if not photo:
+        raise HTTPException(404, "Photo non trouvée ou session expirée")
+    ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else "jpg"
+    return Response(content=photo, media_type=_IMAGE_CONTENT_TYPES.get(ext, "image/jpeg"))
 
 
 # ── Ingestion ─────────────────────────────────────────────────────────────────

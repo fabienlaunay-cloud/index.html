@@ -554,10 +554,19 @@
           <p class="text-purple-500 text-sm mt-3 font-medium">ou cliquez pour parcourir</p>
         </div>
         <input type="file" id="fileInput" accept=".csv,.xlsx,.xls,.json" class="hidden">
-        <a href="/api/template" download="synqio_template.xlsx" class="flex items-center justify-center gap-2 w-full text-xs text-purple-600 hover:text-purple-800 hover:bg-purple-50 border border-purple-200 rounded-lg py-2 transition mb-4">
+        <a href="/api/template" download="synqio_template.xlsx" class="flex items-center justify-center gap-2 w-full text-xs text-purple-600 hover:text-purple-800 hover:bg-purple-50 border border-purple-200 rounded-lg py-2 transition mb-2">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
           Télécharger le template Excel
         </a>
+        <button onclick="document.getElementById('zipInput').click()" class="flex items-center justify-center gap-2 w-full text-xs text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 border border-indigo-200 rounded-lg py-2 transition mb-4">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18M15 3v18M3 9h6M3 15h6M15 9h6M15 15h6"/></svg>
+          Uploader photos produits (.zip)
+        </button>
+        <input type="file" id="zipInput" accept=".zip" class="hidden">
+        <div id="photosBadge" class="hidden mb-4 bg-indigo-50 border border-indigo-200 rounded-lg px-3 py-2 text-xs text-indigo-700 flex items-center justify-between">
+          <span id="photosText">0 photo(s) associée(s)</span>
+          <button onclick="clearPhotos()" class="text-indigo-400 hover:text-red-500 ml-2">✕</button>
+        </div>
         <div id="fileInfo" class="hidden bg-purple-50 rounded-lg p-3 mb-4 flex items-center gap-3">
           <span class="text-2xl" id="fileIcon">📄</span>
           <div><p id="fileName" class="font-medium text-gray-800 text-sm"></p><p id="fileSize" class="text-gray-400 text-xs"></p></div>
@@ -790,6 +799,7 @@ let token = localStorage.getItem('synqio_token') || '';
 let currentUser = null;
 let parsedProducts = [];
 let generatedListings = [];
+let photoMap = {};  // sku → "/api/photos/{filename}"
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
 async function initApp() {
@@ -1127,10 +1137,12 @@ function generatePassword() {
 // ── File handling ─────────────────────────────────────────────────────────────
 const dropZone = document.getElementById('dropZone');
 const fileInput = document.getElementById('fileInput');
+const zipInput  = document.getElementById('zipInput');
 dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
 dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
 dropZone.addEventListener('drop', e => { e.preventDefault(); dropZone.classList.remove('drag-over'); if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]); });
 fileInput.addEventListener('change', e => { if (e.target.files[0]) handleFile(e.target.files[0]); });
+zipInput.addEventListener('change', e => { if (e.target.files[0]) handleZip(e.target.files[0]); });
 
 async function handleFile(file) {
   const icons = { csv: '📊', xlsx: '📗', xls: '📗', json: '📋' };
@@ -1170,6 +1182,7 @@ function showProductsList(products) {
     <div class="flex items-center gap-3 p-2.5 bg-gray-50 rounded-lg text-sm">
       <span class="font-mono text-xs bg-purple-50 text-purple-700 px-2 py-0.5 rounded">${p.sku}</span>
       <span class="text-gray-700 truncate">${p.name}</span>
+      ${photoMap[p.sku] ? `<span class="text-indigo-500 text-xs" title="Photo associée">📸</span>` : ''}
       ${p.brand ? `<span class="ml-auto text-gray-400 text-xs">${p.brand}</span>` : ''}
     </div>`).join('');
   document.getElementById('productsList').classList.remove('hidden');
@@ -1188,6 +1201,42 @@ function loadDemoData() {
   showToast('✅', '3 produits de démo chargés');
 }
 
+// ── ZIP photo upload ──────────────────────────────────────────────────────────
+async function handleZip(file) {
+  if (!file.name.toLowerCase().endsWith('.zip')) {
+    showToast('❌', 'Seuls les fichiers .zip sont acceptés', true);
+    return;
+  }
+  showToast('⏳', 'Analyse du ZIP...');
+  const formData = new FormData();
+  formData.append('file', file);
+  try {
+    const r = await authFetch('/api/upload-photos-zip', { method: 'POST', body: formData });
+    if (!r.ok) { const e = await r.json(); throw new Error(e.detail || 'Erreur'); }
+    const data = await r.json();
+    photoMap = {};
+    for (const item of data.matched) photoMap[item.sku] = item.url;
+    const count = data.count;
+    if (count === 0) {
+      showToast('⚠️', 'Aucune photo trouvée — vérifiez que les noms de fichiers correspondent aux SKU', true);
+      return;
+    }
+    document.getElementById('photosText').textContent = `${count} photo(s) associée(s) par SKU`;
+    document.getElementById('photosBadge').classList.remove('hidden');
+    // Mettre à jour les miniatures dans la liste produits si déjà chargée
+    if (parsedProducts.length) showProductsList(parsedProducts);
+    showToast('📸', `${count} photo(s) appairée(s) avec succès`);
+    zipInput.value = '';
+  } catch (e) { showToast('❌', e.message, true); }
+}
+
+function clearPhotos() {
+  photoMap = {};
+  document.getElementById('photosBadge').classList.add('hidden');
+  if (parsedProducts.length) showProductsList(parsedProducts);
+  showToast('🗑️', 'Photos supprimées');
+}
+
 // ── Generation ────────────────────────────────────────────────────────────────
 async function generateListings() {
   if (!parsedProducts.length) return;
@@ -1198,11 +1247,19 @@ async function generateListings() {
   document.getElementById('progressBar').style.width = '0%';
   setStep(2);
   try {
+    // ── Injecter les photos ZIP dans les produits ──
+    const productsToSend = parsedProducts.map(p => {
+      if (!photoMap[p.sku]) return p;
+      const existing = Array.isArray(p.images) ? p.images : [];
+      const alreadyHas = existing.includes(photoMap[p.sku]);
+      return { ...p, images: alreadyHas ? existing : [photoMap[p.sku], ...existing] };
+    });
+
     // ── Étape 1 : soumettre le job (retour instantané) ──
     const r = await authFetch('/api/generate', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        products: parsedProducts,
+        products: productsToSend,
         marketplace: document.getElementById('marketplaceSelector').value,
         language: 'fr',
         style_tone: document.getElementById('styleTone').value,
