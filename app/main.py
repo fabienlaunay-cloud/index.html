@@ -1,4 +1,5 @@
 import os
+import io
 import json
 import time
 import asyncio
@@ -100,6 +101,132 @@ async def health():
         "amazon_mode": os.getenv("AMAZON_SP_MODE", "demo"),
         "version": "1.0.0",
     }
+
+
+# ── Template ─────────────────────────────────────────────────────────────────
+
+@app.get("/api/template")
+async def download_template():
+    import openpyxl
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+
+    wb = openpyxl.Workbook()
+
+    # ── Onglet 1 : Produits ──────────────────────────────────────────────────
+    ws = wb.active
+    ws.title = "Produits"
+
+    headers = [
+        "SKU", "Nom", "Marque", "Segment", "EAN", "Prix",
+        "Poids_kg", "Dimensions_cm", "Couleur", "Matière",
+        "Description", "Caractéristiques", "Image_URL", "Mots_cles",
+    ]
+    mandatory = {"SKU", "Nom", "Marque", "Segment"}
+
+    # Style en-tête
+    fill_mandatory = PatternFill("solid", fgColor="764BA2")
+    fill_optional  = PatternFill("solid", fgColor="B39DDB")
+    font_header    = Font(color="FFFFFF", bold=True, size=11)
+    font_example   = Font(color="555555", italic=True, size=10)
+    center         = Alignment(horizontal="center", vertical="center", wrap_text=True)
+
+    for col, h in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=col, value=h + (" *" if h in mandatory else ""))
+        cell.fill   = fill_mandatory if h in mandatory else fill_optional
+        cell.font   = font_header
+        cell.alignment = center
+
+    # Exemple 1 — collier
+    ex1 = [
+        "BC-COL-001", "Collier Étoile Dorée Chien M", "Bande de Canailles",
+        "collier chien", "3760123456789", "24.90",
+        "0.085", "35x2 cm", "Rose/Doré", "Nylon recyclé | Métal doré",
+        "Collier tendance pour chien avec pendentif étoile dorée, boucle de sécurité et réglage 5 positions",
+        "Pendentif étoile doré|Boucle sécurité|Réglage 5 positions|Nylon recyclé certifié",
+        "https://monsite.com/photos/BC-COL-001.jpg",
+        "collier chien tendance, collier chien pendentif, collier chien fantaisie",
+    ]
+    # Exemple 2 — laisse
+    ex2 = [
+        "BC-LAI-012", "Laisse Fleurie Chien 1.2m", "Bande de Canailles",
+        "laisse chien", "3760123456790", "19.90",
+        "0.120", "120x2 cm", "Multicolore", "Nylon",
+        "Laisse chien 1.2m motif fleuri, mousqueton inox, poignée rembourrée",
+        "Mousqueton inox|Poignée rembourrée|Motif fleuri|Longueur 1.2m",
+        "https://monsite.com/photos/BC-LAI-012.jpg",
+        "laisse chien design, laisse chien fantaisie, laisse chien colorée",
+    ]
+
+    for col, v in enumerate(ex1, 1):
+        cell = ws.cell(row=2, column=col, value=v)
+        cell.font = font_example
+    for col, v in enumerate(ex2, 1):
+        cell = ws.cell(row=3, column=col, value=v)
+        cell.font = font_example
+
+    # Largeurs de colonnes
+    widths = [14, 34, 20, 18, 16, 8, 10, 14, 14, 22, 48, 44, 40, 48]
+    for col, w in enumerate(widths, 1):
+        ws.column_dimensions[openpyxl.utils.get_column_letter(col)].width = w
+
+    ws.row_dimensions[1].height = 30
+    ws.freeze_panes = "A2"
+
+    # ── Onglet 2 : Guide ─────────────────────────────────────────────────────
+    guide = wb.create_sheet("Guide")
+    guide.column_dimensions["A"].width = 20
+    guide.column_dimensions["B"].width = 14
+    guide.column_dimensions["C"].width = 60
+    guide.column_dimensions["D"].width = 40
+
+    guide_headers = ["Colonne", "Obligatoire ?", "Description", "Exemple"]
+    for col, h in enumerate(guide_headers, 1):
+        cell = guide.cell(row=1, column=col, value=h)
+        cell.fill = PatternFill("solid", fgColor="1F2937")
+        cell.font = Font(color="FFFFFF", bold=True)
+
+    guide_rows = [
+        ("SKU",            "✅ Oui", "Référence unique du produit. Doit être stable — c'est la clé de matching.", "BC-COL-001"),
+        ("Nom",            "✅ Oui", "Nom brut du produit, sans optimisation SEO — l'IA s'en charge.", "Collier Étoile Dorée M"),
+        ("Marque",         "✅ Oui", "Nom exact de la marque, tel qu'il apparaît sur Amazon.", "Bande de Canailles"),
+        ("Segment",        "✅ Oui", "Famille produit. Tous les produits du même segment partagent les mêmes mots-clés si la colonne Mots_cles est vide.", "collier chien"),
+        ("EAN",            "Recommandé", "Code-barres GTIN-13. Obligatoire pour créer une fiche Amazon.", "3760123456789"),
+        ("Prix",           "Recommandé", "Prix de vente TTC en euros. Décimales avec point ou virgule.", "24.90"),
+        ("Poids_kg",       "Optionnel", "Poids en kg. Aide l'IA à rédiger les bullet points techniques.", "0.085"),
+        ("Dimensions_cm",  "Optionnel", "Format L×l×h ou L×l en cm.", "35x2 cm"),
+        ("Couleur",        "Optionnel", "Couleur principale du produit.", "Rose/Doré"),
+        ("Matière",        "Optionnel", "Matière(s) principale(s). Séparées par | si plusieurs.", "Nylon recyclé | Métal doré"),
+        ("Description",    "Recommandé", "Description brute du produit. Plus elle est riche, meilleure est la fiche générée.", "Collier tendance avec pendentif étoile…"),
+        ("Caractéristiques","Recommandé","Points clés du produit, séparés par |. Alimentent les bullet points.", "Pendentif étoile|Boucle sécurité|5 positions"),
+        ("Image_URL",      "Optionnel", "URL publique d'une photo du produit (Dropbox, Google Drive, CDN…). Sert de référence visuelle pour la génération d'images.", "https://monsite.com/photo.jpg"),
+        ("Mots_cles",      "Optionnel", "Mots-clés Search Query Performance spécifiques à CE produit, séparés par virgule. Écrasent le champ global de l'interface pour ce produit.", "collier chien tendance, collier pendentif"),
+    ]
+
+    for r, row_data in enumerate(guide_rows, 2):
+        for col, val in enumerate(row_data, 1):
+            cell = guide.cell(row=r, column=col, value=val)
+            cell.alignment = Alignment(wrap_text=True, vertical="top")
+            if r % 2 == 0:
+                cell.fill = PatternFill("solid", fgColor="F9FAFB")
+        guide.row_dimensions[r].height = 36
+
+    guide.row_dimensions[1].height = 24
+
+    # ── Légende ──────────────────────────────────────────────────────────────
+    legend_row = len(guide_rows) + 3
+    guide.cell(row=legend_row, column=1, value="* Colonnes violettes foncées = obligatoires").font = Font(bold=True, color="764BA2")
+    guide.cell(row=legend_row+1, column=1, value="* Colonnes violettes claires = recommandées ou optionnelles").font = Font(italic=True, color="9333EA")
+    guide.cell(row=legend_row+3, column=1, value="Conseil : travaillez par segment (un upload = un type de produit) pour des mots-clés plus précis.").font = Font(italic=True, color="6B7280")
+
+    # ── Export ────────────────────────────────────────────────────────────────
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    return Response(
+        content=buf.getvalue(),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": "attachment; filename=synqio_template.xlsx"},
+    )
 
 
 # ── Ingestion ─────────────────────────────────────────────────────────────────

@@ -29,8 +29,16 @@ COLUMN_MAP = {
     "matière": "material", "material": "material", "matériau": "material",
     # Images
     "images": "images", "image": "images", "photo": "images", "photos": "images",
+    "image url": "images", "image_url": "images", "photo url": "images", "photo_url": "images",
+    "url image": "images", "url photo": "images",
     # Caractéristiques
     "caractéristiques": "features", "features": "features", "points clés": "features",
+    # Mots-clés produit
+    "mots clés": "focus_keywords", "mots_clés": "focus_keywords", "mots-clés": "focus_keywords",
+    "mots cles": "focus_keywords", "mots_cles": "focus_keywords",
+    "keywords": "focus_keywords", "search terms": "focus_keywords",
+    # Segment (alias catégorie)
+    "segment": "category",
 }
 
 
@@ -70,6 +78,11 @@ def _coerce(mapped: dict) -> RawProduct:
             mapped[list_field] = [
                 v.strip() for v in mapped[list_field].split("|") if v.strip()
             ]
+
+    if "focus_keywords" in mapped and isinstance(mapped["focus_keywords"], str):
+        mapped["focus_keywords"] = [
+            k.strip() for k in mapped["focus_keywords"].replace(";", ",").split(",") if k.strip()
+        ]
 
     if not mapped.get("sku"):
         mapped["sku"] = mapped.get("name", "UNKNOWN")[:20]

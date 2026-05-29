@@ -28,6 +28,7 @@ class RawProduct(BaseModel):
     material: Optional[str] = None
     features: Optional[List[str]] = []
     images: Optional[List[str]] = []
+    focus_keywords: Optional[List[str]] = []   # mots-clés spécifiques à ce produit
     extra: Optional[dict] = {}
 
 

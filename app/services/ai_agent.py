@@ -184,12 +184,16 @@ Règle absolue : utilise EXCLUSIVEMENT ces mots-clés. Ne pas en inventer d'autr
     else:
         kw_instruction = ""
 
+    image_note = ""
+    if product.images:
+        image_note = f"\nImage de référence (style/esthétique) : {product.images[0]}"
+
     return f"""CONTEXTE PRODUIT :
 {json.dumps(product_data, ensure_ascii=False, indent=2)}
 
 Ton de rédaction : {style_tone}
 Plateforme cible : {constraints['platform']}
-{kw_instruction}
+{image_note}{kw_instruction}
 
 CHECKLIST AVANT DE GÉNÉRER :
 — Amazon —
@@ -323,8 +327,11 @@ async def generate_listing(
     retries: int = 2,
 ) -> AmazonListing:
     constraints = MARKETPLACE_CONSTRAINTS.get(marketplace, MARKETPLACE_CONSTRAINTS[Marketplace.AMAZON_FR])
+    # Per-product keywords take priority; global keywords fill in after (deduped)
+    product_kw = list(product.focus_keywords or [])
+    merged_kw = product_kw + [k for k in (focus_keywords or []) if k not in product_kw]
     system = _build_system_prompt(constraints)
-    user = _build_user_prompt(product, constraints, focus_keywords, style_tone)
+    user = _build_user_prompt(product, constraints, merged_kw, style_tone)
 
     for attempt in range(retries + 1):
         try:
