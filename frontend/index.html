@@ -795,6 +795,7 @@
             <div class="bg-red-50 rounded-xl p-3 text-center"><p id="statFailed" class="text-2xl font-bold text-red-500">0</p><p class="text-xs text-gray-500 mt-0.5">Échecs</p></div>
           </div>
         </div>
+        <div id="resultsChipsContainer" class="hidden"></div>
         <div id="listingsContainer" class="space-y-4"></div>
       </div>
     </div>
@@ -975,7 +976,8 @@ const API = '';
 let token = localStorage.getItem('synqio_token') || '';
 let currentUser = null;
 let parsedProducts = [];
-let activeSegmentFilter = null; // null = Tous
+let activeSegmentFilter = null;   // null = Tous (pré-génération)
+let activeResultsFilter = null;   // null = Tous (résultats post-génération)
 let generatedListings = [];
 let photoMap = {};  // sku → "/api/photos/{filename}"
 let segmentPresets = JSON.parse(localStorage.getItem('synqio_segment_presets') || '{}');
@@ -1577,6 +1579,56 @@ function filterBySegment(seg) {
   showProductsList(parsedProducts);
 }
 
+function _getListingSegment(listing) {
+  return _findMatchingSegment(listing.title || '', listing.category || '');
+}
+
+function filterResults(seg) {
+  activeResultsFilter = seg;
+  generatedListings.forEach((listing, idx) => {
+    const card = document.getElementById(`card-${idx}`);
+    if (!card) return;
+    if (!seg) { card.style.display = ''; return; }
+    const s = _getListingSegment(listing);
+    card.style.display = (seg === '__none' ? !s : s === seg) ? '' : 'none';
+  });
+  _renderResultsChips();
+}
+
+function _renderResultsChips() {
+  const container = document.getElementById('resultsChipsContainer');
+  if (!container) return;
+  const segMap = {};
+  let unmatched = 0;
+  generatedListings.forEach(l => {
+    const s = _getListingSegment(l);
+    if (s) segMap[s] = (segMap[s] || 0) + 1;
+    else unmatched++;
+  });
+  if (!Object.keys(segMap).length) { container.classList.add('hidden'); return; }
+  container.classList.remove('hidden');
+  container.innerHTML = `<div class="bg-white rounded-2xl shadow-sm border border-gray-100 px-5 py-3 flex flex-wrap gap-1.5 items-center">
+    <span class="text-xs text-gray-400 font-medium mr-1">Filtrer :</span>
+    <button onclick="filterResults(null)" data-seg="__all"
+      class="segment-chip text-xs px-2.5 py-1 rounded-full border font-medium transition
+             ${!activeResultsFilter ? 'bg-purple-600 text-white border-purple-600' : 'bg-white text-gray-500 border-gray-200 hover:border-purple-300'}">
+      Tous (${generatedListings.length})
+    </button>
+    ${Object.entries(segMap).map(([s, n]) => `
+      <button onclick="filterResults(${JSON.stringify(s)})" data-seg="${s}"
+        class="segment-chip text-xs px-2.5 py-1 rounded-full border font-medium transition
+               ${activeResultsFilter === s ? 'bg-purple-600 text-white border-purple-600' : 'bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100'}">
+        ${s} (${n})
+      </button>`).join('')}
+    ${unmatched > 0 ? `
+      <button onclick="filterResults('__none')" data-seg="__none"
+        class="segment-chip text-xs px-2.5 py-1 rounded-full border font-medium transition
+               ${activeResultsFilter === '__none' ? 'bg-gray-600 text-white border-gray-600' : 'bg-white text-gray-400 border-gray-200 hover:border-gray-400'}">
+        Sans segment (${unmatched})
+      </button>` : ''}
+  </div>`;
+}
+
 function showProductsList(products) {
   // Build segment map: seg → count
   const segMap = {};
@@ -1736,7 +1788,7 @@ function applySegmentsToListings() {
     const merged = (existing + ' ' + toAdd.join(' ')).trim().slice(0, 249);
     listing.backend_keywords = merged;
     const card = document.getElementById(`card-${idx}`);
-    if (card) card.innerHTML = buildCardHTML(listing, idx, false);
+    if (card) { card.innerHTML = buildCardHTML(listing, idx, false); _restoreImagesInCard(idx); }
     updated++;
   });
   showToast(updated ? '' : '⚠️', updated ? `${updated} fiche(s) mise(s) à jour avec les mots-clés segments` : 'Aucune correspondance trouvée — vérifiez que les noms de segments correspondent aux produits');
@@ -1874,6 +1926,8 @@ function showResults(result) {
   const c = document.getElementById('listingsContainer');
   c.innerHTML = '';
   result.listings.forEach((l,i) => c.appendChild(createListingCard(l,i)));
+  activeResultsFilter = null;
+  _renderResultsChips();
 }
 
 function createListingCard(listing, idx) {
