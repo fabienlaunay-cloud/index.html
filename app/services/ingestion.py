@@ -29,10 +29,14 @@ COLUMN_MAP = {
     # Couleur / Matière
     "couleur": "color", "color": "color", "colour": "color",
     "matière": "material", "material": "material", "matériau": "material",
-    # Images
+    # Images (URL externe)
     "images": "images", "image": "images", "photo": "images", "photos": "images",
     "image url": "images", "image_url": "images", "photo url": "images", "photo_url": "images",
     "url image": "images", "url photo": "images",
+    # Image_Fichier — nom de fichier uploadé via ZIP (converti en /api/photos/{nom})
+    "image fichier": "image_file", "image_fichier": "image_file",
+    "fichier image": "image_file", "photo fichier": "image_file",
+    "fichier photo": "image_file", "nom fichier": "image_file",
     # Caractéristiques
     "caractéristiques": "features", "features": "features", "points clés": "features",
     # Mots-clés produit
@@ -98,6 +102,14 @@ def _coerce(mapped: dict) -> RawProduct:
         mapped["focus_keywords"] = [
             k.strip() for k in mapped["focus_keywords"].replace(";", ",").split(",") if k.strip()
         ]
+
+    # Image_Fichier → convertir en URL interne /api/photos/{nom} si pas d'Image_URL
+    if mapped.get("image_file"):
+        fname = str(mapped.pop("image_file")).strip()
+        if fname and not mapped.get("images"):
+            mapped["images"] = [f"/api/photos/{fname}"]
+    else:
+        mapped.pop("image_file", None)
 
     if not mapped.get("sku"):
         mapped["sku"] = mapped.get("name", "UNKNOWN")[:20]

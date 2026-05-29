@@ -336,11 +336,13 @@ async def generate_product_images(
     material: str = None,
     selected_types: list = None,
     reference_image_url: str = None,
+    reference_image_bytes: bytes = None,
 ) -> list[dict]:
     """
     Pipeline complet : Claude → prompts → gpt-image-1 → images.
-    Si reference_image_url fourni, télécharge la photo produit et utilise
-    /images/edits pour que les visuels correspondent au vrai produit.
+    Si reference_image_bytes fourni (photo déjà en mémoire via ZIP upload) ou
+    reference_image_url (URL externe publique), utilise /images/edits pour que
+    les visuels correspondent au vrai produit.
     """
     product_info = {
         "sku": sku,
@@ -355,8 +357,10 @@ async def generate_product_images(
     # 1. Génération des prompts via Claude
     prompts, tok_in, tok_out = await _generate_prompts_with_claude(product_info)
 
-    # 2. Téléchargement de l'image de référence (si disponible)
-    reference_image = await _download_reference_image(reference_image_url) if reference_image_url else None
+    # 2. Image de référence : bytes déjà dispo (ZIP) ou à télécharger (URL externe)
+    reference_image = reference_image_bytes
+    if not reference_image and reference_image_url:
+        reference_image = await _download_reference_image(reference_image_url)
 
     # 3. Types sélectionnés (par défaut : tous)
     types_to_generate = selected_types or [t["id"] for t in AMAZON_IMAGE_TYPES]

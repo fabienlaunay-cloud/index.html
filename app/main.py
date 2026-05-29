@@ -162,7 +162,7 @@ async def download_template():
     headers = [
         "SKU", "Nom", "Marque", "Segment", "EAN", "Prix",
         "Poids_kg", "Dimensions_cm", "Couleur", "Matière",
-        "Description", "Caractéristiques", "Image_URL", "Mots_cles",
+        "Description", "Caractéristiques", "Image_URL", "Image_Fichier", "Mots_cles",
     ]
     mandatory = {"SKU", "Nom", "Marque", "Segment"}
 
@@ -186,7 +186,7 @@ async def download_template():
         "0.085", "35x2 cm", "Rose/Doré", "Nylon recyclé | Métal doré",
         "Collier tendance pour chien avec pendentif étoile dorée, boucle de sécurité et réglage 5 positions",
         "Pendentif étoile doré|Boucle sécurité|Réglage 5 positions|Nylon recyclé certifié",
-        "https://monsite.com/photos/BC-COL-001.jpg",
+        "", "collier-etoile-doree.jpg",
         "collier chien tendance, collier chien pendentif, collier chien fantaisie",
     ]
     # Exemple 2 — laisse
@@ -196,7 +196,7 @@ async def download_template():
         "0.120", "120x2 cm", "Multicolore", "Nylon",
         "Laisse chien 1.2m motif fleuri, mousqueton inox, poignée rembourrée",
         "Mousqueton inox|Poignée rembourrée|Motif fleuri|Longueur 1.2m",
-        "https://monsite.com/photos/BC-LAI-012.jpg",
+        "", "laisse-fleurie-chien.jpg",
         "laisse chien design, laisse chien fantaisie, laisse chien colorée",
     ]
 
@@ -208,7 +208,7 @@ async def download_template():
         cell.font = font_example
 
     # Largeurs de colonnes
-    widths = [14, 34, 20, 18, 16, 8, 10, 14, 14, 22, 48, 44, 40, 48]
+    widths = [14, 34, 20, 18, 16, 8, 10, 14, 14, 22, 48, 44, 40, 30, 48]
     for col, w in enumerate(widths, 1):
         ws.column_dimensions[openpyxl.utils.get_column_letter(col)].width = w
 
@@ -241,7 +241,8 @@ async def download_template():
         ("Matière",        "Optionnel", "Matière(s) principale(s). Séparées par | si plusieurs.", "Nylon recyclé | Métal doré"),
         ("Description",    "Recommandé", "Description brute du produit. Plus elle est riche, meilleure est la fiche générée.", "Collier tendance avec pendentif étoile…"),
         ("Caractéristiques","Recommandé","Points clés du produit, séparés par |. Alimentent les bullet points.", "Pendentif étoile|Boucle sécurité|5 positions"),
-        ("Image_URL",      "Optionnel", "URL publique d'une photo du produit (Dropbox, Google Drive, CDN…). Sert de référence visuelle pour la génération d'images.", "https://monsite.com/photo.jpg"),
+        ("Image_URL",      "Optionnel", "URL publique directe d'une photo produit (CDN, Dropbox public…). Prioritaire sur Image_Fichier.", "https://monsite.com/photos/BC-COL-001.jpg"),
+        ("Image_Fichier",  "Optionnel", "Nom du fichier photo tel qu'il est dans votre ZIP (sans chemin). Le ZIP doit être uploadé via le bouton 'Uploader photos produits'. Les photos gardent leur nom d'origine — aucun renommage nécessaire.", "collier-etoile-doree.jpg"),
         ("Mots_cles",      "Optionnel", "Mots-clés Search Query Performance spécifiques à CE produit, séparés par virgule. Écrasent le champ global de l'interface pour ce produit.", "collier chien tendance, collier pendentif"),
     ]
 
@@ -529,6 +530,16 @@ class ImageRequest(BaseModel):
 async def _run_image_job(job_id: str, req: ImageRequest, email: str):
     _jobs[job_id]["status"] = "running"
     try:
+        # Résoudre la photo de référence :
+        # - /api/photos/{nom} → bytes depuis _temp_photos (ZIP uploadé, zéro HTTP)
+        # - URL externe → téléchargement dans image_gen
+        ref_url = req.reference_image_url or None
+        ref_bytes = None
+        if ref_url and ref_url.startswith("/api/photos/"):
+            fname = ref_url[len("/api/photos/"):]
+            ref_bytes = _temp_photos.get(fname)
+            ref_url = None  # on a les bytes, inutile de télécharger
+
         images, img_tokens = await generate_product_images(
             sku=req.sku,
             product_name=req.product_name,
@@ -538,7 +549,8 @@ async def _run_image_job(job_id: str, req: ImageRequest, email: str):
             color=req.color,
             material=req.material,
             selected_types=req.selected_types,
-            reference_image_url=req.reference_image_url or None,
+            reference_image_url=ref_url,
+            reference_image_bytes=ref_bytes,
         )
         generated = [i for i in images if i.get("has_image")]
         if generated and email:
