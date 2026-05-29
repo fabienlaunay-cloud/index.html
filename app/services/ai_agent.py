@@ -335,7 +335,7 @@ async def generate_listing(
         try:
             response = await get_client().messages.create(
                 model="claude-opus-4-7",
-                max_tokens=4096,
+                max_tokens=8192,
                 system=system,
                 messages=[{"role": "user", "content": user}],
             )
@@ -343,6 +343,9 @@ async def generate_listing(
             # Strip markdown code fences if present
             if raw.startswith("```"):
                 raw = raw.split("\n", 1)[1].rsplit("```", 1)[0]
+            # Detect truncated response (stop_reason != end_turn)
+            if response.stop_reason != "end_turn":
+                raise ValueError(f"Réponse tronquée (stop_reason={response.stop_reason}). Réessai en cours...")
             data = json.loads(raw)
 
             data["seo_score"] = _compute_seo_score(data, constraints)
