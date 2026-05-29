@@ -1571,7 +1571,7 @@ function clearFile() {
 }
 
 function _getProductSegment(p) {
-  return _findMatchingSegment(p.name || '', p.category || '');
+  return p.category || null;
 }
 
 function filterBySegment(seg) {
@@ -1580,7 +1580,7 @@ function filterBySegment(seg) {
 }
 
 function _getListingSegment(listing) {
-  return _findMatchingSegment(listing.title || '', listing.category || '');
+  return listing.category || null;
 }
 
 function filterResults(seg) {
