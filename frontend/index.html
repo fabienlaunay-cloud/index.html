@@ -1954,14 +1954,22 @@ function buildCardHTML(listing, idx, editMode) {
     </div>`;
 }
 
+function _restoreImagesInCard(idx) {
+  const sku = generatedListings[idx]?.sku;
+  if (sku && imagesCache[sku]) {
+    const container = document.getElementById(`images-container-${idx}`);
+    if (container) renderImages(container, imagesCache[sku]);
+  }
+}
+
 function enterEditMode(idx) {
   const card = document.getElementById(`card-${idx}`);
-  if (card) { card.innerHTML = buildCardHTML(generatedListings[idx], idx, true); }
+  if (card) { card.innerHTML = buildCardHTML(generatedListings[idx], idx, true); _restoreImagesInCard(idx); }
 }
 
 function cancelEdit(idx) {
   const card = document.getElementById(`card-${idx}`);
-  if (card) { card.innerHTML = buildCardHTML(generatedListings[idx], idx, false); }
+  if (card) { card.innerHTML = buildCardHTML(generatedListings[idx], idx, false); _restoreImagesInCard(idx); }
 }
 
 function addBullet(idx) {
@@ -2001,7 +2009,7 @@ function saveEdit(idx) {
       .map(t => t.value.trim()).filter(Boolean);
   }
   const card = document.getElementById(`card-${idx}`);
-  if (card) { card.innerHTML = buildCardHTML(listing, idx, false); }
+  if (card) { card.innerHTML = buildCardHTML(listing, idx, false); _restoreImagesInCard(idx); }
   showToast('✅', 'Fiche mise à jour');
 }
 
@@ -2058,25 +2066,52 @@ async function generateImages(idx) {
   } catch (e) { container.innerHTML = `<p class="text-red-500 text-sm text-center py-4">Erreur : ${e.message}</p>`; }
 }
 
+function _esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
 function renderImages(container, data) {
   const hasImages = data.openai_configured;
+  const sku = data.sku || '';
   const notice = hasImages ? '' : `<div class="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-4 text-sm text-blue-800"><p class="font-semibold mb-1">💡 Prompts générés — Images non générées</p><p>Ajoutez <code class="bg-blue-100 px-1 rounded">OPENAI_API_KEY</code> dans Railway pour générer les images. En attendant, copiez les prompts dans Midjourney ou Canva IA.</p></div>`;
-  const cards = data.images.map(img => `
-    <div class="border border-gray-100 rounded-xl overflow-hidden">
-      ${img.url ? `<div class="relative group"><img src="${img.url}" alt="${img.label}" class="w-full h-48 object-cover"><div class="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition flex items-center justify-center"><a href="${img.url}" target="_blank" class="hidden group-hover:flex bg-white rounded-lg px-3 py-1.5 text-xs font-medium gap-1 items-center">↗ Ouvrir</a></div></div>` : `<div class="h-36 bg-gradient-to-br from-gray-100 to-gray-50 flex items-center justify-center"><span class="text-4xl">${img.id === 'hero' ? '📸' : img.id.includes('lifestyle') ? '🌅' : img.id === 'infographic' ? '📊' : img.id === 'detail' ? '🔍' : img.id === 'dimensions' ? '📐' : img.id === 'packaging' ? '📦' : '🖼️'}</span></div>`}
+  const cards = data.images.map(img => {
+    const imgHtml = img.url
+      ? `<div class="relative group"><img src="${img.url}" alt="${_esc(img.label)}" class="w-full h-48 object-cover"><div class="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition flex items-center justify-center"><a href="${img.url}" target="_blank" class="hidden group-hover:flex bg-white rounded-lg px-3 py-1.5 text-xs font-medium gap-1 items-center">↗ Ouvrir</a></div></div>`
+      : `<div class="h-36 bg-gradient-to-br from-gray-100 to-gray-50 flex items-center justify-center"><span class="text-4xl">${img.id==='hero'?'📸':img.id.includes('lifestyle')?'🌅':img.id==='infographic'?'📊':img.id==='detail'?'🔍':img.id==='dimensions'?'📐':img.id==='packaging'?'📦':'🖼️'}</span></div>`;
+    return `
+    <div class="border border-gray-100 rounded-xl overflow-hidden" data-sku="${_esc(sku)}" data-imgid="${img.id}">
+      <div data-img-area>${imgHtml}</div>
       <div class="p-3">
         <div class="flex items-center justify-between mb-2">
-          <div><span class="font-medium text-gray-800 text-xs">${img.label}</span><span class="ml-2 text-xs bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded font-mono">${img.slot}</span></div>
-          <button onclick="copyPrompt('${img.id}', ${JSON.stringify(img.prompt).replace(/'/g, "\\'")})" class="text-xs text-purple-600 hover:text-purple-800 flex items-center gap-1">📋 Prompt</button>
+          <div><span class="font-medium text-gray-800 text-xs">${_esc(img.label)}</span><span class="ml-2 text-xs bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded font-mono">${img.slot}</span></div>
+          <div class="flex gap-2 items-center">
+            <button onclick="copyPrompt('${img.id}', this.closest('[data-imgid]').querySelector('textarea').value)" class="text-xs text-purple-600 hover:text-purple-800">📋 Prompt</button>
+            ${hasImages ? `<button onclick="regenerateSingleImage(this)" class="text-xs text-pink-600 hover:text-pink-800 font-medium">🔄 Régénérer</button>` : ''}
+          </div>
         </div>
-        <p class="text-xs text-gray-400 line-clamp-2 leading-relaxed">${img.prompt.substring(0, 120)}...</p>
-        ${img.error ? `<p class="text-xs text-red-500 mt-1">⚠ ${img.error}</p>` : ''}
+        <textarea class="w-full text-xs text-gray-400 bg-gray-50 border border-gray-100 rounded p-2 leading-relaxed resize-none focus:outline-none focus:border-purple-200 focus:bg-white transition" rows="3">${_esc(img.prompt)}</textarea>
+        ${img.error ? `<p class="text-xs text-red-500 mt-1">⚠ ${_esc(img.error)}</p>` : ''}
       </div>
-    </div>`).join('');
-  container.innerHTML = `${notice}<div class="grid grid-cols-2 gap-3 mb-3">${cards}</div><button onclick="downloadAllPrompts(${JSON.stringify(data.images).replace(/"/g, '&quot;')})" class="w-full bg-gray-50 hover:bg-gray-100 text-gray-700 rounded-lg py-2 text-xs font-medium transition">⬇ Télécharger tous les prompts (.txt)</button>`;
+    </div>`;
+  }).join('');
+  container.innerHTML = `${notice}<div class="grid grid-cols-2 gap-3 mb-3">${cards}</div><button data-dlsku="${_esc(sku)}" onclick="downloadAllPromptsFromSku(this)" class="w-full bg-gray-50 hover:bg-gray-100 text-gray-700 rounded-lg py-2 text-xs font-medium transition">⬇ Télécharger tous les prompts (.txt)</button>`;
 }
 
 function copyPrompt(id, prompt) { navigator.clipboard.writeText(prompt); showToast('📋', `Prompt ${id} copié`); }
+
+function downloadAllPromptsFromSku(btn) {
+  const sku = btn.dataset.dlsku;
+  const cached = imagesCache[sku];
+  if (!cached) return;
+  const images = cached.images.map(img => ({...img}));
+  // Read textarea values from DOM in case user edited any prompt
+  const container = btn.parentElement;
+  if (container) {
+    container.querySelectorAll('[data-imgid]').forEach(card => {
+      const ta = card.querySelector('textarea');
+      if (ta) { const entry = images.find(i => i.id === card.dataset.imgid); if (entry) entry.prompt = ta.value; }
+    });
+  }
+  downloadAllPrompts(images);
+}
 
 function downloadAllPrompts(images) {
   const lines = images.map(img => `=== ${img.label} (${img.slot}) ===\n${img.prompt}\n`).join('\n');
@@ -2084,6 +2119,60 @@ function downloadAllPrompts(images) {
   a.href = URL.createObjectURL(new Blob([lines], { type: 'text/plain' }));
   a.download = 'prompts_images_amazon.txt'; a.click();
   showToast('✅', 'Prompts téléchargés');
+}
+
+async function regenerateSingleImage(btn) {
+  const card = btn.closest('[data-imgid]');
+  const sku = card.dataset.sku;
+  const imageId = card.dataset.imgid;
+  const prompt = card.querySelector('textarea').value.trim();
+  if (!prompt) return;
+  const imgArea = card.querySelector('[data-img-area]');
+  if (imgArea) imgArea.innerHTML = '<div class="h-36 flex items-center justify-center"><div class="spinner"></div></div>';
+  btn.disabled = true;
+  const origText = btn.textContent;
+  btn.textContent = '⏳';
+  try {
+    const r = await authFetch('/api/generate-image-single', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({sku, image_id: imageId, prompt}),
+    });
+    if (!r.ok) {
+      let msg = 'Erreur serveur';
+      try { const b = await r.text(); msg = JSON.parse(b).detail || b || msg; } catch {}
+      throw new Error(msg);
+    }
+    const {job_id} = await r.json();
+    while (true) {
+      await new Promise(res => setTimeout(res, 2500));
+      const jr = await authFetch(`/api/jobs/${job_id}`);
+      if (!jr.ok) throw new Error('Job introuvable');
+      const job = await jr.json();
+      if (job.status === 'done') {
+        const res = job.result;
+        if (imagesCache[sku]) {
+          const entry = imagesCache[sku].images.find(i => i.id === imageId);
+          if (entry) { entry.url = res.url; entry.prompt = prompt; }
+        }
+        if (imgArea) {
+          if (res.url) {
+            imgArea.innerHTML = `<div class="relative group"><img src="${res.url}" alt="" class="w-full h-48 object-cover"><div class="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition flex items-center justify-center"><a href="${res.url}" target="_blank" class="hidden group-hover:flex bg-white rounded-lg px-3 py-1.5 text-xs font-medium gap-1 items-center">↗ Ouvrir</a></div></div>`;
+          } else {
+            imgArea.innerHTML = `<div class="h-36 bg-gray-50 flex items-center justify-center text-gray-400 text-xs p-3 text-center">Image non disponible (clé OpenAI manquante)</div>`;
+          }
+        }
+        showToast('✅', 'Image régénérée');
+        return;
+      }
+      if (job.status === 'failed') throw new Error(job.error || 'Erreur de génération');
+    }
+  } catch (e) {
+    if (imgArea) imgArea.innerHTML = `<div class="h-36 flex items-center justify-center"><p class="text-red-500 text-xs text-center px-3">⚠ ${_esc(e.message)}</p></div>`;
+    showToast('❌', 'Erreur régénération');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = origText;
+  }
 }
 
 function copyListing(idx) { navigator.clipboard.writeText(JSON.stringify(generatedListings[idx], null, 2)); showToast('📋', 'JSON copié'); }

@@ -22,7 +22,7 @@ from app.services.ingestion import parse_file, get_headers_and_sample
 from app.services.ai_agent import generate_listings_batch
 from app.services.amazon_sp import publish_listings
 from app.services.auth import verify_token
-from app.services.image_gen import generate_product_images, AMAZON_IMAGE_TYPES
+from app.services.image_gen import generate_product_images, AMAZON_IMAGE_TYPES, _generate_image_dalle3
 from app.services.usage import log_usage, get_user_usage, get_all_users_usage
 from app.utils.export import to_csv_bytes, to_json_bytes, to_amazon_flat_file_bytes
 from app.db import init_db
@@ -519,6 +519,45 @@ async def generate_images(req: ImageRequest, request: Request):
     _jobs[job_id] = {"status": "pending", "progress": 0, "total": 7, "created_at": time.time()}
     _cleanup_jobs()
     asyncio.create_task(_run_image_job(job_id, req, email))
+    return {"job_id": job_id}
+
+
+class SingleImageRequest(BaseModel):
+    sku: str
+    image_id: str
+    prompt: str
+
+
+async def _run_single_image_job(job_id: str, req: SingleImageRequest, email: str):
+    _jobs[job_id]["status"] = "running"
+    try:
+        url = await _generate_image_dalle3(req.prompt, req.image_id)
+        openai_ok = bool(os.getenv("OPENAI_API_KEY"))
+        if url and email:
+            log_usage(email, "image_generated", 1)
+        _jobs[job_id].update({
+            "status": "done",
+            "result": {
+                "sku": req.sku,
+                "image_id": req.image_id,
+                "url": url,
+                "prompt": req.prompt,
+                "openai_configured": openai_ok,
+            },
+        })
+    except Exception as e:
+        _jobs[job_id].update({"status": "failed", "error": str(e)})
+
+
+@app.post("/api/generate-image-single")
+async def generate_image_single(req: SingleImageRequest, request: Request):
+    if not os.getenv("OPENAI_API_KEY"):
+        raise HTTPException(503, "OPENAI_API_KEY manquante — impossible de régénérer l'image")
+    email = getattr(request.state, "user_email", None)
+    job_id = str(uuid4())
+    _jobs[job_id] = {"status": "pending", "progress": 0, "total": 1, "created_at": time.time()}
+    _cleanup_jobs()
+    asyncio.create_task(_run_single_image_job(job_id, req, email))
     return {"job_id": job_id}
 
 
