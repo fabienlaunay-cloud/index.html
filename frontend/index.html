@@ -897,8 +897,9 @@ function showMainApp() {
 }
 
 const PLAN_UPGRADES = {
-  starter:  { nextName: 'Business', skus: 600,  monthly: 790,  setup: 990,  total: 1780, link: 'https://buy.stripe.com/28E6oH8y09yag8N2zX7Vm0b' },
-  business: { nextName: 'Scale',    skus: 1500, monthly: 1490, setup: 1990, total: 3480, link: 'https://buy.stripe.com/8x2eVd4hKh0C1dT0rP7Vm0c' },
+  // Liens = mensualité seule (setup déjà payé par le client existant)
+  starter:  { nextName: 'Business', skus: 600,  monthly: 790,  link: '' },  // TODO: lien Stripe mensualité Business
+  business: { nextName: 'Scale',    skus: 1500, monthly: 1490, link: '' },  // TODO: lien Stripe mensualité Scale
   scale:    null,
 };
 
@@ -962,8 +963,16 @@ function showUpgradeModal(planOverride) {
   document.getElementById('upgradeNextName').textContent  = upgrade.nextName;
   document.getElementById('upgradeSkusBadge').textContent = `${upgrade.skus} SKU/mois`;
   document.getElementById('upgradeMonthly').textContent   = `${upgrade.monthly.toLocaleString('fr-FR')} €`;
-  document.getElementById('upgradeSetup').textContent     = `+ ${upgrade.setup.toLocaleString('fr-FR')} € de setup (paiement unique)`;
-  document.getElementById('upgradeBtn').href              = upgrade.link;
+  document.getElementById('upgradeSetup').textContent     = `Mensualité seule — setup déjà inclus dans votre premier paiement`;
+  const btn = document.getElementById('upgradeBtn');
+  if (upgrade.link) {
+    btn.href = upgrade.link;
+    btn.classList.remove('opacity-50', 'pointer-events-none');
+    btn.textContent = `Passer au plan ${upgrade.nextName} →`;
+  } else {
+    btn.href = 'https://calendly.com/fl-synqio/30min';
+    btn.textContent = `Prendre rendez-vous pour upgrader →`;
+  }
 
   if (_currentUsage?.skus_used >= _currentUsage?.skus_quota) {
     document.getElementById('upgradeSubtitle').textContent = 'Votre quota mensuel est atteint — débloquez plus de SKU.';
