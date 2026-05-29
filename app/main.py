@@ -31,14 +31,16 @@ from app.routes.amazon_oauth import router as amazon_router
 
 # Routes sans authentification
 PUBLIC_PATHS = {"/", "/health", "/api/auth/login", "/api/auth/setup", "/api/auth/needs-setup", "/api/marketplaces", "/api/amazon/callback"}
+# Invite paths are public (token-based auth)
+PUBLIC_PREFIX_PATHS = ("/api/auth/invite/", "/api/photos/")
 
 
 class AuthMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         path = request.url.path
 
-        # Laisser passer les routes publiques, les fichiers statiques et les photos temporaires
-        if path in PUBLIC_PATHS or not path.startswith("/api/") or path.startswith("/api/photos/"):
+        # Laisser passer les routes publiques, les fichiers statiques et les chemins à préfixe public
+        if path in PUBLIC_PATHS or not path.startswith("/api/") or any(path.startswith(p) for p in PUBLIC_PREFIX_PATHS):
             return await call_next(request)
 
         auth = request.headers.get("Authorization", "")

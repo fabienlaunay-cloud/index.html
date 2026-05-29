@@ -1,10 +1,13 @@
 import os
+import secrets
+import datetime
 from fastapi import APIRouter, HTTPException, Header, Request
 from pydantic import BaseModel
 from app.services.auth import (
     authenticate_user, create_token, verify_token,
     create_user, list_users, delete_user, toggle_user, is_admin,
     check_rate_limit, record_failed_attempt, clear_attempts, get_retry_after,
+    hash_password,
 )
 from app.db import get_db
 
@@ -34,6 +37,10 @@ class CreateUserRequest(BaseModel):
 
 class ToggleUserRequest(BaseModel):
     active: bool
+
+
+class AcceptInviteRequest(BaseModel):
+    password: str
 
 
 # ── Helper : vérifie que le token JWT appartient à un admin ──────────────────
@@ -96,6 +103,63 @@ async def login(req: LoginRequest, request: Request):
     }
 
 
+def _make_invite_token(email: str) -> str:
+    """Génère et stocke un token d'invitation 72h, retourne le token."""
+    token = secrets.token_urlsafe(32)
+    expires = (datetime.datetime.utcnow() + datetime.timedelta(hours=72)).isoformat()
+    conn = get_db()
+    # Invalider les anciens tokens non utilisés pour cet email
+    conn.execute("UPDATE invitation_tokens SET used = 1 WHERE email = ? AND used = 0", (email.lower(),))
+    conn.execute(
+        "INSERT INTO invitation_tokens (token, email, expires_at) VALUES (?, ?, ?)",
+        (token, email.lower(), expires),
+    )
+    conn.commit()
+    conn.close()
+    return token
+
+
+@router.get("/invite/{token}")
+async def get_invite(token: str):
+    conn = get_db()
+    row = conn.execute(
+        "SELECT email, expires_at, used FROM invitation_tokens WHERE token = ?", (token,)
+    ).fetchone()
+    conn.close()
+    if not row or row["used"]:
+        raise HTTPException(404, "Lien invalide ou déjà utilisé")
+    if datetime.datetime.utcnow() > datetime.datetime.fromisoformat(row["expires_at"]):
+        raise HTTPException(410, "Lien expiré (72h max) — demandez un nouvel accès")
+    return {"email": row["email"], "valid": True}
+
+
+@router.post("/invite/{token}/accept")
+async def accept_invite(token: str, req: AcceptInviteRequest):
+    if not req.password or len(req.password) < 8:
+        raise HTTPException(400, "Mot de passe trop court (8 caractères minimum)")
+    conn = get_db()
+    row = conn.execute(
+        "SELECT email, expires_at, used FROM invitation_tokens WHERE token = ?", (token,)
+    ).fetchone()
+    if not row or row["used"]:
+        conn.close()
+        raise HTTPException(404, "Lien invalide ou déjà utilisé")
+    if datetime.datetime.utcnow() > datetime.datetime.fromisoformat(row["expires_at"]):
+        conn.close()
+        raise HTTPException(410, "Lien expiré")
+    email = row["email"]
+    new_hash = hash_password(req.password)
+    conn.execute(
+        "UPDATE users SET password_hash = ?, is_active = 1 WHERE email = ?",
+        (new_hash, email),
+    )
+    conn.execute("UPDATE invitation_tokens SET used = 1 WHERE token = ?", (token,))
+    conn.commit()
+    conn.close()
+    jwt_token = create_token(email)
+    return {"token": jwt_token, "email": email, "is_admin": False}
+
+
 @router.get("/me")
 async def me(authorization: str = Header(None)):
     if not authorization or not authorization.startswith("Bearer "):
@@ -118,10 +182,25 @@ async def get_users(authorization: str = Header(None)):
 async def add_user(req: CreateUserRequest, authorization: str = Header(None)):
     _require_admin(authorization)
     try:
-        user = create_user(req.email, req.password, req.name)
-        return {"status": "created", **user}
+        # Mot de passe temporaire aléatoire — le client définira le sien via le lien
+        temp_pw = req.password if req.password else secrets.token_hex(16)
+        user = create_user(req.email, temp_pw, req.name)
+        invite_token = _make_invite_token(req.email)
+        return {"status": "created", "invite_token": invite_token, **user}
     except ValueError as e:
         raise HTTPException(400, str(e))
+
+
+@admin_router.post("/users/{email}/invite")
+async def resend_invite(email: str, authorization: str = Header(None)):
+    _require_admin(authorization)
+    conn = get_db()
+    exists = conn.execute("SELECT 1 FROM users WHERE email = ?", (email.lower(),)).fetchone()
+    conn.close()
+    if not exists:
+        raise HTTPException(404, "Utilisateur introuvable")
+    invite_token = _make_invite_token(email)
+    return {"invite_token": invite_token}
 
 
 @admin_router.delete("/users/{email}")

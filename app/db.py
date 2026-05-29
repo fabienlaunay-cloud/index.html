@@ -65,5 +65,15 @@ def init_db():
     except Exception:
         pass
 
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS invitation_tokens (
+            token TEXT PRIMARY KEY,
+            email TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            expires_at TIMESTAMP NOT NULL,
+            used INTEGER DEFAULT 0
+        )
+    """)
+
     conn.commit()
     conn.close()

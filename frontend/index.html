@@ -821,23 +821,31 @@
   <div id="adminPanelClients" class="max-w-5xl mx-auto px-6 py-8 space-y-6">
 
     <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-      <h4 class="font-semibold text-gray-800 text-base mb-4">➕ Créer un client</h4>
-      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
+      <h4 class="font-semibold text-gray-800 text-base mb-1">Inviter un client</h4>
+      <p class="text-gray-400 text-xs mb-4">Le client recevra un lien personnel pour définir son propre mot de passe.</p>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
         <input id="newUserName" type="text" placeholder="Nom du client" class="border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-purple-300">
         <input id="newUserEmail" type="email" placeholder="email@client.com" class="border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-purple-300">
-        <div class="flex gap-2">
-          <input id="newUserPassword" type="text" placeholder="Mot de passe" class="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-purple-300">
-          <button onclick="generatePassword()" title="Générer un mot de passe" class="bg-gray-100 hover:bg-gray-200 text-gray-600 px-3 py-2 rounded-lg text-sm transition">🎲</button>
-        </div>
       </div>
-      <button onclick="addUser()" class="gradient-bg text-white px-6 py-2 rounded-lg text-sm font-semibold hover:opacity-90 transition">Créer le client</button>
+      <button onclick="addUser()" class="gradient-bg text-white px-6 py-2 rounded-lg text-sm font-semibold hover:opacity-90 transition">Créer &amp; générer le lien d'invitation</button>
       <div id="addUserMsg" class="hidden mt-3 text-sm"></div>
+      <div id="inviteLinkBox" class="hidden mt-4 bg-green-50 border border-green-200 rounded-xl p-4">
+        <p class="text-green-800 text-xs font-semibold mb-2">Lien d'invitation généré — à envoyer au client :</p>
+        <div class="flex gap-2">
+          <input id="inviteLinkInput" type="text" readonly class="flex-1 bg-white border border-green-300 rounded-lg px-3 py-2 text-xs text-gray-700 font-mono outline-none">
+          <button onclick="copyInviteLink()" class="bg-green-600 hover:bg-green-700 text-white text-xs px-4 py-2 rounded-lg font-semibold transition whitespace-nowrap">Copier</button>
+        </div>
+        <p class="text-green-600 text-xs mt-2">Ce lien est valide 72h et à usage unique.</p>
+      </div>
     </div>
 
     <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
       <div class="flex items-center justify-between mb-4">
-        <h4 class="font-semibold text-gray-800 text-base">👥 Tous les clients</h4>
-        <button onclick="loadUsers()" class="text-purple-600 text-sm hover:underline flex items-center gap-1">↻ Actualiser</button>
+        <h4 class="font-semibold text-gray-800 text-base">Clients</h4>
+        <button onclick="loadUsers()" class="text-purple-600 text-sm hover:underline flex items-center gap-1">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+          Actualiser
+        </button>
       </div>
       <div id="usersList" class="space-y-2">
         <div class="text-gray-400 text-sm text-center py-8">Chargement...</div>
@@ -863,6 +871,34 @@
 
   </div>
 
+</div>
+
+<!-- ═══════════════════ INVITE ACCEPT MODAL ═══════════════════ -->
+<div id="inviteModal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-[300] flex items-center justify-center p-4">
+  <div class="login-card rounded-3xl p-8 w-full max-w-md">
+    <div class="text-center mb-8">
+      <div class="w-16 h-16 gradient-bg rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
+        <svg viewBox="0 0 24 24" fill="none" width="28" height="28"><path d="M12 2L2 7l10 5 10-5-10-5z" stroke="white" stroke-width="1.8" stroke-linejoin="round"/><path d="M2 17l10 5 10-5M2 12l10 5 10-5" stroke="white" stroke-width="1.8" stroke-linejoin="round"/></svg>
+      </div>
+      <h3 class="text-white text-2xl font-bold">Bienvenue sur SynqIO</h3>
+      <p id="inviteEmailLabel" class="text-white/50 mt-1 text-sm">Définissez votre mot de passe pour activer votre compte</p>
+    </div>
+    <div id="inviteError" class="hidden mb-4 bg-red-500/20 border border-red-500/30 rounded-xl px-4 py-3 text-red-300 text-sm text-center"></div>
+    <div class="space-y-4">
+      <div>
+        <label class="text-white/70 text-sm font-medium block mb-1.5">Nouveau mot de passe</label>
+        <input id="invitePassword" type="password" placeholder="8 caractères minimum" class="input-auth w-full rounded-xl px-4 py-3 text-sm" onkeydown="if(event.key==='Enter') doAcceptInvite()">
+      </div>
+      <div>
+        <label class="text-white/70 text-sm font-medium block mb-1.5">Confirmer le mot de passe</label>
+        <input id="invitePasswordConfirm" type="password" placeholder="••••••••" class="input-auth w-full rounded-xl px-4 py-3 text-sm" onkeydown="if(event.key==='Enter') doAcceptInvite()">
+      </div>
+      <button id="inviteBtn" onclick="doAcceptInvite()" class="btn-login w-full text-white rounded-xl py-3.5 font-semibold text-base shadow-lg mt-2">Activer mon compte →</button>
+    </div>
+    <div class="mt-6 pt-4 border-t border-white/10 text-center">
+      <p class="text-white/30 text-xs">Ce lien est personnel et à usage unique</p>
+    </div>
+  </div>
 </div>
 
 <!-- Publish Modal -->
@@ -931,6 +967,64 @@ let segmentPresets = JSON.parse(localStorage.getItem('synqio_segment_presets') |
 // { "collier chien": "keyword1, keyword2, ..." }
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
+// ── Invite token flow ─────────────────────────────────────────────────────────
+
+let _inviteToken = null;
+
+async function handleInviteToken(inviteToken) {
+  _inviteToken = inviteToken;
+  // Hide landing, hide login modal
+  document.getElementById('login-screen').classList.add('hidden');
+  document.getElementById('loginModal').classList.add('hidden');
+  document.getElementById('app').classList.add('hidden');
+  document.getElementById('inviteModal').classList.remove('hidden');
+  try {
+    const r = await fetch(`${API}/api/auth/invite/${encodeURIComponent(inviteToken)}`);
+    if (!r.ok) {
+      const d = await r.json().catch(() => ({}));
+      document.getElementById('inviteError').textContent = d.detail || 'Lien invalide ou expiré';
+      document.getElementById('inviteError').classList.remove('hidden');
+      document.getElementById('inviteBtn').disabled = true;
+      return;
+    }
+    const data = await r.json();
+    document.getElementById('inviteEmailLabel').textContent = `Compte : ${data.email}`;
+  } catch {
+    document.getElementById('inviteError').textContent = 'Impossible de vérifier le lien — vérifiez votre connexion';
+    document.getElementById('inviteError').classList.remove('hidden');
+  }
+}
+
+async function doAcceptInvite() {
+  const password = document.getElementById('invitePassword').value;
+  const confirm = document.getElementById('invitePasswordConfirm').value;
+  const errEl = document.getElementById('inviteError');
+  const btn = document.getElementById('inviteBtn');
+  if (password !== confirm) {
+    errEl.textContent = 'Les mots de passe ne correspondent pas'; errEl.classList.remove('hidden'); return;
+  }
+  if (password.length < 8) {
+    errEl.textContent = 'Mot de passe trop court (8 caractères minimum)'; errEl.classList.remove('hidden'); return;
+  }
+  btn.disabled = true; btn.textContent = 'Activation...'; errEl.classList.add('hidden');
+  try {
+    const r = await fetch(`${API}/api/auth/invite/${encodeURIComponent(_inviteToken)}/accept`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password }),
+    });
+    const data = await r.json();
+    if (!r.ok) { errEl.textContent = data.detail || 'Erreur'; errEl.classList.remove('hidden'); return; }
+    token = data.token;
+    localStorage.setItem('synqio_token', token);
+    currentUser = { email: data.email, is_admin: false };
+    history.replaceState({}, '', '/');
+    document.getElementById('inviteModal').classList.add('hidden');
+    showApp(data.email);
+  } catch (e) {
+    errEl.textContent = e.message; errEl.classList.remove('hidden');
+  } finally { btn.disabled = false; btn.textContent = 'Activer mon compte →'; }
+}
+
 async function initApp() {
   if (!token) { showLoginScreen(); return; }
   try {
@@ -1280,6 +1374,9 @@ function renderUsers(users) {
       <button onclick="toggleUser('${u.email}', ${u.is_active ? 0 : 1})" class="text-xs px-3 py-1.5 rounded-lg border font-medium transition shrink-0 ${activeClass}">
         ${u.is_active ? '✓ Actif' : '✗ Inactif'}
       </button>
+      <button onclick="resendInvite('${u.email}')" title="Renvoyer le lien d'invitation" class="text-purple-400 hover:text-purple-600 hover:bg-purple-50 text-xs px-2 py-1.5 rounded-lg transition shrink-0">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+      </button>
       <button onclick="deleteUser('${u.email}')" class="text-red-400 hover:text-red-600 hover:bg-red-50 text-xs px-2 py-1.5 rounded-lg transition shrink-0"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg></button>
     </div>`;
   }).join('');
@@ -1308,24 +1405,48 @@ async function toggleUser(email, active) {
 async function addUser() {
   const name = document.getElementById('newUserName').value.trim();
   const email = document.getElementById('newUserEmail').value.trim();
-  const password = document.getElementById('newUserPassword').value.trim();
   const msgEl = document.getElementById('addUserMsg');
-  if (!email || !password) { msgEl.textContent = 'Email et mot de passe requis'; msgEl.className = 'mt-3 text-sm text-red-600'; msgEl.classList.remove('hidden'); return; }
+  if (!email) { msgEl.textContent = 'Email requis'; msgEl.className = 'mt-3 text-sm text-red-600'; msgEl.classList.remove('hidden'); return; }
   try {
     const r = await authFetch('/api/admin/users', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password, name }),
+      body: JSON.stringify({ email, password: '', name }),
     });
     const data = await r.json();
     if (!r.ok) throw new Error(data.detail);
-    msgEl.textContent = `✅ Client "${email}" créé avec succès`;
-    msgEl.className = 'mt-3 text-sm text-green-600'; msgEl.classList.remove('hidden');
+    msgEl.textContent = `Client "${email}" créé — copiez le lien ci-dessous :`;
+    msgEl.className = 'mt-3 text-sm text-green-700'; msgEl.classList.remove('hidden');
     document.getElementById('newUserName').value = '';
     document.getElementById('newUserEmail').value = '';
-    document.getElementById('newUserPassword').value = '';
+    _showInviteLink(data.invite_token);
     loadUsers();
   } catch (e) {
-    msgEl.textContent = `❌ ${e.message}`; msgEl.className = 'mt-3 text-sm text-red-600'; msgEl.classList.remove('hidden');
+    msgEl.textContent = `Erreur : ${e.message}`; msgEl.className = 'mt-3 text-sm text-red-600'; msgEl.classList.remove('hidden');
+  }
+}
+
+function _showInviteLink(token) {
+  const link = `${location.origin}/?invite=${token}`;
+  document.getElementById('inviteLinkInput').value = link;
+  document.getElementById('inviteLinkBox').classList.remove('hidden');
+}
+
+function copyInviteLink() {
+  const input = document.getElementById('inviteLinkInput');
+  navigator.clipboard.writeText(input.value).then(() => showToast('', 'Lien copié !'));
+}
+
+async function resendInvite(email) {
+  try {
+    const r = await authFetch(`/api/admin/users/${encodeURIComponent(email)}/invite`, { method: 'POST' });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.detail);
+    _showInviteLink(data.invite_token);
+    // Scroll to top of admin panel
+    document.getElementById('adminPanelClients').scrollIntoView({ behavior: 'smooth' });
+    showToast('', `Nouveau lien généré pour ${email}`);
+  } catch (e) {
+    showToast('', `Erreur : ${e.message}`);
   }
 }
 
@@ -1335,10 +1456,6 @@ async function deleteUser(email) {
   loadUsers();
 }
 
-function generatePassword() {
-  const chars = 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#';
-  document.getElementById('newUserPassword').value = Array.from({length: 12}, () => chars[Math.floor(Math.random() * chars.length)]).join('');
-}
 
 // ── File handling ─────────────────────────────────────────────────────────────
 const dropZone = document.getElementById('dropZone');
@@ -1991,7 +2108,16 @@ function calcROI() {
 
 // Start
 renderSegmentPresets();
-initApp();
+(async () => {
+  // Check invite token in URL first — takes priority over normal init
+  const params = new URLSearchParams(window.location.search);
+  const inviteToken = params.get('invite');
+  if (inviteToken) {
+    await handleInviteToken(inviteToken);
+  } else {
+    initApp();
+  }
+})();
 </script>
 
 <!-- ═══════════════════ UPGRADE MODAL ═══════════════════ -->
