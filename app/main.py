@@ -117,11 +117,14 @@ async def root():
 
 @app.get("/health")
 async def health():
+    from app.db import DB_PATH
     return {
         "status": "ok",
         "ai_ready": bool(os.getenv("ANTHROPIC_API_KEY")),
         "amazon_mode": os.getenv("AMAZON_SP_MODE", "demo"),
         "version": "1.0.0",
+        "db_path": os.path.abspath(DB_PATH),
+        "db_exists": os.path.isfile(os.path.abspath(DB_PATH)),
     }
 
 

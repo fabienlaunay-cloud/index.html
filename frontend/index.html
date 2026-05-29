@@ -1974,14 +1974,32 @@ function _restoreImagesInCard(idx) {
   }
 }
 
+function _getActiveTab(idx) {
+  for (const t of ['bullets', 'desc', 'kw', 'aplus', 'images']) {
+    const el = document.getElementById(`tab-${idx}-${t}`);
+    if (el && el.classList.contains('tab-active')) return t;
+  }
+  return 'bullets';
+}
+
 function enterEditMode(idx) {
+  const activeTab = _getActiveTab(idx);
   const card = document.getElementById(`card-${idx}`);
-  if (card) { card.innerHTML = buildCardHTML(generatedListings[idx], idx, true); _restoreImagesInCard(idx); }
+  if (card) {
+    card.innerHTML = buildCardHTML(generatedListings[idx], idx, true);
+    _restoreImagesInCard(idx);
+    switchTab(idx, activeTab);
+  }
 }
 
 function cancelEdit(idx) {
+  const activeTab = _getActiveTab(idx);
   const card = document.getElementById(`card-${idx}`);
-  if (card) { card.innerHTML = buildCardHTML(generatedListings[idx], idx, false); _restoreImagesInCard(idx); }
+  if (card) {
+    card.innerHTML = buildCardHTML(generatedListings[idx], idx, false);
+    _restoreImagesInCard(idx);
+    switchTab(idx, activeTab);
+  }
 }
 
 function addBullet(idx) {
@@ -2001,6 +2019,7 @@ function removeBullet(idx, bi) {
 }
 
 function saveEdit(idx) {
+  const activeTab = _getActiveTab(idx);
   const listing = generatedListings[idx];
   const skuEl   = document.getElementById(`edit-sku-${idx}`);
   const titleEl = document.getElementById(`edit-title-${idx}`);
@@ -2021,7 +2040,11 @@ function saveEdit(idx) {
       .map(t => t.value.trim()).filter(Boolean);
   }
   const card = document.getElementById(`card-${idx}`);
-  if (card) { card.innerHTML = buildCardHTML(listing, idx, false); _restoreImagesInCard(idx); }
+  if (card) {
+    card.innerHTML = buildCardHTML(listing, idx, false);
+    _restoreImagesInCard(idx);
+    switchTab(idx, activeTab);
+  }
   showToast('✅', 'Fiche mise à jour');
 }
 

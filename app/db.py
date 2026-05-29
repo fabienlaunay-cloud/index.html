@@ -1,7 +1,11 @@
 import sqlite3
 import os
 
-DB_PATH = os.getenv("DB_PATH", "data/users.db")
+# Use __file__-relative path so the DB is always under the project root's data/
+# regardless of the working directory. On Railway with a volume at /app/data,
+# this resolves to /app/data/users.db.
+_PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+DB_PATH = os.getenv("DB_PATH", os.path.join(_PROJECT_ROOT, "data", "users.db"))
 
 
 def get_db():
