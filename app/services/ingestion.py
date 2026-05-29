@@ -22,8 +22,10 @@ COLUMN_MAP = {
     "ean": "ean", "gtin": "ean", "barcode": "ean", "code barre": "ean",
     # Poids
     "poids": "weight_kg", "weight": "weight_kg", "weight_kg": "weight_kg",
+    "poids kg": "weight_kg",
     # Dimensions
     "dimensions": "dimensions_cm", "dim": "dimensions_cm",
+    "dimensions cm": "dimensions_cm",
     # Couleur / Matière
     "couleur": "color", "color": "color", "colour": "color",
     "matière": "material", "material": "material", "matériau": "material",
@@ -43,7 +45,10 @@ COLUMN_MAP = {
 
 
 def _normalise_header(h: str) -> str:
-    return h.strip().lower().replace("_", " ")
+    h = h.strip().lower().replace("_", " ")
+    if h.endswith(" *"):
+        h = h[:-2].rstrip()
+    return h
 
 
 def _map_row(row: dict, custom_mapping: dict = None) -> dict:
