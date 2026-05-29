@@ -209,14 +209,10 @@ CHECKLIST AVANT DE GÉNÉRER :
 12. Mot-clé principal (couche 1) en position front-load dans le titre
 13. Longue traîne réservée aux backend keywords — pas répétée dans titre ou bullets
 
+Avant de rédiger, effectue mentalement l'analyse COSMO (intentions d'achat, attributs manquants, contextes d'usage, structure sémantique) — mais ne l'inclus PAS dans le JSON de sortie.
+
 Génère la fiche produit optimisée au format JSON exact suivant :
 {{
-  "cosmos_analysis": {{
-    "intentions": "quelles intentions d'achat cette fiche doit couvrir (1-2 phrases)",
-    "missing_attributes": "attributs produit à rendre explicites pour COSMO",
-    "usage_contexts": "contextes d'usage à rendre visibles",
-    "semantic_structure": "comment relier produit ↔ problème ↔ bénéfice dans la fiche"
-  }},
   "title": "...",
   "bullet_points": [
     "BÉNÉFICE 1 — preuve factuelle + mot-clé secondaire...",
@@ -235,7 +231,6 @@ Génère la fiche produit optimisée au format JSON exact suivant :
       {{"type": "lifestyle", "title": "...", "body": "..."}}
     ]
   }},
-  "conformity_check": "titre ≤ 200 chars : OK | zéro allégation interdite : OK | zéro doublon backend : OK | lisibilité mobile : OK",
   "seo_score": 0
 }}"""
 
