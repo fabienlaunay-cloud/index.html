@@ -1810,10 +1810,13 @@ async function handleZip(file) {
     return;
   }
   showToast('⏳', 'Analyse du ZIP...');
-  const formData = new FormData();
-  formData.append('file', file);
   try {
-    const r = await authFetch('/api/upload-photos-zip', { method: 'POST', body: formData });
+    const buffer = await file.arrayBuffer();
+    const r = await authFetch('/api/upload-photos-zip', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/octet-stream' },
+      body: buffer
+    });
     if (!r.ok) { const e = await r.json(); throw new Error(e.detail || 'Erreur'); }
     const data = await r.json();
     photoMap = {};

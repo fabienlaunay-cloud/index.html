@@ -308,10 +308,10 @@ _ZIP_MAX_SINGLE_FILE  =  50 * 1024 * 1024   # 50 MB per image
 
 
 @app.post("/api/upload-photos-zip")
-async def upload_photos_zip(file: UploadFile = File(...)):
+async def upload_photos_zip(request: Request):
     import zipfile
 
-    content = await file.read()
+    content = await request.body()
     if not content:
         raise HTTPException(400, "Fichier vide")
     if len(content) > _ZIP_MAX_COMPRESSED:
