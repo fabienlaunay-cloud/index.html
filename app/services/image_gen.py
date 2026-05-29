@@ -6,6 +6,7 @@ Si OPENAI_API_KEY absent → retourne uniquement les prompts.
 import os
 import asyncio
 import json
+import re
 from typing import Optional
 import anthropic
 import httpx
@@ -228,13 +229,12 @@ Format JSON attendu (prompts en anglais, 120-200 mots chacun) :
     return json.loads(raw), tok_in, tok_out
 
 
-async def _generate_image_dalle3(prompt: str, image_id: str) -> Optional[str]:
-    """Génère une image via DALL-E 3 et retourne l'URL."""
+async def _generate_image_dalle3(prompt: str, image_id: str, _retry: int = 4) -> Optional[str]:
+    """Génère une image via gpt-image-1, avec retry automatique sur rate-limit 429."""
     api_key = os.getenv("OPENAI_API_KEY", "")
     if not api_key:
         return None
 
-    # DALL-E 3 limite les prompts à 4000 caractères
     prompt = prompt[:3900] if len(prompt) > 3900 else prompt
 
     headers = {
@@ -255,6 +255,15 @@ async def _generate_image_dalle3(prompt: str, image_id: str) -> Optional[str]:
             headers=headers,
             json=body,
         )
+        if resp.status_code == 429 and _retry > 0:
+            try:
+                msg = resp.json().get("error", {}).get("message", "")
+            except Exception:
+                msg = ""
+            m = re.search(r"try again in (\d+)s", msg)
+            wait = int(m.group(1)) + 2 if m else 15
+            await asyncio.sleep(wait)
+            return await _generate_image_dalle3(prompt, image_id, _retry - 1)
         if not resp.is_success:
             try:
                 detail = resp.json()
@@ -264,7 +273,6 @@ async def _generate_image_dalle3(prompt: str, image_id: str) -> Optional[str]:
         item = resp.json()["data"][0]
         if "url" in item:
             return item["url"]
-        # gpt-image-1 retourne b64_json par défaut
         return f"data:image/png;base64,{item['b64_json']}"
 
 
@@ -298,8 +306,8 @@ async def generate_product_images(
     # 2. Types sélectionnés (par défaut : tous)
     types_to_generate = selected_types or [t["id"] for t in AMAZON_IMAGE_TYPES]
 
-    # 3. Génération des images (parallèle, max 3 simultanées)
-    semaphore = asyncio.Semaphore(3)
+    # 3. Génération des images (séquentielle pour respecter la limite OpenAI 5 img/min)
+    semaphore = asyncio.Semaphore(1)
     results = []
 
     async def _gen_one(image_type: dict):
