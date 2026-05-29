@@ -975,6 +975,7 @@ const API = '';
 let token = localStorage.getItem('synqio_token') || '';
 let currentUser = null;
 let parsedProducts = [];
+let activeSegmentFilter = null; // null = Tous
 let generatedListings = [];
 let photoMap = {};  // sku → "/api/photos/{filename}"
 let segmentPresets = JSON.parse(localStorage.getItem('synqio_segment_presets') || '{}');
@@ -1500,6 +1501,7 @@ async function handleFile(file) {
     const r = await authFetch('/api/ingest', { method: 'POST', body: formData });
     if (!r.ok) { const e = await r.json(); throw new Error(e.detail || 'Erreur'); }
     parsedProducts = await r.json();
+    activeSegmentFilter = null;
     showProductsList(parsedProducts);
     document.getElementById('generateBtn').disabled = false;
     setStep(2);
@@ -1517,20 +1519,75 @@ function clearFile() {
   setStep(1);
 }
 
+function _getProductSegment(p) {
+  return _findMatchingSegment(p.name || '', p.category || '');
+}
+
+function filterBySegment(seg) {
+  activeSegmentFilter = seg;
+  showProductsList(parsedProducts);
+}
+
 function showProductsList(products) {
-  document.getElementById('productsCount').textContent = products.length;
-  document.getElementById('productsListItems').innerHTML = products.map(p => {
-    const cat = (p.category || '').toLowerCase().trim();
-    const hasPreset = !p.focus_keywords?.length && segmentPresets[cat];
+  // Build segment map: seg → count
+  const segMap = {};
+  let unmatched = 0;
+  products.forEach(p => {
+    const s = _getProductSegment(p);
+    if (s) { segMap[s] = (segMap[s] || 0) + 1; }
+    else unmatched++;
+  });
+  const hasSegments = Object.keys(segMap).length > 0;
+
+  // Filter chips
+  const chips = hasSegments ? `
+    <div class="flex flex-wrap gap-1.5 mb-3">
+      <button onclick="filterBySegment(null)" data-seg="__all"
+        class="segment-chip text-xs px-2.5 py-1 rounded-full border font-medium transition
+               ${!activeSegmentFilter ? 'bg-purple-600 text-white border-purple-600' : 'bg-white text-gray-500 border-gray-200 hover:border-purple-300'}">
+        Tous (${products.length})
+      </button>
+      ${Object.entries(segMap).map(([s, n]) => `
+        <button onclick="filterBySegment(${JSON.stringify(s)})" data-seg="${s}"
+          class="segment-chip text-xs px-2.5 py-1 rounded-full border font-medium transition
+                 ${activeSegmentFilter === s ? 'bg-purple-600 text-white border-purple-600' : 'bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100'}">
+          ${s} (${n})
+        </button>`).join('')}
+      ${unmatched > 0 ? `
+        <button onclick="filterBySegment('__none')" data-seg="__none"
+          class="segment-chip text-xs px-2.5 py-1 rounded-full border font-medium transition
+                 ${activeSegmentFilter === '__none' ? 'bg-gray-600 text-white border-gray-600' : 'bg-white text-gray-400 border-gray-200 hover:border-gray-400'}">
+          Sans segment (${unmatched})
+        </button>` : ''}
+    </div>` : '';
+
+  // Filter products to display
+  const visible = products.filter(p => {
+    if (!activeSegmentFilter) return true;
+    const s = _getProductSegment(p);
+    if (activeSegmentFilter === '__none') return !s;
+    return s === activeSegmentFilter;
+  });
+
+  // Update count badge and generate button label
+  const genLabel = activeSegmentFilter && activeSegmentFilter !== '__none'
+    ? `Générer "${activeSegmentFilter}" (${visible.length})`
+    : `Générer (${visible.length})`;
+  const genBtn = document.getElementById('generateBtn');
+  if (genBtn) genBtn.textContent = genLabel;
+  document.getElementById('productsCount').textContent =
+    activeSegmentFilter ? `${visible.length}/${products.length}` : products.length;
+
+  document.getElementById('productsListItems').innerHTML = chips + visible.map(p => {
+    const seg = _getProductSegment(p);
     const hasKwFile = p.focus_keywords?.length > 0;
     return `
     <div class="flex items-center gap-2 p-2.5 bg-gray-50 rounded-lg text-sm">
       <span class="font-mono text-xs bg-purple-50 text-purple-700 px-2 py-0.5 rounded flex-shrink-0">${p.sku}</span>
       <span class="text-gray-700 truncate flex-1">${p.name}</span>
-      ${photoMap[p.sku]  ? `<span class="text-indigo-500 text-xs flex-shrink-0" title="Photo associée">📸</span>` : ''}
-      ${hasKwFile        ? `<span class="text-green-500 text-xs flex-shrink-0" title="Mots-clés du fichier">🔑</span>` : ''}
-      ${hasPreset        ? `<span class="text-purple-400 text-xs flex-shrink-0" title="Préset segment &quot;${cat}&quot;">🏷️</span>` : ''}
-      ${p.brand ? `<span class="text-gray-400 text-xs flex-shrink-0">${p.brand}</span>` : ''}
+      ${photoMap[p.sku] ? `<span class="text-indigo-500 text-xs flex-shrink-0" title="Photo associée"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></span>` : ''}
+      ${hasKwFile ? `<span class="text-green-500 text-xs flex-shrink-0" title="Mots-clés du fichier"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg></span>` : ''}
+      ${seg ? `<span class="text-xs bg-purple-100 text-purple-600 px-1.5 py-0.5 rounded flex-shrink-0">${seg}</span>` : ''}
     </div>`;
   }).join('');
   document.getElementById('productsList').classList.remove('hidden');
@@ -1682,8 +1739,16 @@ async function generateListings() {
   document.getElementById('progressBar').style.width = '0%';
   setStep(2);
   try {
+    // ── Filtrer par segment actif ──
+    const filteredProducts = parsedProducts.filter(p => {
+      if (!activeSegmentFilter) return true;
+      const s = _getProductSegment(p);
+      if (activeSegmentFilter === '__none') return !s;
+      return s === activeSegmentFilter;
+    });
+
     // ── Injecter les photos ZIP + présets segments ──
-    const withPhotos = parsedProducts.map(p => {
+    const withPhotos = filteredProducts.map(p => {
       if (!photoMap[p.sku]) return p;
       const existing = Array.isArray(p.images) ? p.images : [];
       return { ...p, images: existing.includes(photoMap[p.sku]) ? existing : [photoMap[p.sku], ...existing] };
