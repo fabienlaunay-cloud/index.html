@@ -8,6 +8,7 @@ import asyncio
 import json
 import re
 from typing import Optional
+from urllib.parse import urlparse, parse_qs
 import anthropic
 import httpx
 
@@ -229,32 +230,66 @@ Format JSON attendu (prompts en anglais, 120-200 mots chacun) :
     return json.loads(raw), tok_in, tok_out
 
 
-async def _generate_image_dalle3(prompt: str, image_id: str, _retry: int = 4) -> Optional[str]:
-    """Génère une image via gpt-image-1, avec retry automatique sur rate-limit 429."""
+async def _download_reference_image(url: str) -> Optional[bytes]:
+    """Télécharge la photo produit de référence en gérant les URLs Google Drive."""
+    if not url:
+        return None
+    # Convertir les liens de partage Google Drive en URL de téléchargement direct
+    m = re.search(r'drive\.google\.com/file/d/([^/?]+)', url)
+    if m:
+        url = f"https://drive.google.com/uc?export=download&id={m.group(1)}"
+    else:
+        parsed = urlparse(url)
+        if 'drive.google.com' in parsed.netloc:
+            params = parse_qs(parsed.query)
+            file_id = params.get('id', [None])[0]
+            if file_id:
+                url = f"https://drive.google.com/uc?export=download&id={file_id}"
+    try:
+        async with httpx.AsyncClient(timeout=30, follow_redirects=True) as client:
+            resp = await client.get(url, headers={"User-Agent": "Mozilla/5.0"})
+            if resp.is_success and len(resp.content) > 2000:
+                ct = resp.headers.get("content-type", "")
+                if "image" in ct or "octet-stream" in ct:
+                    return resp.content
+    except Exception:
+        pass
+    return None
+
+
+async def _generate_image_dalle3(prompt: str, image_id: str, reference_image: Optional[bytes] = None, _retry: int = 4) -> Optional[str]:
+    """Génère une image via gpt-image-1.
+    Si reference_image fourni → endpoint /images/edits (produit réel comme base).
+    Sinon → endpoint /images/generations (text-to-image).
+    Retry automatique sur rate-limit 429.
+    """
     api_key = os.getenv("OPENAI_API_KEY", "")
     if not api_key:
         return None
 
     prompt = prompt[:3900] if len(prompt) > 3900 else prompt
 
-    headers = {
-        "Authorization": f"Bearer {api_key}",
-        "Content-Type": "application/json",
-    }
-    body = {
-        "model": "gpt-image-1",
-        "prompt": prompt,
-        "n": 1,
-        "size": "1024x1024",
-        "quality": "medium",
-    }
-
     async with httpx.AsyncClient(timeout=120) as client:
-        resp = await client.post(
-            "https://api.openai.com/v1/images/generations",
-            headers=headers,
-            json=body,
-        )
+        if reference_image:
+            resp = await client.post(
+                "https://api.openai.com/v1/images/edits",
+                headers={"Authorization": f"Bearer {api_key}"},
+                data={
+                    "model": "gpt-image-1",
+                    "prompt": prompt,
+                    "n": "1",
+                    "size": "1024x1024",
+                    "quality": "medium",
+                },
+                files={"image": ("product.jpg", reference_image, "image/jpeg")},
+            )
+        else:
+            resp = await client.post(
+                "https://api.openai.com/v1/images/generations",
+                headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+                json={"model": "gpt-image-1", "prompt": prompt, "n": 1, "size": "1024x1024", "quality": "medium"},
+            )
+
         if resp.status_code == 429 and _retry > 0:
             try:
                 msg = resp.json().get("error", {}).get("message", "")
@@ -263,7 +298,7 @@ async def _generate_image_dalle3(prompt: str, image_id: str, _retry: int = 4) ->
             m = re.search(r"try again in (\d+)s", msg)
             wait = int(m.group(1)) + 2 if m else 15
             await asyncio.sleep(wait)
-            return await _generate_image_dalle3(prompt, image_id, _retry - 1)
+            return await _generate_image_dalle3(prompt, image_id, reference_image, _retry - 1)
         if not resp.is_success:
             try:
                 detail = resp.json()
@@ -285,10 +320,12 @@ async def generate_product_images(
     color: str = None,
     material: str = None,
     selected_types: list = None,
+    reference_image_url: str = None,
 ) -> list[dict]:
     """
-    Pipeline complet : Claude → prompts → DALL-E 3 → images.
-    Retourne liste de dicts avec prompt + url_image (None si pas de clé OpenAI).
+    Pipeline complet : Claude → prompts → gpt-image-1 → images.
+    Si reference_image_url fourni, télécharge la photo produit et utilise
+    /images/edits pour que les visuels correspondent au vrai produit.
     """
     product_info = {
         "sku": sku,
@@ -303,10 +340,13 @@ async def generate_product_images(
     # 1. Génération des prompts via Claude
     prompts, tok_in, tok_out = await _generate_prompts_with_claude(product_info)
 
-    # 2. Types sélectionnés (par défaut : tous)
+    # 2. Téléchargement de l'image de référence (si disponible)
+    reference_image = await _download_reference_image(reference_image_url) if reference_image_url else None
+
+    # 3. Types sélectionnés (par défaut : tous)
     types_to_generate = selected_types or [t["id"] for t in AMAZON_IMAGE_TYPES]
 
-    # 3. Génération des images (séquentielle pour respecter la limite OpenAI 5 img/min)
+    # 4. Génération des images (séquentielle pour respecter la limite OpenAI 5 img/min)
     semaphore = asyncio.Semaphore(1)
     results = []
 
@@ -319,7 +359,7 @@ async def generate_product_images(
             url = None
             error = None
             try:
-                url = await _generate_image_dalle3(prompt, img_id)
+                url = await _generate_image_dalle3(prompt, img_id, reference_image)
             except Exception as e:
                 error = str(e)
             results.append({

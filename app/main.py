@@ -523,6 +523,7 @@ class ImageRequest(BaseModel):
     color: str = ""
     material: str = ""
     selected_types: Optional[List[str]] = None
+    reference_image_url: Optional[str] = None
 
 
 async def _run_image_job(job_id: str, req: ImageRequest, email: str):
@@ -537,6 +538,7 @@ async def _run_image_job(job_id: str, req: ImageRequest, email: str):
             color=req.color,
             material=req.material,
             selected_types=req.selected_types,
+            reference_image_url=req.reference_image_url or None,
         )
         generated = [i for i in images if i.get("has_image")]
         if generated and email:

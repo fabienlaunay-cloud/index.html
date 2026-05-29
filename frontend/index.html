@@ -2133,9 +2133,11 @@ async function generateImages(idx) {
   container.innerHTML = `<div class="flex flex-col items-center py-8 gap-3"><div class="spinner"></div><p class="text-gray-500 text-sm">Génération des prompts et visuels...</p><p class="text-gray-400 text-xs">7 visuels Amazon en cours de création</p></div>`;
   try {
     // Step 1: start background job
+    const rawProduct = parsedProducts.find(p => p.sku === listing.sku);
+    const referenceImageUrl = rawProduct?.images?.[0] || '';
     const r = await authFetch('/api/generate-images', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ sku: listing.sku, product_name: listing.title, brand: listing.brand || '', category: listing.category || '', features: listing.bullet_points || [], color: '', material: '' }),
+      body: JSON.stringify({ sku: listing.sku, product_name: listing.title, brand: listing.brand || '', category: listing.category || '', features: listing.bullet_points || [], color: rawProduct?.color || '', material: rawProduct?.material || '', reference_image_url: referenceImageUrl }),
     });
     if (!r.ok) {
       let msg = 'Erreur serveur';
