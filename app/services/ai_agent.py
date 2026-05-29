@@ -213,7 +213,7 @@ Génère la fiche produit optimisée au format JSON exact suivant :
 {{
   "cosmos_analysis": {{
     "intentions": "quelles intentions d'achat cette fiche doit couvrir (1-2 phrases)",
-    "missing_attributes": "attributs produit à rendre explicites pour Cosmos",
+    "missing_attributes": "attributs produit à rendre explicites pour COSMO",
     "usage_contexts": "contextes d'usage à rendre visibles",
     "semantic_structure": "comment relier produit ↔ problème ↔ bénéfice dans la fiche"
   }},
