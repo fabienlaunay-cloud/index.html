@@ -3,6 +3,7 @@ import io
 import json
 import time
 import asyncio
+import base64
 from uuid import uuid4
 from dotenv import load_dotenv
 load_dotenv()
@@ -344,16 +345,35 @@ async def serve_photo(filename: str):
 MAX_UPLOAD_SIZE = 10 * 1024 * 1024  # 10 MB
 
 
-@app.post("/api/ingest/preview")
-async def ingest_preview(file: UploadFile = File(...)):
-    """Return headers, sample rows and auto-mapping info without full parsing."""
-    content = await file.read()
+class FilePreviewRequest(BaseModel):
+    filename: str
+    content_b64: str
+
+
+class FileIngestRequest(BaseModel):
+    filename: str
+    content_b64: str
+    custom_mapping: Optional[dict] = None
+
+
+def _decode_upload(filename: str, content_b64: str) -> bytes:
+    try:
+        content = base64.b64decode(content_b64)
+    except Exception:
+        raise HTTPException(400, "Contenu base64 invalide")
     if not content:
         raise HTTPException(400, "Fichier vide")
     if len(content) > MAX_UPLOAD_SIZE:
         raise HTTPException(413, "Fichier trop volumineux (max 10 Mo)")
+    return content
+
+
+@app.post("/api/ingest/preview")
+async def ingest_preview(payload: FilePreviewRequest):
+    """Return headers, sample rows and auto-mapping info without full parsing."""
+    content = _decode_upload(payload.filename, payload.content_b64)
     try:
-        result = get_headers_and_sample(file.filename or "upload.csv", content)
+        result = get_headers_and_sample(payload.filename or "upload.csv", content)
     except ValueError as e:
         raise HTTPException(400, str(e))
     except Exception as e:
@@ -362,23 +382,10 @@ async def ingest_preview(file: UploadFile = File(...)):
 
 
 @app.post("/api/ingest", response_model=List[RawProduct])
-async def ingest_file(
-    file: UploadFile = File(...),
-    custom_mapping: str = Form(default=None),
-):
-    content = await file.read()
-    if not content:
-        raise HTTPException(400, "Fichier vide")
-    if len(content) > MAX_UPLOAD_SIZE:
-        raise HTTPException(413, "Fichier trop volumineux (max 10 Mo)")
-    mapping = None
-    if custom_mapping:
-        try:
-            mapping = json.loads(custom_mapping)
-        except Exception:
-            raise HTTPException(400, "custom_mapping JSON invalide")
+async def ingest_file(payload: FileIngestRequest):
+    content = _decode_upload(payload.filename, payload.content_b64)
     try:
-        products = parse_file(file.filename or "upload.csv", content, custom_mapping=mapping)
+        products = parse_file(payload.filename or "upload.csv", content, custom_mapping=payload.custom_mapping)
     except ValueError as e:
         raise HTTPException(400, str(e))
     except Exception as e:

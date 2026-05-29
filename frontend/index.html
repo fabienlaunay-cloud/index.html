@@ -1506,6 +1506,15 @@ dropZone.addEventListener('drop', e => { e.preventDefault(); dropZone.classList.
 fileInput.addEventListener('change', e => { if (e.target.files[0]) handleFile(e.target.files[0]); });
 zipInput.addEventListener('change', e => { if (e.target.files[0]) handleZip(e.target.files[0]); });
 
+function _fileToB64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result.split(',')[1]);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
 async function handleFile(file) {
   const icons = { csv: '📊', xlsx: '📗', xls: '📗', json: '📋' };
   const ext = file.name.split('.').pop().toLowerCase();
@@ -1515,29 +1524,26 @@ async function handleFile(file) {
   document.getElementById('fileInfo').classList.remove('hidden');
   dropZone.classList.add('hidden');
 
-  // Step 1: call preview endpoint to get headers + auto_mapped info
   try {
     showToast('⏳', 'Analyse du fichier...');
-    const previewForm = new FormData();
-    previewForm.append('file', file);
-    const pr = await authFetch('/api/ingest/preview', { method: 'POST', body: previewForm });
+    const b64 = await _fileToB64(file);
+    const pr = await authFetch('/api/ingest/preview', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({filename: file.name, content_b64: b64})
+    });
     if (!pr.ok) { const e = await pr.json(); throw new Error(e.detail || 'Erreur preview'); }
     const previewData = await pr.json();
 
-    // Check if we have a saved mapping for these headers
     const hKey = _headerKey(previewData.headers);
     const savedMapping = _savedMappings[hKey] || null;
-
-    // Check if there are unmapped columns
     const unmappedHeaders = previewData.headers.filter(h => !previewData.auto_mapped[h]);
 
     if (unmappedHeaders.length > 0 || savedMapping) {
-      // Show mapping modal — user needs to confirm/adjust
       _pendingFile = file;
       _pendingPreviewData = previewData;
       showMappingModal(file, previewData);
     } else {
-      // All columns are auto-recognized and no saved mapping — proceed directly
       await _doIngest(file, null);
     }
   } catch (e) {
@@ -1546,12 +1552,14 @@ async function handleFile(file) {
 }
 
 async function _doIngest(file, customMapping) {
-  const formData = new FormData();
-  formData.append('file', file);
-  if (customMapping && Object.keys(customMapping).length > 0) {
-    formData.append('custom_mapping', JSON.stringify(customMapping));
-  }
-  const r = await authFetch('/api/ingest', { method: 'POST', body: formData });
+  const b64 = await _fileToB64(file);
+  const payload = {filename: file.name, content_b64: b64};
+  if (customMapping && Object.keys(customMapping).length > 0) payload.custom_mapping = customMapping;
+  const r = await authFetch('/api/ingest', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(payload)
+  });
   if (!r.ok) { const e = await r.json(); throw new Error(e.detail || 'Erreur'); }
   parsedProducts = await r.json();
   activeSegmentFilter = null;
