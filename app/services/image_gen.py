@@ -208,7 +208,7 @@ Format JSON attendu (prompts en anglais, 120-200 mots chacun) :
 }}"""
 
     response = await get_claude().messages.create(
-        model="claude-opus-4-7",
+        model="claude-sonnet-4-6",
         max_tokens=4000,
         system=system,
         messages=[{"role": "user", "content": user}],
