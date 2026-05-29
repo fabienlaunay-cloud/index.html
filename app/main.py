@@ -273,15 +273,33 @@ async def download_template():
     )
 
 
-# ── Temp photo store ──────────────────────────────────────────────────────────
+# ── Photo store (mémoire + disque Railway Volume) ─────────────────────────────
 
-_temp_photos: dict = {}  # filename → bytes (session-scoped, ephemeral)
+from app.db import _PROJECT_ROOT
+
+_PHOTOS_DIR = os.path.join(_PROJECT_ROOT, "data", "photos")
+os.makedirs(_PHOTOS_DIR, exist_ok=True)
 
 _IMAGE_EXTS = {".jpg", ".jpeg", ".png", ".webp", ".gif"}
 _IMAGE_CONTENT_TYPES = {
     "jpg": "image/jpeg", "jpeg": "image/jpeg", "png": "image/png",
     "webp": "image/webp", "gif": "image/gif",
 }
+
+
+def _save_photo(filename: str, data: bytes):
+    """Sauvegarde sur disque (Railway Volume) — survit aux redéploiements."""
+    with open(os.path.join(_PHOTOS_DIR, filename), "wb") as f:
+        f.write(data)
+
+
+def _load_photo(filename: str) -> bytes | None:
+    """Charge depuis disque."""
+    path = os.path.join(_PHOTOS_DIR, filename)
+    if os.path.exists(path):
+        with open(path, "rb") as f:
+            return f.read()
+    return None
 
 
 _ZIP_MAX_COMPRESSED   = 100 * 1024 * 1024   # 100 MB compressed
@@ -326,7 +344,8 @@ async def upload_photos_zip(file: UploadFile = File(...)):
             continue
         sku = stem
         filename = f"{sku}{ext.lower()}"
-        _temp_photos[filename] = zf.read(entry)
+        data = zf.read(entry)
+        _save_photo(filename, data)
         matched.append({"sku": sku, "url": f"/api/photos/{filename}", "filename": filename})
 
     return {"matched": matched, "count": len(matched)}
@@ -334,9 +353,9 @@ async def upload_photos_zip(file: UploadFile = File(...)):
 
 @app.get("/api/photos/{filename}")
 async def serve_photo(filename: str):
-    photo = _temp_photos.get(filename)
+    photo = _load_photo(filename)
     if not photo:
-        raise HTTPException(404, "Photo non trouvée ou session expirée")
+        raise HTTPException(404, "Photo non trouvée")
     ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else "jpg"
     return Response(content=photo, media_type=_IMAGE_CONTENT_TYPES.get(ext, "image/jpeg"))
 
@@ -537,7 +556,7 @@ async def _run_image_job(job_id: str, req: ImageRequest, email: str):
         ref_bytes = None
         if ref_url and ref_url.startswith("/api/photos/"):
             fname = ref_url[len("/api/photos/"):]
-            ref_bytes = _temp_photos.get(fname)
+            ref_bytes = _load_photo(fname)
             ref_url = None  # on a les bytes, inutile de télécharger
 
         images, img_tokens = await generate_product_images(
