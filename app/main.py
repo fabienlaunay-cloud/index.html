@@ -161,42 +161,46 @@ async def download_template():
 
     headers = [
         "SKU", "Nom", "Marque", "Segment", "EAN", "Prix",
-        "Poids_kg", "Dimensions_cm", "Couleur", "Matière",
-        "Description", "Caractéristiques", "Image_URL", "Image_Fichier", "Mots_cles",
+        "Image_Fichier", "Poids_kg", "Dimensions_cm",
+        "Caractéristiques", "Mots_cles",
     ]
     mandatory = {"SKU", "Nom", "Marque", "Segment"}
+    photo_col = {"Image_Fichier"}
 
-    # Style en-tête
+    # Styles en-tête
     fill_mandatory = PatternFill("solid", fgColor="764BA2")
+    fill_photo     = PatternFill("solid", fgColor="0F766E")   # vert sarcelle pour Image_Fichier
     fill_optional  = PatternFill("solid", fgColor="B39DDB")
     font_header    = Font(color="FFFFFF", bold=True, size=11)
     font_example   = Font(color="555555", italic=True, size=10)
     center         = Alignment(horizontal="center", vertical="center", wrap_text=True)
 
     for col, h in enumerate(headers, 1):
-        cell = ws.cell(row=1, column=col, value=h + (" *" if h in mandatory else ""))
-        cell.fill   = fill_mandatory if h in mandatory else fill_optional
-        cell.font   = font_header
+        label = h + (" *" if h in mandatory else "")
+        cell = ws.cell(row=1, column=col, value=label)
+        if h in mandatory:
+            cell.fill = fill_mandatory
+        elif h in photo_col:
+            cell.fill = fill_photo
+        else:
+            cell.fill = fill_optional
+        cell.font = font_header
         cell.alignment = center
 
     # Exemple 1 — collier
     ex1 = [
         "BC-COL-001", "Collier Étoile Dorée Chien M", "Bande de Canailles",
         "collier chien", "3760123456789", "24.90",
-        "0.085", "35x2 cm", "Rose/Doré", "Nylon recyclé | Métal doré",
-        "Collier tendance pour chien avec pendentif étoile dorée, boucle de sécurité et réglage 5 positions",
+        "collier-etoile-doree.jpg", "0.085", "35x2 cm",
         "Pendentif étoile doré|Boucle sécurité|Réglage 5 positions|Nylon recyclé certifié",
-        "", "collier-etoile-doree.jpg",
         "collier chien tendance, collier chien pendentif, collier chien fantaisie",
     ]
     # Exemple 2 — laisse
     ex2 = [
-        "BC-LAI-012", "Laisse Fleurie Chien 1.2m", "Bande de Canailles",
-        "laisse chien", "3760123456790", "19.90",
-        "0.120", "120x2 cm", "Multicolore", "Nylon",
-        "Laisse chien 1.2m motif fleuri, mousqueton inox, poignée rembourrée",
-        "Mousqueton inox|Poignée rembourrée|Motif fleuri|Longueur 1.2m",
-        "", "laisse-fleurie-chien.jpg",
+        "BC-LAI-012", "Laisse Léopard Chien 1.2m", "Bande de Canailles",
+        "laisse chien", "3760123456790", "29.90",
+        "laisse-leopard.jpg", "0.120", "120x2 cm",
+        "Mousqueton inox doré|Poignée rembourrée|Motif léopard|Longueur 1.2m",
         "laisse chien design, laisse chien fantaisie, laisse chien colorée",
     ]
 
@@ -208,7 +212,7 @@ async def download_template():
         cell.font = font_example
 
     # Largeurs de colonnes
-    widths = [14, 34, 20, 18, 16, 8, 10, 14, 14, 22, 48, 44, 40, 30, 48]
+    widths = [14, 34, 20, 18, 16, 8, 30, 10, 14, 48, 48]
     for col, w in enumerate(widths, 1):
         ws.column_dimensions[openpyxl.utils.get_column_letter(col)].width = w
 
@@ -219,7 +223,7 @@ async def download_template():
     guide = wb.create_sheet("Guide")
     guide.column_dimensions["A"].width = 20
     guide.column_dimensions["B"].width = 14
-    guide.column_dimensions["C"].width = 60
+    guide.column_dimensions["C"].width = 68
     guide.column_dimensions["D"].width = 40
 
     guide_headers = ["Colonne", "Obligatoire ?", "Description", "Exemple"]
@@ -229,21 +233,21 @@ async def download_template():
         cell.font = Font(color="FFFFFF", bold=True)
 
     guide_rows = [
-        ("SKU",            "✅ Oui", "Référence unique du produit. Doit être stable — c'est la clé de matching.", "BC-COL-001"),
-        ("Nom",            "✅ Oui", "Nom brut du produit, sans optimisation SEO — l'IA s'en charge.", "Collier Étoile Dorée M"),
-        ("Marque",         "✅ Oui", "Nom exact de la marque, tel qu'il apparaît sur Amazon.", "Bande de Canailles"),
-        ("Segment",        "✅ Oui", "Famille produit. Tous les produits du même segment partagent les mêmes mots-clés si la colonne Mots_cles est vide.", "collier chien"),
-        ("EAN",            "Recommandé", "Code-barres GTIN-13. Obligatoire pour créer une fiche Amazon.", "3760123456789"),
-        ("Prix",           "Recommandé", "Prix de vente TTC en euros. Décimales avec point ou virgule.", "24.90"),
-        ("Poids_kg",       "Optionnel", "Poids en kg. Aide l'IA à rédiger les bullet points techniques.", "0.085"),
-        ("Dimensions_cm",  "Optionnel", "Format L×l×h ou L×l en cm.", "35x2 cm"),
-        ("Couleur",        "Optionnel", "Couleur principale du produit.", "Rose/Doré"),
-        ("Matière",        "Optionnel", "Matière(s) principale(s). Séparées par | si plusieurs.", "Nylon recyclé | Métal doré"),
-        ("Description",    "Recommandé", "Description brute du produit. Plus elle est riche, meilleure est la fiche générée.", "Collier tendance avec pendentif étoile…"),
-        ("Caractéristiques","Recommandé","Points clés du produit, séparés par |. Alimentent les bullet points.", "Pendentif étoile|Boucle sécurité|5 positions"),
-        ("Image_URL",      "Optionnel", "URL publique directe d'une photo produit (CDN, Dropbox public…). Prioritaire sur Image_Fichier.", "https://monsite.com/photos/BC-COL-001.jpg"),
-        ("Image_Fichier",  "Optionnel", "Nom du fichier photo tel qu'il est dans votre ZIP (sans chemin). Le ZIP doit être uploadé via le bouton 'Uploader photos produits'. Les photos gardent leur nom d'origine — aucun renommage nécessaire.", "collier-etoile-doree.jpg"),
-        ("Mots_cles",      "Optionnel", "Mots-clés Search Query Performance spécifiques à CE produit, séparés par virgule. Écrasent le champ global de l'interface pour ce produit.", "collier chien tendance, collier pendentif"),
+        ("SKU",             "✅ Oui",       "Référence unique du produit. Doit être stable — c'est la clé de matching.", "BC-COL-001"),
+        ("Nom",             "✅ Oui",       "Nom brut du produit, sans optimisation SEO — l'IA s'en charge.", "Collier Étoile Dorée M"),
+        ("Marque",          "✅ Oui",       "Nom exact de la marque, tel qu'il apparaît sur Amazon.", "Bande de Canailles"),
+        ("Segment",         "✅ Oui",       "Famille produit. Tous les produits du même segment partagent les mêmes mots-clés si Mots_cles est vide.", "collier chien"),
+        ("EAN",             "Recommandé",  "Code-barres GTIN-13. Obligatoire pour créer une fiche Amazon.", "3760123456789"),
+        ("Prix",            "Recommandé",  "Prix de vente TTC en euros. Décimales avec point ou virgule.", "24.90"),
+        ("Image_Fichier",   "📸 Clé images","Nom exact du fichier photo dans votre ZIP (sans chemin). "
+                                           "Uploadez le ZIP via 'Uploader photos produits'. "
+                                           "L'IA analyse la photo pour extraire couleurs, matières et détails — "
+                                           "inutile de remplir ces champs à la main. "
+                                           "Gardez les noms d'origine, aucun renommage nécessaire.", "laisse-leopard.jpg"),
+        ("Poids_kg",        "Optionnel",   "Poids en kg. Aide l'IA à rédiger les bullet points techniques.", "0.085"),
+        ("Dimensions_cm",   "Optionnel",   "Format L×l×h ou L×l en cm.", "35x2 cm"),
+        ("Caractéristiques","Optionnel",   "Points clés du produit, séparés par |. Si vide, l'IA les déduit de la photo et du nom.", "Mousqueton inox|Poignée rembourrée|Motif léopard"),
+        ("Mots_cles",       "Optionnel",   "Mots-clés SEO spécifiques à CE produit, séparés par virgule. Écrasent les mots-clés globaux de l'interface pour ce produit.", "laisse chien design, laisse fantaisie"),
     ]
 
     for r, row_data in enumerate(guide_rows, 2):
@@ -252,15 +256,23 @@ async def download_template():
             cell.alignment = Alignment(wrap_text=True, vertical="top")
             if r % 2 == 0:
                 cell.fill = PatternFill("solid", fgColor="F9FAFB")
-        guide.row_dimensions[r].height = 36
+            # Mettre en évidence la ligne Image_Fichier
+            if row_data[0] == "Image_Fichier":
+                cell.fill = PatternFill("solid", fgColor="CCFBF1")
+                cell.font = Font(color="0F4C40", bold=(col == 1))
+        guide.row_dimensions[r].height = 50 if row_data[0] == "Image_Fichier" else 36
 
     guide.row_dimensions[1].height = 24
 
     # ── Légende ──────────────────────────────────────────────────────────────
     legend_row = len(guide_rows) + 3
-    guide.cell(row=legend_row, column=1, value="* Colonnes violettes foncées = obligatoires").font = Font(bold=True, color="764BA2")
-    guide.cell(row=legend_row+1, column=1, value="* Colonnes violettes claires = recommandées ou optionnelles").font = Font(italic=True, color="9333EA")
-    guide.cell(row=legend_row+3, column=1, value="Conseil : travaillez par segment (un upload = un type de produit) pour des mots-clés plus précis.").font = Font(italic=True, color="6B7280")
+    guide.cell(row=legend_row,   column=1, value="* Colonnes violettes foncées = obligatoires").font = Font(bold=True, color="764BA2")
+    guide.cell(row=legend_row+1, column=1, value="* Colonne verte = photo de référence (recommandée fortement)").font = Font(bold=True, color="0F766E")
+    guide.cell(row=legend_row+2, column=1, value="* Colonnes violettes claires = optionnelles").font = Font(italic=True, color="9333EA")
+    guide.cell(row=legend_row+4, column=1,
+        value="Conseil : fournissez toujours la photo via Image_Fichier + ZIP. "
+              "L'IA analyse la photo et extrait automatiquement couleurs, matières et détails. "
+              "Moins vous remplissez de texte, plus la photo prime.").font = Font(italic=True, color="6B7280")
 
     # ── Export ────────────────────────────────────────────────────────────────
     buf = io.BytesIO()
