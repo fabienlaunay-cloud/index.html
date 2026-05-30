@@ -31,6 +31,8 @@ def _validate_password(password: str):
         )
 
 
+router = APIRouter(prefix="/api/auth", tags=["auth"])
+admin_router = APIRouter(prefix="/api/admin", tags=["admin"])
 
 
 
