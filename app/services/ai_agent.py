@@ -52,26 +52,33 @@ MARKETPLACE_CONSTRAINTS = {
         "keywords_max": 249,
         "platform": "Amazon.co.uk",
     },
-    Marketplace.CDISCOUNT: {
-        "lang": "français",
-        "title_max": 150,
-        "bullets": 5,
-        "keywords_max": 0,
-        "platform": "Cdiscount",
-    },
-    Marketplace.FNAC: {
-        "lang": "français",
-        "title_max": 150,
-        "bullets": 4,
-        "keywords_max": 0,
-        "platform": "Fnac",
-    },
-    Marketplace.BOL: {
+    Marketplace.AMAZON_NL: {
         "lang": "néerlandais",
-        "title_max": 150,
+        "title_max": 200,
         "bullets": 5,
-        "keywords_max": 0,
-        "platform": "Bol.com",
+        "keywords_max": 249,
+        "platform": "Amazon.nl",
+    },
+    Marketplace.AMAZON_SE: {
+        "lang": "suédois",
+        "title_max": 200,
+        "bullets": 5,
+        "keywords_max": 249,
+        "platform": "Amazon.se",
+    },
+    Marketplace.AMAZON_PL: {
+        "lang": "polonais",
+        "title_max": 200,
+        "bullets": 5,
+        "keywords_max": 249,
+        "platform": "Amazon.pl",
+    },
+    Marketplace.AMAZON_BE: {
+        "lang": "français",
+        "title_max": 200,
+        "bullets": 5,
+        "keywords_max": 249,
+        "platform": "Amazon.com.be",
     },
 }
 
