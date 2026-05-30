@@ -947,18 +947,17 @@
       <div id="publishApiForm">
         <div class="mb-3">
           <label class="text-xs font-medium text-gray-600 block mb-2">Marketplace</label>
-          <input type="hidden" id="publishMarketplace" value="amazon_fr">
-          <div id="marketplaceGrid" class="grid grid-cols-3 gap-1.5">
-            <button type="button" onclick="selectMarketplace('amazon_fr',this)" class="mkt-card selected border-2 border-purple-500 bg-purple-50 rounded-lg py-2 px-1 text-center text-xs font-medium transition hover:border-purple-400">🇫🇷<br>France</button>
-            <button type="button" onclick="selectMarketplace('amazon_de',this)" class="mkt-card border-2 border-gray-200 bg-white rounded-lg py-2 px-1 text-center text-xs font-medium transition hover:border-purple-300">🇩🇪<br>Allemagne</button>
-            <button type="button" onclick="selectMarketplace('amazon_it',this)" class="mkt-card border-2 border-gray-200 bg-white rounded-lg py-2 px-1 text-center text-xs font-medium transition hover:border-purple-300">🇮🇹<br>Italie</button>
-            <button type="button" onclick="selectMarketplace('amazon_es',this)" class="mkt-card border-2 border-gray-200 bg-white rounded-lg py-2 px-1 text-center text-xs font-medium transition hover:border-purple-300">🇪🇸<br>Espagne</button>
-            <button type="button" onclick="selectMarketplace('amazon_uk',this)" class="mkt-card border-2 border-gray-200 bg-white rounded-lg py-2 px-1 text-center text-xs font-medium transition hover:border-purple-300">🇬🇧<br>UK</button>
-            <button type="button" onclick="selectMarketplace('amazon_nl',this)" class="mkt-card border-2 border-gray-200 bg-white rounded-lg py-2 px-1 text-center text-xs font-medium transition hover:border-purple-300">🇳🇱<br>Pays-Bas</button>
-            <button type="button" onclick="selectMarketplace('amazon_se',this)" class="mkt-card border-2 border-gray-200 bg-white rounded-lg py-2 px-1 text-center text-xs font-medium transition hover:border-purple-300">🇸🇪<br>Suède</button>
-            <button type="button" onclick="selectMarketplace('amazon_pl',this)" class="mkt-card border-2 border-gray-200 bg-white rounded-lg py-2 px-1 text-center text-xs font-medium transition hover:border-purple-300">🇵🇱<br>Pologne</button>
-            <button type="button" onclick="selectMarketplace('amazon_be',this)" class="mkt-card border-2 border-gray-200 bg-white rounded-lg py-2 px-1 text-center text-xs font-medium transition hover:border-purple-300">🇧🇪<br>Belgique</button>
-          </div>
+          <select id="publishMarketplace" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-purple-300">
+            <option value="amazon_fr">🇫🇷 Amazon France</option>
+            <option value="amazon_de">🇩🇪 Amazon Allemagne</option>
+            <option value="amazon_it">🇮🇹 Amazon Italie</option>
+            <option value="amazon_es">🇪🇸 Amazon Espagne</option>
+            <option value="amazon_uk">🇬🇧 Amazon UK</option>
+            <option value="amazon_nl">🇳🇱 Amazon Pays-Bas</option>
+            <option value="amazon_se">🇸🇪 Amazon Suède</option>
+            <option value="amazon_pl">🇵🇱 Amazon Pologne</option>
+            <option value="amazon_be">🇧🇪 Amazon Belgique</option>
+          </select>
         </div>
         <div class="flex items-center gap-2 mb-3">
           <input type="checkbox" id="dryRunCheck" class="w-4 h-4 accent-purple-600" checked>
@@ -2304,15 +2303,6 @@ async function exportResults(format) {
   showToast('✅', `Export ${format.toUpperCase()} téléchargé`);
 }
 
-function selectMarketplace(value, el) {
-  document.getElementById('publishMarketplace').value = value;
-  document.querySelectorAll('.mkt-card').forEach(c => {
-    c.className = c.className.replace('border-purple-500 bg-purple-50 selected', 'border-gray-200 bg-white');
-    c.classList.remove('selected');
-  });
-  el.className = el.className.replace('border-gray-200 bg-white', 'border-purple-500 bg-purple-50');
-  el.classList.add('selected');
-}
 
 // Écouter la fermeture du popup OAuth Amazon
 window.addEventListener('message', (e) => {
