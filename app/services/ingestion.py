@@ -103,11 +103,14 @@ def _coerce(mapped: dict) -> RawProduct:
             k.strip() for k in mapped["focus_keywords"].replace(";", ",").split(",") if k.strip()
         ]
 
-    # Image_Fichier → convertir en URL interne /api/photos/{nom} si pas d'Image_URL
+    # Image_Fichier → URL interne /api/photos/{nom}, prioritaire sur Image_URL
+    # (les URLs Google Drive échouent depuis les IPs datacenter Railway)
     if mapped.get("image_file"):
         fname = str(mapped.pop("image_file")).strip()
-        if fname and not mapped.get("images"):
-            mapped["images"] = [f"/api/photos/{fname}"]
+        if fname:
+            local_url = f"/api/photos/{fname}"
+            existing = mapped.get("images") or []
+            mapped["images"] = [local_url] + [u for u in existing if u != local_url]
     else:
         mapped.pop("image_file", None)
 

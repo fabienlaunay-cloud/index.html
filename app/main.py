@@ -332,9 +332,12 @@ async def upload_photos_zip(request: Request):
 
     for entry in zf.namelist():
         # Ignorer dossiers et métadonnées macOS
-        if entry.endswith("/") or "__MACOSX" in entry or "/." in entry or entry.startswith("."):
+        if entry.endswith("/") or "__MACOSX" in entry:
             continue
         basename = entry.split("/")[-1]
+        # Ignorer fichiers cachés (ex: .DS_Store) mais pas les entrées "./photo.jpg"
+        if not basename or basename.startswith("."):
+            continue
         stem, ext = os.path.splitext(basename)
         if ext.lower() not in _IMAGE_EXTS:
             continue
