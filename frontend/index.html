@@ -905,7 +905,7 @@
     <div class="space-y-4">
       <div>
         <label class="text-white/70 text-sm font-medium block mb-1.5">Nouveau mot de passe</label>
-        <input id="invitePassword" type="password" placeholder="8 caractères minimum" class="input-auth w-full rounded-xl px-4 py-3 text-sm" onkeydown="if(event.key==='Enter') doAcceptInvite()">
+        <input id="invitePassword" type="password" placeholder="12 caractères min. + 1 caractère spécial" class="input-auth w-full rounded-xl px-4 py-3 text-sm" onkeydown="if(event.key==='Enter') doAcceptInvite()">
       </div>
       <div>
         <label class="text-white/70 text-sm font-medium block mb-1.5">Confirmer le mot de passe</label>
@@ -1029,7 +1029,7 @@ async function doAcceptInvite() {
     errEl.textContent = 'Les mots de passe ne correspondent pas'; errEl.classList.remove('hidden'); return;
   }
   if (password.length < 8) {
-    errEl.textContent = 'Mot de passe trop court (8 caractères minimum)'; errEl.classList.remove('hidden'); return;
+    errEl.textContent = 'Mot de passe invalide (12 caractères min. + 1 caractère spécial)'; errEl.classList.remove('hidden'); return;
   }
   btn.disabled = true; btn.textContent = 'Activation...'; errEl.classList.add('hidden');
   try {
@@ -2401,7 +2401,7 @@ async function doSetup() {
   const btn = document.getElementById('setupBtn');
   const errEl = document.getElementById('setupError');
   if (!email || !password) { errEl.textContent = 'Email et mot de passe requis'; errEl.classList.remove('hidden'); return; }
-  if (password.length < 8) { errEl.textContent = 'Mot de passe trop court (8 caractères min)'; errEl.classList.remove('hidden'); return; }
+  if (password.length < 12 || !/[!@#$%^&*()\-_=+\[\]{};':"\\|,.<>/?]/.test(password)) { errEl.textContent = 'Mot de passe invalide (12 caractères min. + 1 caractère spécial)'; errEl.classList.remove('hidden'); return; }
   btn.disabled = true; btn.textContent = 'Création...'; errEl.classList.add('hidden');
   try {
     const r = await fetch(`${API}/api/auth/setup`, {

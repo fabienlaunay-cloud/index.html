@@ -18,8 +18,20 @@ def _get_ip(request: Request) -> str:
         return forwarded.split(",")[0].strip()
     return request.client.host if request.client else "unknown"
 
-router = APIRouter(prefix="/api/auth", tags=["auth"])
-admin_router = APIRouter(prefix="/api/admin", tags=["admin"])
+import re as _re
+
+_PW_RE = _re.compile(r'^(?=.*[!@#$%^&*()_+\-=\[\]{};\':"\\|,.<>\/?]).{12,}$')
+
+
+def _validate_password(password: str):
+    if not password or not _PW_RE.match(password):
+        raise HTTPException(
+            400,
+            "Le mot de passe doit contenir au moins 12 caractères et un caractère spécial (!@#$%^&*…)"
+        )
+
+
+
 
 
 # ── Schemas ───────────────────────────────────────────────────────────────────
@@ -74,6 +86,7 @@ async def setup_first_user(req: CreateUserRequest):
     conn.close()
     if count > 0:
         raise HTTPException(403, "Setup déjà effectué")
+    _validate_password(req.password)
     user = create_user(req.email, req.password, req.name, is_admin=True)
     token = create_token(req.email)
     return {"token": token, "email": user["email"], "name": user["name"], "is_admin": True}
@@ -135,8 +148,7 @@ async def get_invite(token: str):
 
 @router.post("/invite/{token}/accept")
 async def accept_invite(token: str, req: AcceptInviteRequest):
-    if not req.password or len(req.password) < 8:
-        raise HTTPException(400, "Mot de passe trop court (8 caractères minimum)")
+    _validate_password(req.password)
     conn = get_db()
     row = conn.execute(
         "SELECT email, expires_at, used FROM invitation_tokens WHERE token = ?", (token,)
