@@ -174,6 +174,34 @@ async def accept_invite(token: str, req: AcceptInviteRequest):
     return {"token": jwt_token, "email": email, "is_admin": False}
 
 
+class ResetAdminRequest(BaseModel):
+    secret: str
+    email: str
+    new_password: str
+
+
+@router.post("/reset-admin")
+async def reset_admin_password(req: ResetAdminRequest):
+    """Reset admin password via ADMIN_RESET_SECRET env var. Disabled when env var is unset."""
+    reset_secret = os.getenv("ADMIN_RESET_SECRET", "")
+    if not reset_secret:
+        raise HTTPException(403, "Reset désactivé — définissez ADMIN_RESET_SECRET dans Railway")
+    if req.secret != reset_secret:
+        raise HTTPException(403, "Secret invalide")
+    _validate_password(req.new_password)
+    new_hash = hash_password(req.new_password)
+    conn = get_db()
+    result = conn.execute(
+        "UPDATE users SET password_hash = ?, is_active = 1 WHERE email = ?",
+        (new_hash, req.email.lower().strip()),
+    )
+    conn.commit()
+    conn.close()
+    if result.rowcount == 0:
+        raise HTTPException(404, f"Aucun utilisateur trouvé pour {req.email}")
+    return {"status": "ok", "message": f"Mot de passe réinitialisé pour {req.email}"}
+
+
 @router.get("/me")
 async def me(authorization: str = Header(None)):
     if not authorization or not authorization.startswith("Bearer "):
