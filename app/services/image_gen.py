@@ -140,6 +140,56 @@ AMAZON_IMAGE_TYPES = [
 ]
 
 
+async def _describe_product_from_image(image_bytes: bytes) -> str:
+    """Claude Vision → description visuelle précise du produit (couleurs exactes, matériaux, hardware).
+
+    On analyse la photo AVANT de générer les prompts gpt-image-1 pour que
+    les prompts contiennent les vraies couleurs du produit, pas des couleurs inventées.
+    """
+    import base64
+
+    sig = image_bytes[:12]
+    if sig[:2] == b'\xff\xd8':
+        media_type = "image/jpeg"
+    elif sig[:8] == b'\x89PNG\r\n\x1a\n':
+        media_type = "image/png"
+    elif sig[8:12] == b'WEBP':
+        media_type = "image/webp"
+    else:
+        media_type = "image/jpeg"
+
+    image_b64 = base64.standard_b64encode(image_bytes).decode()
+
+    response = await get_claude().messages.create(
+        model="claude-sonnet-4-6",
+        max_tokens=300,
+        messages=[{
+            "role": "user",
+            "content": [
+                {
+                    "type": "image",
+                    "source": {"type": "base64", "media_type": media_type, "data": image_b64},
+                },
+                {
+                    "type": "text",
+                    "text": (
+                        "Describe this product's exact visual appearance for AI image generation. "
+                        "Be extremely specific:\n"
+                        "1. Base/background color of the product (exact shade, e.g. 'dark rust-brown' NOT 'dark')\n"
+                        "2. Pattern and secondary colors (e.g. 'jet-black leopard spots' NOT 'multicolor')\n"
+                        "3. Hardware/metal color and finish (e.g. 'shiny gold-toned carabiner and D-rings')\n"
+                        "4. Material texture (e.g. 'matte nylon webbing')\n"
+                        "5. Any other distinctive visual feature\n\n"
+                        "Write in English, 60-80 words max. "
+                        "NEVER use vague terms like 'multicolor', 'various', 'colorful' — always name the exact shade."
+                    ),
+                },
+            ],
+        }]
+    )
+    return response.content[0].text.strip()
+
+
 async def _generate_prompts_with_claude(product_info: dict) -> dict[str, str]:
     """Claude génère des prompts DALL-E optimisés pour chaque type d'image Amazon."""
     system = """Tu es un directeur artistique expert en photographie produit haut de gamme et en publicité e-commerce.
@@ -179,9 +229,20 @@ Réponds UNIQUEMENT en JSON valide."""
         for t in AMAZON_IMAGE_TYPES
     )
 
+    visual_block = ""
+    if product_info.get("visual_exact_description"):
+        visual_block = f"""
+⚠️ DESCRIPTION VISUELLE EXACTE ISSUE DE LA PHOTO DU VRAI PRODUIT :
+{product_info["visual_exact_description"]}
+
+→ Tu DOIS utiliser ces couleurs et ces détails exacts dans CHACUN de tes 7 prompts.
+→ Ne jamais inventer ni changer les couleurs : si la photo montre "brun rouille foncé avec taches noires et quincaillerie dorée", tous les prompts doivent décrire exactement cela.
+→ Le produit généré doit être instantanément reconnaissable comme le même produit que sur la photo cliente.
+"""
+
     user = f"""Produit à photographier :
 {json.dumps(product_info, ensure_ascii=False, indent=2)}
-
+{visual_block}
 Génère 7 prompts gpt-image-1 de qualité publicitaire haut de gamme pour ce produit.
 
 RÈGLES PAR TYPE :
@@ -366,13 +427,20 @@ async def generate_product_images(
         "matière": material,
     }
 
-    # 1. Génération des prompts via Claude
-    prompts, tok_in, tok_out = await _generate_prompts_with_claude(product_info)
-
-    # 2. Image de référence : bytes déjà dispo (ZIP) ou à télécharger (URL externe)
+    # 1. Image de référence : bytes déjà dispo (ZIP) ou à télécharger (URL externe)
     reference_image = reference_image_bytes
     if not reference_image and reference_image_url:
         reference_image = await _download_reference_image(reference_image_url)
+
+    # 2. Si photo dispo → Claude Vision extrait les couleurs/détails exacts AVANT les prompts
+    if reference_image:
+        try:
+            product_info["visual_exact_description"] = await _describe_product_from_image(reference_image)
+        except Exception:
+            pass
+
+    # 3. Génération des prompts via Claude (avec description visuelle exacte si disponible)
+    prompts, tok_in, tok_out = await _generate_prompts_with_claude(product_info)
 
     # 3. Types sélectionnés (par défaut : tous)
     types_to_generate = selected_types or [t["id"] for t in AMAZON_IMAGE_TYPES]
