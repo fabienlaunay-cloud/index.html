@@ -2184,7 +2184,7 @@ function renderImages(container, data) {
   const notice = hasImages ? '' : `<div class="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-4 text-sm text-blue-800"><p class="font-semibold mb-1">💡 Prompts générés — Images non générées</p><p>Ajoutez <code class="bg-blue-100 px-1 rounded">OPENAI_API_KEY</code> dans Railway pour générer les images. En attendant, copiez les prompts dans Midjourney ou Canva IA.</p></div>`;
   const cards = data.images.map(img => {
     const imgHtml = img.url
-      ? `<div class="relative group"><img src="${img.url}" alt="${_esc(img.label)}" class="w-full h-48 object-cover"><div class="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition flex items-center justify-center"><a href="${img.url}" target="_blank" class="hidden group-hover:flex bg-white rounded-lg px-3 py-1.5 text-xs font-medium gap-1 items-center">↗ Ouvrir</a></div></div>`
+      ? `<div class="relative group cursor-zoom-in" onclick="openLightbox(${JSON.stringify(img.url)})"><img src="${img.url}" alt="${_esc(img.label)}" class="w-full h-48 object-cover"><div class="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition flex items-center justify-center"><span class="hidden group-hover:flex bg-white/90 rounded-lg px-3 py-1.5 text-xs font-medium gap-1 items-center shadow">🔍 Agrandir</span></div></div>`
       : `<div class="h-36 bg-gradient-to-br from-gray-100 to-gray-50 flex items-center justify-center"><span class="text-4xl">${img.id==='hero'?'📸':img.id.includes('lifestyle')?'🌅':img.id==='infographic'?'📊':img.id==='detail'?'🔍':img.id==='dimensions'?'📐':img.id==='packaging'?'📦':'🖼️'}</span></div>`;
     return `
     <div class="border border-gray-100 rounded-xl overflow-hidden" data-sku="${_esc(sku)}" data-imgid="${img.id}">
@@ -2736,5 +2736,28 @@ renderSegmentPresets();
   </div>
 </div>
 
+<!-- Lightbox pour afficher les images générées en grand -->
+<div id="lightbox" onclick="closeLightbox()" class="fixed inset-0 z-50 hidden bg-black/85 flex items-center justify-center p-4" style="cursor:zoom-out">
+  <img id="lightbox-img" src="" alt="" class="max-w-full max-h-full rounded-xl shadow-2xl object-contain" style="max-height:90vh;max-width:90vw;cursor:default" onclick="event.stopPropagation()">
+  <button onclick="closeLightbox()" class="absolute top-4 right-4 text-white/80 hover:text-white bg-black/40 hover:bg-black/60 rounded-full w-10 h-10 flex items-center justify-center text-xl transition">✕</button>
+</div>
+<script>
+function openLightbox(url) {
+  const lb = document.getElementById('lightbox');
+  const img = document.getElementById('lightbox-img');
+  img.src = url;
+  lb.classList.remove('hidden');
+  lb.classList.add('flex');
+  document.addEventListener('keydown', _lbEsc);
+}
+function closeLightbox() {
+  const lb = document.getElementById('lightbox');
+  lb.classList.add('hidden');
+  lb.classList.remove('flex');
+  document.getElementById('lightbox-img').src = '';
+  document.removeEventListener('keydown', _lbEsc);
+}
+function _lbEsc(e) { if (e.key === 'Escape') closeLightbox(); }
+</script>
 </body>
 </html>
