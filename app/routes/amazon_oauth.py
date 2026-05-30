@@ -8,15 +8,31 @@ from app.db import get_db
 
 router = APIRouter(prefix="/api/amazon")
 
-AMAZON_APP_ID = os.getenv("AMAZON_APP_ID", "")
-LWA_CLIENT_ID = os.getenv("LWA_CLIENT_ID", "")
-LWA_CLIENT_SECRET = os.getenv("LWA_CLIENT_SECRET", "")
 REDIRECT_URI = os.getenv("AMAZON_REDIRECT_URI", "https://synqio.io/api/amazon/callback")
+
+
+@router.get("/debug-config")
+async def debug_config(request: Request):
+    """Debug : vérifie les variables d'env Amazon (valeurs masquées)."""
+    app_id = os.getenv("AMAZON_APP_ID", "")
+    lwa_id = os.getenv("LWA_CLIENT_ID", "")
+    lwa_secret = os.getenv("LWA_CLIENT_SECRET", "")
+    return {
+        "AMAZON_APP_ID": app_id[:12] + "…" if app_id else "❌ VIDE",
+        "LWA_CLIENT_ID": lwa_id[:20] + "…" if lwa_id else "❌ VIDE",
+        "LWA_CLIENT_SECRET": "✅ présent" if lwa_secret else "❌ VIDE",
+        "AMAZON_SP_MODE": os.getenv("AMAZON_SP_MODE", "demo"),
+        "REDIRECT_URI": REDIRECT_URI,
+    }
+
 
 
 @router.get("/connect")
 async def amazon_connect(request: Request):
     """Retourne l'URL d'autorisation Amazon (le JS gère la redirection)."""
+    app_id = os.getenv("AMAZON_APP_ID", "").strip()
+    if not app_id:
+        raise HTTPException(503, "AMAZON_APP_ID manquant — configurez cette variable dans Railway")
     email = request.state.user_email
     state = secrets.token_urlsafe(32)
     conn = get_db()
@@ -28,7 +44,7 @@ async def amazon_connect(request: Request):
     conn.close()
     auth_url = (
         f"https://sellercentral.amazon.fr/apps/authorize/consent"
-        f"?application_id={AMAZON_APP_ID}"
+        f"?application_id={app_id}"
         f"&state={state}"
         f"&version=beta"
     )
