@@ -282,7 +282,19 @@ async def _generate_image_dalle3(prompt: str, image_id: str, reference_image: Op
     if not api_key:
         return None
 
-    prompt = prompt[:3900] if len(prompt) > 3900 else prompt
+    prompt = prompt[:3500] if len(prompt) > 3500 else prompt
+
+    # Quand une photo de référence est fournie, forcer gpt-image-1 à conserver
+    # le produit réel plutôt que d'en inventer un nouveau.
+    if reference_image:
+        preservation = (
+            "IMPORTANT: The attached image is the REAL product photo provided by the client. "
+            "You MUST reproduce this exact product in the output with complete fidelity — "
+            "same shape, same colors, same design, same textures, same proportions, same details. "
+            "Do NOT invent, redesign or replace the product. "
+            "The product in the output must be instantly recognizable as the same product as in the reference image. "
+        )
+        prompt = (preservation + prompt)[:3900]
 
     async with httpx.AsyncClient(timeout=120) as client:
         if reference_image:
