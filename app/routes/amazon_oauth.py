@@ -2,7 +2,7 @@ import os
 import secrets
 import httpx
 from fastapi import APIRouter, Request, HTTPException
-from fastapi.responses import RedirectResponse
+from fastapi.responses import RedirectResponse, HTMLResponse
 
 from app.db import get_db
 
@@ -103,7 +103,17 @@ async def amazon_callback(
     )
     conn.commit()
     conn.close()
-    return RedirectResponse("/?amazon=connected")
+    # Si ouvert en popup : envoyer postMessage au parent et fermer
+    # Si ouvert en onglet principal (fallback) : rediriger vers l'app
+    return HTMLResponse("""<!DOCTYPE html><html><body style="font-family:sans-serif;text-align:center;padding:60px 20px;color:#1f2937">
+<div style="font-size:3rem;margin-bottom:16px">✅</div>
+<h2 style="margin:0 0 8px;font-size:1.2rem">Seller Central connecté !</h2>
+<p style="color:#6b7280;font-size:.9rem">Fermeture automatique...</p>
+<script>
+  try { window.opener && window.opener.postMessage('amazon_connected','*'); } catch(e){}
+  setTimeout(function(){ window.close(); if(!window.closed){ window.location.href='/'; } }, 1200);
+</script>
+</body></html>""")
 
 
 @router.get("/status")

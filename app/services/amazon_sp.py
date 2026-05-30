@@ -36,6 +36,10 @@ MARKETPLACE_IDS = {
     Marketplace.AMAZON_IT: "APJ6JRA9NG5V4",
     Marketplace.AMAZON_ES: "A1RKKUPIHCS9HS",
     Marketplace.AMAZON_UK: "A1F83G8C2ARO7P",
+    Marketplace.AMAZON_NL: "A1805IZSGTT6HS",
+    Marketplace.AMAZON_SE: "A2NODRKZP88ZB9",
+    Marketplace.AMAZON_PL: "A1C3SOZRARQ6R3",
+    Marketplace.AMAZON_BE: "ANBVA00213BO8Q",
 }
 
 

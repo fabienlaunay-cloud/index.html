@@ -701,12 +701,13 @@ async def get_image_types():
 @app.get("/api/marketplaces")
 async def list_marketplaces():
     return [
-        {"id": "amazon_fr",  "name": "Amazon France",    "flag": "🇫🇷", "status": "active"},
-        {"id": "amazon_de",  "name": "Amazon Allemagne",  "flag": "🇩🇪", "status": "active"},
-        {"id": "amazon_it",  "name": "Amazon Italie",     "flag": "🇮🇹", "status": "active"},
-        {"id": "amazon_es",  "name": "Amazon Espagne",    "flag": "🇪🇸", "status": "active"},
-        {"id": "amazon_uk",  "name": "Amazon UK",         "flag": "🇬🇧", "status": "active"},
-        {"id": "cdiscount",  "name": "Cdiscount",         "flag": "🇫🇷", "status": "beta"},
-        {"id": "fnac",       "name": "Fnac",              "flag": "🇫🇷", "status": "beta"},
-        {"id": "bol",        "name": "Bol.com",           "flag": "🇳🇱", "status": "beta"},
+        {"id": "amazon_fr",  "name": "Amazon France",    "flag": "🇫🇷"},
+        {"id": "amazon_de",  "name": "Amazon Allemagne",  "flag": "🇩🇪"},
+        {"id": "amazon_it",  "name": "Amazon Italie",     "flag": "🇮🇹"},
+        {"id": "amazon_es",  "name": "Amazon Espagne",    "flag": "🇪🇸"},
+        {"id": "amazon_uk",  "name": "Amazon UK",         "flag": "🇬🇧"},
+        {"id": "amazon_nl",  "name": "Amazon Pays-Bas",   "flag": "🇳🇱"},
+        {"id": "amazon_se",  "name": "Amazon Suède",      "flag": "🇸🇪"},
+        {"id": "amazon_pl",  "name": "Amazon Pologne",    "flag": "🇵🇱"},
+        {"id": "amazon_be",  "name": "Amazon Belgique",   "flag": "🇧🇪"},
     ]

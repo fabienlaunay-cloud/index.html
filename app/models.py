@@ -9,9 +9,10 @@ class Marketplace(str, Enum):
     AMAZON_IT = "amazon_it"
     AMAZON_ES = "amazon_es"
     AMAZON_UK = "amazon_uk"
-    CDISCOUNT = "cdiscount"
-    FNAC = "fnac"
-    BOL = "bol"
+    AMAZON_NL = "amazon_nl"
+    AMAZON_SE = "amazon_se"
+    AMAZON_PL = "amazon_pl"
+    AMAZON_BE = "amazon_be"
 
 
 class RawProduct(BaseModel):
