@@ -2335,14 +2335,20 @@ async function checkAmazonStatus() {
       btn.className = 'w-full bg-amber-500 hover:bg-amber-600 text-white rounded-lg py-2 text-sm font-semibold transition';
       btn.textContent = 'Connecter mon Seller Central';
       btn.onclick = async () => {
-        const r = await authFetch('/api/amazon/connect');
-        const data = await r.json();
-        if (data.error) { showToast('⚠️', data.error); return; }
-        // Ouvrir en popup pour ne pas perdre le travail en cours
-        const popup = window.open(data.url, 'amazon_oauth', 'width=820,height=720,scrollbars=yes,resizable=yes');
-        const timer = setInterval(() => {
-          if (popup && popup.closed) { clearInterval(timer); checkAmazonStatus(); }
-        }, 600);
+        // Ouvrir le popup immédiatement (geste utilisateur synchrone) pour éviter le blocage navigateur
+        const popup = window.open('about:blank', 'amazon_oauth', 'width=820,height=720,scrollbars=yes,resizable=yes');
+        try {
+          const r = await authFetch('/api/amazon/connect');
+          const data = await r.json();
+          if (data.error) { if (popup) popup.close(); showToast('⚠️', data.error); return; }
+          popup.location.href = data.url;
+          const timer = setInterval(() => {
+            if (popup && popup.closed) { clearInterval(timer); checkAmazonStatus(); }
+          }, 600);
+        } catch(e) {
+          if (popup) popup.close();
+          showToast('❌', 'Erreur lors de la connexion Amazon');
+        }
       };
     }
   } catch {
