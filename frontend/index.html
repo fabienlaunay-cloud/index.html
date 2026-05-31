@@ -2383,7 +2383,12 @@ async function checkAmazonStatus() {
         try {
           const r = await authFetch('/api/amazon/connect');
           const data = await r.json();
-          if (data.error) { if (popup) popup.close(); showToast('⚠️', data.error); return; }
+          const errMsg = data.error || data.detail;
+          if (errMsg || !data.url) {
+            if (popup) popup.close();
+            showToast('⚠️', errMsg || 'URL Amazon manquante — vérifiez AMAZON_APP_ID dans Railway');
+            return;
+          }
           popup.location.href = data.url;
           const timer = setInterval(() => {
             if (popup && popup.closed) { clearInterval(timer); checkAmazonStatus(); }
