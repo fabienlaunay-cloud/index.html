@@ -4,7 +4,7 @@ import httpx
 from fastapi import APIRouter, Request, HTTPException
 from fastapi.responses import RedirectResponse, HTMLResponse
 
-from app.db import get_db
+from app.db import get_db, get_config, set_config
 
 router = APIRouter(prefix="/api/amazon")
 
@@ -33,9 +33,9 @@ async def debug_config(request: Request):
 @router.get("/connect")
 async def amazon_connect(request: Request):
     """Retourne l'URL d'autorisation Amazon (le JS gère la redirection)."""
-    app_id = os.getenv("AMAZON_APP_ID", "").strip()
+    app_id = get_config("AMAZON_APP_ID", "").strip()
     if not app_id:
-        raise HTTPException(503, "AMAZON_APP_ID manquant — configurez cette variable dans Railway")
+        raise HTTPException(503, "AMAZON_APP_ID manquant — configurez-le dans l'espace admin SynqIO")
     email = request.state.user_email
     state = secrets.token_urlsafe(32)
     conn = get_db()

@@ -9,7 +9,7 @@ from app.services.auth import (
     check_rate_limit, record_failed_attempt, clear_attempts, get_retry_after,
     hash_password,
 )
-from app.db import get_db
+from app.db import get_db, get_config, set_config
 
 
 def _get_ip(request: Request) -> str:
@@ -273,3 +273,23 @@ async def update_plan(email: str, req: UpdatePlanRequest, authorization: str = H
     conn.commit()
     conn.close()
     return {"status": "updated", "email": email, "plan": req.plan}
+
+
+ALLOWED_CONFIG_KEYS = {"AMAZON_APP_ID", "LWA_CLIENT_ID", "LWA_CLIENT_SECRET", "AMAZON_SP_MODE", "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_ROLE_ARN"}
+
+class ConfigRequest(BaseModel):
+    key: str
+    value: str
+
+@admin_router.get("/config")
+async def get_app_config(authorization: str = Header(None)):
+    _require_admin(authorization)
+    return {k: ("✅ présent" if get_config(k) else "❌ vide") for k in ALLOWED_CONFIG_KEYS}
+
+@admin_router.post("/config")
+async def set_app_config(req: ConfigRequest, authorization: str = Header(None)):
+    _require_admin(authorization)
+    if req.key not in ALLOWED_CONFIG_KEYS:
+        raise HTTPException(400, f"Clé non autorisée : {req.key}")
+    set_config(req.key, req.value.strip())
+    return {"status": "ok", "key": req.key}

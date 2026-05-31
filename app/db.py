@@ -79,5 +79,33 @@ def init_db():
         )
     """)
 
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS app_config (
+            key TEXT PRIMARY KEY,
+            value TEXT NOT NULL DEFAULT '',
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+
+    conn.commit()
+    conn.close()
+
+
+def get_config(key: str, fallback: str = "") -> str:
+    """Lit une valeur de config depuis la DB, avec fallback sur env var du même nom."""
+    conn = get_db()
+    row = conn.execute("SELECT value FROM app_config WHERE key = ?", (key,)).fetchone()
+    conn.close()
+    if row and row["value"]:
+        return row["value"]
+    return os.getenv(key, fallback)
+
+
+def set_config(key: str, value: str):
+    conn = get_db()
+    conn.execute(
+        "INSERT INTO app_config (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=CURRENT_TIMESTAMP",
+        (key, value),
+    )
     conn.commit()
     conn.close()

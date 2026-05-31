@@ -834,6 +834,7 @@
         <nav class="flex gap-1 bg-white/10 rounded-xl p-1">
           <button id="adminTabBtnClients" onclick="switchAdminTab('clients')" class="px-4 py-2 rounded-lg text-sm font-medium bg-white/20 text-white transition">👥 Clients</button>
           <button id="adminTabBtnUsage" onclick="switchAdminTab('usage')" class="px-4 py-2 rounded-lg text-sm font-medium text-white/70 hover:text-white hover:bg-white/10 transition">Usage & Plans</button>
+          <button id="adminTabBtnConfig" onclick="switchAdminTab('config')" class="px-4 py-2 rounded-lg text-sm font-medium text-white/70 hover:text-white hover:bg-white/10 transition">⚙️ Config API</button>
         </nav>
       </div>
       <div class="flex items-center gap-3">
@@ -879,6 +880,37 @@
       </div>
     </div>
 
+  </div>
+
+  <!-- Tab: Config API -->
+  <div id="adminPanelConfig" class="hidden max-w-3xl mx-auto px-6 py-8">
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+      <h3 class="font-semibold text-gray-800 text-lg mb-1">Configuration API Amazon</h3>
+      <p class="text-gray-500 text-sm mb-6">Ces valeurs sont stockées en base de données — elles remplacent les variables d'environnement Railway.</p>
+      <div class="space-y-4" id="configForm">
+        <div class="grid grid-cols-1 gap-4">
+          <div><label class="text-xs font-semibold text-gray-500 uppercase tracking-wide">AMAZON_APP_ID</label><input id="cfg_AMAZON_APP_ID" type="password" placeholder="amzn1.sp.solution.…" class="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-mono"></div>
+          <div><label class="text-xs font-semibold text-gray-500 uppercase tracking-wide">LWA_CLIENT_ID</label><input id="cfg_LWA_CLIENT_ID" type="password" placeholder="amzn1.application-oa2-client.…" class="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-mono"></div>
+          <div><label class="text-xs font-semibold text-gray-500 uppercase tracking-wide">LWA_CLIENT_SECRET</label><input id="cfg_LWA_CLIENT_SECRET" type="password" placeholder="••••••••" class="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-mono"></div>
+          <div><label class="text-xs font-semibold text-gray-500 uppercase tracking-wide">AMAZON_SP_MODE</label>
+            <select id="cfg_AMAZON_SP_MODE" class="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2 text-sm">
+              <option value="demo">demo (simulation)</option>
+              <option value="live">live (publication réelle)</option>
+              <option value="sandbox">sandbox (test Amazon)</option>
+            </select>
+          </div>
+          <div><label class="text-xs font-semibold text-gray-500 uppercase tracking-wide">AWS_ACCESS_KEY_ID</label><input id="cfg_AWS_ACCESS_KEY_ID" type="password" placeholder="AKIA…" class="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-mono"></div>
+          <div><label class="text-xs font-semibold text-gray-500 uppercase tracking-wide">AWS_SECRET_ACCESS_KEY</label><input id="cfg_AWS_SECRET_ACCESS_KEY" type="password" placeholder="••••••••" class="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-mono"></div>
+          <div><label class="text-xs font-semibold text-gray-500 uppercase tracking-wide">AWS_ROLE_ARN</label><input id="cfg_AWS_ROLE_ARN" type="password" placeholder="arn:aws:iam::…" class="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-mono"></div>
+        </div>
+        <div id="configStatus" class="hidden text-sm rounded-lg px-4 py-2"></div>
+        <button onclick="saveConfig()" class="w-full gradient-bg text-white rounded-lg py-2.5 text-sm font-semibold hover:opacity-90 transition">Enregistrer la configuration</button>
+      </div>
+      <div class="mt-6 pt-6 border-t border-gray-100">
+        <h4 class="text-sm font-semibold text-gray-600 mb-3">État actuel</h4>
+        <div id="configStatus2" class="text-xs text-gray-400">Chargement…</div>
+      </div>
+    </div>
   </div>
 
   <!-- Tab: Usage & Plans -->
@@ -1336,14 +1368,48 @@ function showAdminPanel() {
 }
 
 function switchAdminTab(tab) {
-  const tabs = ['clients', 'usage'];
+  const tabs = ['clients', 'usage', 'config'];
   tabs.forEach(t => {
     const btn = document.getElementById(`adminTabBtn${t.charAt(0).toUpperCase() + t.slice(1)}`);
     const panel = document.getElementById(`adminPanel${t.charAt(0).toUpperCase() + t.slice(1)}`);
     const active = t === tab;
-    btn.className = `px-4 py-2 rounded-lg text-sm font-medium transition ${active ? 'bg-white/20 text-white' : 'text-white/70 hover:text-white hover:bg-white/10'}`;
-    panel.classList.toggle('hidden', !active);
+    if (btn) btn.className = `px-4 py-2 rounded-lg text-sm font-medium transition ${active ? 'bg-white/20 text-white' : 'text-white/70 hover:text-white hover:bg-white/10'}`;
+    if (panel) panel.classList.toggle('hidden', !active);
   });
+  if (tab === 'config') loadConfigStatus();
+}
+
+async function loadConfigStatus() {
+  const el = document.getElementById('configStatus2');
+  try {
+    const r = await authFetch('/api/admin/config');
+    const data = await r.json();
+    el.innerHTML = Object.entries(data).map(([k,v]) => `<span class="inline-flex items-center gap-1 mr-3">${k}: <span class="${v.includes('✅') ? 'text-green-600' : 'text-red-500'}">${v}</span></span>`).join('');
+  } catch { el.textContent = 'Erreur chargement'; }
+}
+
+async function saveConfig() {
+  const keys = ['AMAZON_APP_ID','LWA_CLIENT_ID','LWA_CLIENT_SECRET','AMAZON_SP_MODE','AWS_ACCESS_KEY_ID','AWS_SECRET_ACCESS_KEY','AWS_ROLE_ARN'];
+  const statusEl = document.getElementById('configStatus');
+  statusEl.className = 'text-sm rounded-lg px-4 py-2 bg-blue-50 text-blue-700';
+  statusEl.classList.remove('hidden');
+  statusEl.textContent = 'Enregistrement…';
+  let errors = [];
+  for (const key of keys) {
+    const el = document.getElementById(`cfg_${key}`);
+    if (!el || !el.value.trim()) continue;
+    const r = await authFetch('/api/admin/config', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({key, value: el.value.trim()}) });
+    if (!r.ok) errors.push(key);
+    else el.value = '';
+  }
+  if (errors.length) {
+    statusEl.className = 'text-sm rounded-lg px-4 py-2 bg-red-50 text-red-700';
+    statusEl.textContent = `Erreur sur : ${errors.join(', ')}`;
+  } else {
+    statusEl.className = 'text-sm rounded-lg px-4 py-2 bg-green-50 text-green-700';
+    statusEl.textContent = '✅ Configuration enregistrée';
+    loadConfigStatus();
+  }
 }
 
 async function loadAdminUsage() {
