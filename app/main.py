@@ -6,7 +6,7 @@ import asyncio
 import base64
 from uuid import uuid4
 from dotenv import load_dotenv
-load_dotenv()
+load_dotenv(override=False)  # local dev only — Railway injects vars directly
 
 from typing import List, Optional
 from fastapi import FastAPI, UploadFile, File, HTTPException, Form, Request
