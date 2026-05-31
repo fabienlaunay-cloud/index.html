@@ -605,16 +605,25 @@
       <div id="healthBadge" class="flex items-center gap-2 bg-white/10 rounded-lg px-3 py-1.5 text-sm">
         <div class="w-2 h-2 rounded-full bg-gray-300 pulse"></div><span>...</span>
       </div>
-      <select id="marketplaceSelector" class="bg-white/10 border border-white/20 text-white rounded-lg px-3 py-1.5 text-sm">
-        <option value="amazon_fr">🇫🇷 Amazon France</option>
-        <option value="amazon_de">🇩🇪 Amazon Allemagne</option>
-        <option value="amazon_it">🇮🇹 Amazon Italie</option>
-        <option value="amazon_es">🇪🇸 Amazon Espagne</option>
-        <option value="amazon_uk">🇬🇧 Amazon UK</option>
-        <option value="cdiscount">🇫🇷 Cdiscount</option>
-        <option value="fnac">🇫🇷 Fnac</option>
-        <option value="bol">🇳🇱 Bol.com</option>
-      </select>
+      <div class="relative" id="mktSelectorWrapper">
+        <input type="hidden" id="marketplaceSelector" value="amazon_fr">
+        <button type="button" onclick="toggleMktDropdown(event)" class="flex items-center gap-2 bg-white/10 border border-white/20 text-white rounded-lg px-3 py-1.5 text-sm min-w-[170px] justify-between hover:bg-white/20 transition">
+          <span id="mktSelectorLabel">🇫🇷 Amazon France</span>
+          <span class="text-white/60 text-xs ml-1">▾</span>
+        </button>
+        <div id="mktSelectorList" class="hidden absolute right-0 top-10 bg-indigo-950 border border-white/20 rounded-xl shadow-2xl py-1.5 z-50 min-w-[200px]">
+          <div onclick="pickMkt('amazon_fr','🇫🇷 Amazon France')" class="px-4 py-2 text-sm text-white hover:bg-white/10 cursor-pointer rounded-lg mx-1">🇫🇷 Amazon France</div>
+          <div onclick="pickMkt('amazon_de','🇩🇪 Amazon Allemagne')" class="px-4 py-2 text-sm text-white hover:bg-white/10 cursor-pointer rounded-lg mx-1">🇩🇪 Amazon Allemagne</div>
+          <div onclick="pickMkt('amazon_it','🇮🇹 Amazon Italie')" class="px-4 py-2 text-sm text-white hover:bg-white/10 cursor-pointer rounded-lg mx-1">🇮🇹 Amazon Italie</div>
+          <div onclick="pickMkt('amazon_es','🇪🇸 Amazon Espagne')" class="px-4 py-2 text-sm text-white hover:bg-white/10 cursor-pointer rounded-lg mx-1">🇪🇸 Amazon Espagne</div>
+          <div onclick="pickMkt('amazon_uk','🇬🇧 Amazon UK')" class="px-4 py-2 text-sm text-white hover:bg-white/10 cursor-pointer rounded-lg mx-1">🇬🇧 Amazon UK</div>
+          <div class="border-t border-white/10 my-1"></div>
+          <div onclick="pickMkt('amazon_nl','🇳🇱 Amazon Pays-Bas')" class="px-4 py-2 text-sm text-white hover:bg-white/10 cursor-pointer rounded-lg mx-1">🇳🇱 Amazon Pays-Bas</div>
+          <div onclick="pickMkt('amazon_se','🇸🇪 Amazon Suède')" class="px-4 py-2 text-sm text-white hover:bg-white/10 cursor-pointer rounded-lg mx-1">🇸🇪 Amazon Suède</div>
+          <div onclick="pickMkt('amazon_pl','🇵🇱 Amazon Pologne')" class="px-4 py-2 text-sm text-white hover:bg-white/10 cursor-pointer rounded-lg mx-1">🇵🇱 Amazon Pologne</div>
+          <div onclick="pickMkt('amazon_be','🇧🇪 Amazon Belgique')" class="px-4 py-2 text-sm text-white hover:bg-white/10 cursor-pointer rounded-lg mx-1">🇧🇪 Amazon Belgique</div>
+        </div>
+      </div>
       <div class="relative">
         <button onclick="toggleUserMenu()" class="flex items-center gap-2 bg-white/10 hover:bg-white/20 rounded-lg px-3 py-1.5 text-sm transition">
           <div id="userAvatar" class="w-6 h-6 bg-white/30 rounded-full flex items-center justify-center text-xs font-bold">?</div>
@@ -947,17 +956,25 @@
       <div id="publishApiForm">
         <div class="mb-3">
           <label class="text-xs font-medium text-gray-600 block mb-2">Marketplace</label>
-          <select id="publishMarketplace" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-purple-300">
-            <option value="amazon_fr">🇫🇷 Amazon France</option>
-            <option value="amazon_de">🇩🇪 Amazon Allemagne</option>
-            <option value="amazon_it">🇮🇹 Amazon Italie</option>
-            <option value="amazon_es">🇪🇸 Amazon Espagne</option>
-            <option value="amazon_uk">🇬🇧 Amazon UK</option>
-            <option value="amazon_nl">🇳🇱 Amazon Pays-Bas</option>
-            <option value="amazon_se">🇸🇪 Amazon Suède</option>
-            <option value="amazon_pl">🇵🇱 Amazon Pologne</option>
-            <option value="amazon_be">🇧🇪 Amazon Belgique</option>
-          </select>
+          <div class="relative" id="pubMktWrapper">
+            <input type="hidden" id="publishMarketplace" value="amazon_fr">
+            <button type="button" onclick="togglePubMkt(event)" class="w-full flex items-center justify-between border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 bg-white hover:bg-gray-50 transition">
+              <span id="pubMktLabel">🇫🇷 Amazon France</span>
+              <span class="text-gray-400 text-xs">▾</span>
+            </button>
+            <div id="pubMktList" class="hidden absolute left-0 top-11 bg-white border border-gray-200 rounded-xl shadow-xl py-1.5 z-50 w-full">
+              <div onclick="pickPubMkt('amazon_fr','🇫🇷 Amazon France')" class="px-4 py-2 text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-700 cursor-pointer rounded-lg mx-1">🇫🇷 Amazon France</div>
+              <div onclick="pickPubMkt('amazon_de','🇩🇪 Amazon Allemagne')" class="px-4 py-2 text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-700 cursor-pointer rounded-lg mx-1">🇩🇪 Amazon Allemagne</div>
+              <div onclick="pickPubMkt('amazon_it','🇮🇹 Amazon Italie')" class="px-4 py-2 text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-700 cursor-pointer rounded-lg mx-1">🇮🇹 Amazon Italie</div>
+              <div onclick="pickPubMkt('amazon_es','🇪🇸 Amazon Espagne')" class="px-4 py-2 text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-700 cursor-pointer rounded-lg mx-1">🇪🇸 Amazon Espagne</div>
+              <div onclick="pickPubMkt('amazon_uk','🇬🇧 Amazon UK')" class="px-4 py-2 text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-700 cursor-pointer rounded-lg mx-1">🇬🇧 Amazon UK</div>
+              <div class="border-t border-gray-100 my-1"></div>
+              <div onclick="pickPubMkt('amazon_nl','🇳🇱 Amazon Pays-Bas')" class="px-4 py-2 text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-700 cursor-pointer rounded-lg mx-1">🇳🇱 Amazon Pays-Bas</div>
+              <div onclick="pickPubMkt('amazon_se','🇸🇪 Amazon Suède')" class="px-4 py-2 text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-700 cursor-pointer rounded-lg mx-1">🇸🇪 Amazon Suède</div>
+              <div onclick="pickPubMkt('amazon_pl','🇵🇱 Amazon Pologne')" class="px-4 py-2 text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-700 cursor-pointer rounded-lg mx-1">🇵🇱 Amazon Pologne</div>
+              <div onclick="pickPubMkt('amazon_be','🇧🇪 Amazon Belgique')" class="px-4 py-2 text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-700 cursor-pointer rounded-lg mx-1">🇧🇪 Amazon Belgique</div>
+            </div>
+          </div>
         </div>
         <div class="flex items-center gap-2 mb-3">
           <input type="checkbox" id="dryRunCheck" class="w-4 h-4 accent-purple-600" checked>
@@ -1277,6 +1294,32 @@ function toggleUserMenu() {
 document.addEventListener('click', e => {
   const btn = document.querySelector('[onclick="toggleUserMenu()"]');
   if (btn && !btn.contains(e.target)) document.getElementById('userDropdown')?.classList.add('hidden');
+});
+
+// ── Custom marketplace dropdowns ──────────────────────────────────────────────
+function toggleMktDropdown(e) {
+  e.stopPropagation();
+  document.getElementById('pubMktList').classList.add('hidden');
+  document.getElementById('mktSelectorList').classList.toggle('hidden');
+}
+function pickMkt(value, label) {
+  document.getElementById('marketplaceSelector').value = value;
+  document.getElementById('mktSelectorLabel').textContent = label;
+  document.getElementById('mktSelectorList').classList.add('hidden');
+}
+function togglePubMkt(e) {
+  e.stopPropagation();
+  document.getElementById('mktSelectorList').classList.add('hidden');
+  document.getElementById('pubMktList').classList.toggle('hidden');
+}
+function pickPubMkt(value, label) {
+  document.getElementById('publishMarketplace').value = value;
+  document.getElementById('pubMktLabel').textContent = label;
+  document.getElementById('pubMktList').classList.add('hidden');
+}
+document.addEventListener('click', () => {
+  document.getElementById('mktSelectorList')?.classList.add('hidden');
+  document.getElementById('pubMktList')?.classList.add('hidden');
 });
 
 // ── Admin panel ───────────────────────────────────────────────────────────────
