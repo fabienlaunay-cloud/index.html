@@ -31,7 +31,6 @@ def _sp_endpoint() -> str:
     return "https://sellingpartnerapi-eu.amazon.com"
 
 SP_API_ENDPOINT = "https://sellingpartnerapi-eu.amazon.com"  # fallback, remplacé dynamiquement
-)
 
 MARKETPLACE_IDS = {
     Marketplace.AMAZON_FR: "A13V1IB3VIYZZH",
