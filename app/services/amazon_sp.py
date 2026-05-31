@@ -19,16 +19,19 @@ from typing import List, Optional
 from datetime import datetime
 
 from app.models import AmazonListing, PublishResult, Marketplace
-from app.db import get_db
+from app.db import get_db, get_config
 
-SP_MODE = os.getenv("AMAZON_SP_MODE", "demo")
-DEMO_MODE = SP_MODE == "demo"
+def _sp_mode() -> str:
+    return get_config("AMAZON_SP_MODE", "demo")
 
-SP_API_ENDPOINT = (
-    "https://sandbox.sellingpartnerapi-eu.amazon.com"
-    if SP_MODE == "sandbox"
-    else "https://sellingpartnerapi-eu.amazon.com"
-)
+def _is_demo() -> bool:
+    return _sp_mode() == "demo"
+
+def _sp_endpoint() -> str:
+    mode = _sp_mode()
+    if mode == "sandbox":
+        return "https://sandbox.sellingpartnerapi-eu.amazon.com"
+    return "https://sellingpartnerapi-eu.amazon.com"
 
 MARKETPLACE_IDS = {
     Marketplace.AMAZON_FR: "A13V1IB3VIYZZH",
@@ -44,13 +47,13 @@ MARKETPLACE_IDS = {
 
 
 def _get_sp_credentials(user_email: str = None) -> dict:
-    """Credentials depuis la DB (par user) ou les env vars (fallback)."""
+    """Credentials depuis la DB app_config, puis env vars en fallback."""
     base = {
-        "lwa_client_id": os.getenv("LWA_CLIENT_ID", ""),
-        "lwa_client_secret": os.getenv("LWA_CLIENT_SECRET", ""),
-        "aws_access_key": os.getenv("AWS_ACCESS_KEY_ID", ""),
-        "aws_secret_key": os.getenv("AWS_SECRET_ACCESS_KEY", ""),
-        "role_arn": os.getenv("AWS_ROLE_ARN", ""),
+        "lwa_client_id": get_config("LWA_CLIENT_ID"),
+        "lwa_client_secret": get_config("LWA_CLIENT_SECRET"),
+        "aws_access_key": get_config("AWS_ACCESS_KEY_ID"),
+        "aws_secret_key": get_config("AWS_SECRET_ACCESS_KEY"),
+        "role_arn": get_config("AWS_ROLE_ARN"),
     }
     if user_email:
         conn = get_db()
@@ -63,8 +66,8 @@ def _get_sp_credentials(user_email: str = None) -> dict:
             return {**base, "refresh_token": row["refresh_token"], "seller_id": row["seller_id"]}
     return {
         **base,
-        "refresh_token": os.getenv("AMAZON_REFRESH_TOKEN", ""),
-        "seller_id": os.getenv("AMAZON_SELLER_ID", ""),
+        "refresh_token": get_config("AMAZON_REFRESH_TOKEN"),
+        "seller_id": get_config("AMAZON_SELLER_ID"),
     }
 
 
@@ -162,7 +165,7 @@ async def _publish_one(
 ) -> dict:
     payload = _listing_to_sp_payload(listing, seller_id, marketplace_id)
     body_bytes = json.dumps(payload).encode("utf-8")
-    url = f"{SP_API_ENDPOINT}/listings/2021-08-01/items/{seller_id}/{listing.sku}?marketplaceIds={marketplace_id}"
+    url = f"{_sp_endpoint()}/listings/2021-08-01/items/{seller_id}/{listing.sku}?marketplaceIds={marketplace_id}"
 
     headers = _sign_request("PUT", url, body_bytes, temp_creds, lwa_token)
 
@@ -181,7 +184,7 @@ async def publish_listings(
     dry_run: bool = True,
     user_email: str = None,
 ) -> PublishResult:
-    if DEMO_MODE or dry_run:
+    if _is_demo() or dry_run:
         return _demo_publish(listings, marketplace, dry_run)
 
     creds = _get_sp_credentials(user_email)

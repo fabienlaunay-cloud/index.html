@@ -9,7 +9,7 @@ from app.services.auth import (
     check_rate_limit, record_failed_attempt, clear_attempts, get_retry_after,
     hash_password,
 )
-from app.db import get_db
+from app.db import get_db, get_config, set_config
 
 
 def _get_ip(request: Request) -> str:
@@ -245,3 +245,81 @@ async def update_plan(email: str, req: UpdatePlanRequest, authorization: str = H
     conn.commit()
     conn.close()
     return {"status": "updated", "email": email, "plan": req.plan}
+
+
+
+ALLOWED_CONFIG_KEYS = {"AMAZON_APP_ID", "LWA_CLIENT_ID", "LWA_CLIENT_SECRET", "AMAZON_SP_MODE", "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_ROLE_ARN", "AMAZON_REFRESH_TOKEN", "AMAZON_SELLER_ID"}
+
+class ConfigRequest(BaseModel):
+    key: str
+    value: str
+
+
+class DirectConnectRequest(BaseModel):
+    refresh_token: str
+    seller_id: str
+    user_email: str
+
+
+@admin_router.post("/amazon-connect-direct")
+async def amazon_connect_direct(req: DirectConnectRequest, authorization: str = Header(None)):
+    """Connecte un utilisateur directement avec un refresh token (bypass OAuth)."""
+    _require_admin(authorization)
+    conn = get_db()
+    conn.execute(
+        """INSERT INTO amazon_credentials (user_email, seller_id, refresh_token)
+           VALUES (?, ?, ?)
+           ON CONFLICT(user_email) DO UPDATE SET
+               seller_id=excluded.seller_id,
+               refresh_token=excluded.refresh_token,
+               updated_at=CURRENT_TIMESTAMP""",
+        (req.user_email.lower().strip(), req.seller_id.strip(), req.refresh_token.strip()),
+    )
+    conn.commit()
+    conn.close()
+    return {"status": "ok", "message": f"Compte Amazon connecté pour {req.user_email}"}
+
+@admin_router.get("/config")
+async def get_app_config(authorization: str = Header(None)):
+    _require_admin(authorization)
+    result = {}
+    for k in ALLOWED_CONFIG_KEYS:
+        db_val = None
+        conn = get_db()
+        row = conn.execute("SELECT value FROM app_config WHERE key = ?", (k,)).fetchone()
+        conn.close()
+        if row and row["value"]:
+            db_val = row["value"]
+        env_val = os.getenv(k, "")
+        if db_val:
+            result[k] = "✅ présent (DB)"
+        elif env_val:
+            result[k] = "✅ présent (env)"
+        else:
+            result[k] = "❌ vide"
+    return result
+
+
+@admin_router.get("/config/debug")
+async def debug_app_config(authorization: str = Header(None)):
+    """Diagnostic : montre le contenu brut de app_config et le chemin de la DB."""
+    _require_admin(authorization)
+    from app.db import DB_PATH
+    import os as _os
+    conn = get_db()
+    rows = conn.execute("SELECT key, length(value) as len, updated_at FROM app_config").fetchall()
+    conn.close()
+    return {
+        "db_path": DB_PATH,
+        "db_exists": _os.path.isfile(DB_PATH),
+        "db_size_bytes": _os.path.getsize(DB_PATH) if _os.path.isfile(DB_PATH) else 0,
+        "app_config_rows": [{"key": r["key"], "value_length": r["len"], "updated_at": r["updated_at"]} for r in rows],
+    }
+
+@admin_router.post("/config")
+async def set_app_config(req: ConfigRequest, authorization: str = Header(None)):
+    _require_admin(authorization)
+    if req.key not in ALLOWED_CONFIG_KEYS:
+        raise HTTPException(400, f"Clé non autorisée : {req.key}")
+    set_config(req.key, req.value.strip())
+    return {"status": "ok", "key": req.key}
