@@ -17,12 +17,15 @@ async def debug_config(request: Request):
     app_id = os.getenv("AMAZON_APP_ID", "")
     lwa_id = os.getenv("LWA_CLIENT_ID", "")
     lwa_secret = os.getenv("LWA_CLIENT_SECRET", "")
+    # Liste toutes les clés d'env contenant AMAZON ou LWA pour diagnostic
+    amazon_keys = {k: (v[:6] + "…" if v else "VIDE") for k, v in os.environ.items() if "AMAZON" in k or "LWA" in k}
     return {
         "AMAZON_APP_ID": app_id[:12] + "…" if app_id else "❌ VIDE",
         "LWA_CLIENT_ID": lwa_id[:20] + "…" if lwa_id else "❌ VIDE",
         "LWA_CLIENT_SECRET": "✅ présent" if lwa_secret else "❌ VIDE",
         "AMAZON_SP_MODE": os.getenv("AMAZON_SP_MODE", "demo"),
         "REDIRECT_URI": REDIRECT_URI,
+        "all_amazon_lwa_keys": amazon_keys,
     }
 
 
