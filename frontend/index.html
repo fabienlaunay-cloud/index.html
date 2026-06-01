@@ -7,6 +7,7 @@
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23764BA2'/%3E%3Cpath d='M16 4L5 9.5l11 5.5 11-5.5L16 4z' stroke='white' stroke-width='1.8' stroke-linejoin='round' fill='none'/%3E%3Cpath d='M5 22l11 5.5 11-5.5M5 16l11 5.5 11-5.5' stroke='white' stroke-width='1.8' stroke-linejoin='round' fill='none'/%3E%3C/svg%3E">
 <link rel="shortcut icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23764BA2'/%3E%3Cpath d='M16 4L5 9.5l11 5.5 11-5.5L16 4z' stroke='white' stroke-width='1.8' stroke-linejoin='round' fill='none'/%3E%3Cpath d='M5 22l11 5.5 11-5.5M5 16l11 5.5 11-5.5' stroke='white' stroke-width='1.8' stroke-linejoin='round' fill='none'/%3E%3C/svg%3E">
 <script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
   * { font-family: 'Inter', sans-serif; }
@@ -605,16 +606,25 @@
       <div id="healthBadge" class="flex items-center gap-2 bg-white/10 rounded-lg px-3 py-1.5 text-sm">
         <div class="w-2 h-2 rounded-full bg-gray-300 pulse"></div><span>...</span>
       </div>
-      <select id="marketplaceSelector" class="bg-white/10 border border-white/20 text-white rounded-lg px-3 py-1.5 text-sm">
-        <option value="amazon_fr">🇫🇷 Amazon France</option>
-        <option value="amazon_de">🇩🇪 Amazon Allemagne</option>
-        <option value="amazon_it">🇮🇹 Amazon Italie</option>
-        <option value="amazon_es">🇪🇸 Amazon Espagne</option>
-        <option value="amazon_uk">🇬🇧 Amazon UK</option>
-        <option value="cdiscount">🇫🇷 Cdiscount</option>
-        <option value="fnac">🇫🇷 Fnac</option>
-        <option value="bol">🇳🇱 Bol.com</option>
-      </select>
+      <div class="relative" id="mktSelectorWrapper">
+        <button type="button" onclick="toggleMktDropdown(event)" class="flex items-center gap-2 bg-white/10 border border-white/20 text-white rounded-lg px-3 py-1.5 text-sm min-w-[170px] justify-between hover:bg-white/20 transition">
+          <span id="mktSelectorLabel">🇫🇷 Amazon France</span>
+          <span class="text-white/60 text-xs ml-1">▾</span>
+        </button>
+        <div id="mktSelectorList" class="hidden absolute right-0 top-10 bg-indigo-950 border border-white/20 rounded-xl shadow-2xl py-2 z-50 min-w-[220px]">
+          <p class="text-white/40 text-xs px-4 pb-1.5">Sélectionnez un ou plusieurs marchés</p>
+          <div onclick="toggleMkt('amazon_fr')" class="mkt-item flex items-center gap-3 px-4 py-2 text-sm text-white hover:bg-white/10 cursor-pointer rounded-lg mx-1" data-mkt="amazon_fr"><span class="w-4 h-4 rounded border border-white/40 flex items-center justify-center flex-shrink-0 mkt-check" id="mkt-check-amazon_fr"></span>🇫🇷 Amazon France</div>
+          <div onclick="toggleMkt('amazon_de')" class="mkt-item flex items-center gap-3 px-4 py-2 text-sm text-white hover:bg-white/10 cursor-pointer rounded-lg mx-1" data-mkt="amazon_de"><span class="w-4 h-4 rounded border border-white/40 flex items-center justify-center flex-shrink-0 mkt-check" id="mkt-check-amazon_de"></span>🇩🇪 Amazon Allemagne</div>
+          <div onclick="toggleMkt('amazon_it')" class="mkt-item flex items-center gap-3 px-4 py-2 text-sm text-white hover:bg-white/10 cursor-pointer rounded-lg mx-1" data-mkt="amazon_it"><span class="w-4 h-4 rounded border border-white/40 flex items-center justify-center flex-shrink-0 mkt-check" id="mkt-check-amazon_it"></span>🇮🇹 Amazon Italie</div>
+          <div onclick="toggleMkt('amazon_es')" class="mkt-item flex items-center gap-3 px-4 py-2 text-sm text-white hover:bg-white/10 cursor-pointer rounded-lg mx-1" data-mkt="amazon_es"><span class="w-4 h-4 rounded border border-white/40 flex items-center justify-center flex-shrink-0 mkt-check" id="mkt-check-amazon_es"></span>🇪🇸 Amazon Espagne</div>
+          <div onclick="toggleMkt('amazon_uk')" class="mkt-item flex items-center gap-3 px-4 py-2 text-sm text-white hover:bg-white/10 cursor-pointer rounded-lg mx-1" data-mkt="amazon_uk"><span class="w-4 h-4 rounded border border-white/40 flex items-center justify-center flex-shrink-0 mkt-check" id="mkt-check-amazon_uk"></span>🇬🇧 Amazon UK</div>
+          <div class="border-t border-white/10 my-1"></div>
+          <div onclick="toggleMkt('amazon_nl')" class="mkt-item flex items-center gap-3 px-4 py-2 text-sm text-white hover:bg-white/10 cursor-pointer rounded-lg mx-1" data-mkt="amazon_nl"><span class="w-4 h-4 rounded border border-white/40 flex items-center justify-center flex-shrink-0 mkt-check" id="mkt-check-amazon_nl"></span>🇳🇱 Pays-Bas</div>
+          <div onclick="toggleMkt('amazon_se')" class="mkt-item flex items-center gap-3 px-4 py-2 text-sm text-white hover:bg-white/10 cursor-pointer rounded-lg mx-1" data-mkt="amazon_se"><span class="w-4 h-4 rounded border border-white/40 flex items-center justify-center flex-shrink-0 mkt-check" id="mkt-check-amazon_se"></span>🇸🇪 Suède</div>
+          <div onclick="toggleMkt('amazon_pl')" class="mkt-item flex items-center gap-3 px-4 py-2 text-sm text-white hover:bg-white/10 cursor-pointer rounded-lg mx-1" data-mkt="amazon_pl"><span class="w-4 h-4 rounded border border-white/40 flex items-center justify-center flex-shrink-0 mkt-check" id="mkt-check-amazon_pl"></span>🇵🇱 Pologne</div>
+          <div onclick="toggleMkt('amazon_be')" class="mkt-item flex items-center gap-3 px-4 py-2 text-sm text-white hover:bg-white/10 cursor-pointer rounded-lg mx-1" data-mkt="amazon_be"><span class="w-4 h-4 rounded border border-white/40 flex items-center justify-center flex-shrink-0 mkt-check" id="mkt-check-amazon_be"></span>🇧🇪 Belgique</div>
+        </div>
+      </div>
       <div class="relative">
         <button onclick="toggleUserMenu()" class="flex items-center gap-2 bg-white/10 hover:bg-white/20 rounded-lg px-3 py-1.5 text-sm transition">
           <div id="userAvatar" class="w-6 h-6 bg-white/30 rounded-full flex items-center justify-center text-xs font-bold">?</div>
@@ -674,6 +684,10 @@
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
           Télécharger le template Excel
         </a>
+        <button onclick="openUrlModal()" class="flex items-center justify-center gap-2 w-full text-xs text-emerald-600 hover:text-emerald-800 hover:bg-emerald-50 border border-emerald-200 rounded-lg py-2 transition mb-2">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+          Importer depuis une URL
+        </button>
         <button onclick="document.getElementById('zipInput').click()" class="flex items-center justify-center gap-2 w-full text-xs text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 border border-indigo-200 rounded-lg py-2 transition">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18M15 3v18M3 9h6M3 15h6M15 9h6M15 15h6"/></svg>
           Uploader photos produits (.zip)
@@ -726,6 +740,54 @@
           class="mt-5 w-full gradient-bg text-white rounded-xl py-3 font-semibold text-sm shadow-md hover:opacity-90 transition flex items-center justify-center gap-2 disabled:opacity-40" disabled>
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg> Générer les fiches
         </button>
+      </div>
+
+      <!-- Voix de marque -->
+      <div class="bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
+        <button onclick="toggleBrandVoicePanel()" class="w-full flex items-center justify-between text-left">
+          <h2 class="font-semibold text-gray-800 flex items-center gap-2">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+            Voix de marque
+          </h2>
+          <div class="flex items-center gap-2">
+            <span id="brandVoiceBadge" class="hidden text-xs bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded font-medium">Configuré</span>
+            <span id="brandVoiceChevron" class="text-gray-400 text-sm transition-transform">▼</span>
+          </div>
+        </button>
+        <div id="brandVoicePanel" class="hidden mt-4 space-y-4">
+          <p class="text-xs text-gray-400">Ces paramètres s'injectent dans chaque génération — l'IA adapte automatiquement le style, les mots et les valeurs de la marque.</p>
+          <!-- Ton -->
+          <div>
+            <label class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2 block">Ton de marque</label>
+            <div class="flex flex-wrap gap-1.5" id="bvToneSelector">
+              <button onclick="setBrandTone('professionnel')" data-tone="professionnel" class="bv-tone-btn text-xs px-2.5 py-1 rounded-full border font-medium transition">Professionnel</button>
+              <button onclick="setBrandTone('premium')" data-tone="premium" class="bv-tone-btn text-xs px-2.5 py-1 rounded-full border font-medium transition">Premium</button>
+              <button onclick="setBrandTone('accessible')" data-tone="accessible" class="bv-tone-btn text-xs px-2.5 py-1 rounded-full border font-medium transition">Accessible</button>
+              <button onclick="setBrandTone('technique')" data-tone="technique" class="bv-tone-btn text-xs px-2.5 py-1 rounded-full border font-medium transition">Technique</button>
+              <button onclick="setBrandTone('lifestyle')" data-tone="lifestyle" class="bv-tone-btn text-xs px-2.5 py-1 rounded-full border font-medium transition">Lifestyle</button>
+            </div>
+          </div>
+          <!-- Cible -->
+          <div>
+            <label class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1 block">Cible client</label>
+            <input id="bv-target" type="text" placeholder="Ex : propriétaires de chien, femmes actives 25-45 ans…" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-xs focus:ring-2 focus:ring-purple-300 outline-none" oninput="saveBrandVoice()">
+          </div>
+          <!-- Valeurs -->
+          <div>
+            <label class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1 block">Valeurs / Promesse</label>
+            <textarea id="bv-values" rows="2" placeholder="Ex : durabilité, éco-responsable, fait en France, qualité artisanale…" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-xs focus:ring-2 focus:ring-purple-300 outline-none resize-none" oninput="saveBrandVoice()"></textarea>
+          </div>
+          <!-- Mots signature -->
+          <div>
+            <label class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1 block">Mots signature <span class="text-gray-400 font-normal">(séparés par virgule)</span></label>
+            <input id="bv-signature" type="text" placeholder="Ex : élégant, certifié, robuste, made in France" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-xs focus:ring-2 focus:ring-purple-300 outline-none" oninput="saveBrandVoice()">
+          </div>
+          <!-- Mots à éviter -->
+          <div>
+            <label class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1 block">Mots à éviter</label>
+            <input id="bv-avoid" type="text" placeholder="Ex : cheap, bas de gamme, économique, discount" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-xs focus:ring-2 focus:ring-purple-300 outline-none" oninput="saveBrandVoice()">
+          </div>
+        </div>
       </div>
 
       <!-- Présets mots-clés par segment -->
@@ -801,7 +863,11 @@
                     <div class="text-xs text-gray-400 mt-0.5">Flat file avec lignes parent + enfants — déclinaisons couleur/taille</div>
                   </button>
                 </div>
-              </div>              <button onclick="exportResults('json')" class="bg-gray-50 hover:bg-gray-100 text-gray-700 rounded-lg px-3 py-2 text-sm font-medium transition">{ } JSON</button>
+              </div>
+              <button onclick="exportResults('json')" class="bg-gray-50 hover:bg-gray-100 text-gray-700 rounded-lg px-3 py-2 text-sm font-medium transition">{ } JSON</button>
+              <button onclick="triggerAmazonTemplateFill()" class="bg-orange-50 hover:bg-orange-100 text-orange-700 rounded-lg px-3 py-2 text-sm font-medium transition flex items-center gap-1.5" title="Uploader votre template Amazon pour le remplir automatiquement">🗂️ Remplir mon template</button>
+              <input type="file" id="amazonTemplateInput" accept=".xlsm,.xlsx" class="hidden" onchange="fillAmazonTemplate(this)">
+              <button onclick="downloadZipPack()" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg px-3 py-2 text-sm font-medium transition flex items-center gap-1.5">📦 Pack ZIP</button>
               <button onclick="showPublishModal()" class="gradient-bg text-white rounded-lg px-4 py-2 text-sm font-semibold hover:opacity-90 transition">Publier</button>
             </div>
           </div>
@@ -839,6 +905,7 @@
         <nav class="flex gap-1 bg-white/10 rounded-xl p-1">
           <button id="adminTabBtnClients" onclick="switchAdminTab('clients')" class="px-4 py-2 rounded-lg text-sm font-medium bg-white/20 text-white transition">👥 Clients</button>
           <button id="adminTabBtnUsage" onclick="switchAdminTab('usage')" class="px-4 py-2 rounded-lg text-sm font-medium text-white/70 hover:text-white hover:bg-white/10 transition">Usage & Plans</button>
+          <button id="adminTabBtnConfig" onclick="switchAdminTab('config')" class="px-4 py-2 rounded-lg text-sm font-medium text-white/70 hover:text-white hover:bg-white/10 transition">⚙️ Config API</button>
         </nav>
       </div>
       <div class="flex items-center gap-3">
@@ -1010,17 +1077,24 @@
       <div id="publishApiForm">
         <div class="mb-3">
           <label class="text-xs font-medium text-gray-600 block mb-2">Marketplace</label>
-          <input type="hidden" id="publishMarketplace" value="amazon_fr">
-          <div id="marketplaceGrid" class="grid grid-cols-3 gap-1.5">
-            <button type="button" onclick="selectMarketplace('amazon_fr',this)" class="mkt-card selected border-2 border-purple-500 bg-purple-50 rounded-lg py-2 px-1 text-center text-xs font-medium transition hover:border-purple-400">🇫🇷<br>France</button>
-            <button type="button" onclick="selectMarketplace('amazon_de',this)" class="mkt-card border-2 border-gray-200 bg-white rounded-lg py-2 px-1 text-center text-xs font-medium transition hover:border-purple-300">🇩🇪<br>Allemagne</button>
-            <button type="button" onclick="selectMarketplace('amazon_it',this)" class="mkt-card border-2 border-gray-200 bg-white rounded-lg py-2 px-1 text-center text-xs font-medium transition hover:border-purple-300">🇮🇹<br>Italie</button>
-            <button type="button" onclick="selectMarketplace('amazon_es',this)" class="mkt-card border-2 border-gray-200 bg-white rounded-lg py-2 px-1 text-center text-xs font-medium transition hover:border-purple-300">🇪🇸<br>Espagne</button>
-            <button type="button" onclick="selectMarketplace('amazon_uk',this)" class="mkt-card border-2 border-gray-200 bg-white rounded-lg py-2 px-1 text-center text-xs font-medium transition hover:border-purple-300">🇬🇧<br>UK</button>
-            <button type="button" onclick="selectMarketplace('amazon_nl',this)" class="mkt-card border-2 border-gray-200 bg-white rounded-lg py-2 px-1 text-center text-xs font-medium transition hover:border-purple-300">🇳🇱<br>Pays-Bas</button>
-            <button type="button" onclick="selectMarketplace('amazon_se',this)" class="mkt-card border-2 border-gray-200 bg-white rounded-lg py-2 px-1 text-center text-xs font-medium transition hover:border-purple-300">🇸🇪<br>Suède</button>
-            <button type="button" onclick="selectMarketplace('amazon_pl',this)" class="mkt-card border-2 border-gray-200 bg-white rounded-lg py-2 px-1 text-center text-xs font-medium transition hover:border-purple-300">🇵🇱<br>Pologne</button>
-            <button type="button" onclick="selectMarketplace('amazon_be',this)" class="mkt-card border-2 border-gray-200 bg-white rounded-lg py-2 px-1 text-center text-xs font-medium transition hover:border-purple-300">🇧🇪<br>Belgique</button>
+          <div class="relative" id="pubMktWrapper">
+            <input type="hidden" id="publishMarketplace" value="amazon_fr">
+            <button type="button" onclick="togglePubMkt(event)" class="w-full flex items-center justify-between border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 bg-white hover:bg-gray-50 transition">
+              <span id="pubMktLabel">🇫🇷 Amazon France</span>
+              <span class="text-gray-400 text-xs">▾</span>
+            </button>
+            <div id="pubMktList" class="hidden absolute left-0 top-11 bg-white border border-gray-200 rounded-xl shadow-xl py-1.5 z-50 w-full">
+              <div onclick="pickPubMkt('amazon_fr','🇫🇷 Amazon France')" class="px-4 py-2 text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-700 cursor-pointer rounded-lg mx-1">🇫🇷 Amazon France</div>
+              <div onclick="pickPubMkt('amazon_de','🇩🇪 Amazon Allemagne')" class="px-4 py-2 text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-700 cursor-pointer rounded-lg mx-1">🇩🇪 Amazon Allemagne</div>
+              <div onclick="pickPubMkt('amazon_it','🇮🇹 Amazon Italie')" class="px-4 py-2 text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-700 cursor-pointer rounded-lg mx-1">🇮🇹 Amazon Italie</div>
+              <div onclick="pickPubMkt('amazon_es','🇪🇸 Amazon Espagne')" class="px-4 py-2 text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-700 cursor-pointer rounded-lg mx-1">🇪🇸 Amazon Espagne</div>
+              <div onclick="pickPubMkt('amazon_uk','🇬🇧 Amazon UK')" class="px-4 py-2 text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-700 cursor-pointer rounded-lg mx-1">🇬🇧 Amazon UK</div>
+              <div class="border-t border-gray-100 my-1"></div>
+              <div onclick="pickPubMkt('amazon_nl','🇳🇱 Amazon Pays-Bas')" class="px-4 py-2 text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-700 cursor-pointer rounded-lg mx-1">🇳🇱 Amazon Pays-Bas</div>
+              <div onclick="pickPubMkt('amazon_se','🇸🇪 Amazon Suède')" class="px-4 py-2 text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-700 cursor-pointer rounded-lg mx-1">🇸🇪 Amazon Suède</div>
+              <div onclick="pickPubMkt('amazon_pl','🇵🇱 Amazon Pologne')" class="px-4 py-2 text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-700 cursor-pointer rounded-lg mx-1">🇵🇱 Amazon Pologne</div>
+              <div onclick="pickPubMkt('amazon_be','🇧🇪 Amazon Belgique')" class="px-4 py-2 text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-700 cursor-pointer rounded-lg mx-1">🇧🇪 Amazon Belgique</div>
+            </div>
           </div>
         </div>
         <div class="flex items-center gap-2 mb-3">
@@ -1052,12 +1126,240 @@ let activeResultsFilter = null;   // null = Tous (résultats post-génération)
 let generatedListings = [];
 let photoMap = {};  // sku → "/api/photos/{filename}"
 let segmentPresets = JSON.parse(localStorage.getItem('synqio_segment_presets') || '{}');
+let brandVoice = JSON.parse(localStorage.getItem('synqio_brand_voice') || '{"tone":"professionnel"}');
+let selectedMarketplaces = JSON.parse(localStorage.getItem('synqio_marketplaces') || '["amazon_fr"]');
+let activeMarketplaceFilter = null;
+let resultsViewMode = localStorage.getItem('synqio_view_mode') || 'list';
+let currentDetailIdx = null;
 
 // Column mapping state
 let _pendingFile = null;        // File object held while mapping modal is open
 let _pendingPreviewData = null; // preview API response held while modal is open
 let _savedMappings = JSON.parse(localStorage.getItem('synqio_col_mappings') || '{}');
-// { "collier chien": "keyword1, keyword2, ..." }
+
+// ── Amazon limits & live validation ──────────────────────────────────────────
+const _AMZ = { title: 200, bullet: 500, desc: 2000, kw: 249 }; // kw in bytes
+
+// Patterns forbidden in Amazon titles
+const _AMZ_FORBIDDEN = [
+  { re: /\b(meilleur[es]?|numéro\s*1|n[°o]\s*1|#\s*1|best\s*seller)\b/i, label: 'superlatif' },
+  { re: /\b(promo|promotion|réduction|solde|rabais|discount|pas\s*cher)\b/i, label: 'terme promotionnel' },
+  { re: /\b(livraison\s*gratuite|free\s*shipping|expédition\s*gratuite)\b/i, label: 'livraison' },
+  { re: /\b(satisfait\s*ou\s*remboursé|remboursé|garantie\s*\d+)\b/i, label: 'garantie' },
+  { re: /[€$]\s*\d|\d[\s,.]?\d*\s*[€$]/, label: 'prix' },
+  { re: /\bamazon\b/i, label: 'marque Amazon' },
+];
+
+function _byteLen(str) { return new TextEncoder().encode(str || '').length; }
+
+function _validateListing(listing) {
+  const issues = [];
+  const title = listing.title || '';
+  const kw    = listing.backend_keywords || '';
+  // Title length
+  if (title.length > _AMZ.title)
+    issues.push({ level:'error', field:'title', msg:`Titre trop long : ${title.length}/${_AMZ.title} car.` });
+  else if (title.length > 150)
+    issues.push({ level:'warn',  field:'title', msg:`Titre long : ${title.length}/${_AMZ.title} car.` });
+  // Forbidden words in title
+  for (const { re, label } of _AMZ_FORBIDDEN) {
+    const m = title.match(re);
+    if (m) { issues.push({ level:'error', field:'title', msg:`Mot interdit (${label}) : "${m[0]}"` }); break; }
+  }
+  // Bullets
+  (listing.bullet_points || []).forEach((b, i) => {
+    if (b.length > _AMZ.bullet)
+      issues.push({ level:'error', field:`bullet${i}`, msg:`Bullet ${i+1} trop longue : ${b.length}/${_AMZ.bullet} car.` });
+  });
+  // Description
+  const descLen = (listing.description || '').replace(/<[^>]+>/g, '').length;
+  if (descLen > _AMZ.desc)
+    issues.push({ level:'warn', field:'desc', msg:`Description trop longue : ${descLen}/${_AMZ.desc} car.` });
+  // Keywords (byte limit)
+  const kwBytes = _byteLen(kw);
+  if (kwBytes > _AMZ.kw)
+    issues.push({ level:'error', field:'kw', msg:`Keywords trop longs : ${kwBytes}/${_AMZ.kw} octets` });
+  return issues;
+}
+
+function _ctrCls(len, max) {
+  if (len > max) return 'text-red-600 font-semibold';
+  if (len / max >= 0.9) return 'text-orange-500 font-medium';
+  return 'text-gray-400';
+}
+
+function _attachCounter(inputEl, counterEl, max, isByte = false) {
+  if (!inputEl || !counterEl) return;
+  const update = () => {
+    const len = isByte ? _byteLen(inputEl.value) : inputEl.value.length;
+    counterEl.textContent = `${len}/${max}${isByte ? ' oct.' : ''}`;
+    counterEl.className = `text-xs text-right mt-0.5 ${_ctrCls(len, max)}`;
+  };
+  inputEl.addEventListener('input', update);
+  update();
+}
+// ── Category Compliance Checker ───────────────────────────────────────────────
+
+const _CAT_KW = {
+  alimentaire: ['café','thé','chocolat','biscuit','snack','confiture','huile','vinaigre','sauce','épice','farine','sucre','pâtes','riz','céréales','yaourt','fromage','lait','jus','boisson','bière','vin','eau','complément alimentaire','vitamine','protéine','nourriture','alimentation','food','bio','végétal','vegan'],
+  textile: ['t-shirt','tshirt','chemise','pull','robe','jupe','pantalon','jean','veste','manteau','chaussette','sous-vêtement','lingerie','pyjama','survêtement','short','legging','collant','chaussure','sac à main','ceinture','écharpe','chapeau','casquette','gant','textile','vêtement','mode','fashion','hoodie','sweat'],
+  electronique: ['téléphone','smartphone','ordinateur','tablette','écran','casque','écouteur','enceinte','chargeur','câble','batterie externe','appareil photo','caméra','drone','robot aspirateur','cafetière','grille-pain','mixeur','four micro','réfrigérateur','lave-linge','télévision','tv','console','jeu vidéo','montre connectée','gps','électronique','high-tech','luminaire','ampoule','led','prise connectée'],
+  beaute: ['crème','sérum','shampooing','après-shampooing','gel douche','savon','parfum','maquillage','fond de teint','rouge à lèvres','mascara','huile visage','lotion','hydratant','anti-âge','solaire','déodorant','dentifrice','rasoir','beauté','cosmétique','skincare','soin visage','soin corps','gommage','masque visage'],
+  jouets: ['jouet','jeu de société','puzzle','lego','poupée','peluche','figurine','voiture télécommandée','construction','vélo enfant','trottinette enfant','jeu enfant','jouet bébé','éveil bébé','hochet','landau','poussette'],
+  sport: ['vélo','tapis de course','haltère','yoga','natation','tennis','football','basketball','randonnée','camping','tente','sac de sport','gourde sport','sport','fitness','outdoor','musculation','crossfit','ski','snowboard','surf'],
+  maison: ['canapé','table','chaise','lit','matelas','oreiller','couette','rideau','luminaire','lampe','tapis','étagère','miroir','cadre','vase','bougie','casserole','poêle','couteau','assiette','verre','meubles','déco','maison','cuisine','salle de bain','jardin','barbecue','plancha'],
+  animaux: ['chien','chat','lapin','oiseau','poisson','reptile','hamster','animaux','animal','pet','collier chien','laisse chien','collier chat','cage','aquarium','gamelle','litière','croquette','friandise animaux'],
+};
+
+const _CAT_LABELS = {
+  alimentaire:'Alimentaire', textile:'Textile / Mode', electronique:'Électronique',
+  beaute:'Beauté / Cosmétique', jouets:'Jouets / Enfants', sport:'Sport / Outdoor',
+  maison:'Maison / Déco', animaux:'Animalerie',
+};
+
+const _CAT_ICONS = {
+  alimentaire:'🍎', textile:'👕', electronique:'📱', beaute:'💄',
+  jouets:'🧸', sport:'⚽', maison:'🏠', animaux:'🐾',
+};
+
+const _CAT_RULES = {
+  alimentaire: [
+    { level:'required',    field:'ean',               label:'EAN / GTIN',          msg:'EAN/code-barres GTIN obligatoire pour les produits alimentaires sur Amazon' },
+    { level:'required',    field:'weight_kg',          label:'Poids net',            msg:'Poids net obligatoire pour les denrées alimentaires (règlement INCO n°1169/2011)' },
+    { level:'required',    field:'ingredients',        label:'Ingrédients',          msg:'Liste des ingrédients obligatoire — à inclure dans la description ou les caractéristiques' },
+    { level:'recommended', field:'allergens',          label:'Allergènes',           msg:'Allergènes à signaler explicitement (gluten, lait, œufs, noix, arachides, soja, sésame…)' },
+    { level:'info',        field:'nutritional_values', label:'Valeurs nutritionnelles', msg:'Valeurs nutritionnelles recommandées (kcal, protéines, glucides, lipides)' },
+    { level:'info',        field:'origin',             label:'Origine / DLC',        msg:'Pays d\'origine et DLUO/DLC recommandés pour les denrées' },
+  ],
+  textile: [
+    { level:'required',    field:'material',          label:'Composition matière',  msg:'Composition matière obligatoire pour le textile (ex: 100% coton, 80% polyester / 20% élasthanne)' },
+    { level:'required',    field:'color',             label:'Couleur',              msg:'Couleur obligatoire pour les fiches textiles Amazon — utiliser les déclinaisons pour plusieurs coloris' },
+    { level:'recommended', field:'size',              label:'Taille',               msg:'Taille recommandée — utiliser les déclinaisons variation pour proposer plusieurs tailles' },
+    { level:'recommended', field:'care_instructions', label:'Entretien',            msg:'Instructions d\'entretien recommandées (lavage, séchage, repassage) dans description ou bullet' },
+    { level:'info',        field:'country_of_origin', label:'Pays de fabrication',  msg:'Pays de fabrication recommandé pour le textile' },
+  ],
+  electronique: [
+    { level:'required',    field:'ean',               label:'EAN / UPC',            msg:'EAN ou UPC obligatoire pour l\'électronique (identification produit Amazon Marketplace)' },
+    { level:'recommended', field:'weight_kg',         label:'Poids',                msg:'Poids recommandé pour les produits électroniques' },
+    { level:'recommended', field:'dimensions_cm',     label:'Dimensions',           msg:'Dimensions recommandées (L×l×H cm) pour les appareils électroniques' },
+    { level:'recommended', field:'ce_marking',        label:'Marquage CE',          msg:'Marquage CE obligatoire pour les appareils électriques vendus dans l\'UE — à mentionner dans la description' },
+    { level:'info',        field:'voltage',           label:'Tension / Puissance',  msg:'Tension (V) et puissance (W) recommandées pour les appareils électriques' },
+    { level:'info',        field:'warranty',          label:'Garantie',             msg:'Durée de garantie recommandée à mentionner (sans utiliser "garanti X ans" dans le titre)' },
+  ],
+  beaute: [
+    { level:'required',    field:'ean',               label:'EAN',                  msg:'EAN obligatoire pour les cosmétiques (directive européenne 1223/2009)' },
+    { level:'recommended', field:'ingredients',       label:'INCI ingrédients',     msg:'Liste INCI des ingrédients recommandée dans la description pour les cosmétiques' },
+    { level:'recommended', field:'weight_kg',         label:'Contenance / Volume',  msg:'Contenance ou poids du produit recommandé (ex: 50 ml, 100 g)' },
+    { level:'recommended', field:'usage',             label:'Mode d\'emploi',       msg:'Mode d\'emploi / instructions d\'application recommandés dans description ou bullet point' },
+    { level:'info',        field:'spf',               label:'FPS / SPF',            msg:'Facteur de protection solaire (FPS/SPF) à indiquer pour les produits solaires' },
+  ],
+  jouets: [
+    { level:'required',    field:'ean',               label:'EAN',                  msg:'EAN obligatoire pour les jouets' },
+    { level:'required',    field:'age_range',         label:'Tranche d\'âge',       msg:'Tranche d\'âge obligatoire (ex: "3 ans et +") — dans le titre ou un bullet point (directive 2009/48/CE)' },
+    { level:'required',    field:'ce_marking',        label:'Marquage CE',          msg:'Marquage CE obligatoire pour les jouets vendus dans l\'UE (directive jouets 2009/48/CE)' },
+    { level:'recommended', field:'dimensions_cm',     label:'Dimensions',           msg:'Dimensions recommandées pour les jouets' },
+    { level:'recommended', field:'material',          label:'Matériaux',            msg:'Matériaux recommandés (sécurité enfants — phtalates, BPA...)' },
+    { level:'info',        field:'batteries',         label:'Piles / Batteries',    msg:'Indiquer si les piles sont incluses ou non (réglementation DEEE)' },
+  ],
+  sport: [
+    { level:'recommended', field:'weight_kg',         label:'Poids',                msg:'Poids recommandé pour les équipements sportifs' },
+    { level:'recommended', field:'material',          label:'Matériaux',            msg:'Matériaux recommandés pour les équipements sportifs (durabilité, sécurité)' },
+    { level:'recommended', field:'dimensions_cm',     label:'Dimensions',           msg:'Dimensions recommandées pour les équipements sportifs' },
+    { level:'info',        field:'size',              label:'Taille',               msg:'Taille disponible recommandée (utiliser déclinaisons variation pour plusieurs tailles)' },
+  ],
+  maison: [
+    { level:'recommended', field:'dimensions_cm',     label:'Dimensions',           msg:'Dimensions recommandées (L×l×H cm) pour les articles maison/mobilier' },
+    { level:'recommended', field:'material',          label:'Matériaux',            msg:'Matériaux recommandés pour les articles maison (bois, métal, textile...)' },
+    { level:'recommended', field:'color',             label:'Couleur',              msg:'Couleur recommandée pour les articles déco et maison' },
+    { level:'info',        field:'weight_kg',         label:'Poids',                msg:'Poids recommandé pour les articles maison (utile pour les frais de livraison)' },
+  ],
+  animaux: [
+    { level:'recommended', field:'material',          label:'Matériaux',            msg:'Matériaux recommandés pour les accessoires animaux (sécurité, non-toxique)' },
+    { level:'recommended', field:'weight_kg',         label:'Poids produit',        msg:'Poids du produit recommandé pour les articles animalerie' },
+    { level:'info',        field:'size_compat',       label:'Compatibilité taille', msg:'Compatibilité avec la taille de l\'animal recommandée (ex: "pour chien de 5 à 15 kg")' },
+  ],
+};
+
+function _detectCategoryGroup(listing) {
+  const text = ((listing.category || '') + ' ' + (listing.title || '')).toLowerCase();
+  // Check longest/most-specific keywords first to avoid false positives
+  const order = ['alimentaire','textile','electronique','beaute','jouets','sport','maison','animaux'];
+  for (const grp of order) {
+    if ((_CAT_KW[grp] || []).some(kw => text.includes(kw))) return grp;
+  }
+  return null;
+}
+
+function _checkCategoryCompliance(listing) {
+  const group = _detectCategoryGroup(listing);
+  if (!group) return { group: null, label: null, icon: null, issues: [], total: 0 };
+  const rules = _CAT_RULES[group] || [];
+  const desc = ((listing.description || '') + ' ' + (listing.bullet_points || []).join(' ')).toLowerCase();
+  const titleLow = (listing.title || '').toLowerCase();
+  const fullText = desc + ' ' + titleLow;
+
+  const issues = [];
+  for (const rule of rules) {
+    let passed = false;
+    switch (rule.field) {
+      case 'ean':
+        passed = !!listing.ean || !!(listing.children || []).some(c => c.ean); break;
+      case 'weight_kg':
+        passed = !!(listing.weight_kg) || /\d+[\s]*(g|kg|gr|grammes?|kilogrammes?|ml|cl|litre|oz|lb)\b/i.test(fullText); break;
+      case 'material':
+        passed = !!listing.material || /\b(coton|polyester|nylon|cuir|laine|lin|soie|acrylique|viscose|élasthanne|latex|plastique|métal|acier inox|acier|bois|bambou|aluminium|verre|céramique|silicone|mousse|plume|duvet|microfibre|chanvre|jute|caoutchouc|inox)\b/i.test(fullText); break;
+      case 'color':
+        passed = !!listing.color || !!(listing.children || []).some(c => c.color); break;
+      case 'dimensions_cm':
+        passed = /\d+[\s]*[xX×][\s]*\d+/i.test(fullText) || /\d+[\s]*(cm|mm|m)\b/i.test(fullText); break;
+      case 'size':
+        passed = !!(listing.children || []).some(c => c.size) || /\b(XS|S\b|M\b|L\b|XL|XXL|XXXL|taille\s*\d+|\d+\s*ans?\b|\d+\s*cm\b)/i.test(fullText); break;
+      case 'ingredients':
+        passed = /\bingrédients?\b|\bcomposition\b|\bcontient\b/i.test(fullText); break;
+      case 'allergens':
+        passed = /\b(sans\s+allergen|contient|traces?\s+de|lait|gluten|blé|œuf|noix|noisette|amande|arachide|soja|sésame|céleri|moutarde|sulfite|mollusque|crustacé|poisson|lupin)\b/i.test(fullText); break;
+      case 'ce_marking':
+        passed = /\bce\s*certif|\bmarquage\s*ce\b|\bnorme\s*ce\b|\bcertifié\s*ce\b|\b(en\s*\d{4,5})\b/i.test(fullText) || /\bce\b/i.test(fullText); break;
+      case 'age_range':
+        passed = /\b\d+\s*(ans?|mois)\b|à\s+partir\s+de|âge\s*:\s*\d+|age\s*min|pour\s+les?\s+(bébés?|enfants?)/i.test(fullText); break;
+      case 'voltage':
+        passed = /\b\d+[\s]*(v|volts?)\b|\b\d+[\s]*(w|watts?|kw)\b|\b\d+[\s]*(mah|ah)\b/i.test(fullText); break;
+      case 'care_instructions':
+        passed = /\b(lavage|séchage|repassage|nettoyage|entretien|machine|main|30°|40°|60°|80°|délicat|délicat|sec)\b/i.test(fullText); break;
+      case 'country_of_origin':
+        passed = /\b(fabriqué\s+en|made\s+in|origine|fabrication\s+française|artisanal|france)\b/i.test(fullText); break;
+      case 'usage':
+        passed = /\b(appliquer|utiliser|utilisation|mode\s+d['']emploi|posologie|comment\s+utiliser|application)\b/i.test(fullText); break;
+      case 'nutritional_values':
+        passed = /\b(kcal|calories?|protéines?|glucides?|lipides?|fibres?\s+alimentaires?|sel\s+équivalent)\b/i.test(fullText); break;
+      case 'spf':
+        passed = /\b(spf|fps|indice\s+de\s+protection|protection\s+solaire)\b/i.test(fullText); break;
+      case 'batteries':
+        passed = /\b(piles?\s+incluses?|piles?\s+non\s+incluses?|batteries?\s+incluses?|sans\s+piles?|fonctionne\s+(avec|sans))\b/i.test(fullText); break;
+      case 'warranty':
+        passed = /\bgarantie?\b/i.test(fullText) && !/\bgarantie\s+\d+\s*(ans?|mois)/i.test(listing.title || ''); break;
+      case 'size_compat':
+        passed = /\b(petit\s+(chien|chat)|moyen\s+(chien|chat)|grand\s+(chien|chat)|\d+\s*(kg|cm)\s+max|race\b|taille\b|miniature|toy|xxs|xs\b|s\b|m\b|l\b|xl\b)\b/i.test(fullText); break;
+      case 'origin':
+        passed = /\b(origine|provenance|terroir|appellation|aoc|igp|label\s+rouge|agriculture\s+biologique)\b/i.test(fullText); break;
+      default: passed = true;
+    }
+    if (!passed) issues.push({ level: rule.level, field: rule.field, label: rule.label, msg: rule.msg });
+  }
+  return { group, label: _CAT_LABELS[group], icon: _CAT_ICONS[group], issues, total: rules.length };
+}
+
+function _complianceBadge(listing) {
+  const { group, label, icon, issues } = _checkCategoryCompliance(listing);
+  if (!group) return '';
+  const required = issues.filter(i => i.level === 'required').length;
+  const recommended = issues.filter(i => i.level === 'recommended').length;
+  if (required > 0)
+    return `<span class="text-xs bg-red-50 text-red-600 border border-red-200 px-1.5 py-0.5 rounded font-medium cursor-help" title="${icon} ${label} — ${required} champ(s) obligatoire(s) manquant(s)">${icon} ${required} requis</span>`;
+  if (recommended > 0)
+    return `<span class="text-xs bg-amber-50 text-amber-600 border border-amber-200 px-1.5 py-0.5 rounded font-medium cursor-help" title="${icon} ${label} — ${recommended} champ(s) recommandé(s) manquant(s)">${icon} ${recommended} recommandé${recommended>1?'s':''}</span>`;
+  return `<span class="text-xs bg-teal-50 text-teal-600 border border-teal-200 px-1.5 py-0.5 rounded cursor-help" title="${icon} ${label} — Conforme">${icon} ✓</span>`;
+}
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
 // ── Invite token flow ─────────────────────────────────────────────────────────
@@ -1172,6 +1474,17 @@ function showApp(email) {
     checkHealth();
     loadUsage();
     _restoreSession();
+    _refreshMktCheckboxes();
+    _updateMktLabel();
+    // Restore brand voice badge (panel loads on open)
+    const bv = brandVoice || {};
+    const configured = bv.target_audience || bv.brand_values || (bv.signature_words||[]).length || (bv.avoid_words||[]).length;
+    document.getElementById('brandVoiceBadge')?.classList.toggle('hidden', !configured);
+    // Pre-select active tone chip even before opening panel
+    document.querySelectorAll('.bv-tone-btn').forEach(btn => {
+      const active = btn.dataset.tone === (bv.tone || 'professionnel');
+      btn.className = `bv-tone-btn text-xs px-2.5 py-1 rounded-full border font-medium transition ${active ? 'bg-purple-600 text-white border-purple-600' : 'bg-white text-gray-500 border-gray-200 hover:border-purple-300'}`;
+    });
   }
 }
 
@@ -1362,6 +1675,79 @@ document.addEventListener('click', e => {
   if (btn && !btn.contains(e.target)) document.getElementById('userDropdown')?.classList.add('hidden');
 });
 
+// ── Custom marketplace dropdowns ──────────────────────────────────────────────
+const MKT_META = {
+  amazon_fr: { flag:'🇫🇷', label:'Amazon France' },
+  amazon_de: { flag:'🇩🇪', label:'Amazon Allemagne' },
+  amazon_it: { flag:'🇮🇹', label:'Amazon Italie' },
+  amazon_es: { flag:'🇪🇸', label:'Amazon Espagne' },
+  amazon_uk: { flag:'🇬🇧', label:'Amazon UK' },
+  amazon_nl: { flag:'🇳🇱', label:'Pays-Bas' },
+  amazon_se: { flag:'🇸🇪', label:'Suède' },
+  amazon_pl: { flag:'🇵🇱', label:'Pologne' },
+  amazon_be: { flag:'🇧🇪', label:'Belgique' },
+};
+
+function toggleMktDropdown(e) {
+  e.stopPropagation();
+  document.getElementById('pubMktList')?.classList.add('hidden');
+  document.getElementById('mktSelectorList').classList.toggle('hidden');
+  _refreshMktCheckboxes();
+}
+
+function toggleMkt(value) {
+  const idx = selectedMarketplaces.indexOf(value);
+  if (idx >= 0) {
+    if (selectedMarketplaces.length === 1) return; // always keep at least one
+    selectedMarketplaces.splice(idx, 1);
+  } else {
+    selectedMarketplaces.push(value);
+  }
+  localStorage.setItem('synqio_marketplaces', JSON.stringify(selectedMarketplaces));
+  _refreshMktCheckboxes();
+  _updateMktLabel();
+}
+
+function _refreshMktCheckboxes() {
+  Object.keys(MKT_META).forEach(mkt => {
+    const el = document.getElementById(`mkt-check-${mkt}`);
+    if (!el) return;
+    if (selectedMarketplaces.includes(mkt)) {
+      el.innerHTML = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+      el.className = 'w-4 h-4 rounded border border-purple-400 bg-purple-500 flex items-center justify-center flex-shrink-0 mkt-check';
+    } else {
+      el.innerHTML = '';
+      el.className = 'w-4 h-4 rounded border border-white/40 flex items-center justify-center flex-shrink-0 mkt-check';
+    }
+  });
+}
+
+function _updateMktLabel() {
+  const label = document.getElementById('mktSelectorLabel');
+  if (!label) return;
+  if (selectedMarketplaces.length === 1) {
+    const m = MKT_META[selectedMarketplaces[0]];
+    label.textContent = m ? `${m.flag} ${m.label}` : selectedMarketplaces[0];
+  } else {
+    const flags = selectedMarketplaces.map(m => MKT_META[m]?.flag || '').join('');
+    label.textContent = `${flags} ${selectedMarketplaces.length} marchés`;
+  }
+}
+function togglePubMkt(e) {
+  e.stopPropagation();
+  document.getElementById('mktSelectorList').classList.add('hidden');
+  document.getElementById('pubMktList').classList.toggle('hidden');
+}
+function pickPubMkt(value, label) {
+  document.getElementById('publishMarketplace').value = value;
+  document.getElementById('pubMktLabel').textContent = label;
+  document.getElementById('pubMktList').classList.add('hidden');
+}
+document.addEventListener('click', () => {
+  document.getElementById('mktSelectorList')?.classList.add('hidden');
+  document.getElementById('pubMktList')?.classList.add('hidden');
+});
+
 // ── Admin panel ───────────────────────────────────────────────────────────────
 function showAdminPanel() {
   document.getElementById('userDropdown')?.classList.add('hidden');
@@ -1376,13 +1762,13 @@ function showAdminPanel() {
 }
 
 function switchAdminTab(tab) {
-  const tabs = ['clients', 'usage'];
+  const tabs = ['clients', 'usage', 'config'];
   tabs.forEach(t => {
     const btn = document.getElementById(`adminTabBtn${t.charAt(0).toUpperCase() + t.slice(1)}`);
     const panel = document.getElementById(`adminPanel${t.charAt(0).toUpperCase() + t.slice(1)}`);
     const active = t === tab;
-    btn.className = `px-4 py-2 rounded-lg text-sm font-medium transition ${active ? 'bg-white/20 text-white' : 'text-white/70 hover:text-white hover:bg-white/10'}`;
-    panel.classList.toggle('hidden', !active);
+    if (btn) btn.className = `px-4 py-2 rounded-lg text-sm font-medium transition ${active ? 'bg-white/20 text-white' : 'text-white/70 hover:text-white hover:bg-white/10'}`;
+    if (panel) panel.classList.toggle('hidden', !active);
   });
   if (tab === 'config') loadConfigStatus();
 }
@@ -1761,47 +2147,89 @@ function _getListingSegment(listing) {
 
 function filterResults(seg) {
   activeResultsFilter = seg;
-  generatedListings.forEach((listing, idx) => {
-    const card = document.getElementById(`card-${idx}`);
-    if (!card) return;
-    if (!seg) { card.style.display = ''; return; }
-    const s = _getListingSegment(listing);
-    card.style.display = (seg === '__none' ? !s : s === seg) ? '' : 'none';
-  });
+  renderListingsContainer();
+  _renderResultsChips();
+}
+
+function filterByMarketplace(mkt) {
+  activeMarketplaceFilter = mkt;
+  activeResultsFilter = null; // reset segment filter on marketplace change
+  renderListingsContainer();
+  _renderResultsChips();
+}
+
+function setResultsViewMode(mode) {
+  resultsViewMode = mode;
+  localStorage.setItem('synqio_view_mode', mode);
+  renderListingsContainer();
   _renderResultsChips();
 }
 
 function _renderResultsChips() {
   const container = document.getElementById('resultsChipsContainer');
   if (!container) return;
+  if (generatedListings.length === 0) { container.classList.add('hidden'); return; }
+
+  // Build marketplace map
+  const mktMap = {};
+  generatedListings.forEach(l => { mktMap[l.marketplace] = (mktMap[l.marketplace] || 0) + 1; });
+  const hasMultiMkt = Object.keys(mktMap).length > 1;
+
+  // Marketplace chips row (only if multiple)
+  const visibleForSeg = activeMarketplaceFilter
+    ? generatedListings.filter(l => l.marketplace === activeMarketplaceFilter)
+    : generatedListings;
+
   const segMap = {};
   let unmatched = 0;
-  generatedListings.forEach(l => {
+  visibleForSeg.forEach(l => {
     const s = _getListingSegment(l);
     if (s) segMap[s] = (segMap[s] || 0) + 1;
     else unmatched++;
   });
-  if (!Object.keys(segMap).length) { container.classList.add('hidden'); return; }
   container.classList.remove('hidden');
-  container.innerHTML = `<div class="bg-white rounded-2xl shadow-sm border border-gray-100 px-5 py-3 flex flex-wrap gap-1.5 items-center">
-    <span class="text-xs text-gray-400 font-medium mr-1">Filtrer :</span>
-    <button onclick="filterResults(null)" data-seg="__all"
-      class="segment-chip text-xs px-2.5 py-1 rounded-full border font-medium transition
-             ${!activeResultsFilter ? 'bg-purple-600 text-white border-purple-600' : 'bg-white text-gray-500 border-gray-200 hover:border-purple-300'}">
-      Tous (${generatedListings.length})
-    </button>
-    ${Object.entries(segMap).map(([s, n]) => `
-      <button onclick="filterResults(${JSON.stringify(s)})" data-seg="${s}"
+  const hasSegments = Object.keys(segMap).length > 0;
+
+  const mktChipsHtml = hasMultiMkt ? `<div class="flex flex-wrap gap-1.5 items-center pb-2 border-b border-gray-100 mb-2 w-full">
+    <span class="text-xs text-gray-400 font-medium mr-1">Marché :</span>
+    <button onclick="filterByMarketplace(null)" class="text-xs px-2.5 py-1 rounded-full border font-medium transition ${!activeMarketplaceFilter ? 'bg-purple-600 text-white border-purple-600' : 'bg-white text-gray-500 border-gray-200 hover:border-purple-300'}">Tous (${generatedListings.length})</button>
+    ${Object.entries(mktMap).map(([mkt, n]) => {
+      const meta = MKT_META[mkt] || { flag:'🌐', label: mkt };
+      return `<button onclick="filterByMarketplace('${mkt}')" class="text-xs px-2.5 py-1 rounded-full border font-medium transition ${activeMarketplaceFilter === mkt ? 'bg-purple-600 text-white border-purple-600' : 'bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100'}">${meta.flag} ${meta.label} (${n})</button>`;
+    }).join('')}
+  </div>` : '';
+  container.innerHTML = `<div class="bg-white rounded-2xl shadow-sm border border-gray-100 px-5 py-3 flex items-center gap-3 flex-wrap">
+    <div class="flex-1 flex flex-wrap gap-1.5 items-center">
+      ${mktChipsHtml}
+      <span class="text-xs text-gray-400 font-medium mr-1">Filtrer :</span>
+      ${hasSegments ? `<button onclick="filterResults(null)" data-seg="__all"
         class="segment-chip text-xs px-2.5 py-1 rounded-full border font-medium transition
-               ${activeResultsFilter === s ? 'bg-purple-600 text-white border-purple-600' : 'bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100'}">
-        ${s} (${n})
-      </button>`).join('')}
-    ${unmatched > 0 ? `
-      <button onclick="filterResults('__none')" data-seg="__none"
-        class="segment-chip text-xs px-2.5 py-1 rounded-full border font-medium transition
-               ${activeResultsFilter === '__none' ? 'bg-gray-600 text-white border-gray-600' : 'bg-white text-gray-400 border-gray-200 hover:border-gray-400'}">
-        Sans segment (${unmatched})
-      </button>` : ''}
+               ${!activeResultsFilter ? 'bg-purple-600 text-white border-purple-600' : 'bg-white text-gray-500 border-gray-200 hover:border-purple-300'}">
+        Tous (${visibleForSeg.length})
+      </button>
+      ${Object.entries(segMap).map(([s, n]) => `
+        <button onclick="filterResults(this.dataset.seg)" data-seg="${_esc(s)}"
+          class="segment-chip text-xs px-2.5 py-1 rounded-full border font-medium transition
+                 ${activeResultsFilter === s ? 'bg-purple-600 text-white border-purple-600' : 'bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100'}">
+          ${_esc(s)} (${n})
+        </button>`).join('')}
+      ${unmatched > 0 ? `
+        <button onclick="filterResults('__none')" data-seg="__none"
+          class="segment-chip text-xs px-2.5 py-1 rounded-full border font-medium transition
+                 ${activeResultsFilter === '__none' ? 'bg-gray-600 text-white border-gray-600' : 'bg-white text-gray-400 border-gray-200 hover:border-gray-400'}">
+          Sans segment (${unmatched})
+        </button>` : ''}` : ''}
+    </div>
+    <div class="ml-auto flex items-center gap-1">
+      <button onclick="setResultsViewMode('list')" id="viewBtnList" title="Vue liste"
+        class="w-8 h-8 rounded-lg flex items-center justify-center transition ${resultsViewMode === 'list' ? 'bg-purple-600 text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+      </button>
+      <button onclick="setResultsViewMode('grid')" id="viewBtnGrid" title="Vue grille"
+        class="w-8 h-8 rounded-lg flex items-center justify-center transition ${resultsViewMode === 'grid' ? 'bg-purple-600 text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+      </button>
+    </div>
   </div>`;
 }
 
@@ -1825,7 +2253,7 @@ function showProductsList(products) {
         Tous (${products.length})
       </button>
       ${Object.entries(segMap).map(([s, n]) => `
-        <button onclick="filterBySegment(${JSON.stringify(s)})" data-seg="${s}"
+        <button onclick="filterBySegment(this.dataset.seg)" data-seg="${_esc(s)}"
           class="segment-chip text-xs px-2.5 py-1 rounded-full border font-medium transition
                  ${activeSegmentFilter === s ? 'bg-purple-600 text-white border-purple-600' : 'bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100'}">
           ${s} (${n})
@@ -1884,6 +2312,50 @@ function loadDemoData() {
 }
 
 // ── Segment keyword presets ───────────────────────────────────────────────────
+// ── Voix de marque ────────────────────────────────────────────────────────────
+function toggleBrandVoicePanel() {
+  const panel = document.getElementById('brandVoicePanel');
+  const chevron = document.getElementById('brandVoiceChevron');
+  const hidden = panel.classList.toggle('hidden');
+  if (chevron) chevron.style.transform = hidden ? '' : 'rotate(180deg)';
+  if (!hidden) _loadBrandVoiceUI();
+}
+
+function setBrandTone(tone) {
+  brandVoice.tone = tone;
+  saveBrandVoice();
+  document.querySelectorAll('.bv-tone-btn').forEach(btn => {
+    const active = btn.dataset.tone === tone;
+    btn.className = `bv-tone-btn text-xs px-2.5 py-1 rounded-full border font-medium transition ${active ? 'bg-purple-600 text-white border-purple-600' : 'bg-white text-gray-500 border-gray-200 hover:border-purple-300'}`;
+  });
+}
+
+function saveBrandVoice() {
+  brandVoice = {
+    tone: brandVoice.tone || 'professionnel',
+    target_audience: (document.getElementById('bv-target')?.value || '').trim(),
+    brand_values:    (document.getElementById('bv-values')?.value || '').trim(),
+    signature_words: (document.getElementById('bv-signature')?.value || '').split(',').map(w => w.trim()).filter(Boolean),
+    avoid_words:     (document.getElementById('bv-avoid')?.value || '').split(',').map(w => w.trim()).filter(Boolean),
+  };
+  localStorage.setItem('synqio_brand_voice', JSON.stringify(brandVoice));
+  // Badge "Configuré" si au moins un champ renseigné
+  const configured = brandVoice.target_audience || brandVoice.brand_values || brandVoice.signature_words.length || brandVoice.avoid_words.length;
+  document.getElementById('brandVoiceBadge')?.classList.toggle('hidden', !configured);
+}
+
+function _loadBrandVoiceUI() {
+  const bv = brandVoice || {};
+  setBrandTone(bv.tone || 'professionnel');
+  const t = document.getElementById('bv-target');    if (t) t.value = bv.target_audience || '';
+  const v = document.getElementById('bv-values');    if (v) v.value = bv.brand_values || '';
+  const s = document.getElementById('bv-signature'); if (s) s.value = (bv.signature_words || []).join(', ');
+  const a = document.getElementById('bv-avoid');     if (a) a.value = (bv.avoid_words || []).join(', ');
+  // Restore badge
+  const configured = bv.target_audience || bv.brand_values || (bv.signature_words||[]).length || (bv.avoid_words||[]).length;
+  document.getElementById('brandVoiceBadge')?.classList.toggle('hidden', !configured);
+}
+
 function saveSegmentPresets() {
   localStorage.setItem('synqio_segment_presets', JSON.stringify(segmentPresets));
 }
@@ -2041,10 +2513,12 @@ async function generateListings() {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         products: productsToSend,
-        marketplace: document.getElementById('marketplaceSelector').value,
+        marketplace: selectedMarketplaces[0] || 'amazon_fr',
+        marketplaces: selectedMarketplaces,
         language: 'fr',
         style_tone: document.getElementById('styleTone').value,
         focus_keywords: document.getElementById('focusKeywords').value.split(',').map(k=>k.trim()).filter(Boolean),
+        brand_voice: brandVoice,
       }),
     });
     if (!r.ok) {
@@ -2073,7 +2547,8 @@ async function generateListings() {
       const pct = total > 0 ? Math.round((job.progress / total) * 100) : 0;
       document.getElementById('progressBar').style.width = pct + '%';
       const loadingText = document.querySelector('#loadingState p');
-      if (loadingText) loadingText.textContent = `Génération COSMO en cours… ${job.progress}/${total} fiches`;
+      const mktSuffix = selectedMarketplaces.length > 1 ? ` — ${selectedMarketplaces.length} marchés` : '';
+      if (loadingText) loadingText.textContent = `Génération COSMO en cours… ${job.progress}/${total} fiches${mktSuffix}`;
 
       if (job.status === 'done') { result = job.result; break; }
       if (job.status === 'failed') throw new Error(job.error || 'Erreur de génération');
@@ -2095,6 +2570,7 @@ async function generateListings() {
 }
 
 function showResults(result) {
+  activeMarketplaceFilter = null;
   document.getElementById('loadingState').classList.add('hidden');
   document.getElementById('loadingState').classList.remove('flex');
   document.getElementById('emptyState').classList.add('hidden');
@@ -2149,7 +2625,8 @@ function renderListingsContainer() {
       const idx = generatedListings.indexOf(l);
       _restoreImagesInCard(idx);
     });
-  }}
+  }
+}
 
 function createListingCard(listing, idx) {
   const col = listing.seo_score >= 70 ? 'green' : listing.seo_score >= 40 ? 'yellow' : 'red';
@@ -2183,6 +2660,7 @@ function createGridCard(listing, idx) {
       <div class="flex items-center gap-1 flex-wrap">
         <span class="font-mono text-xs bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded">${_esc(listing.sku)}</span>
         ${(()=>{ const iv=_validateListing(listing); const e=iv.filter(x=>x.level==='error').length,w=iv.filter(x=>x.level==='warn').length; return e>0?`<span class="text-xs bg-red-100 text-red-600 px-1 py-0.5 rounded font-medium" title="${iv.map(x=>x.msg).join('&#10;')}">⚠${e}</span>`:w>0?`<span class="text-xs bg-orange-100 text-orange-500 px-1 py-0.5 rounded font-medium" title="${iv.map(x=>x.msg).join('&#10;')}">!${w}</span>`:`<span class="text-xs bg-green-100 text-green-700 px-1 py-0.5 rounded" title="Conforme Amazon">✓</span>`; })()}
+        ${_complianceBadge(listing)}
       </div>
       <p class="text-xs font-semibold text-gray-800 line-clamp-2 leading-tight">${_esc(listing.title)}</p>
       <div class="flex items-center gap-1 mt-auto flex-wrap">
@@ -2202,7 +2680,8 @@ function buildCardHTML(listing, idx, editMode) {
     ? `<span class="text-xs bg-red-100 text-red-600 px-1.5 py-0.5 rounded font-medium cursor-help" title="${_issues.map(i=>i.msg).join('\n')}">⚠ ${_errs} erreur${_errs>1?'s':''}</span>`
     : _warns > 0
       ? `<span class="text-xs bg-orange-100 text-orange-500 px-1.5 py-0.5 rounded font-medium cursor-help" title="${_issues.map(i=>i.msg).join('\n')}">! ${_warns} alerte${_warns>1?'s':''}</span>`
-      : `<span class="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded cursor-default" title="Fiche conforme Amazon">✓ OK</span>`;  const bulletsView = `<ul class="space-y-2">${listing.bullet_points.map((b,bi)=>`<li class="flex gap-2 text-sm text-gray-700"><span class="text-purple-500 flex-shrink-0">▸</span>${b}</li>`).join('')}</ul>`;
+      : `<span class="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded cursor-default" title="Fiche conforme Amazon">✓ OK</span>`;
+  const bulletsView = `<ul class="space-y-2">${listing.bullet_points.map((b,bi)=>`<li class="flex gap-2 text-sm text-gray-700"><span class="text-purple-500 flex-shrink-0">▸</span>${b}</li>`).join('')}</ul>`;
   const bulletsEdit = `<div class="space-y-2" id="bullets-edit-${idx}">${listing.bullet_points.map((b,bi)=>`
     <div class="flex gap-2 items-start">
       <span class="text-purple-400 mt-2 flex-shrink-0">▸</span>
@@ -2221,22 +2700,502 @@ function buildCardHTML(listing, idx, editMode) {
               ? `<input id="edit-sku-${idx}" value="${listing.sku}" class="font-mono text-xs bg-purple-50 border border-purple-300 text-purple-700 px-2 py-0.5 rounded w-36 focus:ring-2 focus:ring-purple-300 outline-none">`
               : `<span class="font-mono text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded">${listing.sku}</span>`}
             <span class="text-xs text-gray-400">${listing.marketplace}</span>
-  const ep = { csv:'/api/export/csv', json:'/api/export/json', flat:'/api/export/flat-file', 'listing-loader':'/api/export/listing-loader', 'variation-flat-file':'/api/export/variation-flat-file' };
-  const fn = { csv:'listings.csv', json:'listings.json', flat:'amazon_nouveaux_produits.xlsx', 'listing-loader':'amazon_produits_existants.xlsx', 'variation-flat-file':'amazon_variations.xlsx' };
-  const label = { csv:'CSV', json:'JSON', flat:'Nouveaux produits', 'listing-loader':'Produits existants', 'variation-flat-file':'Variations' };  const r = await authFetch(ep[format], { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(generatedListings) });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(await r.blob()); a.download = fn[format]; a.click();
-  showToast('✅', `Export ${format.toUpperCase()} téléchargé`);
+            ${isParent ? `<span class="text-xs bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded font-medium">🔗 ${(listing.children||[]).length} décl. — ${_esc(listing.variation_theme||'Variation')}</span>` : ''}
+            ${_badge}
+            ${editMode ? '' : _complianceBadge(listing)}
+            ${editMode ? '<span class="text-xs text-purple-600 font-medium">Mode édition</span>' : ''}
+          </div>
+          ${editMode
+            ? `<input id="edit-title-${idx}" value="${listing.title.replace(/"/g,'&quot;')}" class="w-full border border-purple-200 rounded-lg px-3 py-1.5 text-sm font-semibold text-gray-900 focus:ring-2 focus:ring-purple-300 outline-none">`
+            : `<h3 class="font-semibold text-gray-900 text-sm">${listing.title}</h3>`}
+        </div>
+        <div class="text-center flex-shrink-0">
+          <div class="w-14 h-14 rounded-full flex items-center justify-center border-4 border-${col}-200 bg-${col}-50">
+            <span class="text-${col}-700 font-bold text-lg">${listing.seo_score}</span>
+          </div>
+          <p class="text-xs text-gray-400 mt-1">SEO</p>
+        </div>
+      </div>
+      <div class="bg-gray-100 rounded-full h-1.5 mb-4"><div class="seo-bar bg-${col}-500" style="width:${listing.seo_score}%"></div></div>
+      <div class="border-b border-gray-100 flex gap-4 mb-4 text-sm">
+        <button onclick="switchTab(${idx},'bullets')" class="tab-active pb-2" id="tab-${idx}-bullets">Bullets</button>
+        <button onclick="switchTab(${idx},'desc')" class="pb-2 text-gray-400" id="tab-${idx}-desc">Description</button>
+        <button onclick="switchTab(${idx},'kw')" class="pb-2 text-gray-400" id="tab-${idx}-kw">Keywords</button>
+        <button onclick="switchTab(${idx},'aplus')" class="pb-2 text-gray-400" id="tab-${idx}-aplus">A+</button>
+        <button onclick="switchTab(${idx},'images')" class="pb-2 text-gray-400" id="tab-${idx}-images">Images</button>
+      </div>
+      <div id="content-${idx}-bullets">${editMode ? bulletsEdit : bulletsView}</div>
+      <div id="content-${idx}-desc" class="hidden">
+        ${editMode
+          ? `<textarea id="edit-desc-${idx}" rows="5" class="w-full border border-purple-200 rounded-lg px-3 py-2 text-sm text-gray-700 resize-none focus:ring-2 focus:ring-purple-300 outline-none">${listing.description}</textarea>`
+          : `<div class="text-sm text-gray-700 leading-relaxed max-h-48 overflow-y-auto">${listing.description}</div>`}
+      </div>
+      <div id="content-${idx}-kw" class="hidden">
+        ${editMode
+          ? `<div class="bg-gray-50 rounded-lg p-3"><p class="text-xs text-gray-500 mb-2 font-medium">Backend Keywords</p><textarea id="edit-kw-${idx}" rows="3" class="w-full border border-purple-200 rounded-lg px-2 py-1.5 text-xs font-mono text-gray-700 resize-none focus:ring-2 focus:ring-purple-300 outline-none">${listing.backend_keywords}</textarea></div>`
+          : `<div class="bg-gray-50 rounded-lg p-3"><p class="text-xs text-gray-500 mb-2 font-medium">Backend Keywords (${listing.backend_keywords.length} car.)</p><p class="text-sm font-mono text-gray-700">${listing.backend_keywords}</p></div>`}
+      </div>
+      <div id="content-${idx}-aplus" class="hidden">${listing.a_plus_content ? `<div class="space-y-3"><div class="bg-purple-50 rounded-lg p-3"><p class="font-semibold text-purple-800 text-sm">✨ ${listing.a_plus_content.headline}</p></div>${(listing.a_plus_content.modules||[]).map(m=>`<div class="border border-gray-100 rounded-lg p-3"><p class="text-xs text-gray-500 uppercase tracking-wide mb-1">${(m.type||'').replace('_',' ')}</p><p class="font-semibold text-gray-800 text-sm mb-1">${m.title||''}</p><p class="text-gray-600 text-sm">${m.body||''}</p></div>`).join('')}</div>` : '<p class="text-gray-400 text-sm">Non disponible</p>'}</div>
+      <div id="content-${idx}-images" class="hidden">
+        <div id="images-container-${idx}" class="text-center py-6 text-gray-400 text-sm">Cliquez sur "Générer les images" pour lancer la création</div>
+      </div>
+      ${isParent ? _buildVariationChildrenTable(listing, idx, editMode) : ''}
+    </div>
+    <div class="border-t border-gray-50 px-5 py-3 bg-gray-50/50 flex items-center gap-3 flex-wrap gap-y-2">
+      ${isParent
+        ? `<span class="text-xs text-indigo-600 font-medium">Fiche parent — prix/EAN définis par déclinaison</span>`
+        : editMode
+          ? `<div class="flex items-center gap-2">
+               <div class="flex items-center gap-1">
+                 <input id="edit-price-${idx}" type="number" step="0.01" min="0" value="${listing.price || ''}" placeholder="Prix" class="w-24 border border-purple-200 rounded-lg px-2 py-1 text-sm text-gray-800 font-bold focus:ring-2 focus:ring-purple-300 outline-none">
+                 <span class="text-sm text-gray-500">€</span>
+               </div>
+               <div class="flex items-center gap-1">
+                 <span class="text-xs text-gray-400">EAN</span>
+                 <input id="edit-ean-${idx}" type="text" value="${listing.ean || ''}" placeholder="EAN" class="w-36 border border-purple-200 rounded-lg px-2 py-1 text-xs font-mono text-gray-700 focus:ring-2 focus:ring-purple-300 outline-none">
+               </div>
+             </div>`
+          : `${listing.price ? `<span class="text-sm font-bold text-gray-800">${listing.price.toFixed(2)} €</span>` : ''}
+             ${listing.ean ? `<span class="text-xs text-gray-400">EAN: ${listing.ean}</span>` : ''}`}
+      ${editMode
+        ? `<button onclick="saveEdit(${idx})" class="ml-auto gradient-bg text-white rounded-lg px-3 py-1.5 text-xs font-semibold transition flex items-center gap-1"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Enregistrer</button>
+           <button onclick="cancelEdit(${idx})" class="text-xs text-gray-400 hover:text-gray-600">Annuler</button>`
+        : `<button onclick="switchTab(${idx},'images');generateImages(${idx})" class="ml-auto bg-pink-50 hover:bg-pink-100 text-pink-700 rounded-lg px-3 py-1.5 text-xs font-medium transition flex items-center gap-1">Générer les images</button>
+           <button onclick="event.stopPropagation();openListingDetail(${idx})" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg px-3 py-1.5 text-xs font-medium transition flex items-center gap-1" title="Ouvrir dans une fenêtre"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg> Ouvrir</button>
+           <button onclick="enterEditMode(${idx})" class="bg-purple-50 hover:bg-purple-100 text-purple-700 rounded-lg px-3 py-1.5 text-xs font-medium transition flex items-center gap-1"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4Z"/></svg> Éditer</button>
+           <button onclick="copyListing(${idx})" class="text-xs text-gray-500 hover:text-purple-600">Copier JSON</button>`}
+    </div>`;
 }
 
-function selectMarketplace(value, el) {
-  document.getElementById('publishMarketplace').value = value;
-  document.querySelectorAll('.mkt-card').forEach(c => {
-    c.className = c.className.replace('border-purple-500 bg-purple-50 selected', 'border-gray-200 bg-white');
-    c.classList.remove('selected');
+function _restoreImagesInCard(idx) {
+  const sku = generatedListings[idx]?.sku;
+  if (sku && imagesCache[sku]) {
+    const container = document.getElementById(`images-container-${idx}`);
+    if (container) renderImages(container, imagesCache[sku]);
+  }
+}
+
+function _buildVariationChildrenTable(listing, idx, editMode) {
+  const children = listing.children || [];
+  if (!children.length) return '';
+  const rows = children.map((c, ci) => `
+    <tr class="border-t border-gray-100 hover:bg-gray-50">
+      <td class="py-1.5 px-2 font-mono text-xs text-purple-700">${_esc(c.sku)}</td>
+      <td class="py-1.5 px-2 text-xs text-gray-600">${_esc(c.variation_value || '')}</td>
+      <td class="py-1.5 px-2 text-xs text-gray-600">${_esc(c.color || '')}</td>
+      <td class="py-1.5 px-2 text-xs text-gray-600">${_esc(c.size || '')}</td>
+      <td class="py-1.5 px-2 text-xs">
+        ${editMode
+          ? `<input type="number" step="0.01" min="0" value="${c.price || ''}" placeholder="Prix" class="w-20 border border-gray-200 rounded px-1.5 py-0.5 text-xs focus:ring-1 focus:ring-purple-300 outline-none" data-ci="${ci}" data-field="price" oninput="updateChild(${idx},${ci},'price',this.value)">`
+          : `<span class="font-medium text-gray-800">${c.price ? c.price.toFixed(2)+'€' : '—'}</span>`}
+      </td>
+      <td class="py-1.5 px-2 text-xs font-mono text-gray-500">
+        ${editMode
+          ? `<input type="text" value="${c.ean || ''}" placeholder="EAN" class="w-28 border border-gray-200 rounded px-1.5 py-0.5 text-xs focus:ring-1 focus:ring-purple-300 outline-none" data-ci="${ci}" data-field="ean" oninput="updateChild(${idx},${ci},'ean',this.value)">`
+          : (c.ean || '—')}
+      </td>
+    </tr>`).join('');
+  return `
+    <div class="mt-4 border border-indigo-100 rounded-xl overflow-hidden">
+      <div class="bg-indigo-50 px-3 py-2 flex items-center justify-between">
+        <span class="text-xs font-semibold text-indigo-700">🔗 Déclinaisons (${children.length})</span>
+        <span class="text-xs text-indigo-400">${_esc(listing.variation_theme || 'Variation')}</span>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-left">
+          <thead><tr class="bg-gray-50 text-gray-400 text-xs uppercase tracking-wide">
+            <th class="py-1.5 px-2 font-medium">SKU</th>
+            <th class="py-1.5 px-2 font-medium">Déclinaison</th>
+            <th class="py-1.5 px-2 font-medium">Couleur</th>
+            <th class="py-1.5 px-2 font-medium">Taille</th>
+            <th class="py-1.5 px-2 font-medium">Prix</th>
+            <th class="py-1.5 px-2 font-medium">EAN</th>
+          </tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    </div>`;
+}
+
+function updateChild(listingIdx, childIdx, field, value) {
+  const listing = generatedListings[listingIdx];
+  if (!listing || !listing.children || !listing.children[childIdx]) return;
+  if (field === 'price') {
+    const v = parseFloat(value);
+    listing.children[childIdx].price = isNaN(v) ? null : v;
+    // Also update the corresponding child listing in generatedListings
+    const childSku = listing.children[childIdx].sku;
+    const childListing = generatedListings.find(l => l.sku === childSku && l.parent_sku === listing.sku);
+    if (childListing) childListing.price = listing.children[childIdx].price;
+  } else if (field === 'ean') {
+    listing.children[childIdx].ean = value.trim() || null;
+    const childSku = listing.children[childIdx].sku;
+    const childListing = generatedListings.find(l => l.sku === childSku && l.parent_sku === listing.sku);
+    if (childListing) childListing.ean = listing.children[childIdx].ean;
+  }
+  try { localStorage.setItem('synqio_listings', JSON.stringify(generatedListings)); } catch(e) {}
+}
+
+function _getActiveTab(idx) {
+  for (const t of ['bullets', 'desc', 'kw', 'aplus', 'images']) {
+    const el = document.getElementById(`tab-${idx}-${t}`);
+    if (el && el.classList.contains('tab-active')) return t;
+  }
+  return 'bullets';
+}
+
+function enterEditMode(idx) {
+  const activeTab = _getActiveTab(idx);
+  const card = document.getElementById(`card-${idx}`);
+  if (card) {
+    card.innerHTML = buildCardHTML(generatedListings[idx], idx, true);
+    _restoreImagesInCard(idx);
+    switchTab(idx, activeTab);
+  }
+}
+
+function cancelEdit(idx) {
+  const activeTab = _getActiveTab(idx);
+  const card = document.getElementById(`card-${idx}`);
+  if (card) {
+    card.innerHTML = buildCardHTML(generatedListings[idx], idx, false);
+    _restoreImagesInCard(idx);
+    switchTab(idx, activeTab);
+  }
+}
+
+function addBullet(idx) {
+  generatedListings[idx].bullet_points.push('');
+  enterEditMode(idx);
+  // Focus last bullet textarea
+  const container = document.getElementById(`bullets-edit-${idx}`);
+  if (container) {
+    const txts = container.querySelectorAll('textarea');
+    if (txts.length) txts[txts.length - 1].focus();
+  }
+}
+
+function removeBullet(idx, bi) {
+  generatedListings[idx].bullet_points.splice(bi, 1);
+  enterEditMode(idx);
+}
+
+function saveEdit(idx) {
+  const activeTab = _getActiveTab(idx);
+  const listing = generatedListings[idx];
+  const skuEl   = document.getElementById(`edit-sku-${idx}`);
+  const titleEl = document.getElementById(`edit-title-${idx}`);
+  const descEl  = document.getElementById(`edit-desc-${idx}`);
+  const kwEl    = document.getElementById(`edit-kw-${idx}`);
+  const priceEl = document.getElementById(`edit-price-${idx}`);
+  const eanEl   = document.getElementById(`edit-ean-${idx}`);
+  if (skuEl  && skuEl.value.trim())  listing.sku   = skuEl.value.trim();
+  if (titleEl) listing.title = titleEl.value.trim();
+  if (descEl)  listing.description = descEl.value.trim();
+  if (kwEl)    listing.backend_keywords = kwEl.value.trim();
+  if (priceEl) { const v = parseFloat(priceEl.value); listing.price = isNaN(v) ? listing.price : v; }
+  if (eanEl)   listing.ean = eanEl.value.trim();
+  // Collect bullets
+  const bulletsContainer = document.getElementById(`bullets-edit-${idx}`);
+  if (bulletsContainer) {
+    listing.bullet_points = Array.from(bulletsContainer.querySelectorAll('textarea'))
+      .map(t => t.value.trim()).filter(Boolean);
+  }
+  const card = document.getElementById(`card-${idx}`);
+  if (card) {
+    card.innerHTML = buildCardHTML(listing, idx, false);
+    _restoreImagesInCard(idx);
+    switchTab(idx, activeTab);
+  }
+  showToast('✅', 'Fiche mise à jour');
+}
+
+function switchTab(idx, tab) {
+  ['bullets','desc','kw','aplus','images'].forEach(t => {
+    document.getElementById(`content-${idx}-${t}`)?.classList.add('hidden');
+    const b = document.getElementById(`tab-${idx}-${t}`);
+    if(b){b.classList.remove('tab-active');b.classList.add('text-gray-400');}
   });
-  el.className = el.className.replace('border-gray-200 bg-white', 'border-purple-500 bg-purple-50');
-  el.classList.add('selected');
+  document.getElementById(`content-${idx}-${tab}`)?.classList.remove('hidden');
+  const a = document.getElementById(`tab-${idx}-${tab}`);
+  if(a){a.classList.add('tab-active');a.classList.remove('text-gray-400');}
+}
+
+// ── Image generation ──────────────────────────────────────────────────────────
+const imagesCache = {};
+
+async function generateImages(idx) {
+  const listing = generatedListings[idx];
+  if (!listing) return;
+  const container = document.getElementById(`images-container-${idx}`);
+  if (imagesCache[listing.sku]) { renderImages(container, imagesCache[listing.sku]); return; }
+  container.innerHTML = `<div class="flex flex-col items-center py-8 gap-3"><div class="spinner"></div><p class="text-gray-500 text-sm">Génération des prompts et visuels...</p><p class="text-gray-400 text-xs">7 visuels Amazon en cours de création</p></div>`;
+  try {
+    // Step 1: start background job
+    const rawProduct = parsedProducts.find(p => p.sku === listing.sku);
+    const referenceImageUrl = rawProduct?.images?.[0] || '';
+    const r = await authFetch('/api/generate-images', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sku: listing.sku, product_name: listing.title, brand: listing.brand || '', category: listing.category || '', features: listing.bullet_points || [], color: rawProduct?.color || '', material: rawProduct?.material || '', reference_image_url: referenceImageUrl }),
+    });
+    if (!r.ok) {
+      let msg = 'Erreur serveur';
+      try { const body = await r.text(); msg = JSON.parse(body).detail || body || msg; } catch {}
+      throw new Error(msg);
+    }
+    const { job_id } = await r.json();
+
+    // Step 2: poll until done
+    let dots = 0;
+    while (true) {
+      await new Promise(res => setTimeout(res, 2500));
+      const jr = await authFetch(`/api/jobs/${job_id}`);
+      if (!jr.ok) throw new Error('Job introuvable');
+      const job = await jr.json();
+      dots = (dots + 1) % 4;
+      container.querySelector('p')?.setAttribute('data-dots', '.'.repeat(dots));
+      if (job.status === 'done') {
+        const data = job.result;
+        imagesCache[listing.sku] = data;
+        try { localStorage.setItem('synqio_images', JSON.stringify(imagesCache)); } catch(e) {}
+        renderImages(container, data);
+        return;
+      }
+      if (job.status === 'failed') throw new Error(job.error || 'Erreur de génération');
+    }
+  } catch (e) { container.innerHTML = `<p class="text-red-500 text-sm text-center py-4">Erreur : ${e.message}</p>`; }
+}
+
+function _esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function renderImages(container, data) {
+  const hasImages = data.openai_configured;
+  const sku = data.sku || '';
+  const refUsed = data.reference_image_used;
+  const refBadge = hasImages ? (refUsed
+    ? `<div class="bg-green-50 border border-green-200 rounded-xl p-3 mb-4 text-xs text-green-800 flex items-center gap-2"><span>✅</span><span><strong>Photo de référence utilisée</strong> — les visuels sont basés sur votre photo produit réelle.</span></div>`
+    : `<div class="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-4 text-xs text-amber-800 flex items-center gap-2"><span>⚠️</span><span><strong>Génération sans photo de référence</strong> — vérifiez que la colonne <code class="bg-amber-100 px-1 rounded">Image_URL</code> est remplie et que le lien Google Drive est <strong>public</strong>.</span></div>`)
+    : '';
+  const notice = hasImages ? '' : `<div class="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-4 text-sm text-blue-800"><p class="font-semibold mb-1">💡 Prompts générés — Images non générées</p><p>Ajoutez <code class="bg-blue-100 px-1 rounded">OPENAI_API_KEY</code> dans Railway pour générer les images. En attendant, copiez les prompts dans Midjourney ou Canva IA.</p></div>`;
+  const cards = data.images.map(img => {
+    const imgHtml = img.url
+      ? `<div class="relative group cursor-zoom-in" onclick="openLightbox(${JSON.stringify(img.url)})"><img src="${img.url}" alt="${_esc(img.label)}" class="w-full h-48 object-cover"><div class="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition flex items-center justify-center"><span class="hidden group-hover:flex bg-white/90 rounded-lg px-3 py-1.5 text-xs font-medium gap-1 items-center shadow">🔍 Agrandir</span></div></div>`
+      : `<div class="h-36 bg-gradient-to-br from-gray-100 to-gray-50 flex items-center justify-center"><span class="text-4xl">${img.id==='hero'?'📸':img.id.includes('lifestyle')?'🌅':img.id==='infographic'?'📊':img.id==='detail'?'🔍':img.id==='dimensions'?'📐':img.id==='packaging'?'📦':'🖼️'}</span></div>`;
+    return `
+    <div class="border border-gray-100 rounded-xl overflow-hidden" data-sku="${_esc(sku)}" data-imgid="${img.id}">
+      <div data-img-area>${imgHtml}</div>
+      <div class="p-3">
+        <div class="flex items-center justify-between mb-2">
+          <div><span class="font-medium text-gray-800 text-xs">${_esc(img.label)}</span><span class="ml-2 text-xs bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded font-mono">${img.slot}</span></div>
+          <div class="flex gap-2 items-center">
+            <button onclick="copyPrompt('${img.id}', this.closest('[data-imgid]').querySelector('textarea').value)" class="text-xs text-purple-600 hover:text-purple-800">📋 Prompt</button>
+            ${hasImages ? `<button onclick="regenerateSingleImage(this)" class="text-xs text-pink-600 hover:text-pink-800 font-medium">🔄 Régénérer</button>` : ''}
+          </div>
+        </div>
+        <textarea class="w-full text-xs text-gray-400 bg-gray-50 border border-gray-100 rounded p-2 leading-relaxed resize-none focus:outline-none focus:border-purple-200 focus:bg-white transition" rows="3">${_esc(img.prompt)}</textarea>
+        ${img.error ? `<p class="text-xs text-red-500 mt-1">⚠ ${_esc(img.error)}</p>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+  container.innerHTML = `${notice}${refBadge}<div class="grid grid-cols-2 gap-3 mb-3">${cards}</div><button data-dlsku="${_esc(sku)}" onclick="downloadAllPromptsFromSku(this)" class="w-full bg-gray-50 hover:bg-gray-100 text-gray-700 rounded-lg py-2 text-xs font-medium transition">⬇ Télécharger tous les prompts (.txt)</button>`;
+}
+
+function copyPrompt(id, prompt) { navigator.clipboard.writeText(prompt); showToast('📋', `Prompt ${id} copié`); }
+
+function downloadAllPromptsFromSku(btn) {
+  const sku = btn.dataset.dlsku;
+  const cached = imagesCache[sku];
+  if (!cached) return;
+  const images = cached.images.map(img => ({...img}));
+  // Read textarea values from DOM in case user edited any prompt
+  const container = btn.parentElement;
+  if (container) {
+    container.querySelectorAll('[data-imgid]').forEach(card => {
+      const ta = card.querySelector('textarea');
+      if (ta) { const entry = images.find(i => i.id === card.dataset.imgid); if (entry) entry.prompt = ta.value; }
+    });
+  }
+  downloadAllPrompts(images);
+}
+
+function downloadAllPrompts(images) {
+  const lines = images.map(img => `=== ${img.label} (${img.slot}) ===\n${img.prompt}\n`).join('\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([lines], { type: 'text/plain' }));
+  a.download = 'prompts_images_amazon.txt'; a.click();
+  showToast('✅', 'Prompts téléchargés');
+}
+
+async function regenerateSingleImage(btn) {
+  const card = btn.closest('[data-imgid]');
+  const sku = card.dataset.sku;
+  const imageId = card.dataset.imgid;
+  const prompt = card.querySelector('textarea').value.trim();
+  if (!prompt) return;
+  const imgArea = card.querySelector('[data-img-area]');
+  if (imgArea) imgArea.innerHTML = '<div class="h-36 flex items-center justify-center"><div class="spinner"></div></div>';
+  btn.disabled = true;
+  const origText = btn.textContent;
+  btn.textContent = '⏳';
+  try {
+    const r = await authFetch('/api/generate-image-single', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({sku, image_id: imageId, prompt}),
+    });
+    if (!r.ok) {
+      let msg = 'Erreur serveur';
+      try { const b = await r.text(); msg = JSON.parse(b).detail || b || msg; } catch {}
+      throw new Error(msg);
+    }
+    const {job_id} = await r.json();
+    while (true) {
+      await new Promise(res => setTimeout(res, 2500));
+      const jr = await authFetch(`/api/jobs/${job_id}`);
+      if (!jr.ok) throw new Error('Job introuvable');
+      const job = await jr.json();
+      if (job.status === 'done') {
+        const res = job.result;
+        if (imagesCache[sku]) {
+          const entry = imagesCache[sku].images.find(i => i.id === imageId);
+          if (entry) { entry.url = res.url; entry.prompt = prompt; }
+        }
+        if (imgArea) {
+          if (res.url) {
+            imgArea.innerHTML = `<div class="relative group"><img src="${res.url}" alt="" class="w-full h-48 object-cover"><div class="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition flex items-center justify-center"><a href="${res.url}" target="_blank" class="hidden group-hover:flex bg-white rounded-lg px-3 py-1.5 text-xs font-medium gap-1 items-center">↗ Ouvrir</a></div></div>`;
+          } else {
+            imgArea.innerHTML = `<div class="h-36 bg-gray-50 flex items-center justify-center text-gray-400 text-xs p-3 text-center">Image non disponible (clé OpenAI manquante)</div>`;
+          }
+        }
+        showToast('✅', 'Image régénérée');
+        return;
+      }
+      if (job.status === 'failed') throw new Error(job.error || 'Erreur de génération');
+    }
+  } catch (e) {
+    if (imgArea) imgArea.innerHTML = `<div class="h-36 flex items-center justify-center"><p class="text-red-500 text-xs text-center px-3">⚠ ${_esc(e.message)}</p></div>`;
+    showToast('❌', 'Erreur régénération');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = origText;
+  }
+}
+
+function copyListing(idx) { navigator.clipboard.writeText(JSON.stringify(generatedListings[idx], null, 2)); showToast('📋', 'JSON copié'); }
+
+function toggleScMenu() {
+  document.getElementById('scExportDropdown').classList.toggle('hidden');
+}
+document.addEventListener('click', e => {
+  const menu = document.getElementById('scExportMenu');
+  if (menu && !menu.contains(e.target)) document.getElementById('scExportDropdown')?.classList.add('hidden');
+});
+
+async function exportResults(format) {
+  if (!generatedListings.length) return;
+  const ep = { csv:'/api/export/csv', json:'/api/export/json', flat:'/api/export/flat-file', 'listing-loader':'/api/export/listing-loader', 'variation-flat-file':'/api/export/variation-flat-file' };
+  const fn = { csv:'listings.csv', json:'listings.json', flat:'amazon_nouveaux_produits.xlsx', 'listing-loader':'amazon_produits_existants.xlsx', 'variation-flat-file':'amazon_variations.xlsx' };
+  const label = { csv:'CSV', json:'JSON', flat:'Nouveaux produits', 'listing-loader':'Produits existants', 'variation-flat-file':'Variations' };
+  const r = await authFetch(ep[format], { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(generatedListings) });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(await r.blob()); a.download = fn[format]; a.click();
+  showToast('✅', `${label[format]} téléchargé`);
+}
+
+
+function triggerAmazonTemplateFill() {
+  if (!generatedListings.length) { showToast('⚠️', 'Génère d\'abord des fiches', true); return; }
+  document.getElementById('amazonTemplateInput').click();
+}
+
+async function fillAmazonTemplate(input) {
+  const file = input.files[0];
+  if (!file) return;
+  input.value = '';
+  showToast('⏳', 'Remplissage du template en cours…');
+  try {
+    const form = new FormData();
+    form.append('amazon_template', file);
+    form.append('listings', JSON.stringify(generatedListings));
+    const r = await authFetch('/api/export/fill-amazon-template', { method: 'POST', body: form });
+    if (!r.ok) {
+      const err = await r.json().catch(() => ({}));
+      showToast('⚠️', err.detail || 'Erreur lors du remplissage', true);
+      return;
+    }
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(await r.blob());
+    a.download = 'amazon_template_rempli.xlsm';
+    a.click();
+    showToast('✅', `Template rempli — ${generatedListings.length} fiche(s) prêtes à uploader`);
+  } catch(e) {
+    showToast('⚠️', 'Erreur : ' + e.message, true);
+  }
+}
+
+async function downloadZipPack() {
+  if (!generatedListings.length) return;
+  if (typeof JSZip === 'undefined') { showToast('⚠️', 'JSZip non chargé, réessaie dans un instant', true); return; }
+
+  showToast('⏳', 'Création du pack ZIP…');
+  const zip = new JSZip();
+
+  // Flat files Seller Central (les deux formats)
+  const flatR = await authFetch('/api/export/flat-file', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(generatedListings) });
+  zip.file('amazon_nouveaux_produits.xlsx', await flatR.blob());
+  const loaderR = await authFetch('/api/export/listing-loader', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(generatedListings) });
+  zip.file('amazon_produits_existants.xlsx', await loaderR.blob());
+
+  // Images depuis le cache (base64 data URLs)
+  const imgFolder = zip.folder('images');
+  let imgCount = 0;
+  for (const listing of generatedListings) {
+    const cached = imagesCache[listing.sku];
+    if (!cached || !cached.images) continue;
+    for (const img of cached.images) {
+      if (!img.url) continue;
+      const slot = (img.slot || img.id || 'image').replace(/[^a-z0-9_-]/gi, '_');
+      const filename = `${listing.sku}_${slot}.png`;
+      if (img.url.startsWith('data:')) {
+        const base64 = img.url.split(',')[1];
+        imgFolder.file(filename, base64, { base64: true });
+        imgCount++;
+      } else {
+        // URL distante (photo uploadée)
+        try {
+          const res = await fetch(img.url);
+          if (res.ok) { imgFolder.file(filename, await res.blob()); imgCount++; }
+        } catch {}
+      }
+    }
+  }
+
+  // README instructions
+  zip.file('INSTRUCTIONS.txt', [
+    'PACK SYNQIO — IMPORT SELLER CENTRAL',
+    '====================================',
+    '',
+    '1. NOUVEAUX PRODUITS : amazon_nouveaux_produits.xlsx',
+    '   → Seller Central > Inventaire > Ajouter des produits via un fichier de données',
+    '   → Onglet "Télécharger un fichier de données" > Sélectionner le fichier .xlsx > Soumettre',
+    '',
+    '   PRODUITS EXISTANTS : amazon_produits_existants.xlsx',
+    '   → Même procédure, si le produit a déjà un ASIN dans le catalogue Amazon',
+    '',
+    '2. IMAGES : dossier /images/',
+    '   Nommage : {SKU}_{type}.png (ex: SKU001_main.png, SKU001_lifestyle.png)',
+    '   → Seller Central > Inventaire > Gérer les produits > cliquer sur le produit > onglet Images',
+    '   → Uploader chaque image selon son type (Principale, Style de vie, etc.)',
+    '',
+    `Fiches : ${generatedListings.length} | Images : ${imgCount}`,
+    `Généré le ${new Date().toLocaleDateString('fr-FR')} via SynqIO`,
+  ].join('\n'));
+
+  const blob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `synqio_pack_${new Date().toISOString().slice(0,10)}.zip`;
+  a.click();
+  showToast('✅', `Pack ZIP téléchargé — ${generatedListings.length} fiches, ${imgCount} image(s)`);
 }
 
 // Écouter la fermeture du popup OAuth Amazon
@@ -2281,10 +3240,11 @@ async function checkAmazonStatus() {
           try {
             const r = await authFetch('/api/amazon/connect');
             const data = await r.json();
-            if (data.error || !data.url) { if (popup) popup.close(); showToast('⚠️', data.error || 'URL Amazon manquante'); return; }
+            const errMsg = data.error || data.detail;
+            if (errMsg || !data.url) { if (popup) popup.close(); showToast('⚠️', errMsg || 'URL Amazon manquante — vérifiez AMAZON_APP_ID dans l\'admin'); return; }
             popup.location.href = data.url;
             const timer = setInterval(() => { if (popup && popup.closed) { clearInterval(timer); checkAmazonStatus(); } }, 600);
-          } catch(e) { if (popup) popup.close(); }
+          } catch(e) { if (popup) popup.close(); showToast('❌', 'Erreur lors de la connexion Amazon'); }
         };
       }
     }
@@ -2311,14 +3271,71 @@ async function disconnectAmazon() {
 }
 
 async function publishListings() {
+  const dryRun = document.getElementById('dryRunCheck').checked;
+  const marketplace = document.getElementById('publishMarketplace').value;
   closePublishModal();
+  showToast('⏳', 'Publication en cours…');
   const r = await authFetch('/api/publish', {
     method:'POST', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({ listings: generatedListings, marketplace: document.getElementById('publishMarketplace').value, dry_run: document.getElementById('dryRunCheck').checked }),
+    body: JSON.stringify({ listings: generatedListings, marketplace, dry_run: dryRun }),
   });
   const result = await r.json();
-  showToast('✅', `${result.published} fiche(s) publiée(s)`);
   setStep(4);
+  showPublishReport(result, dryRun);
+}
+
+function showPublishReport(result, dryRun) {
+  const existing = document.getElementById('publishReportModal');
+  if (existing) existing.remove();
+
+  const statusLabel = dryRun ? '🧪 Mode test (simulation)' : '🚀 Publication réelle';
+  const rows = (result.report || []).map(item => {
+    const icon = item.status === 'dry_run' ? '🧪' : item.status === 'demo_published' ? '✅' : '✅';
+    const statusText = item.status === 'dry_run' ? 'Simulé' : item.status === 'demo_published' ? 'Publié (démo)' : 'Publié';
+    return `<tr class="border-b border-gray-100">
+      <td class="py-2 px-3 text-xs font-mono text-gray-600">${item.sku || '—'}</td>
+      <td class="py-2 px-3 text-xs text-gray-800 max-w-xs truncate">${item.title || '—'}</td>
+      <td class="py-2 px-3 text-xs text-center">${item.seo_score != null ? `<span class="font-semibold text-purple-700">${item.seo_score}</span>` : '—'}</td>
+      <td class="py-2 px-3 text-xs text-center">${icon} ${statusText}</td>
+    </tr>`;
+  }).join('');
+
+  const errors = (result.errors || []).map(e =>
+    `<div class="text-xs text-red-600 bg-red-50 rounded px-3 py-1.5">⚠️ ${e.sku || ''} — ${e.error || e.detail || JSON.stringify(e)}</div>`
+  ).join('');
+
+  const modal = document.createElement('div');
+  modal.id = 'publishReportModal';
+  modal.className = 'fixed inset-0 bg-black/60 backdrop-blur-sm z-[300] flex items-center justify-center p-4';
+  modal.innerHTML = `
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[80vh] flex flex-col overflow-hidden">
+      <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+        <div>
+          <h3 class="font-bold text-gray-900">Rapport de publication</h3>
+          <p class="text-xs text-gray-500 mt-0.5">${statusLabel}</p>
+        </div>
+        <div class="flex items-center gap-3">
+          <span class="text-sm font-semibold text-green-600">${result.published} publiée(s)</span>
+          ${result.failed ? `<span class="text-sm font-semibold text-red-500">${result.failed} échec(s)</span>` : ''}
+        </div>
+      </div>
+      <div class="overflow-auto flex-1 px-6 py-4">
+        ${rows ? `<table class="w-full">
+          <thead><tr class="text-xs text-gray-400 uppercase border-b border-gray-100">
+            <th class="text-left py-2 px-3">SKU</th>
+            <th class="text-left py-2 px-3">Titre</th>
+            <th class="text-center py-2 px-3">SEO</th>
+            <th class="text-center py-2 px-3">Statut</th>
+          </tr></thead>
+          <tbody>${rows}</tbody>
+        </table>` : '<p class="text-sm text-gray-400">Aucun rapport disponible.</p>'}
+        ${errors ? `<div class="mt-3 space-y-1">${errors}</div>` : ''}
+      </div>
+      <div class="px-6 py-4 border-t border-gray-100">
+        <button onclick="document.getElementById('publishReportModal').remove()" class="w-full gradient-bg text-white rounded-lg py-2 text-sm font-semibold hover:opacity-90 transition">Fermer</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
 }
 
 function setStep(n) {
@@ -2593,6 +3610,620 @@ async function confirmMapping() {
   }
 }
 
+// ── Listing Detail Modal ─────────────────────────────────────────────────────
+
+function openListingDetail(idx) {
+  currentDetailIdx = idx;
+  const listing = generatedListings[idx];
+  if (!listing) return;
+
+  const col = listing.seo_score >= 70 ? 'green' : listing.seo_score >= 40 ? 'yellow' : 'red';
+  document.getElementById('dm-sku').textContent = listing.sku;
+  document.getElementById('dm-marketplace').textContent = listing.marketplace || '';
+  const catEl = document.getElementById('dm-category');
+  catEl.textContent = listing.category || '';
+  catEl.className = listing.category ? 'text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded' : 'hidden';
+  document.getElementById('dm-edit-title').value = listing.title || '';
+  document.getElementById('dm-edit-price').value = listing.price || '';
+  document.getElementById('dm-edit-ean').value = listing.ean || '';
+
+  // SEO circle
+  const circle = document.getElementById('dm-seo-circle');
+  circle.className = `w-12 h-12 rounded-full flex items-center justify-center border-4 border-${col}-200 bg-${col}-50`;
+  document.getElementById('dm-seo-score').className = `font-bold text-base text-${col}-700`;
+  document.getElementById('dm-seo-score').textContent = listing.seo_score || '';
+
+  // Bullets
+  document.getElementById('dm-content-bullets').innerHTML = _buildDetailBulletsEdit(listing);
+  // Description
+  document.getElementById('dm-content-desc').innerHTML = `<textarea id="dm-edit-desc" rows="8" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 resize-none focus:ring-2 focus:ring-purple-300 outline-none">${_esc(listing.description)}</textarea><div id="dm-counter-desc" class="text-xs text-right mt-0.5 text-gray-400"></div>`;
+  // Keywords
+  document.getElementById('dm-content-kw').innerHTML = `<div class="bg-gray-50 rounded-lg p-3"><p class="text-xs text-gray-500 mb-2 font-medium">Backend Keywords <span class="font-normal">(limite : 249 octets UTF-8)</span></p><textarea id="dm-edit-kw" rows="4" class="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs font-mono text-gray-700 resize-none focus:ring-2 focus:ring-purple-300 outline-none">${_esc(listing.backend_keywords)}</textarea><div id="dm-counter-kw" class="text-xs text-right mt-0.5 text-gray-400"></div></div>`;
+  // A+
+  document.getElementById('dm-content-aplus').innerHTML = listing.a_plus_content
+    ? `<div class="space-y-3"><div class="bg-purple-50 rounded-lg p-3"><p class="font-semibold text-purple-800 text-sm">✨ ${_esc(listing.a_plus_content.headline)}</p></div>${(listing.a_plus_content.modules||[]).map(m=>`<div class="border border-gray-100 rounded-lg p-3"><p class="text-xs text-gray-500 uppercase tracking-wide mb-1">${_esc((m.type||'').replace('_',' '))}</p><p class="font-semibold text-gray-800 text-sm mb-1">${_esc(m.title||'')}</p><p class="text-gray-600 text-sm">${_esc(m.body||'')}</p></div>`).join('')}</div>`
+    : '<p class="text-gray-400 text-sm py-4 text-center">Contenu A+ non disponible</p>';
+  // Images
+  const imgContainer = document.getElementById('dm-content-images');
+  imgContainer.innerHTML = '';
+  const imgDiv = document.createElement('div');
+  imgDiv.id = 'dm-images-container';
+  if (imagesCache[listing.sku]) {
+    imgDiv.innerHTML = '';
+    renderImages(imgDiv, imagesCache[listing.sku]);
+  } else {
+    imgDiv.innerHTML = '<p class="text-gray-400 text-sm text-center py-6">Cliquez sur "Générer les images" pour lancer la création</p>';
+  }
+  imgContainer.appendChild(imgDiv);
+
+  // Attach live counters
+  _attachCounter(document.getElementById('dm-edit-title'), document.getElementById('dm-counter-title'), 200);
+  (listing.bullet_points || []).forEach((_, bi) => {
+    _attachCounter(document.getElementById(`dm-bullet-ta-${bi}`), document.getElementById(`dm-counter-bullet-${bi}`), 500);
+  });
+  _attachCounter(document.getElementById('dm-edit-desc'), document.getElementById('dm-counter-desc'), 2000);
+  _attachCounter(document.getElementById('dm-edit-kw'), document.getElementById('dm-counter-kw'), 249, true);
+
+  // Variations tab — show only for parent listings
+  const isParent = listing.is_parent && (listing.children || []).length > 0;
+  const varTab = document.getElementById('dm-tab-variations');
+  if (varTab) varTab.classList.toggle('hidden', !isParent);
+  if (isParent) {
+    document.getElementById('dm-content-variations').innerHTML = _buildDetailVariationsPanel(listing, idx);
+    // Parent listings have no price/EAN at top level
+    document.getElementById('dm-edit-price').value = '';
+    document.getElementById('dm-edit-ean').value = '';
+    document.getElementById('dm-edit-price').disabled = true;
+    document.getElementById('dm-edit-ean').disabled = true;
+    document.getElementById('dm-edit-price').placeholder = 'Parent';
+    document.getElementById('dm-edit-ean').placeholder = 'Voir déclinaisons';
+  } else {
+    document.getElementById('dm-edit-price').disabled = false;
+    document.getElementById('dm-edit-ean').disabled = false;
+    document.getElementById('dm-edit-price').placeholder = 'Prix';
+    document.getElementById('dm-edit-ean').placeholder = 'EAN';
+  }
+
+  // Validation banner
+  _renderDetailValidation(listing);
+  // Category compliance panel
+  _renderDetailCompliance(listing);
+
+  switchDetailTab('bullets');
+  document.getElementById('listingDetailModal').classList.remove('hidden');
+  document.body.style.overflow = 'hidden';
+}
+
+function _buildDetailVariationsPanel(listing, listingIdx) {
+  const children = listing.children || [];
+  if (!children.length) return '<p class="text-gray-400 text-sm py-4 text-center">Aucune déclinaison</p>';
+  const rows = children.map((c, ci) => `
+    <tr class="border-t border-gray-100 hover:bg-gray-50 transition">
+      <td class="py-2 px-3 font-mono text-xs text-purple-700 font-semibold">${_esc(c.sku)}</td>
+      <td class="py-2 px-3 text-sm text-gray-700">${_esc(c.variation_value || '')}</td>
+      <td class="py-2 px-3 text-sm text-gray-600">${_esc(c.color || '')}</td>
+      <td class="py-2 px-3 text-sm text-gray-600">${_esc(c.size || '')}</td>
+      <td class="py-2 px-3">
+        <div class="flex items-center gap-1">
+          <input type="number" step="0.01" min="0" value="${c.price || ''}" placeholder="Prix"
+            class="w-24 border border-gray-200 rounded-lg px-2 py-1 text-sm text-gray-800 font-bold focus:ring-2 focus:ring-purple-300 outline-none"
+            oninput="updateChildFromDetail(${listingIdx},${ci},'price',this.value)">
+          <span class="text-xs text-gray-400">€</span>
+        </div>
+      </td>
+      <td class="py-2 px-3">
+        <input type="text" value="${c.ean || ''}" placeholder="EAN"
+          class="w-36 border border-gray-200 rounded-lg px-2 py-1 text-xs font-mono text-gray-700 focus:ring-2 focus:ring-purple-300 outline-none"
+          oninput="updateChildFromDetail(${listingIdx},${ci},'ean',this.value)">
+      </td>
+    </tr>`).join('');
+  return `
+    <div class="mb-3">
+      <div class="flex items-center justify-between mb-3">
+        <div>
+          <h4 class="font-semibold text-gray-800 text-sm">Déclinaisons du groupe</h4>
+          <p class="text-xs text-gray-400 mt-0.5">Thème : <span class="font-medium text-indigo-600">${_esc(listing.variation_theme || 'Variation')}</span> — ${children.length} déclinaison${children.length > 1 ? 's' : ''}</p>
+        </div>
+      </div>
+      <div class="bg-blue-50 border border-blue-100 rounded-xl px-4 py-2.5 mb-4 text-xs text-blue-800">
+        <p class="font-semibold mb-1">Fiche parent Amazon</p>
+        <p>Le contenu (titre, bullets, description, keywords) est partagé par toutes les déclinaisons. Seuls le prix, l'EAN, la couleur et la taille varient par déclinaison ci-dessous.</p>
+      </div>
+      <div class="overflow-x-auto rounded-xl border border-gray-100">
+        <table class="w-full text-left">
+          <thead><tr class="bg-gray-50 text-gray-500 text-xs uppercase tracking-wide border-b border-gray-100">
+            <th class="py-2.5 px-3 font-medium">SKU enfant</th>
+            <th class="py-2.5 px-3 font-medium">Déclinaison</th>
+            <th class="py-2.5 px-3 font-medium">Couleur</th>
+            <th class="py-2.5 px-3 font-medium">Taille</th>
+            <th class="py-2.5 px-3 font-medium">Prix</th>
+            <th class="py-2.5 px-3 font-medium">EAN</th>
+          </tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    </div>`;
+}
+
+function updateChildFromDetail(listingIdx, childIdx, field, value) {
+  updateChild(listingIdx, childIdx, field, value);
+}
+
+function _renderDetailValidation(listing) {
+  const banner = document.getElementById('dm-validation-banner');
+  if (!banner) return;
+  const issues = _validateListing(listing);
+  if (!issues.length) {
+    banner.innerHTML = `<div class="flex items-center gap-2 bg-green-50 border border-green-200 rounded-xl px-4 py-2 text-green-800 text-xs mb-3"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg><span>Fiche conforme aux limites Amazon</span></div>`;
+    banner.classList.remove('hidden');
+    return;
+  }
+  const errors = issues.filter(i => i.level === 'error');
+  const warns  = issues.filter(i => i.level === 'warn');
+  banner.innerHTML = `<div class="bg-red-50 border border-red-200 rounded-xl px-4 py-2.5 mb-3 text-xs text-red-800 space-y-1">
+    <p class="font-semibold mb-1">${errors.length ? `⚠ ${errors.length} erreur${errors.length>1?'s':''} Amazon` : `${warns.length} avertissement${warns.length>1?'s':''}`}</p>
+    ${issues.map(i=>`<div class="flex gap-1.5 items-start"><span class="${i.level==='error'?'text-red-500':'text-orange-500'}">${i.level==='error'?'✕':'!'}</span><span>${_esc(i.msg)}</span></div>`).join('')}
+  </div>`;
+  banner.classList.remove('hidden');
+}
+
+function _renderDetailCompliance(listing) {
+  const panel = document.getElementById('dm-compliance-panel');
+  if (!panel) return;
+  const { group, label, icon, issues, total } = _checkCategoryCompliance(listing);
+  if (!group) {
+    panel.innerHTML = '';
+    panel.classList.add('hidden');
+    return;
+  }
+  const required     = issues.filter(i => i.level === 'required');
+  const recommended  = issues.filter(i => i.level === 'recommended');
+  const infoIssues   = issues.filter(i => i.level === 'info');
+  const passed       = total - issues.length;
+
+  let headerCls, headerIcon, headerMsg;
+  if (required.length > 0) {
+    headerCls = 'bg-red-50 border-red-200 text-red-800';
+    headerIcon = '✕';
+    headerMsg  = `${required.length} champ${required.length > 1 ? 's' : ''} obligatoire${required.length > 1 ? 's' : ''} manquant${required.length > 1 ? 's' : ''}`;
+  } else if (recommended.length > 0) {
+    headerCls = 'bg-amber-50 border-amber-200 text-amber-800';
+    headerIcon = '!';
+    headerMsg  = `${recommended.length} champ${recommended.length > 1 ? 's' : ''} recommandé${recommended.length > 1 ? 's' : ''} manquant${recommended.length > 1 ? 's' : ''}`;
+  } else {
+    headerCls = 'bg-teal-50 border-teal-200 text-teal-800';
+    headerIcon = '✓';
+    headerMsg  = 'Conforme aux exigences de catégorie';
+  }
+
+  const rules = _CAT_RULES[group] || [];
+  const issueFields = new Set(issues.map(i => i.field));
+
+  const rows = rules.map(rule => {
+    const missing = issueFields.has(rule.field);
+    let dot, rowCls, labelCls;
+    if (!missing) {
+      dot = `<span class="w-4 h-4 rounded-full bg-teal-100 text-teal-600 flex items-center justify-center text-xs flex-shrink-0">✓</span>`;
+      rowCls = 'text-gray-500';
+      labelCls = 'text-gray-600 line-through decoration-gray-300';
+    } else if (rule.level === 'required') {
+      dot = `<span class="w-4 h-4 rounded-full bg-red-100 text-red-600 flex items-center justify-center text-xs flex-shrink-0 font-bold">✕</span>`;
+      rowCls = '';
+      labelCls = 'text-red-700 font-medium';
+    } else if (rule.level === 'recommended') {
+      dot = `<span class="w-4 h-4 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center text-xs flex-shrink-0 font-bold">!</span>`;
+      rowCls = '';
+      labelCls = 'text-amber-700';
+    } else {
+      dot = `<span class="w-4 h-4 rounded-full bg-gray-100 text-gray-400 flex items-center justify-center text-xs flex-shrink-0">i</span>`;
+      rowCls = '';
+      labelCls = 'text-gray-500';
+    }
+    return `<div class="flex items-start gap-2 py-1 ${rowCls}">
+      ${dot}
+      <div class="min-w-0">
+        <span class="text-xs ${labelCls}">${_esc(rule.label)}</span>
+        ${missing ? `<p class="text-xs text-gray-400 mt-0.5 leading-snug">${_esc(rule.msg)}</p>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+
+  panel.innerHTML = `<div class="border ${headerCls} rounded-xl mb-3 overflow-hidden">
+    <div class="flex items-center gap-2 px-4 py-2.5 ${headerCls}">
+      <span class="text-base leading-none">${icon}</span>
+      <div class="flex-1 min-w-0">
+        <span class="font-semibold text-sm">${_esc(label)}</span>
+        <span class="text-xs ml-2 opacity-75">${headerIcon} ${_esc(headerMsg)}</span>
+      </div>
+      <span class="text-xs opacity-60">${passed}/${total} OK</span>
+    </div>
+    <div class="px-4 py-2 bg-white divide-y divide-gray-50">${rows}</div>
+  </div>`;
+  panel.classList.remove('hidden');
+}
+
+function _buildDetailBulletsEdit(listing) {
+  const bullets = listing.bullet_points || [];
+  return `<div class="space-y-3" id="dm-bullets-edit">
+    ${bullets.map((b, bi) => `
+      <div id="dm-bullet-row-${bi}">
+        <div class="flex gap-2 items-start">
+          <span class="text-purple-400 mt-2 flex-shrink-0">▸</span>
+          <textarea id="dm-bullet-ta-${bi}" rows="2" class="flex-1 border border-gray-200 rounded-lg px-2 py-1.5 text-sm text-gray-700 resize-none focus:ring-2 focus:ring-purple-300 outline-none" data-bi="${bi}">${_esc(b)}</textarea>
+          <button onclick="dmRemoveBullet(${bi})" class="text-gray-300 hover:text-red-500 mt-2 flex-shrink-0">✕</button>
+        </div>
+        <div id="dm-counter-bullet-${bi}" class="text-xs text-right mt-0.5 text-gray-400"></div>
+      </div>`).join('')}
+    <button onclick="dmAddBullet()" class="text-xs text-purple-600 hover:text-purple-800 font-medium mt-1">+ Ajouter un bullet</button>
+  </div>`;
+}
+
+function dmAddBullet() {
+  if (currentDetailIdx === null) return;
+  const container = document.getElementById('dm-bullets-edit');
+  if (!container) return;
+  const bi = container.querySelectorAll('textarea').length;
+  const row = document.createElement('div');
+  row.id = `dm-bullet-row-${bi}`;
+  row.innerHTML = `<div class="flex gap-2 items-start">
+    <span class="text-purple-400 mt-2 flex-shrink-0">▸</span>
+    <textarea id="dm-bullet-ta-${bi}" rows="2" class="flex-1 border border-gray-200 rounded-lg px-2 py-1.5 text-sm text-gray-700 resize-none focus:ring-2 focus:ring-purple-300 outline-none" data-bi="${bi}"></textarea>
+    <button onclick="dmRemoveBullet(${bi})" class="text-gray-300 hover:text-red-500 mt-2 flex-shrink-0">✕</button>
+  </div>
+  <div id="dm-counter-bullet-${bi}" class="text-xs text-right mt-0.5 text-gray-400"></div>`;
+  container.insertBefore(row, container.querySelector('button[onclick="dmAddBullet()"]'));
+  const ta = row.querySelector('textarea');
+  _attachCounter(ta, document.getElementById(`dm-counter-bullet-${bi}`), 500);
+  ta.focus();
+}
+
+function dmRemoveBullet(bi) {
+  const container = document.getElementById('dm-bullets-edit');
+  if (!container) return;
+  const row = document.getElementById(`dm-bullet-row-${bi}`);
+  if (row) row.remove();
+  // Re-number remaining rows
+  Array.from(container.querySelectorAll('[id^="dm-bullet-row-"]')).forEach((r, i) => {
+    r.id = `dm-bullet-row-${i}`;
+    const ta = r.querySelector('textarea');
+    if (ta) ta.dataset.bi = i;
+    const btn = r.querySelector('button');
+    if (btn) btn.setAttribute('onclick', `dmRemoveBullet(${i})`);
+  });
+}
+
+function _saveDetailToListing(idx) {
+  const listing = generatedListings[idx];
+  if (!listing) return;
+  const titleEl = document.getElementById('dm-edit-title');
+  const descEl  = document.getElementById('dm-edit-desc');
+  const kwEl    = document.getElementById('dm-edit-kw');
+  const priceEl = document.getElementById('dm-edit-price');
+  const eanEl   = document.getElementById('dm-edit-ean');
+  if (titleEl) listing.title = titleEl.value.trim();
+  if (descEl)  listing.description = descEl.value.trim();
+  if (kwEl)    listing.backend_keywords = kwEl.value.trim();
+  // Price/EAN only for non-parent listings
+  if (!listing.is_parent) {
+    if (priceEl) { const v = parseFloat(priceEl.value); if (!isNaN(v)) listing.price = v; }
+    if (eanEl)   listing.ean = eanEl.value.trim();
+  }
+  const bulletsContainer = document.getElementById('dm-bullets-edit');
+  if (bulletsContainer) {
+    listing.bullet_points = Array.from(bulletsContainer.querySelectorAll('textarea'))
+      .map(t => t.value.trim()).filter(Boolean);
+  }
+  // Sync parent content changes to child listings
+  if (listing.is_parent && (listing.children || []).length > 0) {
+    const childSkus = new Set(listing.children.map(c => c.sku));
+    generatedListings.forEach(l => {
+      if (l.parent_sku === listing.sku && childSkus.has(l.sku)) {
+        l.title = listing.title;
+        l.description = listing.description;
+        l.backend_keywords = listing.backend_keywords;
+        l.bullet_points = [...listing.bullet_points];
+      }
+    });
+  }
+  try { localStorage.setItem('synqio_listings', JSON.stringify(generatedListings)); } catch(e) {}
+}
+
+function closeListingDetail() {
+  if (currentDetailIdx !== null) {
+    _saveDetailToListing(currentDetailIdx);
+    // Refresh the card in the background
+    const idx = currentDetailIdx;
+    const card = document.getElementById(`card-${idx}`);
+    if (card) {
+      if (resultsViewMode === 'grid') {
+        const newCard = createGridCard(generatedListings[idx], idx);
+        card.replaceWith(newCard);
+      } else {
+        card.innerHTML = buildCardHTML(generatedListings[idx], idx, false);
+        _restoreImagesInCard(idx);
+      }
+    }
+    showToast('✅', 'Fiche enregistrée');
+  }
+  document.getElementById('listingDetailModal').classList.add('hidden');
+  document.body.style.overflow = '';
+  currentDetailIdx = null;
+}
+
+function switchDetailTab(tab) {
+  ['bullets','desc','kw','aplus','images','variations'].forEach(t => {
+    document.getElementById(`dm-content-${t}`)?.classList.toggle('hidden', t !== tab);
+    const btn = document.getElementById(`dm-tab-${t}`);
+    if (btn && !btn.classList.contains('hidden')) {
+      btn.classList.toggle('tab-active', t === tab);
+      btn.classList.toggle('text-gray-400', t !== tab);
+    }
+  });
+}
+
+async function generateImagesFromDetail() {
+  if (currentDetailIdx === null) return;
+  _saveDetailToListing(currentDetailIdx);
+  const idx = currentDetailIdx;
+  const listing = generatedListings[idx];
+  if (!listing) return;
+  switchDetailTab('images');
+  const imgDiv = document.getElementById('dm-images-container');
+  if (!imgDiv) return;
+  if (imagesCache[listing.sku]) { renderImages(imgDiv, imagesCache[listing.sku]); return; }
+  imgDiv.innerHTML = `<div class="flex flex-col items-center py-8 gap-3"><div class="spinner"></div><p class="text-gray-500 text-sm">Génération des visuels en cours...</p></div>`;
+  try {
+    const rawProduct = parsedProducts.find(p => p.sku === listing.sku);
+    const referenceImageUrl = rawProduct?.images?.[0] || '';
+    const r = await authFetch('/api/generate-images', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sku: listing.sku, product_name: listing.title, brand: listing.brand || '', category: listing.category || '', features: listing.bullet_points || [], color: rawProduct?.color || '', material: rawProduct?.material || '', reference_image_url: referenceImageUrl }),
+    });
+    if (!r.ok) { const b = await r.json().catch(()=>{}); throw new Error(b?.detail || 'Erreur serveur'); }
+    const { job_id } = await r.json();
+    while (true) {
+      await new Promise(res => setTimeout(res, 2500));
+      const jr = await authFetch(`/api/jobs/${job_id}`);
+      if (!jr.ok) throw new Error('Job introuvable');
+      const job = await jr.json();
+      if (job.status === 'done') {
+        imagesCache[listing.sku] = job.result;
+        try { localStorage.setItem('synqio_images', JSON.stringify(imagesCache)); } catch(e) {}
+        renderImages(imgDiv, job.result);
+        return;
+      }
+      if (job.status === 'failed') throw new Error(job.error || 'Erreur de génération');
+    }
+  } catch(e) { imgDiv.innerHTML = `<p class="text-red-500 text-sm text-center py-4">Erreur : ${e.message}</p>`; }
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    if (!document.getElementById('listingDetailModal')?.classList.contains('hidden')) {
+      closeListingDetail();
+    }
+  }
+});
+
+// Start
+renderSegmentPresets();
+(async () => {
+  // Check invite token in URL first — takes priority over normal init
+  const params = new URLSearchParams(window.location.search);
+  const inviteToken = params.get('invite');
+  if (inviteToken) {
+    await handleInviteToken(inviteToken);
+  } else {
+    initApp();
+  }
+})();
+</script>
+
+<!-- ═══════════════════ COLUMN MAPPING MODAL ═══════════════════ -->
+<div id="mappingModal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-[250] flex items-center justify-center p-4">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
+    <!-- Header -->
+    <div class="flex items-start justify-between px-6 pt-6 pb-4 border-b border-gray-100 flex-shrink-0">
+      <div>
+        <h3 class="text-lg font-bold text-gray-900">Vérifier le mapping des colonnes</h3>
+        <p id="mappingFileName" class="text-sm text-gray-400 mt-0.5 truncate max-w-sm"></p>
+      </div>
+      <button onclick="closeMappingModal()" class="text-gray-400 hover:text-gray-600 ml-4 flex-shrink-0 text-lg leading-none">&#x2715;</button>
+    </div>
+
+    <!-- Scrollable body -->
+    <div class="overflow-y-auto flex-1 px-6 py-4 space-y-5">
+
+      <!-- Section 1: Recognized columns -->
+      <div id="mappingRecognizedSection" class="hidden">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="w-2.5 h-2.5 rounded-full bg-green-500 flex-shrink-0"></span>
+          <p class="text-sm font-semibold text-gray-700">Colonnes reconnues automatiquement (<span id="mappingRecognizedCount">0</span>)</p>
+        </div>
+        <div id="mappingRecognizedList" class="bg-green-50 border border-green-200 rounded-xl p-3 flex flex-wrap gap-2"></div>
+      </div>
+
+      <!-- Section 2: Unmapped columns -->
+      <div id="mappingUnmappedSection" class="hidden">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="w-2.5 h-2.5 rounded-full bg-amber-400 flex-shrink-0"></span>
+          <p class="text-sm font-semibold text-gray-700">Colonnes à assigner (<span id="mappingUnmappedCount">0</span>)</p>
+        </div>
+        <div class="bg-amber-50 border border-amber-200 rounded-xl p-3 space-y-2" id="mappingUnmappedList"></div>
+      </div>
+
+      <!-- Section 3: Sample preview table -->
+      <div id="mappingPreviewSection" class="hidden">
+        <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Apercu des données</p>
+        <div class="overflow-auto max-h-36 rounded-xl border border-gray-200">
+          <table id="mappingPreviewTable" class="w-full text-xs text-left"></table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="px-6 py-4 border-t border-gray-100 flex-shrink-0 space-y-2">
+      <div id="mappingError" class="hidden text-sm text-red-600 font-medium"></div>
+      <div class="flex items-center justify-between gap-3">
+        <p class="text-xs text-gray-400">Ce mapping sera mémorisé pour vos prochains imports</p>
+        <div class="flex items-center gap-3">
+          <button onclick="closeMappingModal()" class="text-sm text-gray-400 hover:text-gray-600">Annuler</button>
+          <button id="mappingConfirmBtn" onclick="confirmMapping()"
+            class="gradient-bg text-white rounded-xl px-5 py-2.5 text-sm font-semibold hover:opacity-90 transition flex items-center gap-2">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            Confirmer et importer
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════ UPGRADE MODAL ═══════════════════ -->
+<div id="upgradeModal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-[300] flex items-center justify-center p-4">
+  <div class="relative bg-white rounded-3xl shadow-2xl w-full max-w-md p-8">
+    <button onclick="closeUpgradeModal()" class="absolute top-4 right-4 w-8 h-8 bg-gray-100 hover:bg-gray-200 rounded-full text-gray-500 flex items-center justify-center text-sm transition">✕</button>
+
+    <div class="text-center mb-6">
+      <div class="w-14 h-14 gradient-bg rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
+        <svg viewBox="0 0 24 24" fill="none" width="26" height="26"><path d="M12 2L2 7l10 5 10-5-10-5z" stroke="white" stroke-width="1.8" stroke-linejoin="round"/><path d="M2 17l10 5 10-5M2 12l10 5 10-5" stroke="white" stroke-width="1.8" stroke-linejoin="round"/></svg>
+      </div>
+      <h3 class="text-gray-900 text-xl font-black">Passez au niveau supérieur</h3>
+      <p id="upgradeSubtitle" class="text-gray-400 text-sm mt-1">Votre quota mensuel est atteint</p>
+    </div>
+
+    <!-- Plan actuel -->
+    <div id="upgradeCurrentPlan" class="bg-gray-50 rounded-xl p-4 mb-4 text-sm text-center text-gray-500"></div>
+
+    <!-- Flèche -->
+    <div class="text-center text-2xl mb-4 text-purple-400">↓</div>
+
+    <!-- Prochain plan -->
+    <div id="upgradeNextPlan" class="border-2 border-purple-500 rounded-2xl p-5 mb-6" style="background:linear-gradient(135deg,#faf5ff,#f5f3ff)">
+      <div class="flex items-center justify-between mb-3">
+        <h4 id="upgradeNextName" class="font-black text-2xl text-gray-900"></h4>
+        <span id="upgradeSkusBadge" class="text-xs bg-purple-100 text-purple-700 px-3 py-1 rounded-full font-semibold"></span>
+      </div>
+      <div class="flex items-end gap-2 mb-1">
+        <p id="upgradeMonthly" class="text-3xl font-black text-gray-900"></p>
+        <span class="text-gray-400 text-sm mb-1">/mois</span>
+      </div>
+      <p id="upgradeSetup" class="text-sm text-gray-500 mb-4"></p>
+      <a id="upgradeBtn" href="#" target="_blank"
+         class="block w-full text-center gradient-bg text-white rounded-xl py-3 font-bold text-sm shadow-md hover:opacity-90 transition">
+        Passer à ce forfait →
+      </a>
+    </div>
+
+    <p class="text-xs text-gray-400 text-center">Votre compte sera mis à jour après paiement. Contactez-nous si besoin : <a href="https://calendly.com/fl-synqio/30min" target="_blank" class="text-purple-500 hover:underline">prendre un RDV</a></p>
+  </div>
+</div>
+
+<!-- Lightbox pour afficher les images générées en grand -->
+<div id="lightbox" onclick="closeLightbox()" class="fixed inset-0 z-50 hidden bg-black/85 flex items-center justify-center p-4" style="cursor:zoom-out">
+  <img id="lightbox-img" src="" alt="" class="max-w-full max-h-full rounded-xl shadow-2xl object-contain" style="max-height:90vh;max-width:90vw;cursor:default" onclick="event.stopPropagation()">
+  <button onclick="closeLightbox()" class="absolute top-4 right-4 text-white/80 hover:text-white bg-black/40 hover:bg-black/60 rounded-full w-10 h-10 flex items-center justify-center text-xl transition">✕</button>
+</div>
+<script>
+function openLightbox(url) {
+  const lb = document.getElementById('lightbox');
+  const img = document.getElementById('lightbox-img');
+  img.src = url;
+  lb.classList.remove('hidden');
+  lb.classList.add('flex');
+  document.addEventListener('keydown', _lbEsc);
+}
+function closeLightbox() {
+  const lb = document.getElementById('lightbox');
+  lb.classList.add('hidden');
+  lb.classList.remove('flex');
+  document.getElementById('lightbox-img').src = '';
+  document.removeEventListener('keydown', _lbEsc);
+}
+function _lbEsc(e) { if (e.key === 'Escape') closeLightbox(); }
+
+// ── URL Import ────────────────────────────────────────────────────────────────
+function openUrlModal() {
+  document.getElementById('urlImportModal').classList.remove('hidden');
+  setTimeout(() => document.getElementById('urlImportInput').focus(), 50);
+}
+function closeUrlModal() {
+  document.getElementById('urlImportModal').classList.add('hidden');
+  document.getElementById('urlImportInput').value = '';
+  document.getElementById('urlImportError').classList.add('hidden');
+  document.getElementById('urlImportPreview').classList.add('hidden');
+  document.getElementById('urlImportBtn').disabled = false;
+  document.getElementById('urlImportBtn').textContent = 'Extraire et importer →';
+}
+async function importFromUrl() {
+  const url = document.getElementById('urlImportInput').value.trim();
+  const errEl = document.getElementById('urlImportError');
+  const preview = document.getElementById('urlImportPreview');
+  const btn = document.getElementById('urlImportBtn');
+  errEl.classList.add('hidden');
+  preview.classList.add('hidden');
+  if (!url || !url.startsWith('http')) {
+    errEl.textContent = 'Collez une URL valide (commence par https://)';
+    errEl.classList.remove('hidden'); return;
+  }
+  btn.disabled = true;
+  btn.textContent = '⏳ Analyse en cours...';
+  try {
+    const r = await authFetch('/api/scrape-url', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ url }),
+    });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.detail || 'Erreur lors de l\'extraction');
+
+    // Build RawProduct-compatible object
+    const product = {
+      sku: data.sku || ('URL-' + Date.now()),
+      name: data.name,
+      brand: data.brand || '',
+      description: data.description || '',
+      price: data.price || null,
+      ean: data.ean || '',
+      images: data.images || [],
+      color: data.color || '',
+      material: data.material || '',
+      category: '',
+      features: [],
+      focus_keywords: [],
+    };
+
+    // Show confirmation preview
+    const parts = [data.name];
+    if (data.brand) parts.push(data.brand);
+    if (data.price) parts.push(data.price + ' €');
+    if (data.ean) parts.push('EAN : ' + data.ean);
+    preview.innerHTML = `<span class="font-semibold text-emerald-700">✓ Extrait</span> — ${parts.join(' · ')}`;
+    preview.classList.remove('hidden');
+
+    // Load as parsedProducts and show in list
+    setTimeout(() => {
+      closeUrlModal();
+      parsedProducts = [product];
+      activeSegmentFilter = null;
+      showProductsList(parsedProducts);
+      document.getElementById('generateBtn').disabled = false;
+      document.getElementById('fileInfo').classList.remove('hidden');
+      document.getElementById('fileIcon').textContent = '🔗';
+      document.getElementById('fileName').textContent = data.name.substring(0, 45);
+      document.getElementById('fileSize').textContent = url.substring(0, 55);
+      dropZone.classList.add('hidden');
+      setStep(2);
+      showToast('✅', `Produit extrait : ${data.name.substring(0, 40)}`);
+    }, 900);
+  } catch(e) {
+    errEl.textContent = e.message;
+    errEl.classList.remove('hidden');
+    btn.disabled = false;
+    btn.textContent = 'Extraire et importer →';
+  }
+}
+</script>
 
 <!-- ═══════════════════ LISTING DETAIL MODAL ═══════════════════ -->
 <div id="listingDetailModal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-[300] flex items-center justify-center p-4" onclick="if(event.target===this)closeListingDetail()">
@@ -2621,6 +4252,8 @@ async function confirmMapping() {
     </div>
     <!-- Validation banner -->
     <div id="dm-validation-banner" class="hidden px-6 pt-3 pb-0"></div>
+    <!-- Category compliance panel -->
+    <div id="dm-compliance-panel" class="hidden px-6 pt-2 pb-0"></div>
     <!-- Tabs -->
     <div class="border-b border-gray-100 flex gap-4 px-6 text-sm flex-shrink-0">
       <button onclick="switchDetailTab('bullets')" class="tab-active pb-2.5 pt-2.5" id="dm-tab-bullets">Bullets</button>
@@ -2687,5 +4320,6 @@ async function confirmMapping() {
       <button id="urlImportBtn" onclick="importFromUrl()" class="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-medium transition">Extraire et importer →</button>
     </div>
   </div>
-</div></body>
+</div>
+</body>
 </html>
