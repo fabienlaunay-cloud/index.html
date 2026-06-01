@@ -51,12 +51,15 @@
 
       <!-- SETUP -->
       <div id="setupForm" class="hidden">
-        <div class="text-center mb-8">
+        <div class="text-center mb-6">
           <div class="w-16 h-16 gradient-bg rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
             <svg viewBox="0 0 24 24" fill="none" width="28" height="28"><path d="M12 2L2 7l10 5 10-5-10-5z" stroke="white" stroke-width="1.8" stroke-linejoin="round"/><path d="M2 17l10 5 10-5M2 12l10 5 10-5" stroke="white" stroke-width="1.8" stroke-linejoin="round"/></svg>
           </div>
           <h3 class="text-white text-2xl font-bold">Premier lancement</h3>
-          <p class="text-white/50 mt-1 text-sm">Créez votre compte administrateur</p>
+          <p class="text-white/50 mt-1 text-sm">Création du compte administrateur principal</p>
+        </div>
+        <div class="mb-5 bg-amber-500/20 border border-amber-500/40 rounded-xl px-4 py-3 text-amber-200 text-xs leading-relaxed">
+          ⚠️ <strong>Réservé à l'administrateur.</strong> Ce formulaire crée le compte maître de l'application. Si vous êtes un client, fermez cette fenêtre et utilisez votre lien d'invitation.
         </div>
         <div id="setupError" class="hidden mb-4 bg-red-500/20 border border-red-500/30 rounded-xl px-4 py-3 text-red-300 text-sm text-center"></div>
         <div class="space-y-4">
@@ -65,7 +68,7 @@
             <input id="setupName" type="text" placeholder="Fabien Launay" class="input-auth w-full rounded-xl px-4 py-3 text-sm" onkeydown="if(event.key==='Enter') doSetup()">
           </div>
           <div>
-            <label class="text-white/70 text-sm font-medium block mb-1.5">Email</label>
+            <label class="text-white/70 text-sm font-medium block mb-1.5">Email administrateur</label>
             <input id="setupEmail" type="email" placeholder="vous@synqio.io" class="input-auth w-full rounded-xl px-4 py-3 text-sm" onkeydown="if(event.key==='Enter') doSetup()">
           </div>
           <div>
@@ -75,7 +78,11 @@
               <button onclick="togglePwdSetup()" class="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 hover:text-white/70 text-lg">👁</button>
             </div>
           </div>
-          <button id="setupBtn" onclick="doSetup()" class="btn-login w-full text-white rounded-xl py-3.5 font-semibold text-base shadow-lg mt-2">Créer mon compte →</button>
+          <div>
+            <label class="text-white/70 text-sm font-medium block mb-1.5">Clé d'installation <span class="text-white/30">(variable SETUP_SECRET dans Railway)</span></label>
+            <input id="setupSecret" type="password" placeholder="Laissez vide si non configurée" class="input-auth w-full rounded-xl px-4 py-3 text-sm" onkeydown="if(event.key==='Enter') doSetup()">
+          </div>
+          <button id="setupBtn" onclick="doSetup()" class="btn-login w-full text-white rounded-xl py-3.5 font-semibold text-base shadow-lg mt-2">Créer le compte administrateur →</button>
         </div>
       </div>
 
@@ -3838,6 +3845,7 @@ async function doSetup() {
   const name = document.getElementById('setupName').value.trim();
   const email = document.getElementById('setupEmail').value.trim();
   const password = document.getElementById('setupPassword').value;
+  const setup_secret = document.getElementById('setupSecret').value;
   const btn = document.getElementById('setupBtn');
   const errEl = document.getElementById('setupError');
   if (!email || !password) { errEl.textContent = 'Email et mot de passe requis'; errEl.classList.remove('hidden'); return; }
@@ -3846,7 +3854,7 @@ async function doSetup() {
   try {
     const r = await fetch(`${API}/api/auth/setup`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password, name }),
+      body: JSON.stringify({ email, password, name, setup_secret }),
     });
     const data = await r.json();
     if (!r.ok) throw new Error(data.detail || 'Erreur');

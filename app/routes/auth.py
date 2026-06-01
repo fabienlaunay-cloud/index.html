@@ -49,6 +49,13 @@ class CreateUserRequest(BaseModel):
     name: str = ""
 
 
+class SetupRequest(BaseModel):
+    email: str
+    password: str
+    name: str = ""
+    setup_secret: str = ""
+
+
 class ToggleUserRequest(BaseModel):
     active: bool
 
@@ -87,8 +94,12 @@ async def needs_setup():
 
 
 @router.post("/setup")
-async def setup_first_user(req: CreateUserRequest):
-    """Crée le premier compte admin — uniquement si la base est vide."""
+async def setup_first_user(req: SetupRequest):
+    """Crée le premier compte admin — uniquement si la base est vide.
+    Si SETUP_SECRET est défini dans les variables d'environnement, il est requis."""
+    required_secret = os.getenv("SETUP_SECRET", "")
+    if required_secret and req.setup_secret != required_secret:
+        raise HTTPException(403, "Clé d'installation invalide — définissez SETUP_SECRET dans Railway")
     conn = get_db()
     count = conn.execute("SELECT COUNT(*) FROM users").fetchone()[0]
     conn.close()
