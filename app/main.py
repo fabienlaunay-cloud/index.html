@@ -25,7 +25,8 @@ from app.services.amazon_sp import publish_listings
 from app.services.auth import verify_token
 from app.services.image_gen import generate_product_images, AMAZON_IMAGE_TYPES, _generate_image_dalle3
 from app.services.usage import log_usage, get_user_usage, get_all_users_usage
-from app.utils.export import to_csv_bytes, to_json_bytes, to_amazon_flat_file_bytes
+from app.utils.export import to_csv_bytes, to_json_bytes, to_amazon_flat_file_bytes, to_listing_loader_bytes, to_amazon_flat_file_xlsx, to_listing_loader_xlsx, to_variation_flat_file_xlsx
+from app.utils.variation_handler import group_by_parent, build_parent_product, expand_to_variation_listings
 from app.db import init_db
 from app.routes.auth import router as auth_router, admin_router
 from app.routes.amazon_oauth import router as amazon_router
@@ -163,14 +164,17 @@ async def download_template():
         "SKU", "Nom", "Marque", "Segment", "EAN", "Prix",
         "Image_Fichier", "Poids_kg", "Dimensions_cm",
         "Caractéristiques", "Mots_cles",
+        "Parent_SKU", "Variation_Theme", "Variation_Value", "Taille",
     ]
     mandatory = {"SKU", "Nom", "Marque", "Segment"}
     photo_col = {"Image_Fichier"}
+    variation_col = {"Parent_SKU", "Variation_Theme", "Variation_Value", "Taille"}
 
     # Styles en-tête
     fill_mandatory = PatternFill("solid", fgColor="764BA2")
     fill_photo     = PatternFill("solid", fgColor="0F766E")   # vert sarcelle pour Image_Fichier
     fill_optional  = PatternFill("solid", fgColor="B39DDB")
+    fill_variation = PatternFill("solid", fgColor="2563EB")   # bleu pour colonnes variation
     font_header    = Font(color="FFFFFF", bold=True, size=11)
     font_example   = Font(color="555555", italic=True, size=10)
     center         = Alignment(horizontal="center", vertical="center", wrap_text=True)
@@ -182,26 +186,38 @@ async def download_template():
             cell.fill = fill_mandatory
         elif h in photo_col:
             cell.fill = fill_photo
+        elif h in variation_col:
+            cell.fill = fill_variation
         else:
             cell.fill = fill_optional
         cell.font = font_header
         cell.alignment = center
 
-    # Exemple 1 — collier
+    # Exemple 1 — collier (standalone)
     ex1 = [
         "BC-COL-001", "Collier Étoile Dorée Chien M", "Bande de Canailles",
         "collier chien", "3760123456789", "24.90",
         "collier-etoile-doree.jpg", "0.085", "35x2 cm",
         "Pendentif étoile doré|Boucle sécurité|Réglage 5 positions|Nylon recyclé certifié",
         "collier chien tendance, collier chien pendentif, collier chien fantaisie",
+        "", "", "", "",
     ]
-    # Exemple 2 — laisse
+    # Exemple 2 — laisse déclinaison couleur/taille (variation)
     ex2 = [
-        "BC-LAI-012", "Laisse Léopard Chien 1.2m", "Bande de Canailles",
+        "BC-LAI-012-ROUGE-S", "Laisse Léopard Chien Rouge S", "Bande de Canailles",
         "laisse chien", "3760123456790", "29.90",
-        "laisse-leopard.jpg", "0.120", "120x2 cm",
+        "laisse-leopard-rouge.jpg", "0.120", "120x2 cm",
         "Mousqueton inox doré|Poignée rembourrée|Motif léopard|Longueur 1.2m",
         "laisse chien design, laisse chien fantaisie, laisse chien colorée",
+        "BC-LAI-012", "ColorName-SizeClass", "Rouge / S", "S",
+    ]
+    ex3 = [
+        "BC-LAI-012-BLEU-M", "Laisse Léopard Chien Bleu M", "Bande de Canailles",
+        "laisse chien", "3760123456791", "29.90",
+        "laisse-leopard-bleu.jpg", "0.120", "120x2 cm",
+        "Mousqueton inox doré|Poignée rembourrée|Motif léopard|Longueur 1.2m",
+        "laisse chien design, laisse chien fantaisie, laisse chien colorée",
+        "BC-LAI-012", "ColorName-SizeClass", "Bleu / M", "M",
     ]
 
     for col, v in enumerate(ex1, 1):
@@ -210,9 +226,12 @@ async def download_template():
     for col, v in enumerate(ex2, 1):
         cell = ws.cell(row=3, column=col, value=v)
         cell.font = font_example
+    for col, v in enumerate(ex3, 1):
+        cell = ws.cell(row=4, column=col, value=v)
+        cell.font = font_example
 
     # Largeurs de colonnes
-    widths = [14, 34, 20, 18, 16, 8, 30, 10, 14, 48, 48]
+    widths = [18, 34, 20, 18, 16, 8, 30, 10, 14, 48, 48, 16, 20, 18, 10]
     for col, w in enumerate(widths, 1):
         ws.column_dimensions[openpyxl.utils.get_column_letter(col)].width = w
 
@@ -248,6 +267,10 @@ async def download_template():
         ("Dimensions_cm",   "Optionnel",   "Format L×l×h ou L×l en cm.", "35x2 cm"),
         ("Caractéristiques","Optionnel",   "Points clés du produit, séparés par |. Si vide, l'IA les déduit de la photo et du nom.", "Mousqueton inox|Poignée rembourrée|Motif léopard"),
         ("Mots_cles",       "Optionnel",   "Mots-clés SEO spécifiques à CE produit, séparés par virgule. Écrasent les mots-clés globaux de l'interface pour ce produit.", "laisse chien design, laisse fantaisie"),
+        ("Parent_SKU",      "Déclinaison", "SKU du produit parent Amazon. Remplir uniquement pour les déclinaisons (plusieurs lignes du même produit avec des couleurs/tailles différentes). Toutes les lignes ayant le même Parent_SKU sont regroupées et génèrent UNE fiche parent + autant de fiches enfants.", "BC-LAI-012"),
+        ("Variation_Theme", "Déclinaison", "Type de variation Amazon. Valeurs courantes : ColorName, SizeClass, ColorName-SizeClass. Doit être identique pour toutes les déclinaisons du même groupe.", "ColorName-SizeClass"),
+        ("Variation_Value", "Déclinaison", "Valeur de la déclinaison pour cette ligne. Format libre, ex: 'Rouge / L', 'Bleu / M', 'Noir'. Apparaît dans la table des déclinaisons.", "Rouge / S"),
+        ("Taille",          "Déclinaison", "Taille spécifique de cette déclinaison (S, M, L, XL, 30, 40…). Renseigné si la variation porte sur la taille.", "S"),
     ]
 
     for r, row_data in enumerate(guide_rows, 2):
@@ -269,6 +292,7 @@ async def download_template():
     guide.cell(row=legend_row,   column=1, value="* Colonnes violettes foncées = obligatoires").font = Font(bold=True, color="764BA2")
     guide.cell(row=legend_row+1, column=1, value="* Colonne verte = photo de référence (recommandée fortement)").font = Font(bold=True, color="0F766E")
     guide.cell(row=legend_row+2, column=1, value="* Colonnes violettes claires = optionnelles").font = Font(italic=True, color="9333EA")
+    guide.cell(row=legend_row+3, column=1, value="* Colonnes bleues = déclinaisons (variations Amazon)").font = Font(bold=True, color="1D4ED8")
     guide.cell(row=legend_row+4, column=1,
         value="Conseil : fournissez toujours la photo via Image_Fichier + ZIP. "
               "L'IA analyse la photo et extrait automatiquement couleurs, matières et détails. "
@@ -454,32 +478,76 @@ def _cleanup_jobs():
 
 async def _run_generation_job(job_id: str, request: GenerationRequest, email: str):
     _jobs[job_id]["status"] = "running"
+    target_mkts = request.marketplaces or [request.marketplace]
 
-    def on_progress(done: int, total: int):
+    # Group products by parent_sku to detect variation groups
+    groups = group_by_parent(request.products)
+
+    # Build list of products to send to AI (one per group: synthetic parent or standalone)
+    products_for_ai = []
+    variation_groups: dict = {}  # parent_sku → List[RawProduct] (only for variation groups)
+    for parent_sku, group_children in groups.items():
+        is_variation = len(group_children) > 1 or group_children[0].parent_sku
+        if is_variation:
+            parent_product = build_parent_product(parent_sku, group_children)
+            products_for_ai.append(parent_product)
+            variation_groups[parent_sku] = group_children
+        else:
+            products_for_ai.append(group_children[0])
+
+    n_total = len(products_for_ai) * len(target_mkts)
+    done_count = 0
+
+    def on_progress(done: int, _total: int):
+        nonlocal done_count
+        done_count += 1
         if job_id in _jobs:
-            _jobs[job_id]["progress"] = done
+            _jobs[job_id]["progress"] = done_count
 
     try:
-        listings, failed, gen_tokens = await generate_listings_batch(
-            products=request.products,
-            marketplace=request.marketplace,
-            focus_keywords=request.focus_keywords or [],
-            style_tone=request.style_tone,
-            on_progress=on_progress,
-        )
-        if listings and email:
-            log_usage(email, "sku_generated", len(listings))
-        if email and gen_tokens:
-            if gen_tokens.get("input_tokens"):
-                log_usage(email, "tokens_in", gen_tokens["input_tokens"])
-            if gen_tokens.get("output_tokens"):
-                log_usage(email, "tokens_out", gen_tokens["output_tokens"])
+        tasks = [
+            generate_listings_batch(
+                products=products_for_ai,
+                marketplace=mkt,
+                focus_keywords=request.focus_keywords or [],
+                style_tone=request.style_tone,
+                brand_voice=request.brand_voice,
+                on_progress=on_progress,
+            )
+            for mkt in target_mkts
+        ]
+        results_all = await asyncio.gather(*tasks)
+
+        all_listings, all_failed, total_in, total_out = [], [], 0, 0
+        for listings, failed, tokens in results_all:
+            # Expand variation groups into parent + child listings
+            expanded = []
+            for listing in listings:
+                if listing.sku in variation_groups:
+                    parent_l, child_ls = expand_to_variation_listings(listing, variation_groups[listing.sku])
+                    expanded.append(parent_l)
+                    expanded.extend(child_ls)
+                else:
+                    expanded.append(listing)
+            all_listings.extend(expanded)
+            all_failed.extend(failed)
+            total_in  += tokens.get("input_tokens", 0)
+            total_out += tokens.get("output_tokens", 0)
+
+        # Count SKUs (children count individually)
+        sku_count = sum(1 + len(l.children) if l.is_parent else 1 for l in all_listings)
+        if sku_count and email:
+            log_usage(email, "sku_generated", sku_count)
+        if email:
+            if total_in:  log_usage(email, "tokens_in",  total_in)
+            if total_out: log_usage(email, "tokens_out", total_out)
+
         result = GenerationResult(
-            listings=listings, failed=failed,
-            total=len(request.products), success_count=len(listings),
-            marketplace=request.marketplace,
+            listings=all_listings, failed=all_failed,
+            total=n_total, success_count=len(all_listings),
+            marketplace=target_mkts[0],
         )
-        _jobs[job_id].update({"status": "done", "progress": len(request.products),
+        _jobs[job_id].update({"status": "done", "progress": n_total,
                                "result": result.model_dump()})
     except Exception as e:
         _jobs[job_id].update({"status": "failed", "error": str(e)})
@@ -508,6 +576,9 @@ async def generate(request: GenerationRequest, req: Request):
                 f"(plan {usage['plan_label']} : {usage['skus_quota']}/mois). "
                 f"Vous demandez {len(request.products)} SKU.")
 
+    n_mkts = len(request.marketplaces) if request.marketplaces else 1
+    groups = group_by_parent(request.products)
+    n_total = len(groups) * n_mkts
     job_id = str(uuid4())
     _jobs[job_id] = {"status": "pending", "progress": 0,
                      "total": len(request.products), "created_at": time.time()}
@@ -556,6 +627,15 @@ async def export_json_file(listings: List[AmazonListing]):
 async def export_flat_file(listings: List[AmazonListing]):
     return Response(content=to_amazon_flat_file_bytes(listings), media_type="text/plain",
                     headers={"Content-Disposition": "attachment; filename=amazon_flat_file.txt"})
+
+
+@app.post("/api/export/variation-flat-file")
+async def export_variation_flat_file(listings: List[AmazonListing]):
+    return Response(
+        content=to_variation_flat_file_xlsx(listings),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": "attachment; filename=amazon_variations.xlsx"},
+    )
 
 
 # ── Images ───────────────────────────────────────────────────────────────────

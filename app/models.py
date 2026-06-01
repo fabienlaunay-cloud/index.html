@@ -27,10 +27,25 @@ class RawProduct(BaseModel):
     dimensions_cm: Optional[str] = None
     color: Optional[str] = None
     material: Optional[str] = None
+    size: Optional[str] = None
     features: Optional[List[str]] = []
     images: Optional[List[str]] = []
     focus_keywords: Optional[List[str]] = []   # mots-clés spécifiques à ce produit
     extra: Optional[dict] = {}
+    # Variation fields
+    parent_sku: Optional[str] = None           # SKU du parent pour les déclinaisons
+    variation_theme: Optional[str] = None      # ex: "ColorName-SizeClass", "ColorName", "SizeClass"
+    variation_value: Optional[str] = None      # ex: "Rouge / L", "Bleu / M"
+
+
+class VariationChild(BaseModel):
+    sku: str
+    price: Optional[float] = None
+    ean: Optional[str] = None
+    color: Optional[str] = None
+    size: Optional[str] = None
+    stock: int = 1
+    variation_value: str = ""  # ex: "Rouge / L"
 
 
 class AmazonListing(BaseModel):
@@ -43,9 +58,17 @@ class AmazonListing(BaseModel):
     category: str
     price: Optional[float] = None
     ean: Optional[str] = None
+    color: Optional[str] = None
+    material: Optional[str] = None
+    weight_kg: Optional[float] = None
     a_plus_content: Optional[dict] = None
     seo_score: Optional[int] = None
     marketplace: Marketplace = Marketplace.AMAZON_FR
+    # Variation fields
+    parent_sku: Optional[str] = None           # Renseigné pour les enfants
+    variation_theme: Optional[str] = None      # ex: "ColorName-SizeClass"
+    is_parent: bool = False                    # True = fiche parent (pas de contenu propre)
+    children: List[VariationChild] = []        # Déclinaisons (renseigné sur le parent)
 
 
 class APlusContent(BaseModel):
@@ -53,12 +76,22 @@ class APlusContent(BaseModel):
     modules: List[dict]
 
 
+class BrandVoice(BaseModel):
+    tone: str = "professionnel"
+    target_audience: str = ""
+    brand_values: str = ""
+    signature_words: List[str] = []
+    avoid_words: List[str] = []
+
+
 class GenerationRequest(BaseModel):
     products: List[RawProduct]
     marketplace: Marketplace = Marketplace.AMAZON_FR
+    marketplaces: Optional[List[Marketplace]] = None   # multi-market: overrides marketplace
     language: str = "fr"
     style_tone: str = "professionnel"
     focus_keywords: Optional[List[str]] = []
+    brand_voice: Optional[BrandVoice] = None
 
 
 class GenerationResult(BaseModel):
