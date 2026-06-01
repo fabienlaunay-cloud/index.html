@@ -2045,6 +2045,9 @@ function renderUsers(users) {
       <button onclick="toggleUser('${u.email}', ${u.is_active ? 0 : 1})" class="text-xs px-3 py-1.5 rounded-lg border font-medium transition shrink-0 ${activeClass}">
         ${u.is_active ? '✓ Actif' : '✗ Inactif'}
       </button>
+      <button onclick="toggleAdmin('${u.email}', ${u.is_admin ? 0 : 1})" title="${u.is_admin ? 'Révoquer le rôle admin' : 'Promouvoir en admin'}" class="text-xs px-2 py-1.5 rounded-lg border transition shrink-0 ${u.is_admin ? 'bg-amber-50 text-amber-600 border-amber-200 hover:bg-amber-100' : 'bg-gray-50 text-gray-400 border-gray-200 hover:bg-amber-50 hover:text-amber-500'}">
+        ${u.is_admin ? '👑 Admin' : '👑'}
+      </button>
       <button onclick="resendInvite('${u.email}')" title="Renvoyer le lien d'invitation" class="text-purple-400 hover:text-purple-600 hover:bg-purple-50 text-xs px-2 py-1.5 rounded-lg transition shrink-0">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
       </button>
@@ -2071,6 +2074,23 @@ async function toggleUser(email, active) {
   });
   showToast(active ? '✅' : '⛔', `${email} ${active ? 'activé' : 'désactivé'}`);
   loadUsers();
+}
+
+async function toggleAdmin(email, makeAdmin) {
+  if (makeAdmin && !confirm(`Promouvoir ${email} en administrateur ? Il aura accès à tout le panneau admin.`)) return;
+  if (!makeAdmin && !confirm(`Révoquer le rôle admin de ${email} ?`)) return;
+  const r = await authFetch(`/api/admin/users/${encodeURIComponent(email)}/admin`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ is_admin: !!makeAdmin }),
+  });
+  if (r.ok) {
+    showToast(makeAdmin ? '👑' : '✅', makeAdmin ? `${email} est maintenant admin` : `Rôle admin retiré à ${email}`);
+    loadUsers();
+  } else {
+    const d = await r.json().catch(() => ({}));
+    showToast('❌', d.detail || 'Erreur');
+  }
 }
 
 async function addUser() {
