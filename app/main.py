@@ -580,8 +580,8 @@ async def fill_amazon_template_endpoint(request: Request):
         raise HTTPException(422, f"Erreur lors du remplissage : {e}")
     return Response(
         content=filled_bytes,
-        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        headers={"Content-Disposition": "attachment; filename=amazon_template_rempli.xlsx"},
+        media_type="application/vnd.ms-excel.sheet.macroEnabled.12",
+        headers={"Content-Disposition": "attachment; filename=amazon_template_rempli.xlsm"},
     )
 
 
