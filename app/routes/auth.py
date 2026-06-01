@@ -62,10 +62,16 @@ class AcceptInviteRequest(BaseModel):
 def _require_admin(authorization: str = None) -> str:
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(401, "Token manquant")
-    email = verify_token(authorization.split(" ", 1)[1])
+    raw = authorization.split(" ", 1)[1]
+    from app.services.auth import _decode_token_data
+    data = _decode_token_data(raw)
+    if not data:
+        raise HTTPException(401, "Session expirée")
+    email = data.get("sub")
     if not email:
         raise HTTPException(401, "Session expirée")
-    if not is_admin(email):
+    # Accept either the JWT adm claim (survives DB wipes) or DB flag
+    if not (bool(data.get("adm")) or is_admin(email)):
         raise HTTPException(403, "Accès réservé aux administrateurs")
     return email
 
