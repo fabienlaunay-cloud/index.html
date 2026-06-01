@@ -48,33 +48,61 @@ def to_json_bytes(listings: List[AmazonListing]) -> bytes:
     ).encode("utf-8")
 
 
+import re as _re
+
+def _strip_html(text: str) -> str:
+    return _re.sub(r'<[^>]+>', '', text or '').strip()
+
+
 def to_amazon_flat_file_bytes(listings: List[AmazonListing]) -> bytes:
-    """Amazon flat file format (tab-separated, UTF-8)."""
+    """Amazon Listing Loader flat file (tab-separated, UTF-8-BOM).
+
+    Compatible with Seller Central > Inventory > Add Products via Spreadsheet.
+    Uses the standard Listing Loader template columns accepted across categories.
+    """
     output = io.StringIO()
     headers = [
-        "item-sku", "item-name", "brand-name", "manufacturer",
-        "product-description", "bullet-point1", "bullet-point2",
-        "bullet-point3", "bullet-point4", "bullet-point5",
-        "generic-keywords", "standard-price", "external-product-id",
+        "item-sku",
+        "update-delete",
+        "item-name",
+        "brand-name",
+        "manufacturer",
+        "item-type",
+        "product-description",
+        "bullet-point1",
+        "bullet-point2",
+        "bullet-point3",
+        "bullet-point4",
+        "bullet-point5",
+        "generic-keywords",
+        "standard-price",
+        "quantity",
+        "external-product-id",
         "external-product-id-type",
+        "condition-type",
     ]
+    # Row 1 : column names
     output.write("\t".join(headers) + "\n")
-    output.write("\t".join(["TemplateType=fptcustom"] + [""] * (len(headers) - 1)) + "\n")
-    output.write("\t".join(["Version=2014.0901"] + [""] * (len(headers) - 1)) + "\n")
+    # Row 2 : template metadata (required by Amazon parser)
+    output.write("\t".join(["TemplateType=fptcustom", "Version=2021.1201"] + [""] * (len(headers) - 2)) + "\n")
 
     for listing in listings:
         bullets = listing.bullet_points + [""] * 5
         row = [
             listing.sku,
+            "a",                                        # add / partial-update
             listing.title,
             listing.brand,
             listing.brand,
-            listing.description,
+            listing.category.lower().replace(" ", "_") or "home",
+            _strip_html(listing.description),           # no HTML in flat files
             bullets[0], bullets[1], bullets[2], bullets[3], bullets[4],
             listing.backend_keywords,
             str(listing.price) if listing.price else "",
+            "1",                                        # quantity placeholder
             listing.ean or "",
             "EAN" if listing.ean else "",
+            "New",
         ]
         output.write("\t".join(row) + "\n")
 
