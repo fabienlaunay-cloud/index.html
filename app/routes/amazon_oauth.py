@@ -4,7 +4,7 @@ import httpx
 from fastapi import APIRouter, Request, HTTPException
 from fastapi.responses import RedirectResponse, HTMLResponse
 
-from app.db import get_db
+from app.db import get_db, get_config
 
 router = APIRouter(prefix="/api/amazon")
 
@@ -14,14 +14,14 @@ REDIRECT_URI = os.getenv("AMAZON_REDIRECT_URI", "https://synqio.io/api/amazon/ca
 @router.get("/debug-config")
 async def debug_config(request: Request):
     """Debug : vérifie les variables d'env Amazon (valeurs masquées)."""
-    app_id = os.getenv("AMAZON_APP_ID", "")
-    lwa_id = os.getenv("LWA_CLIENT_ID", "")
-    lwa_secret = os.getenv("LWA_CLIENT_SECRET", "")
+    app_id = get_config("AMAZON_APP_ID", "")
+    lwa_id = get_config("LWA_CLIENT_ID", "")
+    lwa_secret = get_config("LWA_CLIENT_SECRET", "")
     return {
         "AMAZON_APP_ID": app_id[:12] + "…" if app_id else "❌ VIDE",
         "LWA_CLIENT_ID": lwa_id[:20] + "…" if lwa_id else "❌ VIDE",
         "LWA_CLIENT_SECRET": "✅ présent" if lwa_secret else "❌ VIDE",
-        "AMAZON_SP_MODE": os.getenv("AMAZON_SP_MODE", "demo"),
+        "AMAZON_SP_MODE": get_config("AMAZON_SP_MODE", "demo"),
         "REDIRECT_URI": REDIRECT_URI,
     }
 
@@ -30,7 +30,7 @@ async def debug_config(request: Request):
 @router.get("/connect")
 async def amazon_connect(request: Request):
     """Retourne l'URL d'autorisation Amazon (le JS gère la redirection)."""
-    app_id = os.getenv("AMAZON_APP_ID", "").strip()
+    app_id = get_config("AMAZON_APP_ID", "").strip()
     if not app_id:
         raise HTTPException(503, "AMAZON_APP_ID manquant — configurez cette variable dans Railway")
     email = request.state.user_email
