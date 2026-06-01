@@ -877,6 +877,23 @@
             <div class="bg-yellow-50 rounded-xl p-3 text-center"><p id="statAvgSeo" class="text-2xl font-bold text-yellow-600">0</p><p class="text-xs text-gray-500 mt-0.5">Score SEO</p></div>
             <div class="bg-red-50 rounded-xl p-3 text-center"><p id="statFailed" class="text-2xl font-bold text-red-500">0</p><p class="text-xs text-gray-500 mt-0.5">Échecs</p></div>
           </div>
+          <!-- Progress bar globale -->
+          <div id="globalProgressBar" class="hidden mt-4 pt-3 border-t border-gray-100">
+            <div class="flex items-center justify-between text-xs text-gray-500 mb-1.5">
+              <span>Progression du lot</span>
+              <span id="globalProgressLabel"></span>
+            </div>
+            <div class="flex h-3 rounded-full overflow-hidden gap-0.5 bg-gray-100">
+              <div id="gpb-todo"      class="bg-slate-300 transition-all" style="width:0%"></div>
+              <div id="gpb-ready"     class="bg-green-400 transition-all" style="width:0%"></div>
+              <div id="gpb-published" class="bg-purple-500 transition-all" style="width:0%"></div>
+            </div>
+            <div class="flex gap-4 mt-1.5 text-xs text-gray-400">
+              <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-slate-300"></span> À compléter <span id="gpb-todo-n" class="font-medium text-gray-600"></span></span>
+              <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-green-400"></span> Prêt <span id="gpb-ready-n" class="font-medium text-gray-600"></span></span>
+              <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-purple-500"></span> Publié <span id="gpb-published-n" class="font-medium text-gray-600"></span></span>
+            </div>
+          </div>
         </div>
         <div id="resultsChipsContainer" class="hidden"></div>
         <div id="listingsContainer" class="space-y-4"></div>
@@ -1130,6 +1147,7 @@ let brandVoice = JSON.parse(localStorage.getItem('synqio_brand_voice') || '{"ton
 let selectedMarketplaces = JSON.parse(localStorage.getItem('synqio_marketplaces') || '["amazon_fr"]');
 let activeMarketplaceFilter = null;
 let resultsViewMode = localStorage.getItem('synqio_view_mode') || 'list';
+let publishedSkus = new Set(JSON.parse(localStorage.getItem('synqio_published_skus') || '[]'));
 let currentDetailIdx = null;
 
 // Column mapping state
@@ -1347,6 +1365,26 @@ function _checkCategoryCompliance(listing) {
     if (!passed) issues.push({ level: rule.level, field: rule.field, label: rule.label, msg: rule.msg });
   }
   return { group, label: _CAT_LABELS[group], icon: _CAT_ICONS[group], issues, total: rules.length };
+}
+
+function _getListingProgress(listing) {
+  const seoOk = (listing.seo_score || 0) >= 70;
+  const imgOk = !!(imagesCache[listing.sku] && (imagesCache[listing.sku].images || []).length > 0);
+  const complianceIssues = _checkCategoryCompliance(listing).issues.filter(i => i.level === 'required');
+  const complianceOk = complianceIssues.length === 0;
+  const criteria = [
+    { label: 'SEO ≥ 70', done: seoOk, value: listing.seo_score || 0 },
+    { label: 'Images', done: imgOk },
+    { label: 'Conformité', done: complianceOk },
+  ];
+  const done = criteria.filter(c => c.done).length;
+  return { criteria, done, total: criteria.length };
+}
+
+function _getListingStatus(listing) {
+  if (publishedSkus.has(listing.sku)) return 'published';
+  const { done, total } = _getListingProgress(listing);
+  return done === total ? 'ready' : 'todo';
 }
 
 function _complianceBadge(listing) {
@@ -2229,6 +2267,12 @@ function _renderResultsChips() {
         class="w-8 h-8 rounded-lg flex items-center justify-center transition ${resultsViewMode === 'grid' ? 'bg-purple-600 text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
       </button>
+      <button onclick="setResultsViewMode('kanban')" id="viewBtnKanban" title="Vue kanban"
+        class="w-8 h-8 rounded-lg flex items-center justify-center transition ${resultsViewMode === 'kanban' ? 'bg-purple-600 text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="3" width="5" height="18" rx="1"/><rect x="10" y="3" width="5" height="13" rx="1"/><rect x="17" y="3" width="5" height="16" rx="1"/>
+        </svg>
+      </button>
     </div>
   </div>`;
 }
@@ -2597,6 +2641,7 @@ function showResults(result) {
 function renderListingsContainer() {
   const c = document.getElementById('listingsContainer');
   if (!c) return;
+  if (resultsViewMode === 'kanban') { renderKanbanBoard(); _renderGlobalProgress(); return; }
   const visible = generatedListings.filter((l) => {
     // Child listings are displayed inside their parent card
     if (l.parent_sku) return false;
@@ -2626,6 +2671,93 @@ function renderListingsContainer() {
       _restoreImagesInCard(idx);
     });
   }
+  _renderGlobalProgress();
+}
+
+function renderKanbanBoard() {
+  const c = document.getElementById('listingsContainer');
+  if (!c) return;
+
+  const visible = generatedListings.filter(l => {
+    if (l.parent_sku) return false;
+    if (activeMarketplaceFilter && l.marketplace !== activeMarketplaceFilter) return false;
+    if (!activeResultsFilter) return true;
+    const s = _getListingSegment(l);
+    if (activeResultsFilter === '__none') return !s;
+    return s === activeResultsFilter;
+  });
+
+  const cols = { todo: [], ready: [], published: [] };
+  visible.forEach(l => cols[_getListingStatus(l)].push(l));
+
+  const colDefs = [
+    { key: 'todo',      label: 'À compléter', count: cols.todo.length,      headerCls: 'bg-slate-100 text-slate-700',  dotCls: 'bg-slate-400' },
+    { key: 'ready',     label: 'Prêt',        count: cols.ready.length,     headerCls: 'bg-green-100 text-green-700', dotCls: 'bg-green-500' },
+    { key: 'published', label: 'Publié',       count: cols.published.length, headerCls: 'bg-purple-100 text-purple-700', dotCls: 'bg-purple-500' },
+  ];
+
+  c.className = 'grid grid-cols-3 gap-4 items-start';
+  c.innerHTML = colDefs.map(col => {
+    const cards = cols[col.key].map(l => {
+      const idx = generatedListings.indexOf(l);
+      const prog = _getListingProgress(l);
+      const seoScore = l.seo_score || 0;
+      const seoCol = seoScore >= 70 ? 'text-green-600' : seoScore >= 40 ? 'text-yellow-600' : 'text-red-500';
+      const seoBg = seoScore >= 70 ? 'bg-green-500' : seoScore >= 40 ? 'bg-yellow-400' : 'bg-red-400';
+      const pillCls = (done, labelTrue, labelFalse) =>
+        done
+          ? `<span class="inline-flex items-center gap-0.5 text-xs bg-green-50 text-green-700 border border-green-200 px-1.5 py-0.5 rounded">${labelTrue}</span>`
+          : `<span class="inline-flex items-center gap-0.5 text-xs bg-gray-50 text-gray-400 border border-gray-200 px-1.5 py-0.5 rounded">${labelFalse}</span>`;
+      const [seoC, imgC, catC] = prog.criteria;
+      return `<div class="bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-md hover:border-purple-200 transition cursor-pointer p-3" onclick="openListingDetail(${idx})">
+        <div class="flex items-start justify-between gap-2 mb-2">
+          <span class="text-xs text-gray-400 font-mono">${_esc(l.sku)}</span>
+          <span class="text-xs font-bold ${seoCol}">${seoScore}</span>
+        </div>
+        <p class="text-sm font-medium text-gray-800 leading-snug line-clamp-2 mb-2">${_esc(l.title || '')}</p>
+        <div class="flex gap-0.5 mb-2 h-1.5 rounded-full overflow-hidden bg-gray-100">
+          ${prog.criteria.map(cr => `<div class="flex-1 ${cr.done ? seoBg : 'bg-gray-200'} transition-all"></div>`).join('')}
+        </div>
+        <div class="flex flex-wrap gap-1">
+          ${pillCls(seoC.done, `SEO ${seoC.value}`, `SEO ${seoC.value}`)}
+          ${pillCls(imgC.done, '📷 Images', '📷 —')}
+          ${pillCls(catC.done, '✓ Conforme', '! Champs')}
+        </div>
+      </div>`;
+    }).join('');
+    return `<div class="rounded-2xl overflow-hidden border border-gray-100 shadow-sm">
+      <div class="flex items-center gap-2 px-4 py-3 ${col.headerCls}">
+        <span class="w-2 h-2 rounded-full ${col.dotCls}"></span>
+        <span class="font-semibold text-sm">${col.label}</span>
+        <span class="ml-auto text-xs opacity-60 font-medium">${col.count}</span>
+      </div>
+      <div class="bg-gray-50 p-2 space-y-2 min-h-[120px]">${cards || '<p class="text-center text-xs text-gray-300 py-8">Aucune fiche</p>'}</div>
+    </div>`;
+  }).join('');
+}
+
+function _renderGlobalProgress() {
+  const bar = document.getElementById('globalProgressBar');
+  if (!bar || !generatedListings.length) { if (bar) bar.classList.add('hidden'); return; }
+  const top = generatedListings.filter(l => !l.parent_sku);
+  const total = top.length;
+  if (!total) { bar.classList.add('hidden'); return; }
+  let nTodo = 0, nReady = 0, nPublished = 0;
+  top.forEach(l => {
+    const s = _getListingStatus(l);
+    if (s === 'published') nPublished++;
+    else if (s === 'ready') nReady++;
+    else nTodo++;
+  });
+  document.getElementById('gpb-todo').style.width    = (nTodo      / total * 100) + '%';
+  document.getElementById('gpb-ready').style.width   = (nReady     / total * 100) + '%';
+  document.getElementById('gpb-published').style.width = (nPublished / total * 100) + '%';
+  document.getElementById('gpb-todo-n').textContent      = nTodo;
+  document.getElementById('gpb-ready-n').textContent     = nReady;
+  document.getElementById('gpb-published-n').textContent = nPublished;
+  const pct = Math.round((nReady + nPublished) / total * 100);
+  document.getElementById('globalProgressLabel').textContent = `${nReady + nPublished}/${total} fiches prêtes (${pct}%)`;
+  bar.classList.remove('hidden');
 }
 
 function createListingCard(listing, idx) {
@@ -3282,6 +3414,11 @@ async function publishListings() {
   const result = await r.json();
   setStep(4);
   showPublishReport(result, dryRun);
+  (result.report || []).filter(r => r.status === 'demo_published' || r.status === 'published').forEach(r => {
+    if (r.sku) publishedSkus.add(r.sku);
+  });
+  try { localStorage.setItem('synqio_published_skus', JSON.stringify([...publishedSkus])); } catch(e) {}
+  if (resultsViewMode === 'kanban') renderListingsContainer();
 }
 
 function showPublishReport(result, dryRun) {
