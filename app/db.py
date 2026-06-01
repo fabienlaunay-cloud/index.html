@@ -128,9 +128,15 @@ def _ensure_history_table(conn):
             product_count INTEGER NOT NULL DEFAULT 0,
             avg_seo_score INTEGER DEFAULT 0,
             label TEXT DEFAULT '',
-            listings_json TEXT NOT NULL DEFAULT '[]'
+            listings_json TEXT NOT NULL DEFAULT '[]',
+            images_json TEXT NOT NULL DEFAULT '{}'
         )
     """)
+    # Add images_json column if it doesn't exist (migration)
+    try:
+        conn.execute("ALTER TABLE generation_history ADD COLUMN images_json TEXT NOT NULL DEFAULT '{}'")
+    except Exception:
+        pass
 
 
 def save_generation(user_email: str, batch_id: str, marketplace: str,
@@ -164,12 +170,27 @@ def list_generations(user_email: str) -> list:
     conn = get_db()
     _ensure_history_table(conn)
     rows = conn.execute(
-        "SELECT id, created_at, marketplace, product_count, avg_seo_score, label "
+        "SELECT id, created_at, marketplace, product_count, avg_seo_score, label, images_json "
         "FROM generation_history WHERE user_email = ? ORDER BY created_at DESC",
         (user_email,),
     ).fetchall()
     conn.close()
-    return [dict(r) for r in rows]
+    result = []
+    for r in rows:
+        d = dict(r)
+        try:
+            import json as _json
+            imgs = _json.loads(d.pop("images_json", "{}") or "{}")
+            d["image_count"] = sum(
+                len([i for i in v if isinstance(v, list) and i.get("has_image")])
+                if isinstance(v, list) else 0
+                for v in imgs.values()
+            )
+        except Exception:
+            d.pop("images_json", None)
+            d["image_count"] = 0
+        result.append(d)
+    return result
 
 
 def get_generation(batch_id: str, user_email: str):
@@ -185,6 +206,7 @@ def get_generation(batch_id: str, user_email: str):
         return None
     d = dict(row)
     d["listings"] = _json.loads(d.pop("listings_json", "[]"))
+    d["images"] = _json.loads(d.pop("images_json", "{}"))
     return d
 
 
@@ -198,6 +220,31 @@ def delete_generation(batch_id: str, user_email: str) -> bool:
     conn.commit()
     conn.close()
     return cur.rowcount > 0
+
+
+def save_generation_images(batch_id: str, user_email: str, sku: str, images: list) -> None:
+    """Attach/update images for one SKU in a generation history batch."""
+    import json as _json
+    conn = get_db()
+    _ensure_history_table(conn)
+    row = conn.execute(
+        "SELECT images_json FROM generation_history WHERE id = ? AND user_email = ?",
+        (batch_id, user_email),
+    ).fetchone()
+    if not row:
+        conn.close()
+        return
+    try:
+        cache = _json.loads(row["images_json"] or "{}")
+    except Exception:
+        cache = {}
+    cache[sku] = images
+    conn.execute(
+        "UPDATE generation_history SET images_json = ? WHERE id = ? AND user_email = ?",
+        (_json.dumps(cache, ensure_ascii=False, default=str), batch_id, user_email),
+    )
+    conn.commit()
+    conn.close()
 
 
 def update_generation_label(batch_id: str, user_email: str, label: str) -> bool:
