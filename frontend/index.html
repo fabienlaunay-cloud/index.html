@@ -1074,6 +1074,8 @@ let activeResultsFilter = null;   // null = Tous (résultats post-génération)
 let generatedListings = [];
 let photoMap = {};  // sku → "/api/photos/{filename}"
 let segmentPresets = JSON.parse(localStorage.getItem('synqio_segment_presets') || '{}');
+let resultsViewMode = localStorage.getItem('synqio_view_mode') || 'list';
+let currentDetailIdx = null;
 
 // Column mapping state
 let _pendingFile = null;        // File object held while mapping modal is open
@@ -1809,19 +1811,21 @@ function _getListingSegment(listing) {
 
 function filterResults(seg) {
   activeResultsFilter = seg;
-  generatedListings.forEach((listing, idx) => {
-    const card = document.getElementById(`card-${idx}`);
-    if (!card) return;
-    if (!seg) { card.style.display = ''; return; }
-    const s = _getListingSegment(listing);
-    card.style.display = (seg === '__none' ? !s : s === seg) ? '' : 'none';
-  });
+  renderListingsContainer();
+  _renderResultsChips();
+}
+
+function setResultsViewMode(mode) {
+  resultsViewMode = mode;
+  localStorage.setItem('synqio_view_mode', mode);
+  renderListingsContainer();
   _renderResultsChips();
 }
 
 function _renderResultsChips() {
   const container = document.getElementById('resultsChipsContainer');
   if (!container) return;
+  if (generatedListings.length === 0) { container.classList.add('hidden'); return; }
   const segMap = {};
   let unmatched = 0;
   generatedListings.forEach(l => {
@@ -1829,27 +1833,39 @@ function _renderResultsChips() {
     if (s) segMap[s] = (segMap[s] || 0) + 1;
     else unmatched++;
   });
-  if (!Object.keys(segMap).length) { container.classList.add('hidden'); return; }
   container.classList.remove('hidden');
-  container.innerHTML = `<div class="bg-white rounded-2xl shadow-sm border border-gray-100 px-5 py-3 flex flex-wrap gap-1.5 items-center">
-    <span class="text-xs text-gray-400 font-medium mr-1">Filtrer :</span>
-    <button onclick="filterResults(null)" data-seg="__all"
-      class="segment-chip text-xs px-2.5 py-1 rounded-full border font-medium transition
-             ${!activeResultsFilter ? 'bg-purple-600 text-white border-purple-600' : 'bg-white text-gray-500 border-gray-200 hover:border-purple-300'}">
-      Tous (${generatedListings.length})
-    </button>
-    ${Object.entries(segMap).map(([s, n]) => `
-      <button onclick="filterResults(${JSON.stringify(s)})" data-seg="${s}"
+  const hasSegments = Object.keys(segMap).length > 0;
+  container.innerHTML = `<div class="bg-white rounded-2xl shadow-sm border border-gray-100 px-5 py-3 flex items-center gap-3">
+    <div class="flex-1 flex flex-wrap gap-1.5 items-center">
+      <span class="text-xs text-gray-400 font-medium mr-1">Filtrer :</span>
+      ${hasSegments ? `<button onclick="filterResults(null)" data-seg="__all"
         class="segment-chip text-xs px-2.5 py-1 rounded-full border font-medium transition
-               ${activeResultsFilter === s ? 'bg-purple-600 text-white border-purple-600' : 'bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100'}">
-        ${s} (${n})
-      </button>`).join('')}
-    ${unmatched > 0 ? `
-      <button onclick="filterResults('__none')" data-seg="__none"
-        class="segment-chip text-xs px-2.5 py-1 rounded-full border font-medium transition
-               ${activeResultsFilter === '__none' ? 'bg-gray-600 text-white border-gray-600' : 'bg-white text-gray-400 border-gray-200 hover:border-gray-400'}">
-        Sans segment (${unmatched})
-      </button>` : ''}
+               ${!activeResultsFilter ? 'bg-purple-600 text-white border-purple-600' : 'bg-white text-gray-500 border-gray-200 hover:border-purple-300'}">
+        Tous (${generatedListings.length})
+      </button>
+      ${Object.entries(segMap).map(([s, n]) => `
+        <button onclick="filterResults(${JSON.stringify(s)})" data-seg="${s}"
+          class="segment-chip text-xs px-2.5 py-1 rounded-full border font-medium transition
+                 ${activeResultsFilter === s ? 'bg-purple-600 text-white border-purple-600' : 'bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100'}">
+          ${_esc(s)} (${n})
+        </button>`).join('')}
+      ${unmatched > 0 ? `
+        <button onclick="filterResults('__none')" data-seg="__none"
+          class="segment-chip text-xs px-2.5 py-1 rounded-full border font-medium transition
+                 ${activeResultsFilter === '__none' ? 'bg-gray-600 text-white border-gray-600' : 'bg-white text-gray-400 border-gray-200 hover:border-gray-400'}">
+          Sans segment (${unmatched})
+        </button>` : ''}` : ''}
+    </div>
+    <div class="ml-auto flex items-center gap-1">
+      <button onclick="setResultsViewMode('list')" id="viewBtnList" title="Vue liste"
+        class="w-8 h-8 rounded-lg flex items-center justify-center transition ${resultsViewMode === 'list' ? 'bg-purple-600 text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+      </button>
+      <button onclick="setResultsViewMode('grid')" id="viewBtnGrid" title="Vue grille"
+        class="w-8 h-8 rounded-lg flex items-center justify-center transition ${resultsViewMode === 'grid' ? 'bg-purple-600 text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+      </button>
+    </div>
   </div>`;
 }
 
@@ -2153,11 +2169,40 @@ function showResults(result) {
   const avg = result.listings.length ? Math.round(result.listings.reduce((a,l)=>a+(l.seo_score||0),0)/result.listings.length) : 0;
   document.getElementById('statAvgSeo').textContent = avg;
   document.getElementById('statsText').textContent = `${result.marketplace} — Score SEO moyen : ${avg}/100`;
-  const c = document.getElementById('listingsContainer');
-  c.innerHTML = '';
-  result.listings.forEach((l,i) => c.appendChild(createListingCard(l,i)));
   activeResultsFilter = null;
+  renderListingsContainer();
   _renderResultsChips();
+}
+
+function renderListingsContainer() {
+  const c = document.getElementById('listingsContainer');
+  if (!c) return;
+  const visible = generatedListings.filter((l) => {
+    if (!activeResultsFilter) return true;
+    const s = _getListingSegment(l);
+    if (activeResultsFilter === '__none') return !s;
+    return s === activeResultsFilter;
+  });
+  if (resultsViewMode === 'grid') {
+    c.className = 'grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3';
+    c.innerHTML = '';
+    visible.forEach((l) => {
+      const idx = generatedListings.indexOf(l);
+      c.appendChild(createGridCard(l, idx));
+    });
+  } else {
+    c.className = 'space-y-4';
+    c.innerHTML = '';
+    visible.forEach((l) => {
+      const idx = generatedListings.indexOf(l);
+      c.appendChild(createListingCard(l, idx));
+    });
+    // Restore images for visible cards
+    visible.forEach((l) => {
+      const idx = generatedListings.indexOf(l);
+      _restoreImagesInCard(idx);
+    });
+  }
 }
 
 function createListingCard(listing, idx) {
@@ -2166,6 +2211,31 @@ function createListingCard(listing, idx) {
   card.className = 'bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden card-hover';
   card.id = `card-${idx}`;
   card.innerHTML = buildCardHTML(listing, idx, false);
+  return card;
+}
+
+function createGridCard(listing, idx) {
+  const col = listing.seo_score >= 70 ? 'green' : listing.seo_score >= 40 ? 'yellow' : 'red';
+  const cached = imagesCache[listing.sku];
+  const mainImg = cached?.images?.find(i => i.slot === 'main' || i.id === 'main')?.url || '';
+  const card = document.createElement('div');
+  card.id = `card-${idx}`;
+  card.className = 'bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden card-hover cursor-pointer flex flex-col';
+  card.onclick = () => openListingDetail(idx);
+  card.innerHTML = `
+    <div class="relative bg-gray-50 h-36 flex items-center justify-center overflow-hidden">
+      ${mainImg
+        ? `<img src="${mainImg}" class="w-full h-full object-contain p-2" alt="">`
+        : `<div class="flex flex-col items-center text-gray-300"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg><span class="text-xs mt-1">Pas d'image</span></div>`}
+      <div class="absolute top-2 right-2 w-9 h-9 rounded-full flex items-center justify-center border-2 border-${col}-300 bg-white shadow-sm">
+        <span class="text-${col}-700 font-bold text-xs">${listing.seo_score}</span>
+      </div>
+    </div>
+    <div class="p-3 flex-1 flex flex-col gap-1">
+      <span class="font-mono text-xs bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded self-start">${_esc(listing.sku)}</span>
+      <p class="text-xs font-semibold text-gray-800 line-clamp-2 leading-tight">${_esc(listing.title)}</p>
+      ${listing.category ? `<span class="text-xs bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded self-start mt-auto">${_esc(listing.category)}</span>` : ''}
+    </div>`;
   return card;
 }
 
