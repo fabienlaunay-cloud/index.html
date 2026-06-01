@@ -1159,6 +1159,7 @@ let selectedMarketplaces = JSON.parse(localStorage.getItem('synqio_marketplaces'
 let activeMarketplaceFilter = null;
 let resultsViewMode = localStorage.getItem('synqio_view_mode') || 'list';
 let publishedSkus = new Set(JSON.parse(localStorage.getItem('synqio_published_skus') || '[]'));
+let currentBatchId = localStorage.getItem('synqio_batch_id') || null;
 let currentDetailIdx = null;
 
 // Column mapping state
@@ -2611,8 +2612,9 @@ async function generateListings() {
 
     document.getElementById('progressBar').style.width = '100%';
     generatedListings = result.listings;
-    // Persister en localStorage pour survivre à la navigation OAuth
+    currentBatchId = job_id;
     try { localStorage.setItem('synqio_listings', JSON.stringify(generatedListings)); } catch(e) {}
+    try { localStorage.setItem('synqio_batch_id', job_id); } catch(e) {}
     showResults(result);
     setStep(3);
     showToast('✅', `${result.success_count} fiche(s) générée(s)`);
@@ -2953,6 +2955,7 @@ async function loadHistoryList() {
           <span>📅 ${date}</span>
           <span>📦 ${b.product_count} fiche${b.product_count > 1 ? 's' : ''}</span>
           <span class="font-semibold ${seoCol}">SEO ${b.avg_seo_score}</span>
+          ${b.image_count > 0 ? `<span class="text-indigo-600">🖼️ ${b.image_count} image${b.image_count > 1 ? 's' : ''}</span>` : ''}
         </div>
         <div class="flex gap-2">
           <button onclick="restoreBatch('${_esc(b.id)}')" class="flex-1 gradient-bg text-white rounded-lg py-1.5 text-xs font-semibold hover:opacity-90 transition">
@@ -2976,10 +2979,16 @@ async function restoreBatch(batchId) {
     if (!listings.length) { showToast('⚠️', 'Lot vide', true); return; }
 
     generatedListings = listings;
+    currentBatchId = batchId;
     try { localStorage.setItem('synqio_listings', JSON.stringify(generatedListings)); } catch(e) {}
+    try { localStorage.setItem('synqio_batch_id', batchId); } catch(e) {}
+
+    // Restore images from server history
+    const savedImages = batch.images || {};
+    Object.assign(imagesCache, savedImages);
+    try { localStorage.setItem('synqio_images', JSON.stringify(imagesCache)); } catch(e) {}
 
     const parentOnly = listings.filter(l => !l.parent_sku);
-    const avg = parentOnly.length ? Math.round(parentOnly.reduce((a, l) => a + (l.seo_score || 0), 0) / parentOnly.length) : 0;
     const fakeResult = {
       listings,
       failed: [],
@@ -2989,7 +2998,8 @@ async function restoreBatch(batchId) {
     };
     showResults(fakeResult);
     closeHistoryPanel();
-    showToast('✅', `Lot restauré — ${listings.length} fiche(s)`);
+    const imgCount = Object.keys(savedImages).length;
+    showToast('✅', `Lot restauré — ${listings.length} fiche(s)${imgCount ? `, ${imgCount} SKU avec images` : ''}`);
   } catch(e) {
     showToast('❌', 'Erreur lors du chargement', true);
   }
@@ -3338,7 +3348,7 @@ async function generateImages(idx) {
     const referenceImageUrl = rawProduct?.images?.[0] || '';
     const r = await authFetch('/api/generate-images', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ sku: listing.sku, product_name: listing.title, brand: listing.brand || '', category: listing.category || '', features: listing.bullet_points || [], color: rawProduct?.color || '', material: rawProduct?.material || '', reference_image_url: referenceImageUrl }),
+      body: JSON.stringify({ sku: listing.sku, product_name: listing.title, brand: listing.brand || '', category: listing.category || '', features: listing.bullet_points || [], color: rawProduct?.color || '', material: rawProduct?.material || '', reference_image_url: referenceImageUrl, batch_id: currentBatchId }),
     });
     if (!r.ok) {
       let msg = 'Erreur serveur';
@@ -4384,7 +4394,7 @@ async function generateImagesFromDetail() {
     const referenceImageUrl = rawProduct?.images?.[0] || '';
     const r = await authFetch('/api/generate-images', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ sku: listing.sku, product_name: listing.title, brand: listing.brand || '', category: listing.category || '', features: listing.bullet_points || [], color: rawProduct?.color || '', material: rawProduct?.material || '', reference_image_url: referenceImageUrl }),
+      body: JSON.stringify({ sku: listing.sku, product_name: listing.title, brand: listing.brand || '', category: listing.category || '', features: listing.bullet_points || [], color: rawProduct?.color || '', material: rawProduct?.material || '', reference_image_url: referenceImageUrl, batch_id: currentBatchId }),
     });
     if (!r.ok) { const b = await r.json().catch(()=>{}); throw new Error(b?.detail || 'Erreur serveur'); }
     const { job_id } = await r.json();

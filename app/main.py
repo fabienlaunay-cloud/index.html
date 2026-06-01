@@ -742,6 +742,37 @@ class ImageRequest(BaseModel):
     material: str = ""
     selected_types: Optional[List[str]] = None
     reference_image_url: Optional[str] = None
+    batch_id: Optional[str] = None   # generation history id to attach images to
+
+
+async def _persist_images(sku: str, images: list) -> list:
+    """Download temp DALL-E URLs / decode base64 → save to _PHOTOS_DIR permanently.
+    Returns the same list with urls replaced by /api/photos/... paths."""
+    import base64 as _b64
+    for img in images:
+        url = img.get("url") or ""
+        if not url or not img.get("has_image"):
+            continue
+        ext = "png"
+        filename = f"gen_{sku}_{img.get('id','img')}.{ext}"
+        dest = os.path.join(_PHOTOS_DIR, filename)
+        if os.path.exists(dest):
+            img["url"] = f"/api/photos/{filename}"
+            continue
+        try:
+            if url.startswith("data:image"):
+                data_part = url.split(",", 1)[1]
+                _save_photo(filename, _b64.b64decode(data_part))
+                img["url"] = f"/api/photos/{filename}"
+            elif url.startswith("http"):
+                async with httpx.AsyncClient(timeout=30) as client:
+                    resp = await client.get(url)
+                    if resp.status_code == 200:
+                        _save_photo(filename, resp.content)
+                        img["url"] = f"/api/photos/{filename}"
+        except Exception:
+            pass  # keep original url as fallback
+    return images
 
 
 async def _run_image_job(job_id: str, req: ImageRequest, email: str):
@@ -777,6 +808,18 @@ async def _run_image_job(job_id: str, req: ImageRequest, email: str):
                 log_usage(email, "tokens_in", img_tokens["input_tokens"])
             if img_tokens.get("output_tokens"):
                 log_usage(email, "tokens_out", img_tokens["output_tokens"])
+
+        # Persist images to disk so URLs never expire
+        images = await _persist_images(req.sku, images)
+
+        # Attach images to generation history if batch_id provided
+        if req.batch_id and email:
+            try:
+                from app.db import save_generation_images
+                save_generation_images(req.batch_id, email, req.sku, images)
+            except Exception:
+                pass
+
         openai_ok = bool(os.getenv("OPENAI_API_KEY"))
         _jobs[job_id].update({
             "status": "done",
@@ -818,6 +861,10 @@ async def _run_single_image_job(job_id: str, req: SingleImageRequest, email: str
         openai_ok = bool(os.getenv("OPENAI_API_KEY"))
         if url and email:
             log_usage(email, "image_generated", 1)
+        # Persist to disk
+        if url:
+            persisted = await _persist_images(req.sku, [{"id": req.image_id, "url": url, "has_image": True}])
+            url = persisted[0]["url"] if persisted else url
         _jobs[job_id].update({
             "status": "done",
             "result": {
