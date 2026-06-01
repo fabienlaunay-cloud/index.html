@@ -2449,6 +2449,7 @@ window.addEventListener('message', (e) => {
 async function showPublishModal() {
   document.getElementById('publishModal').classList.remove('hidden');
   await checkAmazonStatus();
+  document.getElementById('dryRunCheck').onchange = checkAmazonStatus;
 }
 function closePublishModal() { document.getElementById('publishModal').classList.add('hidden'); }
 
@@ -2469,18 +2470,25 @@ async function checkAmazonStatus() {
       box.className = 'mb-3 text-xs rounded-lg px-3 py-2 bg-amber-50 text-amber-700';
       box.innerHTML = '⚠️ Seller Central non connecté';
       btn.disabled = false;
-      btn.className = 'w-full bg-amber-500 hover:bg-amber-600 text-white rounded-lg py-2 text-sm font-semibold transition';
-      btn.textContent = 'Connecter mon Seller Central';
-      btn.onclick = async () => {
-        const r = await authFetch('/api/amazon/connect');
-        const data = await r.json();
-        if (data.error) { showToast('⚠️', data.error); return; }
-        // Ouvrir en popup pour ne pas perdre le travail en cours
-        const popup = window.open(data.url, 'amazon_oauth', 'width=820,height=720,scrollbars=yes,resizable=yes');
-        const timer = setInterval(() => {
-          if (popup && popup.closed) { clearInterval(timer); checkAmazonStatus(); }
-        }, 600);
-      };
+      const dryRun = document.getElementById('dryRunCheck').checked;
+      if (dryRun) {
+        btn.className = 'w-full gradient-bg text-white rounded-lg py-2 text-sm font-semibold hover:opacity-90 transition';
+        btn.textContent = 'Publier en mode test (simulation)';
+        btn.onclick = publishListings;
+      } else {
+        btn.className = 'w-full bg-amber-500 hover:bg-amber-600 text-white rounded-lg py-2 text-sm font-semibold transition';
+        btn.textContent = 'Connecter mon Seller Central';
+        btn.onclick = async () => {
+          const popup = window.open('about:blank', 'amazon_oauth', 'width=820,height=720,scrollbars=yes,resizable=yes');
+          try {
+            const r = await authFetch('/api/amazon/connect');
+            const data = await r.json();
+            if (data.error || !data.url) { if (popup) popup.close(); showToast('⚠️', data.error || 'URL Amazon manquante'); return; }
+            popup.location.href = data.url;
+            const timer = setInterval(() => { if (popup && popup.closed) { clearInterval(timer); checkAmazonStatus(); } }, 600);
+          } catch(e) { if (popup) popup.close(); }
+        };
+      }
     }
   } catch {
     box.className = 'mb-3 text-xs rounded-lg px-3 py-2 bg-gray-50 text-gray-400';
