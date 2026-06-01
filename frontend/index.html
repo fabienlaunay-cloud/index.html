@@ -3837,6 +3837,11 @@ function showToast(icon, msg, isError=false) {
 }
 
 // ── Setup premier lancement ───────────────────────────────────────────────────
+// Le formulaire setup n'est visible que si l'URL contient ?setup
+// (URL secrète réservée à l'administrateur). Les visiteurs normaux
+// voient toujours le formulaire de connexion.
+const _setupMode = new URLSearchParams(location.search).has('setup');
+
 async function checkNeedsSetup() {
   // Retry up to 3× in case Railway is still starting up
   for (let attempt = 0; attempt < 3; attempt++) {
@@ -3844,7 +3849,7 @@ async function checkNeedsSetup() {
       const r = await fetch(`${API}/api/auth/needs-setup`);
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       const data = await r.json();
-      if (data.needs_setup) {
+      if (data.needs_setup && _setupMode) {
         document.getElementById('setupForm').classList.remove('hidden');
         document.getElementById('loginForm').classList.add('hidden');
       } else {
