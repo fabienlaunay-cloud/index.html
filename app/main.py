@@ -856,9 +856,14 @@ async def usage_me(request: Request):
 
 @app.get("/api/admin/usage")
 async def usage_all(request: Request):
-    from app.services.auth import is_admin
+    from app.services.auth import is_admin, _decode_token_data
     email = getattr(request.state, "user_email", None)
-    if not email or not is_admin(email):
+    if not email:
+        raise HTTPException(403, "Accès réservé aux administrateurs")
+    # Accept JWT adm claim (survives DB wipes) or DB flag
+    auth = request.headers.get("Authorization", "")
+    jwt_data = _decode_token_data(auth.split(" ", 1)[1]) if auth.startswith("Bearer ") else {}
+    if not (bool((jwt_data or {}).get("adm")) or is_admin(email)):
         raise HTTPException(403, "Accès réservé aux administrateurs")
     return get_all_users_usage()
 
