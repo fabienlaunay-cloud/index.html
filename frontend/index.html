@@ -1159,6 +1159,10 @@ let selectedMarketplaces = JSON.parse(localStorage.getItem('synqio_marketplaces'
 let activeMarketplaceFilter = null;
 let resultsViewMode = localStorage.getItem('synqio_view_mode') || 'list';
 let publishedSkus = new Set(JSON.parse(localStorage.getItem('synqio_published_skus') || '[]'));
+// Manual status overrides: { [sku]: 'todo' | 'ready' | 'published' }
+let listingStatuses = JSON.parse(localStorage.getItem('synqio_listing_statuses') || '{}');
+// Migrate legacy publishedSkus into listingStatuses
+publishedSkus.forEach(sku => { if (!listingStatuses[sku]) listingStatuses[sku] = 'published'; });
 let currentBatchId = localStorage.getItem('synqio_batch_id') || null;
 let currentDetailIdx = null;
 
@@ -1394,9 +1398,27 @@ function _getListingProgress(listing) {
 }
 
 function _getListingStatus(listing) {
+  const manual = listingStatuses[listing.sku];
+  if (manual) return manual;
   if (publishedSkus.has(listing.sku)) return 'published';
   const { done, total } = _getListingProgress(listing);
   return done === total ? 'ready' : 'todo';
+}
+
+function setListingStatus(sku, status, event) {
+  if (event) { event.stopPropagation(); event.preventDefault(); }
+  if (status === null) {
+    delete listingStatuses[sku];
+  } else {
+    listingStatuses[sku] = status;
+    if (status === 'published') publishedSkus.add(sku);
+    else publishedSkus.delete(sku);
+  }
+  try {
+    localStorage.setItem('synqio_listing_statuses', JSON.stringify(listingStatuses));
+    localStorage.setItem('synqio_published_skus', JSON.stringify([...publishedSkus]));
+  } catch(e) {}
+  renderListingsContainer();
 }
 
 function _complianceBadge(listing) {
@@ -2722,6 +2744,15 @@ function renderKanbanBoard() {
           ? `<span class="inline-flex items-center gap-0.5 text-xs bg-green-50 text-green-700 border border-green-200 px-1.5 py-0.5 rounded">${labelTrue}</span>`
           : `<span class="inline-flex items-center gap-0.5 text-xs bg-gray-50 text-gray-400 border border-gray-200 px-1.5 py-0.5 rounded">${labelFalse}</span>`;
       const [seoC, imgC, catC] = prog.criteria;
+      const status = col.key;
+      const actionBtns = status === 'todo'
+        ? `<button onclick="setListingStatus('${_esc(l.sku)}','ready',event)" class="w-full mt-2 text-xs font-medium bg-green-50 hover:bg-green-100 text-green-700 border border-green-200 rounded-lg py-1.5 transition flex items-center justify-center gap-1">→ Marquer Prêt</button>`
+        : status === 'ready'
+          ? `<div class="flex gap-1 mt-2">
+              <button onclick="setListingStatus('${_esc(l.sku)}','todo',event)" class="flex-1 text-xs font-medium bg-gray-50 hover:bg-gray-100 text-gray-500 border border-gray-200 rounded-lg py-1.5 transition">← À compléter</button>
+              <button onclick="setListingStatus('${_esc(l.sku)}','published',event)" class="flex-1 text-xs font-medium bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 rounded-lg py-1.5 transition">✓ Publier</button>
+             </div>`
+          : `<button onclick="setListingStatus('${_esc(l.sku)}','ready',event)" class="w-full mt-2 text-xs font-medium bg-gray-50 hover:bg-gray-100 text-gray-500 border border-gray-200 rounded-lg py-1.5 transition flex items-center justify-center gap-1">← Revenir à Prêt</button>`;
       return `<div class="bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-md hover:border-purple-200 transition cursor-pointer p-3" onclick="openListingDetail(${idx})">
         <div class="flex items-start justify-between gap-2 mb-2">
           <span class="text-xs text-gray-400 font-mono">${_esc(l.sku)}</span>
@@ -2736,6 +2767,7 @@ function renderKanbanBoard() {
           ${pillCls(imgC.done, '📷 Images', '📷 —')}
           ${pillCls(catC.done, '✓ Conforme', '! Champs')}
         </div>
+        ${actionBtns}
       </div>`;
     }).join('');
     return `<div class="rounded-2xl overflow-hidden border border-gray-100 shadow-sm">
@@ -3695,9 +3727,12 @@ async function publishListings() {
   setStep(4);
   showPublishReport(result, dryRun);
   (result.report || []).filter(r => r.status === 'demo_published' || r.status === 'published').forEach(r => {
-    if (r.sku) publishedSkus.add(r.sku);
+    if (r.sku) { publishedSkus.add(r.sku); listingStatuses[r.sku] = 'published'; }
   });
-  try { localStorage.setItem('synqio_published_skus', JSON.stringify([...publishedSkus])); } catch(e) {}
+  try {
+    localStorage.setItem('synqio_published_skus', JSON.stringify([...publishedSkus]));
+    localStorage.setItem('synqio_listing_statuses', JSON.stringify(listingStatuses));
+  } catch(e) {}
   if (resultsViewMode === 'kanban') renderListingsContainer();
 }
 
