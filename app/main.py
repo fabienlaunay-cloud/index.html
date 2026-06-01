@@ -4,6 +4,7 @@ import json
 import time
 import asyncio
 import base64
+import httpx
 from uuid import uuid4
 from dotenv import load_dotenv
 load_dotenv(override=False)  # local dev only — Railway injects vars directly
@@ -392,6 +393,41 @@ async def serve_photo(filename: str):
         raise HTTPException(404, "Photo non trouvée")
     ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else "jpg"
     return Response(content=photo, media_type=_IMAGE_CONTENT_TYPES.get(ext, "image/jpeg"))
+
+
+# ── URL Scraping ──────────────────────────────────────────────────────────────
+
+@app.post("/api/scrape-url")
+async def scrape_url_endpoint(request: Request):
+    """Fetch a product URL and extract name, brand, price, EAN, images, etc."""
+    body = await request.json()
+    url = (body.get("url") or "").strip()
+    if not url.startswith("http"):
+        raise HTTPException(400, "URL invalide — elle doit commencer par http:// ou https://")
+    try:
+        async with httpx.AsyncClient(
+            follow_redirects=True, timeout=15.0,
+            headers={"User-Agent": (
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) "
+                "Chrome/124.0.0.0 Safari/537.36"
+            )},
+        ) as client:
+            resp = await client.get(url)
+            resp.raise_for_status()
+    except httpx.TimeoutException:
+        raise HTTPException(504, "Le site met trop de temps à répondre (délai 15s dépassé)")
+    except httpx.HTTPStatusError as e:
+        raise HTTPException(502, f"Le site a renvoyé une erreur {e.response.status_code}")
+    except Exception as e:
+        raise HTTPException(502, f"Impossible d'accéder à cette URL : {e}")
+
+    from app.utils.url_scraper import scrape_product
+    try:
+        data = scrape_product(resp.text, url)
+    except ValueError as e:
+        raise HTTPException(422, str(e))
+    return data
 
 
 # ── Ingestion ─────────────────────────────────────────────────────────────────

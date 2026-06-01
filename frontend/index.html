@@ -684,6 +684,10 @@
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
           Télécharger le template Excel
         </a>
+        <button onclick="openUrlModal()" class="flex items-center justify-center gap-2 w-full text-xs text-emerald-600 hover:text-emerald-800 hover:bg-emerald-50 border border-emerald-200 rounded-lg py-2 transition mb-2">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+          Importer depuis une URL
+        </button>
         <button onclick="document.getElementById('zipInput').click()" class="flex items-center justify-center gap-2 w-full text-xs text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 border border-indigo-200 rounded-lg py-2 transition">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18M15 3v18M3 9h6M3 15h6M15 9h6M15 15h6"/></svg>
           Uploader photos produits (.zip)
@@ -3161,6 +3165,114 @@ function closeLightbox() {
   document.removeEventListener('keydown', _lbEsc);
 }
 function _lbEsc(e) { if (e.key === 'Escape') closeLightbox(); }
+
+// ── URL Import ────────────────────────────────────────────────────────────────
+function openUrlModal() {
+  document.getElementById('urlImportModal').classList.remove('hidden');
+  setTimeout(() => document.getElementById('urlImportInput').focus(), 50);
+}
+function closeUrlModal() {
+  document.getElementById('urlImportModal').classList.add('hidden');
+  document.getElementById('urlImportInput').value = '';
+  document.getElementById('urlImportError').classList.add('hidden');
+  document.getElementById('urlImportPreview').classList.add('hidden');
+  document.getElementById('urlImportBtn').disabled = false;
+  document.getElementById('urlImportBtn').textContent = 'Extraire et importer →';
+}
+async function importFromUrl() {
+  const url = document.getElementById('urlImportInput').value.trim();
+  const errEl = document.getElementById('urlImportError');
+  const preview = document.getElementById('urlImportPreview');
+  const btn = document.getElementById('urlImportBtn');
+  errEl.classList.add('hidden');
+  preview.classList.add('hidden');
+  if (!url || !url.startsWith('http')) {
+    errEl.textContent = 'Collez une URL valide (commence par https://)';
+    errEl.classList.remove('hidden'); return;
+  }
+  btn.disabled = true;
+  btn.textContent = '⏳ Analyse en cours...';
+  try {
+    const r = await authFetch('/api/scrape-url', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ url }),
+    });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.detail || 'Erreur lors de l\'extraction');
+
+    // Build RawProduct-compatible object
+    const product = {
+      sku: data.sku || ('URL-' + Date.now()),
+      name: data.name,
+      brand: data.brand || '',
+      description: data.description || '',
+      price: data.price || null,
+      ean: data.ean || '',
+      images: data.images || [],
+      color: data.color || '',
+      material: data.material || '',
+      category: '',
+      features: [],
+      focus_keywords: [],
+    };
+
+    // Show confirmation preview
+    const parts = [data.name];
+    if (data.brand) parts.push(data.brand);
+    if (data.price) parts.push(data.price + ' €');
+    if (data.ean) parts.push('EAN : ' + data.ean);
+    preview.innerHTML = `<span class="font-semibold text-emerald-700">✓ Extrait</span> — ${parts.join(' · ')}`;
+    preview.classList.remove('hidden');
+
+    // Load as parsedProducts and show in list
+    setTimeout(() => {
+      closeUrlModal();
+      parsedProducts = [product];
+      activeSegmentFilter = null;
+      showProductsList(parsedProducts);
+      document.getElementById('generateBtn').disabled = false;
+      document.getElementById('fileInfo').classList.remove('hidden');
+      document.getElementById('fileIcon').textContent = '🔗';
+      document.getElementById('fileName').textContent = data.name.substring(0, 45);
+      document.getElementById('fileSize').textContent = url.substring(0, 55);
+      dropZone.classList.add('hidden');
+      setStep(2);
+      showToast('✅', `Produit extrait : ${data.name.substring(0, 40)}`);
+    }, 900);
+  } catch(e) {
+    errEl.textContent = e.message;
+    errEl.classList.remove('hidden');
+    btn.disabled = false;
+    btn.textContent = 'Extraire et importer →';
+  }
+}
 </script>
+
+<!-- URL Import Modal -->
+<div id="urlImportModal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onclick="if(event.target===this)closeUrlModal()">
+  <div class="bg-white rounded-2xl shadow-xl p-6 w-full max-w-lg">
+    <div class="flex items-center gap-3 mb-4">
+      <div class="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center flex-shrink-0">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+      </div>
+      <div>
+        <h3 class="font-semibold text-gray-800 text-base">Importer depuis une URL</h3>
+        <p class="text-xs text-gray-500">Fiche produit de votre site, fournisseur, etc.</p>
+      </div>
+    </div>
+    <input id="urlImportInput" type="url"
+      placeholder="https://www.monsite.fr/produit/collier-chien-premium"
+      class="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-emerald-300 outline-none mb-3"
+      onkeydown="if(event.key==='Enter')importFromUrl()">
+    <div id="urlImportError" class="hidden text-red-600 text-sm bg-red-50 rounded-lg px-3 py-2 mb-3"></div>
+    <div id="urlImportPreview" class="hidden text-sm bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2 mb-3"></div>
+    <p class="text-xs text-gray-400 mb-4">Le système extrait automatiquement : nom, marque, description, prix, EAN, images. Fonctionne sur la plupart des sites (Shopify, WooCommerce, PrestaShop…).</p>
+    <div class="flex gap-3">
+      <button onclick="closeUrlModal()" class="flex-1 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-600 hover:bg-gray-50 transition">Annuler</button>
+      <button id="urlImportBtn" onclick="importFromUrl()" class="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-medium transition">Extraire et importer →</button>
+    </div>
+  </div>
+</div>
 </body>
 </html>
