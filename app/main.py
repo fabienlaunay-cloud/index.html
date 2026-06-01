@@ -538,6 +538,8 @@ async def publish(request_data: PublishRequest, request: Request):
     )
 
 
+from app.utils.amazon_template_filler import fill_amazon_template
+
 # ── Export ────────────────────────────────────────────────────────────────────
 
 @app.post("/api/export/csv")
@@ -550,6 +552,29 @@ async def export_csv(listings: List[AmazonListing]):
 async def export_json_file(listings: List[AmazonListing]):
     return Response(content=to_json_bytes(listings), media_type="application/json",
                     headers={"Content-Disposition": "attachment; filename=listings.json"})
+
+
+@app.post("/api/export/fill-amazon-template")
+async def fill_amazon_template_endpoint(request: Request):
+    """Accept multipart: amazon_template (file) + listings (JSON string)."""
+    form = await request.form()
+    template_file = form.get("amazon_template")
+    listings_json = form.get("listings")
+    if not template_file or not listings_json:
+        raise HTTPException(400, "Fichier template et listings requis")
+    template_bytes = await template_file.read()
+    import json as _json
+    raw = _json.loads(listings_json)
+    listings = [AmazonListing(**item) for item in raw]
+    try:
+        filled_bytes = fill_amazon_template(template_bytes, listings)
+    except Exception as e:
+        raise HTTPException(422, f"Erreur lors du remplissage : {e}")
+    return Response(
+        content=filled_bytes,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": "attachment; filename=amazon_template_rempli.xlsx"},
+    )
 
 
 @app.post("/api/export/flat-file")

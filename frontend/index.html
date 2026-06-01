@@ -796,8 +796,7 @@
                 Appliquer segments
               </button>
               <button onclick="exportResults('csv')" class="bg-green-50 hover:bg-green-100 text-green-700 rounded-lg px-3 py-2 text-sm font-medium transition">CSV</button>
-              <div class="relative" id="scExportMenu">
-                <button onclick="toggleScMenu()" class="bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg px-3 py-2 text-sm font-medium transition flex items-center gap-1">Seller Central <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button>
+              <div class="relative" id="scExportMenu">                <button onclick="toggleScMenu()" class="bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg px-3 py-2 text-sm font-medium transition flex items-center gap-1">Seller Central <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button>
                 <div id="scExportDropdown" class="hidden absolute right-0 top-full mt-1 bg-white rounded-xl shadow-lg border border-gray-100 z-50 min-w-[240px] py-1">
                   <button onclick="exportResults('flat');toggleScMenu()" class="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 transition">
                     <div class="font-medium text-gray-800">➕ Nouveaux produits</div>
@@ -810,6 +809,8 @@
                 </div>
               </div>
               <button onclick="exportResults('json')" class="bg-gray-50 hover:bg-gray-100 text-gray-700 rounded-lg px-3 py-2 text-sm font-medium transition">{ } JSON</button>
+              <button onclick="triggerAmazonTemplateFill()" class="bg-orange-50 hover:bg-orange-100 text-orange-700 rounded-lg px-3 py-2 text-sm font-medium transition flex items-center gap-1.5" title="Uploader votre template Amazon pour le remplir automatiquement">🗂️ Remplir mon template</button>
+              <input type="file" id="amazonTemplateInput" accept=".xlsm,.xlsx" class="hidden" onchange="fillAmazonTemplate(this)">
               <button onclick="downloadZipPack()" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg px-3 py-2 text-sm font-medium transition flex items-center gap-1.5">📦 Pack ZIP</button>
               <button onclick="showPublishModal()" class="gradient-bg text-white rounded-lg px-4 py-2 text-sm font-semibold hover:opacity-90 transition">Publier</button>
             </div>
@@ -2518,6 +2519,36 @@ async function exportResults(format) {
   showToast('✅', `${label[format]} téléchargé`);
 }
 
+
+function triggerAmazonTemplateFill() {
+  if (!generatedListings.length) { showToast('⚠️', 'Génère d\'abord des fiches', true); return; }
+  document.getElementById('amazonTemplateInput').click();
+}
+
+async function fillAmazonTemplate(input) {
+  const file = input.files[0];
+  if (!file) return;
+  input.value = '';
+  showToast('⏳', 'Remplissage du template en cours…');
+  try {
+    const form = new FormData();
+    form.append('amazon_template', file);
+    form.append('listings', JSON.stringify(generatedListings));
+    const r = await authFetch('/api/export/fill-amazon-template', { method: 'POST', body: form });
+    if (!r.ok) {
+      const err = await r.json().catch(() => ({}));
+      showToast('⚠️', err.detail || 'Erreur lors du remplissage', true);
+      return;
+    }
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(await r.blob());
+    a.download = 'amazon_template_rempli.xlsx';
+    a.click();
+    showToast('✅', `Template rempli — ${generatedListings.length} fiche(s) prêtes à uploader`);
+  } catch(e) {
+    showToast('⚠️', 'Erreur : ' + e.message, true);
+  }
+}
 
 async function downloadZipPack() {
   if (!generatedListings.length) return;
