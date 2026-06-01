@@ -107,7 +107,10 @@ def _check_secrets():
 
 
 def _bootstrap_admin():
-    """Crée l'admin depuis ADMIN_EMAIL / ADMIN_PASSWORD si absent de la DB."""
+    """Crée ou restaure le compte admin depuis ADMIN_EMAIL / ADMIN_PASSWORD.
+    Appelé au démarrage : garantit que l'admin garde is_admin=1 même après
+    un redéploiement Railway qui efface la DB éphémère.
+    """
     email = os.getenv("ADMIN_EMAIL", "").strip().lower()
     password = os.getenv("ADMIN_PASSWORD", "").strip()
     if not email or not password:
@@ -116,13 +119,18 @@ def _bootstrap_admin():
     from app.services.auth import create_user
     conn = get_db()
     exists = conn.execute("SELECT 1 FROM users WHERE email = ?", (email,)).fetchone()
-    conn.close()
-    if exists:
-        return
-    try:
-        create_user(email, password, name="Admin", is_admin=True)
-    except Exception:
-        pass
+    if not exists:
+        conn.close()
+        try:
+            create_user(email, password, name="Admin", is_admin=True)
+        except Exception:
+            pass
+    else:
+        # L'user existe déjà : s'assurer que is_admin=1 est bien positionné
+        # (peut être perdu si la DB a été recréée partiellement)
+        conn.execute("UPDATE users SET is_admin=1, is_active=1 WHERE email=?", (email,))
+        conn.commit()
+        conn.close()
 
 
 # ── Frontend ─────────────────────────────────────────────────────────────────

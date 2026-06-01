@@ -4,7 +4,7 @@ import datetime
 from fastapi import APIRouter, HTTPException, Header, Request
 from pydantic import BaseModel
 from app.services.auth import (
-    authenticate_user, create_token, verify_token,
+    authenticate_user, create_token, verify_token, _decode_token_data,
     create_user, list_users, delete_user, toggle_user, is_admin,
     check_rate_limit, record_failed_attempt, clear_attempts, get_retry_after,
     hash_password,
@@ -90,7 +90,7 @@ async def setup_first_user(req: CreateUserRequest):
         raise HTTPException(403, "Setup déjà effectué")
     _validate_password(req.password)
     user = create_user(req.email, req.password, req.name, is_admin=True)
-    token = create_token(req.email)
+    token = create_token(req.email, is_admin=True)
     return {"token": token, "email": user["email"], "name": user["name"], "is_admin": True}
 
 
@@ -109,12 +109,13 @@ async def login(req: LoginRequest, request: Request):
         record_failed_attempt(ip)
         raise HTTPException(401, "Email ou mot de passe incorrect")
     clear_attempts(ip)
-    token = create_token(req.email)
+    admin = bool(user.get("is_admin", 0))
+    token = create_token(req.email, is_admin=admin)
     return {
         "token": token,
         "email": user["email"],
         "name": user.get("name", ""),
-        "is_admin": bool(user.get("is_admin", 0)),
+        "is_admin": admin,
     }
 
 
@@ -206,10 +207,15 @@ async def reset_admin_password(req: ResetAdminRequest):
 async def me(authorization: str = Header(None)):
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(401, "Token manquant")
-    email = verify_token(authorization.split(" ", 1)[1])
+    token_str = authorization.split(" ", 1)[1]
+    email = verify_token(token_str)
     if not email:
         raise HTTPException(401, "Token invalide ou expiré")
-    return {"email": email, "is_admin": is_admin(email)}
+    # Read is_admin from JWT claim first (survives DB wipes/redeploys),
+    # then confirm against DB so demotions take effect on next login.
+    jwt_data = _decode_token_data(token_str) or {}
+    admin = bool(jwt_data.get("adm")) or is_admin(email)
+    return {"email": email, "is_admin": admin}
 
 
 # ── Admin endpoints (JWT admin requis, pas de secret séparé) ─────────────────
