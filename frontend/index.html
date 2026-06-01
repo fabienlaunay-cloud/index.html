@@ -699,6 +699,10 @@
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18M15 3v18M3 9h6M3 15h6M15 9h6M15 15h6"/></svg>
           Uploader photos produits (.zip)
         </button>
+        <button onclick="openManualForm()" class="flex items-center justify-center gap-2 w-full text-xs text-violet-600 hover:text-violet-800 hover:bg-violet-50 border border-violet-200 rounded-lg py-2 transition mt-2">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+          Saisir un produit manuellement
+        </button>
         <p class="text-xs text-gray-400 mt-1.5 mb-4 leading-relaxed">Nommez chaque photo avec le SKU du produit (ex&nbsp;: <span class="font-mono">BC-001.jpg</span>). Inutile si votre Excel contient déjà une colonne <span class="font-mono">Image_URL</span>.</p>
         <input type="file" id="zipInput" accept=".zip" class="hidden">
         <div id="photosBadge" class="hidden mb-4 bg-indigo-50 border border-indigo-200 rounded-lg px-3 py-2 text-xs text-indigo-700 flex items-center justify-between">
@@ -2767,6 +2771,140 @@ function _renderGlobalProgress() {
   bar.classList.remove('hidden');
 }
 
+// ── Manual product form ───────────────────────────────────────────────────────
+
+function openManualForm() {
+  _mfResetForm();
+  document.getElementById('manualFormModal').classList.remove('hidden');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeManualForm() {
+  document.getElementById('manualFormModal').classList.add('hidden');
+  document.body.style.overflow = '';
+}
+
+function _mfResetForm() {
+  document.getElementById('manualProductForm').reset();
+  document.getElementById('mf-features-list').innerHTML = '';
+  document.getElementById('mf-images-list').innerHTML = '';
+  document.getElementById('mf-variations-panel').classList.add('hidden');
+  mfAddFeature();
+  mfAddImage();
+}
+
+function mfAddFeature(value = '') {
+  const list = document.getElementById('mf-features-list');
+  const idx = list.children.length;
+  const row = document.createElement('div');
+  row.className = 'flex gap-2 items-center';
+  row.innerHTML = `<span class="text-purple-400 flex-shrink-0">▸</span>
+    <input type="text" value="${_esc(value)}" placeholder="Ex : Boucle en acier inoxydable résistante à la corrosion"
+      class="mf-feature flex-1 border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-purple-300 outline-none">
+    <button type="button" onclick="this.closest('div').remove()" class="text-gray-300 hover:text-red-500 transition flex-shrink-0">✕</button>`;
+  list.appendChild(row);
+}
+
+function mfAddImage(value = '') {
+  const list = document.getElementById('mf-images-list');
+  const row = document.createElement('div');
+  row.className = 'flex gap-2 items-center';
+  row.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="flex-shrink-0"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+    <input type="url" value="${_esc(value)}" placeholder="https://exemple.com/image.jpg"
+      class="mf-image flex-1 border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-purple-300 outline-none font-mono text-xs">
+    <button type="button" onclick="this.closest('div').remove()" class="text-gray-300 hover:text-red-500 transition flex-shrink-0">✕</button>`;
+  list.appendChild(row);
+}
+
+function mfToggleVariations(show) {
+  document.getElementById('mf-variations-panel').classList.toggle('hidden', !show);
+}
+
+function submitManualForm(e) {
+  e.preventDefault();
+
+  const name     = document.getElementById('mf-name').value.trim();
+  const brand    = document.getElementById('mf-brand').value.trim();
+  const category = document.getElementById('mf-category').value.trim();
+  const desc     = document.getElementById('mf-description').value.trim();
+  const sku      = document.getElementById('mf-sku').value.trim() || name.slice(0, 20).replace(/\s+/g, '-').toUpperCase();
+  const ean      = document.getElementById('mf-ean').value.trim() || null;
+  const price    = parseFloat(document.getElementById('mf-price').value) || null;
+  const color    = document.getElementById('mf-color').value.trim() || null;
+  const material = document.getElementById('mf-material').value.trim() || null;
+  const size     = document.getElementById('mf-size').value.trim() || null;
+  const weight   = parseFloat(document.getElementById('mf-weight').value) || null;
+  const dims     = document.getElementById('mf-dimensions').value.trim() || null;
+  const kwRaw    = document.getElementById('mf-keywords').value.trim();
+
+  const features = [...document.querySelectorAll('.mf-feature')]
+    .map(i => i.value.trim()).filter(Boolean);
+  const images   = [...document.querySelectorAll('.mf-image')]
+    .map(i => i.value.trim()).filter(Boolean);
+  const focus_keywords = kwRaw ? kwRaw.split(',').map(k => k.trim()).filter(Boolean) : [];
+
+  const hasVariations = document.getElementById('mf-has-variations').checked;
+  const varTheme = hasVariations
+    ? (document.querySelector('input[name="mf-var-theme"]:checked')?.value || 'ColorName-SizeClass')
+    : null;
+  const varValuesRaw = document.getElementById('mf-variations-values').value;
+  const varValues = hasVariations
+    ? varValuesRaw.split('\n').map(v => v.trim()).filter(Boolean)
+    : [];
+
+  const products = [];
+
+  if (hasVariations && varValues.length > 0) {
+    // Build variation children
+    varValues.forEach((val, i) => {
+      const parts = val.split('/').map(p => p.trim());
+      const childColor = parts[0] || null;
+      const childSize  = parts[1] || null;
+      products.push({
+        sku: `${sku}-${String(i + 1).padStart(2, '0')}`,
+        name, brand, category, description: desc,
+        price, ean: null,
+        color: childColor, material, size: childSize,
+        weight_kg: weight, dimensions_cm: dims,
+        features, images, focus_keywords,
+        parent_sku: sku,
+        variation_theme: varTheme,
+        variation_value: val,
+      });
+    });
+  } else {
+    products.push({
+      sku, name, brand, category, description: desc,
+      price, ean, color, material, size,
+      weight_kg: weight, dimensions_cm: dims,
+      features, images, focus_keywords,
+    });
+  }
+
+  // Feed into the upload pipeline (same as handleFile → parseProducts)
+  loadManualProducts(products);
+  closeManualForm();
+}
+
+function loadManualProducts(products) {
+  if (!products.length) return;
+  parsedProducts = products;
+  const genBtn = document.getElementById('generateBtn');
+  if (genBtn) genBtn.disabled = false;
+
+  const n = products.length;
+  const hasVar = products.some(p => p.parent_sku);
+  const dropZone = document.getElementById('dropZone');
+  if (dropZone) {
+    dropZone.innerHTML = `<div class="text-3xl mb-2">✅</div>
+      <p class="text-purple-700 font-medium">${n} produit${n > 1 ? 's' : ''} saisi${n > 1 ? 's' : ''} manuellement${hasVar ? ' (variations)' : ''}</p>
+      <button type="button" onclick="openManualForm()" class="text-xs text-purple-500 underline mt-1">Modifier</button>`;
+  }
+  showProductsList(parsedProducts);
+  setStep(2);
+  showToast('✅', `${n} produit(s) chargé(s) — cliquez sur "Générer"`);
+}
+
 // ── History panel ─────────────────────────────────────────────────────────────
 
 const MKT_META_H = {
@@ -4345,6 +4483,160 @@ renderSegmentPresets();
         </div>
       </div>
     </div>
+  </div>
+</div>
+
+<!-- ═══════════════════ MANUAL PRODUCT FORM MODAL ═══════════════════ -->
+<div id="manualFormModal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-[270] flex items-start justify-center p-4 overflow-y-auto">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl my-6">
+
+    <!-- Header -->
+    <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100 sticky top-0 bg-white rounded-t-2xl z-10">
+      <div>
+        <h2 class="font-semibold text-gray-800 flex items-center gap-2">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+          Saisie manuelle d'un produit
+        </h2>
+        <p class="text-xs text-gray-400 mt-0.5">Remplissez les champs puis générez votre fiche Amazon</p>
+      </div>
+      <button onclick="closeManualForm()" class="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500 transition">✕</button>
+    </div>
+
+    <form id="manualProductForm" class="px-6 py-5 space-y-6" onsubmit="submitManualForm(event)">
+
+      <!-- ── Section 1 : Identification ── -->
+      <div>
+        <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Identification</h3>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Nom de l'article <span class="text-red-500">*</span></label>
+            <input id="mf-name" type="text" required placeholder="Ex : Collier ajustable pour chien" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-purple-300 outline-none">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Marque <span class="text-red-500">*</span></label>
+            <input id="mf-brand" type="text" required placeholder="Ex : BarkLife" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-purple-300 outline-none">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Référence / SKU</label>
+            <input id="mf-sku" type="text" placeholder="Généré auto si vide" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-purple-300 outline-none">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Type de produit / Catégorie <span class="text-red-500">*</span></label>
+            <input id="mf-category" type="text" required placeholder="Ex : Colliers pour animaux" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-purple-300 outline-none">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Identifiant produit (EAN / UPC)</label>
+            <input id="mf-ean" type="text" placeholder="Ex : 3760123456789" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-purple-300 outline-none font-mono">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Prix (€)</label>
+            <input id="mf-price" type="number" step="0.01" min="0" placeholder="Ex : 19.99" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-purple-300 outline-none">
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Section 2 : Description & Caractéristiques ── -->
+      <div>
+        <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Description</h3>
+        <div class="mb-3">
+          <label class="block text-sm font-medium text-gray-700 mb-1">Description du produit <span class="text-red-500">*</span></label>
+          <textarea id="mf-description" required rows="4" placeholder="Décrivez votre produit : matériaux, utilisation, points forts, ce qui le distingue…" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-purple-300 outline-none resize-none"></textarea>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Caractéristiques (puces)</label>
+          <div id="mf-features-list" class="space-y-2 mb-2"></div>
+          <button type="button" onclick="mfAddFeature()" class="text-xs text-purple-600 hover:text-purple-800 font-medium flex items-center gap-1">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Ajouter une caractéristique
+          </button>
+        </div>
+      </div>
+
+      <!-- ── Section 3 : Apparence ── -->
+      <div>
+        <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Apparence</h3>
+        <div class="grid grid-cols-3 gap-3">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Couleur</label>
+            <input id="mf-color" type="text" placeholder="Ex : Rouge" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-purple-300 outline-none">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Matière / Composition</label>
+            <input id="mf-material" type="text" placeholder="Ex : Nylon renforcé" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-purple-300 outline-none">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Taille</label>
+            <input id="mf-size" type="text" placeholder="Ex : M / 38cm" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-purple-300 outline-none">
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Section 4 : Dimensions & Poids ── -->
+      <div>
+        <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Dimensions & Poids</h3>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Poids (kg)</label>
+            <input id="mf-weight" type="number" step="0.001" min="0" placeholder="Ex : 0.250" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-purple-300 outline-none">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Dimensions (cm)</label>
+            <input id="mf-dimensions" type="text" placeholder="Ex : 30 x 5 x 2" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-purple-300 outline-none">
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Section 5 : Variantes ── -->
+      <div>
+        <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Variantes</h3>
+        <label class="flex items-center gap-2 cursor-pointer mb-3">
+          <input type="checkbox" id="mf-has-variations" onchange="mfToggleVariations(this.checked)" class="w-4 h-4 rounded accent-purple-600">
+          <span class="text-sm text-gray-700">Ce produit présente des variations</span>
+        </label>
+        <div id="mf-variations-panel" class="hidden space-y-3 bg-purple-50 rounded-xl p-4 border border-purple-100">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Thème de variation</label>
+            <div class="flex gap-2 flex-wrap">
+              <label class="flex items-center gap-1.5 cursor-pointer"><input type="radio" name="mf-var-theme" value="ColorName" class="accent-purple-600"><span class="text-sm text-gray-700">Couleur</span></label>
+              <label class="flex items-center gap-1.5 cursor-pointer"><input type="radio" name="mf-var-theme" value="SizeClass" class="accent-purple-600"><span class="text-sm text-gray-700">Taille</span></label>
+              <label class="flex items-center gap-1.5 cursor-pointer"><input type="radio" name="mf-var-theme" value="ColorName-SizeClass" checked class="accent-purple-600"><span class="text-sm text-gray-700">Couleur + Taille</span></label>
+            </div>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Déclinaisons <span class="text-xs text-gray-400">(une par ligne : Rouge / S, Bleu / M…)</span></label>
+            <textarea id="mf-variations-values" rows="3" placeholder="Rouge / S&#10;Rouge / M&#10;Bleu / S&#10;Bleu / M" class="w-full border border-purple-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-purple-300 outline-none resize-none bg-white font-mono"></textarea>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Section 6 : Images ── -->
+      <div>
+        <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Images</h3>
+        <div id="mf-images-list" class="space-y-2 mb-2"></div>
+        <button type="button" onclick="mfAddImage()" class="text-xs text-purple-600 hover:text-purple-800 font-medium flex items-center gap-1">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Ajouter une URL d'image
+        </button>
+        <p class="text-xs text-gray-400 mt-1.5">URL directe vers une image (JPG/PNG). Recommandé : fond blanc, 1000×1000px min.</p>
+      </div>
+
+      <!-- ── Section 7 : Mots-clés SEO ── -->
+      <div>
+        <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Mots-clés SEO</h3>
+        <label class="block text-sm font-medium text-gray-700 mb-1">Mots-clés focus <span class="text-xs text-gray-400">(séparés par des virgules)</span></label>
+        <input id="mf-keywords" type="text" placeholder="Ex : collier chien réglable, collier nylon, collier laisse" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-purple-300 outline-none">
+      </div>
+
+      <!-- ── Footer ── -->
+      <div class="flex gap-3 pt-2 border-t border-gray-100">
+        <button type="button" onclick="closeManualForm()" class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl py-3 font-medium text-sm transition">Annuler</button>
+        <button type="submit" class="flex-1 gradient-bg text-white rounded-xl py-3 font-semibold text-sm shadow-md hover:opacity-90 transition flex items-center justify-center gap-2">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+          Charger et générer
+        </button>
+      </div>
+
+    </form>
   </div>
 </div>
 
