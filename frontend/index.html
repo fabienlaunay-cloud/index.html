@@ -606,6 +606,9 @@
       <div id="healthBadge" class="flex items-center gap-2 bg-white/10 rounded-lg px-3 py-1.5 text-sm">
         <div class="w-2 h-2 rounded-full bg-gray-300 pulse"></div><span>...</span>
       </div>
+      <button onclick="openHistoryPanel()" class="w-8 h-8 flex items-center justify-center bg-white/10 hover:bg-white/20 rounded-lg transition text-white flex-shrink-0" title="Historique des générations">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      </button>
       <div class="relative" id="mktSelectorWrapper">
         <button type="button" onclick="toggleMktDropdown(event)" class="flex items-center gap-2 bg-white/10 border border-white/20 text-white rounded-lg px-3 py-1.5 text-sm min-w-[170px] justify-between hover:bg-white/20 transition">
           <span id="mktSelectorLabel">🇫🇷 Amazon France</span>
@@ -638,6 +641,10 @@
             <p id="userEmailFull" class="text-sm font-medium text-gray-800 truncate"></p>
             <p id="usageDetail" class="text-xs text-gray-400 mt-0.5"></p>
           </div>
+          <button onclick="openHistoryPanel();toggleUserMenu()" class="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition flex items-center gap-2">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            Historique
+          </button>
           <button id="adminMenuBtn" onclick="showAdminPanel()" class="hidden w-full text-left px-4 py-2.5 text-sm text-purple-600 hover:bg-purple-50 transition">Administration</button>
           <button onclick="doLogout()" class="w-full text-left px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition">Se déconnecter</button>
         </div>
@@ -691,6 +698,10 @@
         <button onclick="document.getElementById('zipInput').click()" class="flex items-center justify-center gap-2 w-full text-xs text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 border border-indigo-200 rounded-lg py-2 transition">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18M15 3v18M3 9h6M3 15h6M15 9h6M15 15h6"/></svg>
           Uploader photos produits (.zip)
+        </button>
+        <button onclick="openManualForm()" class="flex items-center justify-center gap-2 w-full text-xs text-violet-600 hover:text-violet-800 hover:bg-violet-50 border border-violet-200 rounded-lg py-2 transition mt-2">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+          Saisir un produit manuellement
         </button>
         <p class="text-xs text-gray-400 mt-1.5 mb-4 leading-relaxed">Nommez chaque photo avec le SKU du produit (ex&nbsp;: <span class="font-mono">BC-001.jpg</span>). Inutile si votre Excel contient déjà une colonne <span class="font-mono">Image_URL</span>.</p>
         <input type="file" id="zipInput" accept=".zip" class="hidden">
@@ -858,6 +869,10 @@
                     <div class="font-medium text-gray-800">📋 Produits existants</div>
                     <div class="text-xs text-gray-400 mt-0.5">Fichier Excel .xlsx — produit déjà dans le catalogue</div>
                   </button>
+                  <button onclick="exportResults('variation-flat-file');toggleScMenu()" class="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 transition border-t border-gray-50">
+                    <div class="font-medium text-gray-800">🔗 Variations parent-enfant</div>
+                    <div class="text-xs text-gray-400 mt-0.5">Flat file avec lignes parent + enfants — déclinaisons couleur/taille</div>
+                  </button>
                 </div>
               </div>
               <button onclick="exportResults('json')" class="bg-gray-50 hover:bg-gray-100 text-gray-700 rounded-lg px-3 py-2 text-sm font-medium transition">{ } JSON</button>
@@ -872,6 +887,23 @@
             <div class="bg-green-50 rounded-xl p-3 text-center"><p id="statSuccess" class="text-2xl font-bold text-green-600">0</p><p class="text-xs text-gray-500 mt-0.5">Générés</p></div>
             <div class="bg-yellow-50 rounded-xl p-3 text-center"><p id="statAvgSeo" class="text-2xl font-bold text-yellow-600">0</p><p class="text-xs text-gray-500 mt-0.5">Score SEO</p></div>
             <div class="bg-red-50 rounded-xl p-3 text-center"><p id="statFailed" class="text-2xl font-bold text-red-500">0</p><p class="text-xs text-gray-500 mt-0.5">Échecs</p></div>
+          </div>
+          <!-- Progress bar globale -->
+          <div id="globalProgressBar" class="hidden mt-4 pt-3 border-t border-gray-100">
+            <div class="flex items-center justify-between text-xs text-gray-500 mb-1.5">
+              <span>Progression du lot</span>
+              <span id="globalProgressLabel"></span>
+            </div>
+            <div class="flex h-3 rounded-full overflow-hidden gap-0.5 bg-gray-100">
+              <div id="gpb-todo"      class="bg-slate-300 transition-all" style="width:0%"></div>
+              <div id="gpb-ready"     class="bg-green-400 transition-all" style="width:0%"></div>
+              <div id="gpb-published" class="bg-purple-500 transition-all" style="width:0%"></div>
+            </div>
+            <div class="flex gap-4 mt-1.5 text-xs text-gray-400">
+              <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-slate-300"></span> À compléter <span id="gpb-todo-n" class="font-medium text-gray-600"></span></span>
+              <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-green-400"></span> Prêt <span id="gpb-ready-n" class="font-medium text-gray-600"></span></span>
+              <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-purple-500"></span> Publié <span id="gpb-published-n" class="font-medium text-gray-600"></span></span>
+            </div>
           </div>
         </div>
         <div id="resultsChipsContainer" class="hidden"></div>
@@ -1126,6 +1158,7 @@ let brandVoice = JSON.parse(localStorage.getItem('synqio_brand_voice') || '{"ton
 let selectedMarketplaces = JSON.parse(localStorage.getItem('synqio_marketplaces') || '["amazon_fr"]');
 let activeMarketplaceFilter = null;
 let resultsViewMode = localStorage.getItem('synqio_view_mode') || 'list';
+let publishedSkus = new Set(JSON.parse(localStorage.getItem('synqio_published_skus') || '[]'));
 let currentDetailIdx = null;
 
 // Column mapping state
@@ -1194,7 +1227,188 @@ function _attachCounter(inputEl, counterEl, max, isByte = false) {
   inputEl.addEventListener('input', update);
   update();
 }
-// { "collier chien": "keyword1, keyword2, ..." }
+// ── Category Compliance Checker ───────────────────────────────────────────────
+
+const _CAT_KW = {
+  alimentaire: ['café','thé','chocolat','biscuit','snack','confiture','huile','vinaigre','sauce','épice','farine','sucre','pâtes','riz','céréales','yaourt','fromage','lait','jus','boisson','bière','vin','eau','complément alimentaire','vitamine','protéine','nourriture','alimentation','food','bio','végétal','vegan'],
+  textile: ['t-shirt','tshirt','chemise','pull','robe','jupe','pantalon','jean','veste','manteau','chaussette','sous-vêtement','lingerie','pyjama','survêtement','short','legging','collant','chaussure','sac à main','ceinture','écharpe','chapeau','casquette','gant','textile','vêtement','mode','fashion','hoodie','sweat'],
+  electronique: ['téléphone','smartphone','ordinateur','tablette','écran','casque','écouteur','enceinte','chargeur','câble','batterie externe','appareil photo','caméra','drone','robot aspirateur','cafetière','grille-pain','mixeur','four micro','réfrigérateur','lave-linge','télévision','tv','console','jeu vidéo','montre connectée','gps','électronique','high-tech','luminaire','ampoule','led','prise connectée'],
+  beaute: ['crème','sérum','shampooing','après-shampooing','gel douche','savon','parfum','maquillage','fond de teint','rouge à lèvres','mascara','huile visage','lotion','hydratant','anti-âge','solaire','déodorant','dentifrice','rasoir','beauté','cosmétique','skincare','soin visage','soin corps','gommage','masque visage'],
+  jouets: ['jouet','jeu de société','puzzle','lego','poupée','peluche','figurine','voiture télécommandée','construction','vélo enfant','trottinette enfant','jeu enfant','jouet bébé','éveil bébé','hochet','landau','poussette'],
+  sport: ['vélo','tapis de course','haltère','yoga','natation','tennis','football','basketball','randonnée','camping','tente','sac de sport','gourde sport','sport','fitness','outdoor','musculation','crossfit','ski','snowboard','surf'],
+  maison: ['canapé','table','chaise','lit','matelas','oreiller','couette','rideau','luminaire','lampe','tapis','étagère','miroir','cadre','vase','bougie','casserole','poêle','couteau','assiette','verre','meubles','déco','maison','cuisine','salle de bain','jardin','barbecue','plancha'],
+  animaux: ['chien','chat','lapin','oiseau','poisson','reptile','hamster','animaux','animal','pet','collier chien','laisse chien','collier chat','cage','aquarium','gamelle','litière','croquette','friandise animaux'],
+};
+
+const _CAT_LABELS = {
+  alimentaire:'Alimentaire', textile:'Textile / Mode', electronique:'Électronique',
+  beaute:'Beauté / Cosmétique', jouets:'Jouets / Enfants', sport:'Sport / Outdoor',
+  maison:'Maison / Déco', animaux:'Animalerie',
+};
+
+const _CAT_ICONS = {
+  alimentaire:'🍎', textile:'👕', electronique:'📱', beaute:'💄',
+  jouets:'🧸', sport:'⚽', maison:'🏠', animaux:'🐾',
+};
+
+const _CAT_RULES = {
+  alimentaire: [
+    { level:'required',    field:'ean',               label:'EAN / GTIN',          msg:'EAN/code-barres GTIN obligatoire pour les produits alimentaires sur Amazon' },
+    { level:'required',    field:'weight_kg',          label:'Poids net',            msg:'Poids net obligatoire pour les denrées alimentaires (règlement INCO n°1169/2011)' },
+    { level:'required',    field:'ingredients',        label:'Ingrédients',          msg:'Liste des ingrédients obligatoire — à inclure dans la description ou les caractéristiques' },
+    { level:'recommended', field:'allergens',          label:'Allergènes',           msg:'Allergènes à signaler explicitement (gluten, lait, œufs, noix, arachides, soja, sésame…)' },
+    { level:'info',        field:'nutritional_values', label:'Valeurs nutritionnelles', msg:'Valeurs nutritionnelles recommandées (kcal, protéines, glucides, lipides)' },
+    { level:'info',        field:'origin',             label:'Origine / DLC',        msg:'Pays d\'origine et DLUO/DLC recommandés pour les denrées' },
+  ],
+  textile: [
+    { level:'required',    field:'material',          label:'Composition matière',  msg:'Composition matière obligatoire pour le textile (ex: 100% coton, 80% polyester / 20% élasthanne)' },
+    { level:'required',    field:'color',             label:'Couleur',              msg:'Couleur obligatoire pour les fiches textiles Amazon — utiliser les déclinaisons pour plusieurs coloris' },
+    { level:'recommended', field:'size',              label:'Taille',               msg:'Taille recommandée — utiliser les déclinaisons variation pour proposer plusieurs tailles' },
+    { level:'recommended', field:'care_instructions', label:'Entretien',            msg:'Instructions d\'entretien recommandées (lavage, séchage, repassage) dans description ou bullet' },
+    { level:'info',        field:'country_of_origin', label:'Pays de fabrication',  msg:'Pays de fabrication recommandé pour le textile' },
+  ],
+  electronique: [
+    { level:'required',    field:'ean',               label:'EAN / UPC',            msg:'EAN ou UPC obligatoire pour l\'électronique (identification produit Amazon Marketplace)' },
+    { level:'recommended', field:'weight_kg',         label:'Poids',                msg:'Poids recommandé pour les produits électroniques' },
+    { level:'recommended', field:'dimensions_cm',     label:'Dimensions',           msg:'Dimensions recommandées (L×l×H cm) pour les appareils électroniques' },
+    { level:'recommended', field:'ce_marking',        label:'Marquage CE',          msg:'Marquage CE obligatoire pour les appareils électriques vendus dans l\'UE — à mentionner dans la description' },
+    { level:'info',        field:'voltage',           label:'Tension / Puissance',  msg:'Tension (V) et puissance (W) recommandées pour les appareils électriques' },
+    { level:'info',        field:'warranty',          label:'Garantie',             msg:'Durée de garantie recommandée à mentionner (sans utiliser "garanti X ans" dans le titre)' },
+  ],
+  beaute: [
+    { level:'required',    field:'ean',               label:'EAN',                  msg:'EAN obligatoire pour les cosmétiques (directive européenne 1223/2009)' },
+    { level:'recommended', field:'ingredients',       label:'INCI ingrédients',     msg:'Liste INCI des ingrédients recommandée dans la description pour les cosmétiques' },
+    { level:'recommended', field:'weight_kg',         label:'Contenance / Volume',  msg:'Contenance ou poids du produit recommandé (ex: 50 ml, 100 g)' },
+    { level:'recommended', field:'usage',             label:'Mode d\'emploi',       msg:'Mode d\'emploi / instructions d\'application recommandés dans description ou bullet point' },
+    { level:'info',        field:'spf',               label:'FPS / SPF',            msg:'Facteur de protection solaire (FPS/SPF) à indiquer pour les produits solaires' },
+  ],
+  jouets: [
+    { level:'required',    field:'ean',               label:'EAN',                  msg:'EAN obligatoire pour les jouets' },
+    { level:'required',    field:'age_range',         label:'Tranche d\'âge',       msg:'Tranche d\'âge obligatoire (ex: "3 ans et +") — dans le titre ou un bullet point (directive 2009/48/CE)' },
+    { level:'required',    field:'ce_marking',        label:'Marquage CE',          msg:'Marquage CE obligatoire pour les jouets vendus dans l\'UE (directive jouets 2009/48/CE)' },
+    { level:'recommended', field:'dimensions_cm',     label:'Dimensions',           msg:'Dimensions recommandées pour les jouets' },
+    { level:'recommended', field:'material',          label:'Matériaux',            msg:'Matériaux recommandés (sécurité enfants — phtalates, BPA...)' },
+    { level:'info',        field:'batteries',         label:'Piles / Batteries',    msg:'Indiquer si les piles sont incluses ou non (réglementation DEEE)' },
+  ],
+  sport: [
+    { level:'recommended', field:'weight_kg',         label:'Poids',                msg:'Poids recommandé pour les équipements sportifs' },
+    { level:'recommended', field:'material',          label:'Matériaux',            msg:'Matériaux recommandés pour les équipements sportifs (durabilité, sécurité)' },
+    { level:'recommended', field:'dimensions_cm',     label:'Dimensions',           msg:'Dimensions recommandées pour les équipements sportifs' },
+    { level:'info',        field:'size',              label:'Taille',               msg:'Taille disponible recommandée (utiliser déclinaisons variation pour plusieurs tailles)' },
+  ],
+  maison: [
+    { level:'recommended', field:'dimensions_cm',     label:'Dimensions',           msg:'Dimensions recommandées (L×l×H cm) pour les articles maison/mobilier' },
+    { level:'recommended', field:'material',          label:'Matériaux',            msg:'Matériaux recommandés pour les articles maison (bois, métal, textile...)' },
+    { level:'recommended', field:'color',             label:'Couleur',              msg:'Couleur recommandée pour les articles déco et maison' },
+    { level:'info',        field:'weight_kg',         label:'Poids',                msg:'Poids recommandé pour les articles maison (utile pour les frais de livraison)' },
+  ],
+  animaux: [
+    { level:'recommended', field:'material',          label:'Matériaux',            msg:'Matériaux recommandés pour les accessoires animaux (sécurité, non-toxique)' },
+    { level:'recommended', field:'weight_kg',         label:'Poids produit',        msg:'Poids du produit recommandé pour les articles animalerie' },
+    { level:'info',        field:'size_compat',       label:'Compatibilité taille', msg:'Compatibilité avec la taille de l\'animal recommandée (ex: "pour chien de 5 à 15 kg")' },
+  ],
+};
+
+function _detectCategoryGroup(listing) {
+  const text = ((listing.category || '') + ' ' + (listing.title || '')).toLowerCase();
+  // Check longest/most-specific keywords first to avoid false positives
+  const order = ['alimentaire','textile','electronique','beaute','jouets','sport','maison','animaux'];
+  for (const grp of order) {
+    if ((_CAT_KW[grp] || []).some(kw => text.includes(kw))) return grp;
+  }
+  return null;
+}
+
+function _checkCategoryCompliance(listing) {
+  const group = _detectCategoryGroup(listing);
+  if (!group) return { group: null, label: null, icon: null, issues: [], total: 0 };
+  const rules = _CAT_RULES[group] || [];
+  const desc = ((listing.description || '') + ' ' + (listing.bullet_points || []).join(' ')).toLowerCase();
+  const titleLow = (listing.title || '').toLowerCase();
+  const fullText = desc + ' ' + titleLow;
+
+  const issues = [];
+  for (const rule of rules) {
+    let passed = false;
+    switch (rule.field) {
+      case 'ean':
+        passed = !!listing.ean || !!(listing.children || []).some(c => c.ean); break;
+      case 'weight_kg':
+        passed = !!(listing.weight_kg) || /\d+[\s]*(g|kg|gr|grammes?|kilogrammes?|ml|cl|litre|oz|lb)\b/i.test(fullText); break;
+      case 'material':
+        passed = !!listing.material || /\b(coton|polyester|nylon|cuir|laine|lin|soie|acrylique|viscose|élasthanne|latex|plastique|métal|acier inox|acier|bois|bambou|aluminium|verre|céramique|silicone|mousse|plume|duvet|microfibre|chanvre|jute|caoutchouc|inox)\b/i.test(fullText); break;
+      case 'color':
+        passed = !!listing.color || !!(listing.children || []).some(c => c.color); break;
+      case 'dimensions_cm':
+        passed = /\d+[\s]*[xX×][\s]*\d+/i.test(fullText) || /\d+[\s]*(cm|mm|m)\b/i.test(fullText); break;
+      case 'size':
+        passed = !!(listing.children || []).some(c => c.size) || /\b(XS|S\b|M\b|L\b|XL|XXL|XXXL|taille\s*\d+|\d+\s*ans?\b|\d+\s*cm\b)/i.test(fullText); break;
+      case 'ingredients':
+        passed = /\bingrédients?\b|\bcomposition\b|\bcontient\b/i.test(fullText); break;
+      case 'allergens':
+        passed = /\b(sans\s+allergen|contient|traces?\s+de|lait|gluten|blé|œuf|noix|noisette|amande|arachide|soja|sésame|céleri|moutarde|sulfite|mollusque|crustacé|poisson|lupin)\b/i.test(fullText); break;
+      case 'ce_marking':
+        passed = /\bce\s*certif|\bmarquage\s*ce\b|\bnorme\s*ce\b|\bcertifié\s*ce\b|\b(en\s*\d{4,5})\b/i.test(fullText) || /\bce\b/i.test(fullText); break;
+      case 'age_range':
+        passed = /\b\d+\s*(ans?|mois)\b|à\s+partir\s+de|âge\s*:\s*\d+|age\s*min|pour\s+les?\s+(bébés?|enfants?)/i.test(fullText); break;
+      case 'voltage':
+        passed = /\b\d+[\s]*(v|volts?)\b|\b\d+[\s]*(w|watts?|kw)\b|\b\d+[\s]*(mah|ah)\b/i.test(fullText); break;
+      case 'care_instructions':
+        passed = /\b(lavage|séchage|repassage|nettoyage|entretien|machine|main|30°|40°|60°|80°|délicat|délicat|sec)\b/i.test(fullText); break;
+      case 'country_of_origin':
+        passed = /\b(fabriqué\s+en|made\s+in|origine|fabrication\s+française|artisanal|france)\b/i.test(fullText); break;
+      case 'usage':
+        passed = /\b(appliquer|utiliser|utilisation|mode\s+d['']emploi|posologie|comment\s+utiliser|application)\b/i.test(fullText); break;
+      case 'nutritional_values':
+        passed = /\b(kcal|calories?|protéines?|glucides?|lipides?|fibres?\s+alimentaires?|sel\s+équivalent)\b/i.test(fullText); break;
+      case 'spf':
+        passed = /\b(spf|fps|indice\s+de\s+protection|protection\s+solaire)\b/i.test(fullText); break;
+      case 'batteries':
+        passed = /\b(piles?\s+incluses?|piles?\s+non\s+incluses?|batteries?\s+incluses?|sans\s+piles?|fonctionne\s+(avec|sans))\b/i.test(fullText); break;
+      case 'warranty':
+        passed = /\bgarantie?\b/i.test(fullText) && !/\bgarantie\s+\d+\s*(ans?|mois)/i.test(listing.title || ''); break;
+      case 'size_compat':
+        passed = /\b(petit\s+(chien|chat)|moyen\s+(chien|chat)|grand\s+(chien|chat)|\d+\s*(kg|cm)\s+max|race\b|taille\b|miniature|toy|xxs|xs\b|s\b|m\b|l\b|xl\b)\b/i.test(fullText); break;
+      case 'origin':
+        passed = /\b(origine|provenance|terroir|appellation|aoc|igp|label\s+rouge|agriculture\s+biologique)\b/i.test(fullText); break;
+      default: passed = true;
+    }
+    if (!passed) issues.push({ level: rule.level, field: rule.field, label: rule.label, msg: rule.msg });
+  }
+  return { group, label: _CAT_LABELS[group], icon: _CAT_ICONS[group], issues, total: rules.length };
+}
+
+function _getListingProgress(listing) {
+  const seoOk = (listing.seo_score || 0) >= 70;
+  const imgOk = !!(imagesCache[listing.sku] && (imagesCache[listing.sku].images || []).length > 0);
+  const complianceIssues = _checkCategoryCompliance(listing).issues.filter(i => i.level === 'required');
+  const complianceOk = complianceIssues.length === 0;
+  const criteria = [
+    { label: 'SEO ≥ 70', done: seoOk, value: listing.seo_score || 0 },
+    { label: 'Images', done: imgOk },
+    { label: 'Conformité', done: complianceOk },
+  ];
+  const done = criteria.filter(c => c.done).length;
+  return { criteria, done, total: criteria.length };
+}
+
+function _getListingStatus(listing) {
+  if (publishedSkus.has(listing.sku)) return 'published';
+  const { done, total } = _getListingProgress(listing);
+  return done === total ? 'ready' : 'todo';
+}
+
+function _complianceBadge(listing) {
+  const { group, label, icon, issues } = _checkCategoryCompliance(listing);
+  if (!group) return '';
+  const required = issues.filter(i => i.level === 'required').length;
+  const recommended = issues.filter(i => i.level === 'recommended').length;
+  if (required > 0)
+    return `<span class="text-xs bg-red-50 text-red-600 border border-red-200 px-1.5 py-0.5 rounded font-medium cursor-help" title="${icon} ${label} — ${required} champ(s) obligatoire(s) manquant(s)">${icon} ${required} requis</span>`;
+  if (recommended > 0)
+    return `<span class="text-xs bg-amber-50 text-amber-600 border border-amber-200 px-1.5 py-0.5 rounded font-medium cursor-help" title="${icon} ${label} — ${recommended} champ(s) recommandé(s) manquant(s)">${icon} ${recommended} recommandé${recommended>1?'s':''}</span>`;
+  return `<span class="text-xs bg-teal-50 text-teal-600 border border-teal-200 px-1.5 py-0.5 rounded cursor-help" title="${icon} ${label} — Conforme">${icon} ✓</span>`;
+}
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
 // ── Invite token flow ─────────────────────────────────────────────────────────
@@ -2064,6 +2278,12 @@ function _renderResultsChips() {
         class="w-8 h-8 rounded-lg flex items-center justify-center transition ${resultsViewMode === 'grid' ? 'bg-purple-600 text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
       </button>
+      <button onclick="setResultsViewMode('kanban')" id="viewBtnKanban" title="Vue kanban"
+        class="w-8 h-8 rounded-lg flex items-center justify-center transition ${resultsViewMode === 'kanban' ? 'bg-purple-600 text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="3" width="5" height="18" rx="1"/><rect x="10" y="3" width="5" height="13" rx="1"/><rect x="17" y="3" width="5" height="16" rx="1"/>
+        </svg>
+      </button>
     </div>
   </div>`;
 }
@@ -2410,12 +2630,20 @@ function showResults(result) {
   document.getElementById('loadingState').classList.remove('flex');
   document.getElementById('emptyState').classList.add('hidden');
   document.getElementById('resultsState').classList.remove('hidden');
+  // Count groups (parents + standalone) and total SKUs (parents count children)
+  const parentListings = (result.listings || []).filter(l => l.is_parent);
+  const childrenTotal = parentListings.reduce((s, l) => s + (l.children || []).length, 0);
+  const standaloneCount = (result.listings || []).filter(l => !l.is_parent && !l.parent_sku).length;
+  const groupCount = parentListings.length + standaloneCount;
+  const totalSkus = childrenTotal + standaloneCount;
   document.getElementById('statTotal').textContent = result.total;
-  document.getElementById('statSuccess').textContent = result.success_count;
+  document.getElementById('statSuccess').textContent = groupCount;
   document.getElementById('statFailed').textContent = result.failed.length;
-  const avg = result.listings.length ? Math.round(result.listings.reduce((a,l)=>a+(l.seo_score||0),0)/result.listings.length) : 0;
+  const parentOnly = (result.listings || []).filter(l => !l.parent_sku);
+  const avg = parentOnly.length ? Math.round(parentOnly.reduce((a,l)=>a+(l.seo_score||0),0)/parentOnly.length) : 0;
   document.getElementById('statAvgSeo').textContent = avg;
-  document.getElementById('statsText').textContent = `${result.marketplace} — Score SEO moyen : ${avg}/100`;
+  const varInfo = parentListings.length > 0 ? ` — ${parentListings.length} groupe${parentListings.length>1?'s':''} variation (${totalSkus} SKU)` : '';
+  document.getElementById('statsText').textContent = `${result.marketplace} — Score SEO moyen : ${avg}/100${varInfo}`;
   activeResultsFilter = null;
   renderListingsContainer();
   _renderResultsChips();
@@ -2424,7 +2652,10 @@ function showResults(result) {
 function renderListingsContainer() {
   const c = document.getElementById('listingsContainer');
   if (!c) return;
+  if (resultsViewMode === 'kanban') { renderKanbanBoard(); _renderGlobalProgress(); return; }
   const visible = generatedListings.filter((l) => {
+    // Child listings are displayed inside their parent card
+    if (l.parent_sku) return false;
     if (activeMarketplaceFilter && l.marketplace !== activeMarketplaceFilter) return false;
     if (!activeResultsFilter) return true;
     const s = _getListingSegment(l);
@@ -2451,6 +2682,352 @@ function renderListingsContainer() {
       _restoreImagesInCard(idx);
     });
   }
+  _renderGlobalProgress();
+}
+
+function renderKanbanBoard() {
+  const c = document.getElementById('listingsContainer');
+  if (!c) return;
+
+  const visible = generatedListings.filter(l => {
+    if (l.parent_sku) return false;
+    if (activeMarketplaceFilter && l.marketplace !== activeMarketplaceFilter) return false;
+    if (!activeResultsFilter) return true;
+    const s = _getListingSegment(l);
+    if (activeResultsFilter === '__none') return !s;
+    return s === activeResultsFilter;
+  });
+
+  const cols = { todo: [], ready: [], published: [] };
+  visible.forEach(l => cols[_getListingStatus(l)].push(l));
+
+  const colDefs = [
+    { key: 'todo',      label: 'À compléter', count: cols.todo.length,      headerCls: 'bg-slate-100 text-slate-700',  dotCls: 'bg-slate-400' },
+    { key: 'ready',     label: 'Prêt',        count: cols.ready.length,     headerCls: 'bg-green-100 text-green-700', dotCls: 'bg-green-500' },
+    { key: 'published', label: 'Publié',       count: cols.published.length, headerCls: 'bg-purple-100 text-purple-700', dotCls: 'bg-purple-500' },
+  ];
+
+  c.className = 'grid grid-cols-3 gap-4 items-start';
+  c.innerHTML = colDefs.map(col => {
+    const cards = cols[col.key].map(l => {
+      const idx = generatedListings.indexOf(l);
+      const prog = _getListingProgress(l);
+      const seoScore = l.seo_score || 0;
+      const seoCol = seoScore >= 70 ? 'text-green-600' : seoScore >= 40 ? 'text-yellow-600' : 'text-red-500';
+      const seoBg = seoScore >= 70 ? 'bg-green-500' : seoScore >= 40 ? 'bg-yellow-400' : 'bg-red-400';
+      const pillCls = (done, labelTrue, labelFalse) =>
+        done
+          ? `<span class="inline-flex items-center gap-0.5 text-xs bg-green-50 text-green-700 border border-green-200 px-1.5 py-0.5 rounded">${labelTrue}</span>`
+          : `<span class="inline-flex items-center gap-0.5 text-xs bg-gray-50 text-gray-400 border border-gray-200 px-1.5 py-0.5 rounded">${labelFalse}</span>`;
+      const [seoC, imgC, catC] = prog.criteria;
+      return `<div class="bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-md hover:border-purple-200 transition cursor-pointer p-3" onclick="openListingDetail(${idx})">
+        <div class="flex items-start justify-between gap-2 mb-2">
+          <span class="text-xs text-gray-400 font-mono">${_esc(l.sku)}</span>
+          <span class="text-xs font-bold ${seoCol}">${seoScore}</span>
+        </div>
+        <p class="text-sm font-medium text-gray-800 leading-snug line-clamp-2 mb-2">${_esc(l.title || '')}</p>
+        <div class="flex gap-0.5 mb-2 h-1.5 rounded-full overflow-hidden bg-gray-100">
+          ${prog.criteria.map(cr => `<div class="flex-1 ${cr.done ? seoBg : 'bg-gray-200'} transition-all"></div>`).join('')}
+        </div>
+        <div class="flex flex-wrap gap-1">
+          ${pillCls(seoC.done, `SEO ${seoC.value}`, `SEO ${seoC.value}`)}
+          ${pillCls(imgC.done, '📷 Images', '📷 —')}
+          ${pillCls(catC.done, '✓ Conforme', '! Champs')}
+        </div>
+      </div>`;
+    }).join('');
+    return `<div class="rounded-2xl overflow-hidden border border-gray-100 shadow-sm">
+      <div class="flex items-center gap-2 px-4 py-3 ${col.headerCls}">
+        <span class="w-2 h-2 rounded-full ${col.dotCls}"></span>
+        <span class="font-semibold text-sm">${col.label}</span>
+        <span class="ml-auto text-xs opacity-60 font-medium">${col.count}</span>
+      </div>
+      <div class="bg-gray-50 p-2 space-y-2 min-h-[120px]">${cards || '<p class="text-center text-xs text-gray-300 py-8">Aucune fiche</p>'}</div>
+    </div>`;
+  }).join('');
+}
+
+function _renderGlobalProgress() {
+  const bar = document.getElementById('globalProgressBar');
+  if (!bar || !generatedListings.length) { if (bar) bar.classList.add('hidden'); return; }
+  const top = generatedListings.filter(l => !l.parent_sku);
+  const total = top.length;
+  if (!total) { bar.classList.add('hidden'); return; }
+  let nTodo = 0, nReady = 0, nPublished = 0;
+  top.forEach(l => {
+    const s = _getListingStatus(l);
+    if (s === 'published') nPublished++;
+    else if (s === 'ready') nReady++;
+    else nTodo++;
+  });
+  document.getElementById('gpb-todo').style.width    = (nTodo      / total * 100) + '%';
+  document.getElementById('gpb-ready').style.width   = (nReady     / total * 100) + '%';
+  document.getElementById('gpb-published').style.width = (nPublished / total * 100) + '%';
+  document.getElementById('gpb-todo-n').textContent      = nTodo;
+  document.getElementById('gpb-ready-n').textContent     = nReady;
+  document.getElementById('gpb-published-n').textContent = nPublished;
+  const pct = Math.round((nReady + nPublished) / total * 100);
+  document.getElementById('globalProgressLabel').textContent = `${nReady + nPublished}/${total} fiches prêtes (${pct}%)`;
+  bar.classList.remove('hidden');
+}
+
+// ── Manual product form ───────────────────────────────────────────────────────
+
+function openManualForm() {
+  _mfResetForm();
+  document.getElementById('manualFormModal').classList.remove('hidden');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeManualForm() {
+  document.getElementById('manualFormModal').classList.add('hidden');
+  document.body.style.overflow = '';
+}
+
+function _mfResetForm() {
+  document.getElementById('manualProductForm').reset();
+  document.getElementById('mf-features-list').innerHTML = '';
+  document.getElementById('mf-images-list').innerHTML = '';
+  document.getElementById('mf-variations-panel').classList.add('hidden');
+  mfAddFeature();
+  mfAddImage();
+}
+
+function mfAddFeature(value = '') {
+  const list = document.getElementById('mf-features-list');
+  const idx = list.children.length;
+  const row = document.createElement('div');
+  row.className = 'flex gap-2 items-center';
+  row.innerHTML = `<span class="text-purple-400 flex-shrink-0">▸</span>
+    <input type="text" value="${_esc(value)}" placeholder="Ex : Boucle en acier inoxydable résistante à la corrosion"
+      class="mf-feature flex-1 border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-purple-300 outline-none">
+    <button type="button" onclick="this.closest('div').remove()" class="text-gray-300 hover:text-red-500 transition flex-shrink-0">✕</button>`;
+  list.appendChild(row);
+}
+
+function mfAddImage(value = '') {
+  const list = document.getElementById('mf-images-list');
+  const row = document.createElement('div');
+  row.className = 'flex gap-2 items-center';
+  row.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="flex-shrink-0"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+    <input type="url" value="${_esc(value)}" placeholder="https://exemple.com/image.jpg"
+      class="mf-image flex-1 border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-purple-300 outline-none font-mono text-xs">
+    <button type="button" onclick="this.closest('div').remove()" class="text-gray-300 hover:text-red-500 transition flex-shrink-0">✕</button>`;
+  list.appendChild(row);
+}
+
+function mfToggleVariations(show) {
+  document.getElementById('mf-variations-panel').classList.toggle('hidden', !show);
+}
+
+function submitManualForm(e) {
+  e.preventDefault();
+
+  const name     = document.getElementById('mf-name').value.trim();
+  const brand    = document.getElementById('mf-brand').value.trim();
+  const category = document.getElementById('mf-category').value.trim();
+  const desc     = document.getElementById('mf-description').value.trim();
+  const sku      = document.getElementById('mf-sku').value.trim() || name.slice(0, 20).replace(/\s+/g, '-').toUpperCase();
+  const ean      = document.getElementById('mf-ean').value.trim() || null;
+  const price    = parseFloat(document.getElementById('mf-price').value) || null;
+  const color    = document.getElementById('mf-color').value.trim() || null;
+  const material = document.getElementById('mf-material').value.trim() || null;
+  const size     = document.getElementById('mf-size').value.trim() || null;
+  const weight   = parseFloat(document.getElementById('mf-weight').value) || null;
+  const dims     = document.getElementById('mf-dimensions').value.trim() || null;
+  const kwRaw    = document.getElementById('mf-keywords').value.trim();
+
+  const features = [...document.querySelectorAll('.mf-feature')]
+    .map(i => i.value.trim()).filter(Boolean);
+  const images   = [...document.querySelectorAll('.mf-image')]
+    .map(i => i.value.trim()).filter(Boolean);
+  const focus_keywords = kwRaw ? kwRaw.split(',').map(k => k.trim()).filter(Boolean) : [];
+
+  const hasVariations = document.getElementById('mf-has-variations').checked;
+  const varTheme = hasVariations
+    ? (document.querySelector('input[name="mf-var-theme"]:checked')?.value || 'ColorName-SizeClass')
+    : null;
+  const varValuesRaw = document.getElementById('mf-variations-values').value;
+  const varValues = hasVariations
+    ? varValuesRaw.split('\n').map(v => v.trim()).filter(Boolean)
+    : [];
+
+  const products = [];
+
+  if (hasVariations && varValues.length > 0) {
+    // Build variation children
+    varValues.forEach((val, i) => {
+      const parts = val.split('/').map(p => p.trim());
+      const childColor = parts[0] || null;
+      const childSize  = parts[1] || null;
+      products.push({
+        sku: `${sku}-${String(i + 1).padStart(2, '0')}`,
+        name, brand, category, description: desc,
+        price, ean: null,
+        color: childColor, material, size: childSize,
+        weight_kg: weight, dimensions_cm: dims,
+        features, images, focus_keywords,
+        parent_sku: sku,
+        variation_theme: varTheme,
+        variation_value: val,
+      });
+    });
+  } else {
+    products.push({
+      sku, name, brand, category, description: desc,
+      price, ean, color, material, size,
+      weight_kg: weight, dimensions_cm: dims,
+      features, images, focus_keywords,
+    });
+  }
+
+  // Feed into the upload pipeline (same as handleFile → parseProducts)
+  loadManualProducts(products);
+  closeManualForm();
+}
+
+function loadManualProducts(products) {
+  if (!products.length) return;
+  parsedProducts = products;
+  const genBtn = document.getElementById('generateBtn');
+  if (genBtn) genBtn.disabled = false;
+
+  const n = products.length;
+  const hasVar = products.some(p => p.parent_sku);
+  const dropZone = document.getElementById('dropZone');
+  if (dropZone) {
+    dropZone.innerHTML = `<div class="text-3xl mb-2">✅</div>
+      <p class="text-purple-700 font-medium">${n} produit${n > 1 ? 's' : ''} saisi${n > 1 ? 's' : ''} manuellement${hasVar ? ' (variations)' : ''}</p>
+      <button type="button" onclick="openManualForm()" class="text-xs text-purple-500 underline mt-1">Modifier</button>`;
+  }
+  showProductsList(parsedProducts);
+  setStep(2);
+  showToast('✅', `${n} produit(s) chargé(s) — cliquez sur "Générer"`);
+}
+
+// ── History panel ─────────────────────────────────────────────────────────────
+
+const MKT_META_H = {
+  amazon_fr:'🇫🇷', amazon_de:'🇩🇪', amazon_it:'🇮🇹', amazon_es:'🇪🇸',
+  amazon_uk:'🇬🇧', amazon_nl:'🇳🇱', amazon_se:'🇸🇪', amazon_pl:'🇵🇱', amazon_be:'🇧🇪',
+};
+
+function openHistoryPanel() {
+  document.getElementById('historyOverlay').classList.remove('hidden');
+  const panel = document.getElementById('historyPanel');
+  panel.classList.remove('translate-x-full');
+  loadHistoryList();
+}
+
+function closeHistoryPanel() {
+  document.getElementById('historyOverlay').classList.add('hidden');
+  document.getElementById('historyPanel').classList.add('translate-x-full');
+}
+
+async function loadHistoryList() {
+  const container = document.getElementById('historyList');
+  container.innerHTML = '<p class="text-center text-gray-400 text-sm py-8">Chargement…</p>';
+  try {
+    const r = await authFetch('/api/history');
+    if (!r.ok) throw new Error();
+    const batches = await r.json();
+    if (!batches.length) {
+      container.innerHTML = '<div class="text-center py-12"><p class="text-4xl mb-3">📭</p><p class="text-gray-500 font-medium">Aucun lot sauvegardé</p><p class="text-gray-400 text-sm mt-1">Les prochaines générations apparaîtront ici</p></div>';
+      return;
+    }
+    container.innerHTML = batches.map(b => {
+      const flag = MKT_META_H[b.marketplace] || '🌐';
+      const date = new Date(b.created_at).toLocaleString('fr-FR', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' });
+      const seoCol = b.avg_seo_score >= 70 ? 'text-green-600' : b.avg_seo_score >= 40 ? 'text-yellow-600' : 'text-red-500';
+      const label = b.label ? `<span class="text-xs text-purple-700 bg-purple-50 border border-purple-200 px-2 py-0.5 rounded max-w-[140px] truncate">${_esc(b.label)}</span>` : '';
+      return `<div class="bg-white border border-gray-100 rounded-xl p-3 hover:border-purple-200 hover:shadow-sm transition" id="hentry-${_esc(b.id)}">
+        <div class="flex items-start justify-between gap-2 mb-1.5">
+          <div class="flex items-center gap-1.5 flex-wrap min-w-0">
+            <span class="text-base leading-none">${flag}</span>
+            <span class="text-xs font-medium text-gray-700 truncate">${_esc(b.marketplace.replace('amazon_','Amazon ').toUpperCase())}</span>
+            ${label}
+          </div>
+          <button onclick="deleteHistoryEntry('${_esc(b.id)}')" class="flex-shrink-0 text-gray-300 hover:text-red-500 transition text-lg leading-none" title="Supprimer">✕</button>
+        </div>
+        <div class="flex items-center gap-3 text-xs text-gray-500 mb-2.5">
+          <span>📅 ${date}</span>
+          <span>📦 ${b.product_count} fiche${b.product_count > 1 ? 's' : ''}</span>
+          <span class="font-semibold ${seoCol}">SEO ${b.avg_seo_score}</span>
+        </div>
+        <div class="flex gap-2">
+          <button onclick="restoreBatch('${_esc(b.id)}')" class="flex-1 gradient-bg text-white rounded-lg py-1.5 text-xs font-semibold hover:opacity-90 transition">
+            ↩ Charger ce lot
+          </button>
+          <button onclick="renameHistoryEntry('${_esc(b.id)}', this)" class="bg-gray-50 hover:bg-gray-100 text-gray-600 rounded-lg px-3 py-1.5 text-xs transition" title="Renommer">✏️</button>
+        </div>
+      </div>`;
+    }).join('');
+  } catch(e) {
+    container.innerHTML = '<p class="text-center text-red-400 text-sm py-8">Erreur de chargement</p>';
+  }
+}
+
+async function restoreBatch(batchId) {
+  try {
+    const r = await authFetch(`/api/history/${batchId}`);
+    if (!r.ok) throw new Error();
+    const batch = await r.json();
+    const listings = batch.listings || [];
+    if (!listings.length) { showToast('⚠️', 'Lot vide', true); return; }
+
+    generatedListings = listings;
+    try { localStorage.setItem('synqio_listings', JSON.stringify(generatedListings)); } catch(e) {}
+
+    const parentOnly = listings.filter(l => !l.parent_sku);
+    const avg = parentOnly.length ? Math.round(parentOnly.reduce((a, l) => a + (l.seo_score || 0), 0) / parentOnly.length) : 0;
+    const fakeResult = {
+      listings,
+      failed: [],
+      total: listings.length,
+      success_count: listings.length,
+      marketplace: listings[0]?.marketplace || 'amazon_fr',
+    };
+    showResults(fakeResult);
+    closeHistoryPanel();
+    showToast('✅', `Lot restauré — ${listings.length} fiche(s)`);
+  } catch(e) {
+    showToast('❌', 'Erreur lors du chargement', true);
+  }
+}
+
+async function deleteHistoryEntry(batchId) {
+  if (!confirm('Supprimer ce lot de l\'historique ?')) return;
+  try {
+    const r = await authFetch(`/api/history/${batchId}`, { method: 'DELETE' });
+    if (!r.ok) throw new Error();
+    document.getElementById(`hentry-${batchId}`)?.remove();
+    const list = document.getElementById('historyList');
+    if (list && !list.querySelector('[id^="hentry-"]')) {
+      list.innerHTML = '<div class="text-center py-12"><p class="text-4xl mb-3">📭</p><p class="text-gray-500 font-medium">Aucun lot sauvegardé</p></div>';
+    }
+    showToast('🗑️', 'Lot supprimé');
+  } catch(e) {
+    showToast('❌', 'Erreur lors de la suppression', true);
+  }
+}
+
+async function renameHistoryEntry(batchId, btn) {
+  const entry = document.getElementById(`hentry-${batchId}`);
+  const current = entry?.querySelector('span.text-purple-700')?.textContent || '';
+  const label = prompt('Nom du lot (laisser vide pour supprimer) :', current);
+  if (label === null) return;
+  try {
+    const r = await authFetch(`/api/history/${batchId}/label`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ label: label.trim() }),
+    });
+    if (!r.ok) throw new Error();
+    loadHistoryList();
+    showToast('✅', 'Lot renommé');
+  } catch(e) {
+    showToast('❌', 'Erreur lors du renommage', true);
+  }
 }
 
 function createListingCard(listing, idx) {
@@ -2466,9 +3043,10 @@ function createGridCard(listing, idx) {
   const col = listing.seo_score >= 70 ? 'green' : listing.seo_score >= 40 ? 'yellow' : 'red';
   const cached = imagesCache[listing.sku];
   const mainImg = cached?.images?.find(i => i.slot === 'main' || i.id === 'main')?.url || '';
+  const isParent = listing.is_parent && (listing.children || []).length > 0;
   const card = document.createElement('div');
   card.id = `card-${idx}`;
-  card.className = 'bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden card-hover cursor-pointer flex flex-col';
+  card.className = 'bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden card-hover cursor-pointer flex flex-col' + (isParent ? ' border-l-4 border-l-indigo-400' : '');
   card.onclick = () => openListingDetail(idx);
   card.innerHTML = `
     <div class="relative bg-gray-50 h-36 flex items-center justify-center overflow-hidden">
@@ -2478,20 +3056,26 @@ function createGridCard(listing, idx) {
       <div class="absolute top-2 right-2 w-9 h-9 rounded-full flex items-center justify-center border-2 border-${col}-300 bg-white shadow-sm">
         <span class="text-${col}-700 font-bold text-xs">${listing.seo_score}</span>
       </div>
+      ${isParent ? `<div class="absolute top-2 left-2 bg-indigo-600 text-white text-xs font-semibold px-1.5 py-0.5 rounded shadow">${listing.children.length} décl.</div>` : ''}
     </div>
     <div class="p-3 flex-1 flex flex-col gap-1">
       <div class="flex items-center gap-1 flex-wrap">
         <span class="font-mono text-xs bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded">${_esc(listing.sku)}</span>
         ${(()=>{ const iv=_validateListing(listing); const e=iv.filter(x=>x.level==='error').length,w=iv.filter(x=>x.level==='warn').length; return e>0?`<span class="text-xs bg-red-100 text-red-600 px-1 py-0.5 rounded font-medium" title="${iv.map(x=>x.msg).join('&#10;')}">⚠${e}</span>`:w>0?`<span class="text-xs bg-orange-100 text-orange-500 px-1 py-0.5 rounded font-medium" title="${iv.map(x=>x.msg).join('&#10;')}">!${w}</span>`:`<span class="text-xs bg-green-100 text-green-700 px-1 py-0.5 rounded" title="Conforme Amazon">✓</span>`; })()}
+        ${_complianceBadge(listing)}
       </div>
       <p class="text-xs font-semibold text-gray-800 line-clamp-2 leading-tight">${_esc(listing.title)}</p>
-      ${listing.category ? `<span class="text-xs bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded self-start mt-auto">${_esc(listing.category)}</span>` : ''}
+      <div class="flex items-center gap-1 mt-auto flex-wrap">
+        ${listing.category ? `<span class="text-xs bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded">${_esc(listing.category)}</span>` : ''}
+        ${isParent ? `<span class="text-xs bg-indigo-50 text-indigo-600 px-1.5 py-0.5 rounded">🔗 ${_esc(listing.variation_theme || 'Variation')}</span>` : ''}
+      </div>
     </div>`;
   return card;
 }
 
 function buildCardHTML(listing, idx, editMode) {
   const col = listing.seo_score >= 70 ? 'green' : listing.seo_score >= 40 ? 'yellow' : 'red';
+  const isParent = listing.is_parent && (listing.children || []).length > 0;
   const _issues = _validateListing(listing);
   const _errs = _issues.filter(i=>i.level==='error').length, _warns = _issues.filter(i=>i.level==='warn').length;
   const _badge = editMode ? '' : _errs > 0
@@ -2518,7 +3102,9 @@ function buildCardHTML(listing, idx, editMode) {
               ? `<input id="edit-sku-${idx}" value="${listing.sku}" class="font-mono text-xs bg-purple-50 border border-purple-300 text-purple-700 px-2 py-0.5 rounded w-36 focus:ring-2 focus:ring-purple-300 outline-none">`
               : `<span class="font-mono text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded">${listing.sku}</span>`}
             <span class="text-xs text-gray-400">${listing.marketplace}</span>
+            ${isParent ? `<span class="text-xs bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded font-medium">🔗 ${(listing.children||[]).length} décl. — ${_esc(listing.variation_theme||'Variation')}</span>` : ''}
             ${_badge}
+            ${editMode ? '' : _complianceBadge(listing)}
             ${editMode ? '<span class="text-xs text-purple-600 font-medium">Mode édition</span>' : ''}
           </div>
           ${editMode
@@ -2555,21 +3141,24 @@ function buildCardHTML(listing, idx, editMode) {
       <div id="content-${idx}-images" class="hidden">
         <div id="images-container-${idx}" class="text-center py-6 text-gray-400 text-sm">Cliquez sur "Générer les images" pour lancer la création</div>
       </div>
+      ${isParent ? _buildVariationChildrenTable(listing, idx, editMode) : ''}
     </div>
     <div class="border-t border-gray-50 px-5 py-3 bg-gray-50/50 flex items-center gap-3 flex-wrap gap-y-2">
-      ${editMode
-        ? `<div class="flex items-center gap-2">
-             <div class="flex items-center gap-1">
-               <input id="edit-price-${idx}" type="number" step="0.01" min="0" value="${listing.price || ''}" placeholder="Prix" class="w-24 border border-purple-200 rounded-lg px-2 py-1 text-sm text-gray-800 font-bold focus:ring-2 focus:ring-purple-300 outline-none">
-               <span class="text-sm text-gray-500">€</span>
-             </div>
-             <div class="flex items-center gap-1">
-               <span class="text-xs text-gray-400">EAN</span>
-               <input id="edit-ean-${idx}" type="text" value="${listing.ean || ''}" placeholder="EAN" class="w-36 border border-purple-200 rounded-lg px-2 py-1 text-xs font-mono text-gray-700 focus:ring-2 focus:ring-purple-300 outline-none">
-             </div>
-           </div>`
-        : `${listing.price ? `<span class="text-sm font-bold text-gray-800">${listing.price.toFixed(2)} €</span>` : ''}
-           ${listing.ean ? `<span class="text-xs text-gray-400">EAN: ${listing.ean}</span>` : ''}`}
+      ${isParent
+        ? `<span class="text-xs text-indigo-600 font-medium">Fiche parent — prix/EAN définis par déclinaison</span>`
+        : editMode
+          ? `<div class="flex items-center gap-2">
+               <div class="flex items-center gap-1">
+                 <input id="edit-price-${idx}" type="number" step="0.01" min="0" value="${listing.price || ''}" placeholder="Prix" class="w-24 border border-purple-200 rounded-lg px-2 py-1 text-sm text-gray-800 font-bold focus:ring-2 focus:ring-purple-300 outline-none">
+                 <span class="text-sm text-gray-500">€</span>
+               </div>
+               <div class="flex items-center gap-1">
+                 <span class="text-xs text-gray-400">EAN</span>
+                 <input id="edit-ean-${idx}" type="text" value="${listing.ean || ''}" placeholder="EAN" class="w-36 border border-purple-200 rounded-lg px-2 py-1 text-xs font-mono text-gray-700 focus:ring-2 focus:ring-purple-300 outline-none">
+               </div>
+             </div>`
+          : `${listing.price ? `<span class="text-sm font-bold text-gray-800">${listing.price.toFixed(2)} €</span>` : ''}
+             ${listing.ean ? `<span class="text-xs text-gray-400">EAN: ${listing.ean}</span>` : ''}`}
       ${editMode
         ? `<button onclick="saveEdit(${idx})" class="ml-auto gradient-bg text-white rounded-lg px-3 py-1.5 text-xs font-semibold transition flex items-center gap-1"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Enregistrer</button>
            <button onclick="cancelEdit(${idx})" class="text-xs text-gray-400 hover:text-gray-600">Annuler</button>`
@@ -2586,6 +3175,67 @@ function _restoreImagesInCard(idx) {
     const container = document.getElementById(`images-container-${idx}`);
     if (container) renderImages(container, imagesCache[sku]);
   }
+}
+
+function _buildVariationChildrenTable(listing, idx, editMode) {
+  const children = listing.children || [];
+  if (!children.length) return '';
+  const rows = children.map((c, ci) => `
+    <tr class="border-t border-gray-100 hover:bg-gray-50">
+      <td class="py-1.5 px-2 font-mono text-xs text-purple-700">${_esc(c.sku)}</td>
+      <td class="py-1.5 px-2 text-xs text-gray-600">${_esc(c.variation_value || '')}</td>
+      <td class="py-1.5 px-2 text-xs text-gray-600">${_esc(c.color || '')}</td>
+      <td class="py-1.5 px-2 text-xs text-gray-600">${_esc(c.size || '')}</td>
+      <td class="py-1.5 px-2 text-xs">
+        ${editMode
+          ? `<input type="number" step="0.01" min="0" value="${c.price || ''}" placeholder="Prix" class="w-20 border border-gray-200 rounded px-1.5 py-0.5 text-xs focus:ring-1 focus:ring-purple-300 outline-none" data-ci="${ci}" data-field="price" oninput="updateChild(${idx},${ci},'price',this.value)">`
+          : `<span class="font-medium text-gray-800">${c.price ? c.price.toFixed(2)+'€' : '—'}</span>`}
+      </td>
+      <td class="py-1.5 px-2 text-xs font-mono text-gray-500">
+        ${editMode
+          ? `<input type="text" value="${c.ean || ''}" placeholder="EAN" class="w-28 border border-gray-200 rounded px-1.5 py-0.5 text-xs focus:ring-1 focus:ring-purple-300 outline-none" data-ci="${ci}" data-field="ean" oninput="updateChild(${idx},${ci},'ean',this.value)">`
+          : (c.ean || '—')}
+      </td>
+    </tr>`).join('');
+  return `
+    <div class="mt-4 border border-indigo-100 rounded-xl overflow-hidden">
+      <div class="bg-indigo-50 px-3 py-2 flex items-center justify-between">
+        <span class="text-xs font-semibold text-indigo-700">🔗 Déclinaisons (${children.length})</span>
+        <span class="text-xs text-indigo-400">${_esc(listing.variation_theme || 'Variation')}</span>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-left">
+          <thead><tr class="bg-gray-50 text-gray-400 text-xs uppercase tracking-wide">
+            <th class="py-1.5 px-2 font-medium">SKU</th>
+            <th class="py-1.5 px-2 font-medium">Déclinaison</th>
+            <th class="py-1.5 px-2 font-medium">Couleur</th>
+            <th class="py-1.5 px-2 font-medium">Taille</th>
+            <th class="py-1.5 px-2 font-medium">Prix</th>
+            <th class="py-1.5 px-2 font-medium">EAN</th>
+          </tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    </div>`;
+}
+
+function updateChild(listingIdx, childIdx, field, value) {
+  const listing = generatedListings[listingIdx];
+  if (!listing || !listing.children || !listing.children[childIdx]) return;
+  if (field === 'price') {
+    const v = parseFloat(value);
+    listing.children[childIdx].price = isNaN(v) ? null : v;
+    // Also update the corresponding child listing in generatedListings
+    const childSku = listing.children[childIdx].sku;
+    const childListing = generatedListings.find(l => l.sku === childSku && l.parent_sku === listing.sku);
+    if (childListing) childListing.price = listing.children[childIdx].price;
+  } else if (field === 'ean') {
+    listing.children[childIdx].ean = value.trim() || null;
+    const childSku = listing.children[childIdx].sku;
+    const childListing = generatedListings.find(l => l.sku === childSku && l.parent_sku === listing.sku);
+    if (childListing) childListing.ean = listing.children[childIdx].ean;
+  }
+  try { localStorage.setItem('synqio_listings', JSON.stringify(generatedListings)); } catch(e) {}
 }
 
 function _getActiveTab(idx) {
@@ -2844,9 +3494,9 @@ document.addEventListener('click', e => {
 
 async function exportResults(format) {
   if (!generatedListings.length) return;
-  const ep = { csv:'/api/export/csv', json:'/api/export/json', flat:'/api/export/flat-file', 'listing-loader':'/api/export/listing-loader' };
-  const fn = { csv:'listings.csv', json:'listings.json', flat:'amazon_nouveaux_produits.xlsx', 'listing-loader':'amazon_produits_existants.xlsx' };
-  const label = { csv:'CSV', json:'JSON', flat:'Nouveaux produits', 'listing-loader':'Produits existants' };
+  const ep = { csv:'/api/export/csv', json:'/api/export/json', flat:'/api/export/flat-file', 'listing-loader':'/api/export/listing-loader', 'variation-flat-file':'/api/export/variation-flat-file' };
+  const fn = { csv:'listings.csv', json:'listings.json', flat:'amazon_nouveaux_produits.xlsx', 'listing-loader':'amazon_produits_existants.xlsx', 'variation-flat-file':'amazon_variations.xlsx' };
+  const label = { csv:'CSV', json:'JSON', flat:'Nouveaux produits', 'listing-loader':'Produits existants', 'variation-flat-file':'Variations' };
   const r = await authFetch(ep[format], { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(generatedListings) });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(await r.blob()); a.download = fn[format]; a.click();
@@ -3034,6 +3684,11 @@ async function publishListings() {
   const result = await r.json();
   setStep(4);
   showPublishReport(result, dryRun);
+  (result.report || []).filter(r => r.status === 'demo_published' || r.status === 'published').forEach(r => {
+    if (r.sku) publishedSkus.add(r.sku);
+  });
+  try { localStorage.setItem('synqio_published_skus', JSON.stringify([...publishedSkus])); } catch(e) {}
+  if (resultsViewMode === 'kanban') renderListingsContainer();
 }
 
 function showPublishReport(result, dryRun) {
@@ -3416,12 +4071,89 @@ function openListingDetail(idx) {
   _attachCounter(document.getElementById('dm-edit-desc'), document.getElementById('dm-counter-desc'), 2000);
   _attachCounter(document.getElementById('dm-edit-kw'), document.getElementById('dm-counter-kw'), 249, true);
 
+  // Variations tab — show only for parent listings
+  const isParent = listing.is_parent && (listing.children || []).length > 0;
+  const varTab = document.getElementById('dm-tab-variations');
+  if (varTab) varTab.classList.toggle('hidden', !isParent);
+  if (isParent) {
+    document.getElementById('dm-content-variations').innerHTML = _buildDetailVariationsPanel(listing, idx);
+    // Parent listings have no price/EAN at top level
+    document.getElementById('dm-edit-price').value = '';
+    document.getElementById('dm-edit-ean').value = '';
+    document.getElementById('dm-edit-price').disabled = true;
+    document.getElementById('dm-edit-ean').disabled = true;
+    document.getElementById('dm-edit-price').placeholder = 'Parent';
+    document.getElementById('dm-edit-ean').placeholder = 'Voir déclinaisons';
+  } else {
+    document.getElementById('dm-edit-price').disabled = false;
+    document.getElementById('dm-edit-ean').disabled = false;
+    document.getElementById('dm-edit-price').placeholder = 'Prix';
+    document.getElementById('dm-edit-ean').placeholder = 'EAN';
+  }
+
   // Validation banner
   _renderDetailValidation(listing);
+  // Category compliance panel
+  _renderDetailCompliance(listing);
 
   switchDetailTab('bullets');
   document.getElementById('listingDetailModal').classList.remove('hidden');
   document.body.style.overflow = 'hidden';
+}
+
+function _buildDetailVariationsPanel(listing, listingIdx) {
+  const children = listing.children || [];
+  if (!children.length) return '<p class="text-gray-400 text-sm py-4 text-center">Aucune déclinaison</p>';
+  const rows = children.map((c, ci) => `
+    <tr class="border-t border-gray-100 hover:bg-gray-50 transition">
+      <td class="py-2 px-3 font-mono text-xs text-purple-700 font-semibold">${_esc(c.sku)}</td>
+      <td class="py-2 px-3 text-sm text-gray-700">${_esc(c.variation_value || '')}</td>
+      <td class="py-2 px-3 text-sm text-gray-600">${_esc(c.color || '')}</td>
+      <td class="py-2 px-3 text-sm text-gray-600">${_esc(c.size || '')}</td>
+      <td class="py-2 px-3">
+        <div class="flex items-center gap-1">
+          <input type="number" step="0.01" min="0" value="${c.price || ''}" placeholder="Prix"
+            class="w-24 border border-gray-200 rounded-lg px-2 py-1 text-sm text-gray-800 font-bold focus:ring-2 focus:ring-purple-300 outline-none"
+            oninput="updateChildFromDetail(${listingIdx},${ci},'price',this.value)">
+          <span class="text-xs text-gray-400">€</span>
+        </div>
+      </td>
+      <td class="py-2 px-3">
+        <input type="text" value="${c.ean || ''}" placeholder="EAN"
+          class="w-36 border border-gray-200 rounded-lg px-2 py-1 text-xs font-mono text-gray-700 focus:ring-2 focus:ring-purple-300 outline-none"
+          oninput="updateChildFromDetail(${listingIdx},${ci},'ean',this.value)">
+      </td>
+    </tr>`).join('');
+  return `
+    <div class="mb-3">
+      <div class="flex items-center justify-between mb-3">
+        <div>
+          <h4 class="font-semibold text-gray-800 text-sm">Déclinaisons du groupe</h4>
+          <p class="text-xs text-gray-400 mt-0.5">Thème : <span class="font-medium text-indigo-600">${_esc(listing.variation_theme || 'Variation')}</span> — ${children.length} déclinaison${children.length > 1 ? 's' : ''}</p>
+        </div>
+      </div>
+      <div class="bg-blue-50 border border-blue-100 rounded-xl px-4 py-2.5 mb-4 text-xs text-blue-800">
+        <p class="font-semibold mb-1">Fiche parent Amazon</p>
+        <p>Le contenu (titre, bullets, description, keywords) est partagé par toutes les déclinaisons. Seuls le prix, l'EAN, la couleur et la taille varient par déclinaison ci-dessous.</p>
+      </div>
+      <div class="overflow-x-auto rounded-xl border border-gray-100">
+        <table class="w-full text-left">
+          <thead><tr class="bg-gray-50 text-gray-500 text-xs uppercase tracking-wide border-b border-gray-100">
+            <th class="py-2.5 px-3 font-medium">SKU enfant</th>
+            <th class="py-2.5 px-3 font-medium">Déclinaison</th>
+            <th class="py-2.5 px-3 font-medium">Couleur</th>
+            <th class="py-2.5 px-3 font-medium">Taille</th>
+            <th class="py-2.5 px-3 font-medium">Prix</th>
+            <th class="py-2.5 px-3 font-medium">EAN</th>
+          </tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    </div>`;
+}
+
+function updateChildFromDetail(listingIdx, childIdx, field, value) {
+  updateChild(listingIdx, childIdx, field, value);
 }
 
 function _renderDetailValidation(listing) {
@@ -3440,6 +4172,81 @@ function _renderDetailValidation(listing) {
     ${issues.map(i=>`<div class="flex gap-1.5 items-start"><span class="${i.level==='error'?'text-red-500':'text-orange-500'}">${i.level==='error'?'✕':'!'}</span><span>${_esc(i.msg)}</span></div>`).join('')}
   </div>`;
   banner.classList.remove('hidden');
+}
+
+function _renderDetailCompliance(listing) {
+  const panel = document.getElementById('dm-compliance-panel');
+  if (!panel) return;
+  const { group, label, icon, issues, total } = _checkCategoryCompliance(listing);
+  if (!group) {
+    panel.innerHTML = '';
+    panel.classList.add('hidden');
+    return;
+  }
+  const required     = issues.filter(i => i.level === 'required');
+  const recommended  = issues.filter(i => i.level === 'recommended');
+  const infoIssues   = issues.filter(i => i.level === 'info');
+  const passed       = total - issues.length;
+
+  let headerCls, headerIcon, headerMsg;
+  if (required.length > 0) {
+    headerCls = 'bg-red-50 border-red-200 text-red-800';
+    headerIcon = '✕';
+    headerMsg  = `${required.length} champ${required.length > 1 ? 's' : ''} obligatoire${required.length > 1 ? 's' : ''} manquant${required.length > 1 ? 's' : ''}`;
+  } else if (recommended.length > 0) {
+    headerCls = 'bg-amber-50 border-amber-200 text-amber-800';
+    headerIcon = '!';
+    headerMsg  = `${recommended.length} champ${recommended.length > 1 ? 's' : ''} recommandé${recommended.length > 1 ? 's' : ''} manquant${recommended.length > 1 ? 's' : ''}`;
+  } else {
+    headerCls = 'bg-teal-50 border-teal-200 text-teal-800';
+    headerIcon = '✓';
+    headerMsg  = 'Conforme aux exigences de catégorie';
+  }
+
+  const rules = _CAT_RULES[group] || [];
+  const issueFields = new Set(issues.map(i => i.field));
+
+  const rows = rules.map(rule => {
+    const missing = issueFields.has(rule.field);
+    let dot, rowCls, labelCls;
+    if (!missing) {
+      dot = `<span class="w-4 h-4 rounded-full bg-teal-100 text-teal-600 flex items-center justify-center text-xs flex-shrink-0">✓</span>`;
+      rowCls = 'text-gray-500';
+      labelCls = 'text-gray-600 line-through decoration-gray-300';
+    } else if (rule.level === 'required') {
+      dot = `<span class="w-4 h-4 rounded-full bg-red-100 text-red-600 flex items-center justify-center text-xs flex-shrink-0 font-bold">✕</span>`;
+      rowCls = '';
+      labelCls = 'text-red-700 font-medium';
+    } else if (rule.level === 'recommended') {
+      dot = `<span class="w-4 h-4 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center text-xs flex-shrink-0 font-bold">!</span>`;
+      rowCls = '';
+      labelCls = 'text-amber-700';
+    } else {
+      dot = `<span class="w-4 h-4 rounded-full bg-gray-100 text-gray-400 flex items-center justify-center text-xs flex-shrink-0">i</span>`;
+      rowCls = '';
+      labelCls = 'text-gray-500';
+    }
+    return `<div class="flex items-start gap-2 py-1 ${rowCls}">
+      ${dot}
+      <div class="min-w-0">
+        <span class="text-xs ${labelCls}">${_esc(rule.label)}</span>
+        ${missing ? `<p class="text-xs text-gray-400 mt-0.5 leading-snug">${_esc(rule.msg)}</p>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+
+  panel.innerHTML = `<div class="border ${headerCls} rounded-xl mb-3 overflow-hidden">
+    <div class="flex items-center gap-2 px-4 py-2.5 ${headerCls}">
+      <span class="text-base leading-none">${icon}</span>
+      <div class="flex-1 min-w-0">
+        <span class="font-semibold text-sm">${_esc(label)}</span>
+        <span class="text-xs ml-2 opacity-75">${headerIcon} ${_esc(headerMsg)}</span>
+      </div>
+      <span class="text-xs opacity-60">${passed}/${total} OK</span>
+    </div>
+    <div class="px-4 py-2 bg-white divide-y divide-gray-50">${rows}</div>
+  </div>`;
+  panel.classList.remove('hidden');
 }
 
 function _buildDetailBulletsEdit(listing) {
@@ -3503,12 +4310,27 @@ function _saveDetailToListing(idx) {
   if (titleEl) listing.title = titleEl.value.trim();
   if (descEl)  listing.description = descEl.value.trim();
   if (kwEl)    listing.backend_keywords = kwEl.value.trim();
-  if (priceEl) { const v = parseFloat(priceEl.value); if (!isNaN(v)) listing.price = v; }
-  if (eanEl)   listing.ean = eanEl.value.trim();
+  // Price/EAN only for non-parent listings
+  if (!listing.is_parent) {
+    if (priceEl) { const v = parseFloat(priceEl.value); if (!isNaN(v)) listing.price = v; }
+    if (eanEl)   listing.ean = eanEl.value.trim();
+  }
   const bulletsContainer = document.getElementById('dm-bullets-edit');
   if (bulletsContainer) {
     listing.bullet_points = Array.from(bulletsContainer.querySelectorAll('textarea'))
       .map(t => t.value.trim()).filter(Boolean);
+  }
+  // Sync parent content changes to child listings
+  if (listing.is_parent && (listing.children || []).length > 0) {
+    const childSkus = new Set(listing.children.map(c => c.sku));
+    generatedListings.forEach(l => {
+      if (l.parent_sku === listing.sku && childSkus.has(l.sku)) {
+        l.title = listing.title;
+        l.description = listing.description;
+        l.backend_keywords = listing.backend_keywords;
+        l.bullet_points = [...listing.bullet_points];
+      }
+    });
   }
   try { localStorage.setItem('synqio_listings', JSON.stringify(generatedListings)); } catch(e) {}
 }
@@ -3536,10 +4358,10 @@ function closeListingDetail() {
 }
 
 function switchDetailTab(tab) {
-  ['bullets','desc','kw','aplus','images'].forEach(t => {
+  ['bullets','desc','kw','aplus','images','variations'].forEach(t => {
     document.getElementById(`dm-content-${t}`)?.classList.toggle('hidden', t !== tab);
     const btn = document.getElementById(`dm-tab-${t}`);
-    if (btn) {
+    if (btn && !btn.classList.contains('hidden')) {
       btn.classList.toggle('tab-active', t === tab);
       btn.classList.toggle('text-gray-400', t !== tab);
     }
@@ -3661,6 +4483,175 @@ renderSegmentPresets();
         </div>
       </div>
     </div>
+  </div>
+</div>
+
+<!-- ═══════════════════ MANUAL PRODUCT FORM MODAL ═══════════════════ -->
+<div id="manualFormModal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-[270] flex items-start justify-center p-4 overflow-y-auto">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl my-6">
+
+    <!-- Header -->
+    <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100 sticky top-0 bg-white rounded-t-2xl z-10">
+      <div>
+        <h2 class="font-semibold text-gray-800 flex items-center gap-2">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+          Saisie manuelle d'un produit
+        </h2>
+        <p class="text-xs text-gray-400 mt-0.5">Remplissez les champs puis générez votre fiche Amazon</p>
+      </div>
+      <button onclick="closeManualForm()" class="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500 transition">✕</button>
+    </div>
+
+    <form id="manualProductForm" class="px-6 py-5 space-y-6" onsubmit="submitManualForm(event)">
+
+      <!-- ── Section 1 : Identification ── -->
+      <div>
+        <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Identification</h3>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Nom de l'article <span class="text-red-500">*</span></label>
+            <input id="mf-name" type="text" required placeholder="Ex : Collier ajustable pour chien" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-purple-300 outline-none">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Marque <span class="text-red-500">*</span></label>
+            <input id="mf-brand" type="text" required placeholder="Ex : BarkLife" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-purple-300 outline-none">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Référence / SKU</label>
+            <input id="mf-sku" type="text" placeholder="Généré auto si vide" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-purple-300 outline-none">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Type de produit / Catégorie <span class="text-red-500">*</span></label>
+            <input id="mf-category" type="text" required placeholder="Ex : Colliers pour animaux" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-purple-300 outline-none">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Identifiant produit (EAN / UPC)</label>
+            <input id="mf-ean" type="text" placeholder="Ex : 3760123456789" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-purple-300 outline-none font-mono">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Prix (€)</label>
+            <input id="mf-price" type="number" step="0.01" min="0" placeholder="Ex : 19.99" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-purple-300 outline-none">
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Section 2 : Description & Caractéristiques ── -->
+      <div>
+        <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Description</h3>
+        <div class="mb-3">
+          <label class="block text-sm font-medium text-gray-700 mb-1">Description du produit <span class="text-red-500">*</span></label>
+          <textarea id="mf-description" required rows="4" placeholder="Décrivez votre produit : matériaux, utilisation, points forts, ce qui le distingue…" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-purple-300 outline-none resize-none"></textarea>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Caractéristiques (puces)</label>
+          <div id="mf-features-list" class="space-y-2 mb-2"></div>
+          <button type="button" onclick="mfAddFeature()" class="text-xs text-purple-600 hover:text-purple-800 font-medium flex items-center gap-1">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Ajouter une caractéristique
+          </button>
+        </div>
+      </div>
+
+      <!-- ── Section 3 : Apparence ── -->
+      <div>
+        <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Apparence</h3>
+        <div class="grid grid-cols-3 gap-3">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Couleur</label>
+            <input id="mf-color" type="text" placeholder="Ex : Rouge" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-purple-300 outline-none">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Matière / Composition</label>
+            <input id="mf-material" type="text" placeholder="Ex : Nylon renforcé" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-purple-300 outline-none">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Taille</label>
+            <input id="mf-size" type="text" placeholder="Ex : M / 38cm" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-purple-300 outline-none">
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Section 4 : Dimensions & Poids ── -->
+      <div>
+        <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Dimensions & Poids</h3>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Poids (kg)</label>
+            <input id="mf-weight" type="number" step="0.001" min="0" placeholder="Ex : 0.250" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-purple-300 outline-none">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Dimensions (cm)</label>
+            <input id="mf-dimensions" type="text" placeholder="Ex : 30 x 5 x 2" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-purple-300 outline-none">
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Section 5 : Variantes ── -->
+      <div>
+        <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Variantes</h3>
+        <label class="flex items-center gap-2 cursor-pointer mb-3">
+          <input type="checkbox" id="mf-has-variations" onchange="mfToggleVariations(this.checked)" class="w-4 h-4 rounded accent-purple-600">
+          <span class="text-sm text-gray-700">Ce produit présente des variations</span>
+        </label>
+        <div id="mf-variations-panel" class="hidden space-y-3 bg-purple-50 rounded-xl p-4 border border-purple-100">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Thème de variation</label>
+            <div class="flex gap-2 flex-wrap">
+              <label class="flex items-center gap-1.5 cursor-pointer"><input type="radio" name="mf-var-theme" value="ColorName" class="accent-purple-600"><span class="text-sm text-gray-700">Couleur</span></label>
+              <label class="flex items-center gap-1.5 cursor-pointer"><input type="radio" name="mf-var-theme" value="SizeClass" class="accent-purple-600"><span class="text-sm text-gray-700">Taille</span></label>
+              <label class="flex items-center gap-1.5 cursor-pointer"><input type="radio" name="mf-var-theme" value="ColorName-SizeClass" checked class="accent-purple-600"><span class="text-sm text-gray-700">Couleur + Taille</span></label>
+            </div>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Déclinaisons <span class="text-xs text-gray-400">(une par ligne : Rouge / S, Bleu / M…)</span></label>
+            <textarea id="mf-variations-values" rows="3" placeholder="Rouge / S&#10;Rouge / M&#10;Bleu / S&#10;Bleu / M" class="w-full border border-purple-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-purple-300 outline-none resize-none bg-white font-mono"></textarea>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Section 6 : Images ── -->
+      <div>
+        <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Images</h3>
+        <div id="mf-images-list" class="space-y-2 mb-2"></div>
+        <button type="button" onclick="mfAddImage()" class="text-xs text-purple-600 hover:text-purple-800 font-medium flex items-center gap-1">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Ajouter une URL d'image
+        </button>
+        <p class="text-xs text-gray-400 mt-1.5">URL directe vers une image (JPG/PNG). Recommandé : fond blanc, 1000×1000px min.</p>
+      </div>
+
+      <!-- ── Section 7 : Mots-clés SEO ── -->
+      <div>
+        <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Mots-clés SEO</h3>
+        <label class="block text-sm font-medium text-gray-700 mb-1">Mots-clés focus <span class="text-xs text-gray-400">(séparés par des virgules)</span></label>
+        <input id="mf-keywords" type="text" placeholder="Ex : collier chien réglable, collier nylon, collier laisse" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-purple-300 outline-none">
+      </div>
+
+      <!-- ── Footer ── -->
+      <div class="flex gap-3 pt-2 border-t border-gray-100">
+        <button type="button" onclick="closeManualForm()" class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl py-3 font-medium text-sm transition">Annuler</button>
+        <button type="submit" class="flex-1 gradient-bg text-white rounded-xl py-3 font-semibold text-sm shadow-md hover:opacity-90 transition flex items-center justify-center gap-2">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+          Charger et générer
+        </button>
+      </div>
+
+    </form>
+  </div>
+</div>
+
+<!-- ═══════════════════ HISTORY PANEL (slide-over) ═══════════════════ -->
+<div id="historyOverlay" class="hidden fixed inset-0 bg-black/40 z-[280]" onclick="closeHistoryPanel()"></div>
+<div id="historyPanel" class="fixed top-0 right-0 h-full w-full max-w-md bg-white shadow-2xl z-[290] flex flex-col translate-x-full transition-transform duration-300">
+  <div class="flex items-center justify-between px-5 py-4 border-b border-gray-100 flex-shrink-0">
+    <div>
+      <h2 class="font-semibold text-gray-800">Historique des générations</h2>
+      <p class="text-xs text-gray-400 mt-0.5">Lots sauvegardés sur le serveur</p>
+    </div>
+    <button onclick="closeHistoryPanel()" class="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500 transition">✕</button>
+  </div>
+  <div id="historyList" class="flex-1 overflow-y-auto px-4 py-3 space-y-2">
+    <p class="text-center text-gray-400 text-sm py-8">Chargement…</p>
   </div>
 </div>
 
@@ -3837,6 +4828,8 @@ async function importFromUrl() {
     </div>
     <!-- Validation banner -->
     <div id="dm-validation-banner" class="hidden px-6 pt-3 pb-0"></div>
+    <!-- Category compliance panel -->
+    <div id="dm-compliance-panel" class="hidden px-6 pt-2 pb-0"></div>
     <!-- Tabs -->
     <div class="border-b border-gray-100 flex gap-4 px-6 text-sm flex-shrink-0">
       <button onclick="switchDetailTab('bullets')" class="tab-active pb-2.5 pt-2.5" id="dm-tab-bullets">Bullets</button>
@@ -3844,6 +4837,7 @@ async function importFromUrl() {
       <button onclick="switchDetailTab('kw')" class="pb-2.5 pt-2.5 text-gray-400" id="dm-tab-kw">Keywords</button>
       <button onclick="switchDetailTab('aplus')" class="pb-2.5 pt-2.5 text-gray-400" id="dm-tab-aplus">A+</button>
       <button onclick="switchDetailTab('images')" class="pb-2.5 pt-2.5 text-gray-400" id="dm-tab-images">Images</button>
+      <button onclick="switchDetailTab('variations')" class="pb-2.5 pt-2.5 text-gray-400 hidden" id="dm-tab-variations">🔗 Déclinaisons</button>
     </div>
     <!-- Body -->
     <div class="flex-1 overflow-y-auto px-6 py-5">
@@ -3854,6 +4848,7 @@ async function importFromUrl() {
       <div id="dm-content-images" class="hidden">
         <div id="dm-images-container"></div>
       </div>
+      <div id="dm-content-variations" class="hidden"></div>
     </div>
     <!-- Footer -->
     <div class="border-t border-gray-100 px-6 py-3 flex items-center gap-3 bg-gray-50/50 flex-shrink-0 flex-wrap gap-y-2">

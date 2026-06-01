@@ -45,6 +45,14 @@ COLUMN_MAP = {
     "keywords": "focus_keywords", "search terms": "focus_keywords",
     # Segment (alias catégorie)
     "segment": "category",
+    # Variation
+    "parent sku": "parent_sku", "parent_sku": "parent_sku",
+    "sku parent": "parent_sku",
+    "variation theme": "variation_theme", "variation_theme": "variation_theme",
+    "thème variation": "variation_theme", "theme variation": "variation_theme",
+    "variation value": "variation_value", "variation_value": "variation_value",
+    "valeur variation": "variation_value", "déclinaison": "variation_value",
+    "taille": "size", "size": "size",
 }
 
 
@@ -116,6 +124,11 @@ def _coerce(mapped: dict) -> RawProduct:
 
     if not mapped.get("sku"):
         mapped["sku"] = mapped.get("name", "UNKNOWN")[:20]
+
+    # Pass variation fields through as strings (strip whitespace)
+    for vf in ("parent_sku", "variation_theme", "variation_value", "size"):
+        if vf in mapped and isinstance(mapped[vf], str):
+            mapped[vf] = mapped[vf].strip() or None
 
     return RawProduct(**{k: v for k, v in mapped.items() if v not in (None, "", [])})
 

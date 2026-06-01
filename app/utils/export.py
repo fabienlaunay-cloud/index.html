@@ -194,6 +194,99 @@ def to_listing_loader_xlsx(listings: List[AmazonListing]) -> bytes:
     return out.getvalue()
 
 
+def to_variation_flat_file_xlsx(listings: List[AmazonListing]) -> bytes:
+    """
+    Amazon Variation flat file for NEW products with parent-child relationships.
+    Handles both regular listings and variation groups in a single sheet.
+
+    Parent rows: full content, no price/EAN, parent-child="parent"
+    Child rows: minimal content (price, EAN, color, size), parent-child="child"
+    Standalone rows: regular flat file format
+    """
+    headers = [
+        "item-sku", "update-delete", "parent-child", "parent-sku",
+        "relationship-type", "variation-theme",
+        "item-name", "brand-name", "manufacturer", "item-type",
+        "product-description",
+        "bullet-point1", "bullet-point2", "bullet-point3", "bullet-point4", "bullet-point5",
+        "generic-keywords", "standard-price", "quantity",
+        "external-product-id", "external-product-id-type", "condition-type",
+        "color-name", "size-name",
+    ]
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Variations"
+    ws.append(headers)
+    ws.append(["TemplateType=fptcustom", "Version=2021.1201"] + [""] * (len(headers) - 2))
+
+    parents = {l.sku: l for l in listings if l.is_parent}
+    child_skus = {c.sku for l in listings if l.is_parent for c in l.children}
+
+    for listing in listings:
+        bullets = listing.bullet_points + [""] * 5
+        item_type = listing.category.lower().replace(" ", "_") or "home"
+
+        if listing.is_parent:
+            # Parent row
+            ws.append([
+                listing.sku, "a", "parent", "", "", listing.variation_theme or "",
+                listing.title, listing.brand, listing.brand, item_type,
+                _strip_html(listing.description),
+                bullets[0], bullets[1], bullets[2], bullets[3], bullets[4],
+                listing.backend_keywords, "", "", "", "", "",
+                "", "",
+            ])
+            # Child rows from children list
+            for child in listing.children:
+                ws.append([
+                    child.sku, "a", "child", listing.sku,
+                    "Variation", listing.variation_theme or "",
+                    listing.title, listing.brand, listing.brand, item_type,
+                    "", "", "", "", "", "", "",
+                    str(child.price) if child.price else "", "1",
+                    child.ean or "", "EAN" if child.ean else "", "New",
+                    child.color or "", child.size or "",
+                ])
+        elif listing.parent_sku:
+            # Child listing that was expanded (already handled by parent above if present)
+            if listing.parent_sku not in parents:
+                # Orphan child — write as standalone
+                ws.append([
+                    listing.sku, "a", "child", listing.parent_sku,
+                    "Variation", listing.variation_theme or "",
+                    listing.title, listing.brand, listing.brand, item_type,
+                    _strip_html(listing.description),
+                    bullets[0], bullets[1], bullets[2], bullets[3], bullets[4],
+                    listing.backend_keywords,
+                    str(listing.price) if listing.price else "", "1",
+                    listing.ean or "", "EAN" if listing.ean else "", "New",
+                    listing.color or "", "",
+                ])
+        else:
+            # Standalone (non-variation) listing
+            ws.append([
+                listing.sku, "a", "", "", "", "",
+                listing.title, listing.brand, listing.brand, item_type,
+                _strip_html(listing.description),
+                bullets[0], bullets[1], bullets[2], bullets[3], bullets[4],
+                listing.backend_keywords,
+                str(listing.price) if listing.price else "", "1",
+                listing.ean or "", "EAN" if listing.ean else "", "New",
+                listing.color or "", "",
+            ])
+
+    _style_header_row(ws, len(headers))
+    for i, h in enumerate(headers, 1):
+        ws.column_dimensions[openpyxl.utils.get_column_letter(i)].width = max(10, len(h) + 2)
+    ws.column_dimensions["G"].width = 40
+    ws.column_dimensions["K"].width = 50
+
+    out = io.BytesIO()
+    wb.save(out)
+    return out.getvalue()
+
+
 def to_listing_loader_bytes(listings: List[AmazonListing]) -> bytes:
     """Amazon Listing Loader — for products already in Amazon's catalog.
 
