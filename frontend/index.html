@@ -606,9 +606,8 @@
       <div id="healthBadge" class="flex items-center gap-2 bg-white/10 rounded-lg px-3 py-1.5 text-sm">
         <div class="w-2 h-2 rounded-full bg-gray-300 pulse"></div><span>...</span>
       </div>
-      <button onclick="openHistoryPanel()" class="flex items-center gap-1.5 bg-white/10 hover:bg-white/20 rounded-lg px-3 py-1.5 text-sm transition text-white" title="Historique des générations">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-        Historique
+      <button onclick="openHistoryPanel()" class="w-8 h-8 flex items-center justify-center bg-white/10 hover:bg-white/20 rounded-lg transition text-white flex-shrink-0" title="Historique des générations">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
       </button>
       <div class="relative" id="mktSelectorWrapper">
         <button type="button" onclick="toggleMktDropdown(event)" class="flex items-center gap-2 bg-white/10 border border-white/20 text-white rounded-lg px-3 py-1.5 text-sm min-w-[170px] justify-between hover:bg-white/20 transition">
@@ -642,6 +641,10 @@
             <p id="userEmailFull" class="text-sm font-medium text-gray-800 truncate"></p>
             <p id="usageDetail" class="text-xs text-gray-400 mt-0.5"></p>
           </div>
+          <button onclick="openHistoryPanel();toggleUserMenu()" class="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition flex items-center gap-2">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            Historique
+          </button>
           <button id="adminMenuBtn" onclick="showAdminPanel()" class="hidden w-full text-left px-4 py-2.5 text-sm text-purple-600 hover:bg-purple-50 transition">Administration</button>
           <button onclick="doLogout()" class="w-full text-left px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition">Se déconnecter</button>
         </div>
