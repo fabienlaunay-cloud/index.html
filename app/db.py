@@ -91,20 +91,25 @@ def init_db():
     conn.close()
 
 
-def get_config(key: str, fallback: str = "") -> str:
-    """Lit une valeur de config depuis la DB, avec fallback sur env var du même nom."""
-    conn = get_db()
-    row = conn.execute("SELECT value FROM app_config WHERE key = ?", (key,)).fetchone()
-    conn.close()
-    if row and row["value"]:
-        return row["value"]
-    return os.getenv(key, fallback)
+def get_config(key: str, default: str = None) -> str:
+    """Read config: DB first, then env var, then default."""
+    try:
+        conn = get_db()
+        row = conn.execute("SELECT value FROM app_config WHERE key = ?", (key,)).fetchone()
+        conn.close()
+        if row and row["value"]:
+            return row["value"]
+    except Exception:
+        pass
+    return os.getenv(key, default)
 
 
 def set_config(key: str, value: str):
+    """Write config value to app_config table."""
     conn = get_db()
     conn.execute(
-        "INSERT INTO app_config (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=CURRENT_TIMESTAMP",
+        "INSERT INTO app_config (key, value) VALUES (?, ?) "
+        "ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=CURRENT_TIMESTAMP",
         (key, value),
     )
     conn.commit()

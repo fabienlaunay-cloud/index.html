@@ -24,13 +24,14 @@ from app.db import get_db, get_config
 def _sp_mode() -> str:
     return get_config("AMAZON_SP_MODE", "demo")
 
+def _is_demo() -> bool:
+    return _sp_mode() == "demo"
+
 def _sp_endpoint() -> str:
     mode = _sp_mode()
     if mode == "sandbox":
         return "https://sandbox.sellingpartnerapi-eu.amazon.com"
     return "https://sellingpartnerapi-eu.amazon.com"
-
-SP_API_ENDPOINT = "https://sellingpartnerapi-eu.amazon.com"  # fallback, remplacé dynamiquement
 
 MARKETPLACE_IDS = {
     Marketplace.AMAZON_FR: "A13V1IB3VIYZZH",
@@ -65,8 +66,8 @@ def _get_sp_credentials(user_email: str = None) -> dict:
             return {**base, "refresh_token": row["refresh_token"], "seller_id": row["seller_id"]}
     return {
         **base,
-        "refresh_token": os.getenv("AMAZON_REFRESH_TOKEN", ""),
-        "seller_id": os.getenv("AMAZON_SELLER_ID", ""),
+        "refresh_token": get_config("AMAZON_REFRESH_TOKEN"),
+        "seller_id": get_config("AMAZON_SELLER_ID"),
     }
 
 

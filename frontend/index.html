@@ -889,9 +889,9 @@
       <p class="text-gray-500 text-sm mb-6">Ces valeurs sont stockées en base de données — elles remplacent les variables d'environnement Railway.</p>
       <div class="space-y-4" id="configForm">
         <div class="grid grid-cols-1 gap-4">
-          <div><label class="text-xs font-semibold text-gray-500 uppercase tracking-wide">AMAZON_APP_ID</label><input id="cfg_AMAZON_APP_ID" type="password" placeholder="amzn1.sp.solution.…" class="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-mono"></div>
-          <div><label class="text-xs font-semibold text-gray-500 uppercase tracking-wide">LWA_CLIENT_ID</label><input id="cfg_LWA_CLIENT_ID" type="password" placeholder="amzn1.application-oa2-client.…" class="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-mono"></div>
-          <div><label class="text-xs font-semibold text-gray-500 uppercase tracking-wide">LWA_CLIENT_SECRET</label><input id="cfg_LWA_CLIENT_SECRET" type="password" placeholder="••••••••" class="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-mono"></div>
+          <div><label class="text-xs font-semibold text-gray-500 uppercase tracking-wide">AMAZON_APP_ID</label><input id="cfg_AMAZON_APP_ID" type="password" placeholder="amzn1.sp.solution.…" autocomplete="new-password" class="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-mono"></div>
+          <div><label class="text-xs font-semibold text-gray-500 uppercase tracking-wide">LWA_CLIENT_ID</label><input id="cfg_LWA_CLIENT_ID" type="password" placeholder="amzn1.application-oa2-client.…" autocomplete="new-password" class="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-mono"></div>
+          <div><label class="text-xs font-semibold text-gray-500 uppercase tracking-wide">LWA_CLIENT_SECRET</label><input id="cfg_LWA_CLIENT_SECRET" type="password" placeholder="••••••••" autocomplete="new-password" class="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-mono"></div>
           <div><label class="text-xs font-semibold text-gray-500 uppercase tracking-wide">AMAZON_SP_MODE</label>
             <select id="cfg_AMAZON_SP_MODE" class="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2 text-sm">
               <option value="demo">demo (simulation)</option>
@@ -899,16 +899,22 @@
               <option value="sandbox">sandbox (test Amazon)</option>
             </select>
           </div>
-          <div><label class="text-xs font-semibold text-gray-500 uppercase tracking-wide">AWS_ACCESS_KEY_ID</label><input id="cfg_AWS_ACCESS_KEY_ID" type="password" placeholder="AKIA…" class="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-mono"></div>
-          <div><label class="text-xs font-semibold text-gray-500 uppercase tracking-wide">AWS_SECRET_ACCESS_KEY</label><input id="cfg_AWS_SECRET_ACCESS_KEY" type="password" placeholder="••••••••" class="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-mono"></div>
-          <div><label class="text-xs font-semibold text-gray-500 uppercase tracking-wide">AWS_ROLE_ARN</label><input id="cfg_AWS_ROLE_ARN" type="password" placeholder="arn:aws:iam::…" class="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-mono"></div>
+          <div><label class="text-xs font-semibold text-gray-500 uppercase tracking-wide">AMAZON_REFRESH_TOKEN <span class="text-purple-600">(pour Connexion directe)</span></label><input id="cfg_AMAZON_REFRESH_TOKEN" type="password" placeholder="Artz|…" autocomplete="new-password" class="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-mono"></div>
+          <div><label class="text-xs font-semibold text-gray-500 uppercase tracking-wide">AMAZON_SELLER_ID <span class="text-purple-600">(pour Connexion directe)</span></label><input id="cfg_AMAZON_SELLER_ID" type="text" placeholder="A1XXXXXXXXXXXXX" class="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-mono"></div>
+          <div><label class="text-xs font-semibold text-gray-500 uppercase tracking-wide">AWS_ACCESS_KEY_ID</label><input id="cfg_AWS_ACCESS_KEY_ID" type="password" placeholder="AKIA…" autocomplete="new-password" class="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-mono"></div>
+          <div><label class="text-xs font-semibold text-gray-500 uppercase tracking-wide">AWS_SECRET_ACCESS_KEY</label><input id="cfg_AWS_SECRET_ACCESS_KEY" type="password" placeholder="••••••••" autocomplete="new-password" class="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-mono"></div>
+          <div><label class="text-xs font-semibold text-gray-500 uppercase tracking-wide">AWS_ROLE_ARN</label><input id="cfg_AWS_ROLE_ARN" type="password" placeholder="arn:aws:iam::…" autocomplete="new-password" class="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-mono"></div>
         </div>
         <div id="configStatus" class="hidden text-sm rounded-lg px-4 py-2"></div>
         <button onclick="saveConfig()" class="w-full gradient-bg text-white rounded-lg py-2.5 text-sm font-semibold hover:opacity-90 transition">Enregistrer la configuration</button>
       </div>
       <div class="mt-6 pt-6 border-t border-gray-100">
-        <h4 class="text-sm font-semibold text-gray-600 mb-3">État actuel</h4>
+        <div class="flex items-center justify-between mb-3">
+          <h4 class="text-sm font-semibold text-gray-600">État actuel</h4>
+          <button onclick="loadConfigDebug()" class="text-xs text-purple-600 hover:text-purple-800 underline">Diagnostic DB</button>
+        </div>
         <div id="configStatus2" class="text-xs text-gray-400">Chargement…</div>
+        <div id="configDebug" class="hidden mt-3 bg-gray-50 rounded-lg p-3 text-xs font-mono text-gray-600 whitespace-pre-wrap"></div>
       </div>
 
       <div class="mt-6 pt-6 border-t border-gray-100">
@@ -917,7 +923,7 @@
         <div class="space-y-3">
           <div><label class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Email utilisateur SynqIO</label><input id="direct_email" type="email" placeholder="fabien@tmf-online.com" class="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"></div>
           <div><label class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Amazon Seller ID</label><input id="direct_seller_id" type="text" placeholder="A1XXXXXXXXXXXXX" class="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-mono"></div>
-          <div><label class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Refresh Token</label><input id="direct_refresh_token" type="password" placeholder="Artz|…" class="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-mono"></div>
+          <div><label class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Refresh Token</label><input id="direct_refresh_token" type="password" placeholder="Artz|…" autocomplete="new-password" class="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-mono"></div>
           <div id="directConnectStatus" class="hidden text-sm rounded-lg px-4 py-2"></div>
           <button onclick="directConnect()" class="w-full bg-green-600 hover:bg-green-700 text-white rounded-lg py-2.5 text-sm font-semibold transition">Connecter ce compte Amazon</button>
         </div>
@@ -1168,7 +1174,26 @@ function showApp(email) {
     document.getElementById('adminView').classList.add('hidden');
     checkHealth();
     loadUsage();
+    _restoreSession();
   }
+}
+
+function _restoreSession() {
+  try {
+    const saved = localStorage.getItem('synqio_listings');
+    if (!saved) return;
+    const listings = JSON.parse(saved);
+    if (!listings || !listings.length) return;
+    generatedListings = listings;
+    try {
+      const savedImages = localStorage.getItem('synqio_images');
+      if (savedImages) Object.assign(imagesCache, JSON.parse(savedImages));
+    } catch(e) {}
+    const result = { listings, success_count: listings.length, failed: [], total: listings.length, marketplace: listings[0]?.marketplace || 'amazon_fr' };
+    showResults(result);
+    setStep(3);
+    showToast('🔄', `Session restaurée — ${listings.length} fiche(s) disponible(s)`);
+  } catch(e) {}
 }
 
 function showMainApp() {
@@ -1401,27 +1426,41 @@ async function loadConfigStatus() {
 }
 
 async function saveConfig() {
-  const keys = ['AMAZON_APP_ID','LWA_CLIENT_ID','LWA_CLIENT_SECRET','AMAZON_SP_MODE','AWS_ACCESS_KEY_ID','AWS_SECRET_ACCESS_KEY','AWS_ROLE_ARN'];
+  const keys = ['AMAZON_APP_ID','LWA_CLIENT_ID','LWA_CLIENT_SECRET','AMAZON_SP_MODE','AMAZON_REFRESH_TOKEN','AMAZON_SELLER_ID','AWS_ACCESS_KEY_ID','AWS_SECRET_ACCESS_KEY','AWS_ROLE_ARN'];
   const statusEl = document.getElementById('configStatus');
   statusEl.className = 'text-sm rounded-lg px-4 py-2 bg-blue-50 text-blue-700';
   statusEl.classList.remove('hidden');
   statusEl.textContent = 'Enregistrement…';
-  let errors = [];
+  let saved = [], errors = [];
   for (const key of keys) {
     const el = document.getElementById(`cfg_${key}`);
     if (!el || !el.value.trim()) continue;
     const r = await authFetch('/api/admin/config', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({key, value: el.value.trim()}) });
     if (!r.ok) errors.push(key);
-    else el.value = '';
+    else { saved.push(key); el.value = ''; }
   }
   if (errors.length) {
     statusEl.className = 'text-sm rounded-lg px-4 py-2 bg-red-50 text-red-700';
     statusEl.textContent = `Erreur sur : ${errors.join(', ')}`;
+  } else if (saved.length === 0) {
+    statusEl.className = 'text-sm rounded-lg px-4 py-2 bg-yellow-50 text-yellow-700';
+    statusEl.textContent = 'Aucune valeur saisie — remplissez les champs à modifier';
   } else {
     statusEl.className = 'text-sm rounded-lg px-4 py-2 bg-green-50 text-green-700';
-    statusEl.textContent = '✅ Configuration enregistrée';
+    statusEl.textContent = `✅ Enregistré : ${saved.join(', ')}`;
     loadConfigStatus();
   }
+}
+
+async function loadConfigDebug() {
+  const el = document.getElementById('configDebug');
+  el.classList.remove('hidden');
+  el.textContent = 'Chargement diagnostic…';
+  try {
+    const r = await authFetch('/api/admin/config/debug');
+    const data = await r.json();
+    el.textContent = JSON.stringify(data, null, 2);
+  } catch(e) { el.textContent = 'Erreur: ' + e.message; }
 }
 
 async function directConnect() {
@@ -2002,6 +2041,7 @@ function clearPhotos() {
 // ── Generation ────────────────────────────────────────────────────────────────
 async function generateListings() {
   if (!parsedProducts.length) return;
+  try { localStorage.removeItem('synqio_listings'); localStorage.removeItem('synqio_images'); } catch(e) {}
   document.getElementById('emptyState').classList.add('hidden');
   document.getElementById('resultsState').classList.add('hidden');
   document.getElementById('loadingState').classList.remove('hidden');
@@ -2320,6 +2360,7 @@ async function generateImages(idx) {
       if (job.status === 'done') {
         const data = job.result;
         imagesCache[listing.sku] = data;
+        try { localStorage.setItem('synqio_images', JSON.stringify(imagesCache)); } catch(e) {}
         renderImages(container, data);
         return;
       }
@@ -2463,6 +2504,7 @@ window.addEventListener('message', (e) => {
 async function showPublishModal() {
   document.getElementById('publishModal').classList.remove('hidden');
   await checkAmazonStatus();
+  document.getElementById('dryRunCheck').onchange = checkAmazonStatus;
 }
 function closePublishModal() { document.getElementById('publishModal').classList.add('hidden'); }
 
@@ -2483,33 +2525,41 @@ async function checkAmazonStatus() {
       box.className = 'mb-3 text-xs rounded-lg px-3 py-2 bg-amber-50 text-amber-700';
       box.innerHTML = '⚠️ Seller Central non connecté';
       btn.disabled = false;
-      btn.className = 'w-full bg-amber-500 hover:bg-amber-600 text-white rounded-lg py-2 text-sm font-semibold transition';
-      btn.textContent = 'Connecter mon Seller Central';
-      btn.onclick = async () => {
-        // Ouvrir le popup immédiatement (geste utilisateur synchrone) pour éviter le blocage navigateur
-        const popup = window.open('about:blank', 'amazon_oauth', 'width=820,height=720,scrollbars=yes,resizable=yes');
-        try {
-          const r = await authFetch('/api/amazon/connect');
-          const data = await r.json();
-          const errMsg = data.error || data.detail;
-          if (errMsg || !data.url) {
-            if (popup) popup.close();
-            showToast('⚠️', errMsg || 'URL Amazon manquante — vérifiez AMAZON_APP_ID dans Railway');
-            return;
-          }
-          popup.location.href = data.url;
-          const timer = setInterval(() => {
-            if (popup && popup.closed) { clearInterval(timer); checkAmazonStatus(); }
-          }, 600);
-        } catch(e) {
-          if (popup) popup.close();
-          showToast('❌', 'Erreur lors de la connexion Amazon');
-        }
-      };
+      const dryRun = document.getElementById('dryRunCheck').checked;
+      if (dryRun) {
+        btn.className = 'w-full gradient-bg text-white rounded-lg py-2 text-sm font-semibold hover:opacity-90 transition';
+        btn.textContent = 'Publier en mode test (simulation)';
+        btn.onclick = publishListings;
+      } else {
+        btn.className = 'w-full bg-amber-500 hover:bg-amber-600 text-white rounded-lg py-2 text-sm font-semibold transition';
+        btn.textContent = 'Connecter mon Seller Central';
+        btn.onclick = async () => {
+          const popup = window.open('about:blank', 'amazon_oauth', 'width=820,height=720,scrollbars=yes,resizable=yes');
+          try {
+            const r = await authFetch('/api/amazon/connect');
+            const data = await r.json();
+            const errMsg = data.error || data.detail;
+            if (errMsg || !data.url) { if (popup) popup.close(); showToast('⚠️', errMsg || 'URL Amazon manquante — vérifiez AMAZON_APP_ID dans l\'admin'); return; }
+            popup.location.href = data.url;
+            const timer = setInterval(() => { if (popup && popup.closed) { clearInterval(timer); checkAmazonStatus(); } }, 600);
+          } catch(e) { if (popup) popup.close(); showToast('❌', 'Erreur lors de la connexion Amazon'); }
+        };
+      }
     }
   } catch {
     box.className = 'mb-3 text-xs rounded-lg px-3 py-2 bg-gray-50 text-gray-400';
-    box.textContent = 'Impossible de vérifier la connexion';
+    box.textContent = 'Statut Amazon non disponible';
+    const dryRun = document.getElementById('dryRunCheck').checked;
+    btn.disabled = false;
+    if (dryRun) {
+      btn.className = 'w-full gradient-bg text-white rounded-lg py-2 text-sm font-semibold hover:opacity-90 transition';
+      btn.textContent = 'Publier en mode test (simulation)';
+      btn.onclick = publishListings;
+    } else {
+      btn.className = 'w-full bg-gray-400 text-white rounded-lg py-2 text-sm font-semibold';
+      btn.textContent = 'Connexion Amazon requise';
+      btn.onclick = null;
+    }
   }
 }
 

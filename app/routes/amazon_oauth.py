@@ -14,16 +14,16 @@ REDIRECT_URI = os.getenv("AMAZON_REDIRECT_URI", "https://synqio.io/api/amazon/ca
 @router.get("/debug-config")
 async def debug_config(request: Request):
     """Debug : vérifie les variables d'env Amazon (valeurs masquées)."""
-    app_id = os.getenv("AMAZON_APP_ID", "")
-    lwa_id = os.getenv("LWA_CLIENT_ID", "")
-    lwa_secret = os.getenv("LWA_CLIENT_SECRET", "")
+    app_id = get_config("AMAZON_APP_ID", "")
+    lwa_id = get_config("LWA_CLIENT_ID", "")
+    lwa_secret = get_config("LWA_CLIENT_SECRET", "")
     # Liste toutes les clés d'env contenant AMAZON ou LWA pour diagnostic
     amazon_keys = {k: (v[:6] + "…" if v else "VIDE") for k, v in os.environ.items() if "AMAZON" in k or "LWA" in k}
     return {
         "AMAZON_APP_ID": app_id[:12] + "…" if app_id else "❌ VIDE",
         "LWA_CLIENT_ID": lwa_id[:20] + "…" if lwa_id else "❌ VIDE",
         "LWA_CLIENT_SECRET": "✅ présent" if lwa_secret else "❌ VIDE",
-        "AMAZON_SP_MODE": os.getenv("AMAZON_SP_MODE", "demo"),
+        "AMAZON_SP_MODE": get_config("AMAZON_SP_MODE", "demo"),
         "REDIRECT_URI": REDIRECT_URI,
         "all_amazon_lwa_keys": amazon_keys,
     }
