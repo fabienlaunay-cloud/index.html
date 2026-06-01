@@ -7,6 +7,7 @@
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23764BA2'/%3E%3Cpath d='M16 4L5 9.5l11 5.5 11-5.5L16 4z' stroke='white' stroke-width='1.8' stroke-linejoin='round' fill='none'/%3E%3Cpath d='M5 22l11 5.5 11-5.5M5 16l11 5.5 11-5.5' stroke='white' stroke-width='1.8' stroke-linejoin='round' fill='none'/%3E%3C/svg%3E">
 <link rel="shortcut icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23764BA2'/%3E%3Cpath d='M16 4L5 9.5l11 5.5 11-5.5L16 4z' stroke='white' stroke-width='1.8' stroke-linejoin='round' fill='none'/%3E%3Cpath d='M5 22l11 5.5 11-5.5M5 16l11 5.5 11-5.5' stroke='white' stroke-width='1.8' stroke-linejoin='round' fill='none'/%3E%3C/svg%3E">
 <script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
   * { font-family: 'Inter', sans-serif; }
@@ -797,6 +798,7 @@
               <button onclick="exportResults('csv')" class="bg-green-50 hover:bg-green-100 text-green-700 rounded-lg px-3 py-2 text-sm font-medium transition">CSV</button>
               <button onclick="exportResults('flat')" class="bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg px-3 py-2 text-sm font-medium transition">Seller Central</button>
               <button onclick="exportResults('json')" class="bg-gray-50 hover:bg-gray-100 text-gray-700 rounded-lg px-3 py-2 text-sm font-medium transition">{ } JSON</button>
+              <button onclick="downloadZipPack()" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg px-3 py-2 text-sm font-medium transition flex items-center gap-1.5">📦 Pack ZIP</button>
               <button onclick="showPublishModal()" class="gradient-bg text-white rounded-lg px-4 py-2 text-sm font-semibold hover:opacity-90 transition">Publier</button>
             </div>
           </div>
@@ -2495,6 +2497,67 @@ async function exportResults(format) {
   showToast('✅', `Export ${format.toUpperCase()} téléchargé`);
 }
 
+
+async function downloadZipPack() {
+  if (!generatedListings.length) return;
+  if (typeof JSZip === 'undefined') { showToast('⚠️', 'JSZip non chargé, réessaie dans un instant', true); return; }
+
+  showToast('⏳', 'Création du pack ZIP…');
+  const zip = new JSZip();
+
+  // Flat file Seller Central
+  const flatR = await authFetch('/api/export/flat-file', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(generatedListings) });
+  zip.file('amazon_flat_file.txt', await flatR.blob());
+
+  // Images depuis le cache (base64 data URLs)
+  const imgFolder = zip.folder('images');
+  let imgCount = 0;
+  for (const listing of generatedListings) {
+    const cached = imagesCache[listing.sku];
+    if (!cached || !cached.images) continue;
+    for (const img of cached.images) {
+      if (!img.url) continue;
+      const slot = (img.slot || img.id || 'image').replace(/[^a-z0-9_-]/gi, '_');
+      const filename = `${listing.sku}_${slot}.png`;
+      if (img.url.startsWith('data:')) {
+        const base64 = img.url.split(',')[1];
+        imgFolder.file(filename, base64, { base64: true });
+        imgCount++;
+      } else {
+        // URL distante (photo uploadée)
+        try {
+          const res = await fetch(img.url);
+          if (res.ok) { imgFolder.file(filename, await res.blob()); imgCount++; }
+        } catch {}
+      }
+    }
+  }
+
+  // README instructions
+  zip.file('INSTRUCTIONS.txt', [
+    'PACK SYNQIO — IMPORT SELLER CENTRAL',
+    '====================================',
+    '',
+    '1. FICHIER LISTING : amazon_flat_file.txt',
+    '   → Seller Central > Inventaire > Ajouter des produits via un fichier de données',
+    '   → Onglet "Télécharger un fichier de données" > Sélectionner le fichier .txt > Soumettre',
+    '',
+    '2. IMAGES : dossier /images/',
+    '   Nommage : {SKU}_{type}.png (ex: SKU001_main.png, SKU001_lifestyle.png)',
+    '   → Seller Central > Inventaire > Gérer les produits > cliquer sur le produit > onglet Images',
+    '   → Uploader chaque image selon son type (Principale, Style de vie, etc.)',
+    '',
+    `Fiches : ${generatedListings.length} | Images : ${imgCount}`,
+    `Généré le ${new Date().toLocaleDateString('fr-FR')} via SynqIO`,
+  ].join('\n'));
+
+  const blob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `synqio_pack_${new Date().toISOString().slice(0,10)}.zip`;
+  a.click();
+  showToast('✅', `Pack ZIP téléchargé — ${generatedListings.length} fiches, ${imgCount} image(s)`);
+}
 
 // Écouter la fermeture du popup OAuth Amazon
 window.addEventListener('message', (e) => {
