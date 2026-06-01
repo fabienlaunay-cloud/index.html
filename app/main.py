@@ -86,6 +86,11 @@ app.include_router(amazon_router)
 @app.on_event("startup")
 async def startup():
     _check_secrets()
+    from app.db import DB_PATH
+    db_abs = os.path.abspath(DB_PATH)
+    print(f"[SynqIO] DB path: {db_abs}", flush=True)
+    print(f"[SynqIO] DB on volume: {db_abs.startswith('/app/data')}", flush=True)
+    print(f"[SynqIO] DB exists: {os.path.isfile(db_abs)}", flush=True)
     init_db()
     _bootstrap_admin()
 
@@ -148,11 +153,26 @@ async def root():
 @app.get("/health")
 async def health():
     from app.db import DB_PATH
+    db_abs = os.path.abspath(DB_PATH)
+    db_exists = os.path.isfile(db_abs)
+    db_size = os.path.getsize(db_abs) if db_exists else 0
+    user_count = 0
+    try:
+        from app.db import get_db
+        conn = get_db()
+        user_count = conn.execute("SELECT COUNT(*) FROM users").fetchone()[0]
+        conn.close()
+    except Exception:
+        pass
     return {
         "status": "ok",
         "ai_ready": bool(os.getenv("ANTHROPIC_API_KEY")),
         "version": "1.0.0",
-        "db_ok": os.path.isfile(os.path.abspath(DB_PATH)),
+        "db_path": db_abs,
+        "db_on_volume": db_abs.startswith("/app/data"),
+        "db_exists": db_exists,
+        "db_size_bytes": db_size,
+        "user_count": user_count,
     }
 
 
