@@ -3,6 +3,8 @@ import json
 import io
 from typing import List
 from app.models import AmazonListing
+import openpyxl
+from openpyxl.styles import Font, PatternFill, Alignment
 
 
 def to_csv_bytes(listings: List[AmazonListing]) -> bytes:
@@ -107,6 +109,89 @@ def to_amazon_flat_file_bytes(listings: List[AmazonListing]) -> bytes:
         output.write("\t".join(row) + "\n")
 
     return output.getvalue().encode("utf-8-sig")
+
+
+def _style_header_row(ws, n_cols: int):
+    """Bold + purple header, gray metadata row."""
+    purple = PatternFill("solid", fgColor="764BA2")
+    gray   = PatternFill("solid", fgColor="E5E7EB")
+    white  = Font(color="FFFFFF", bold=True, size=10)
+    dark   = Font(color="374151", size=9)
+    for col in range(1, n_cols + 1):
+        h = ws.cell(1, col)
+        h.font = white;  h.fill = purple
+        h.alignment = Alignment(horizontal="center", vertical="center")
+        m = ws.cell(2, col)
+        m.font = dark;   m.fill = gray
+    ws.row_dimensions[1].height = 20
+    ws.row_dimensions[2].height = 16
+
+
+def to_amazon_flat_file_xlsx(listings: List[AmazonListing]) -> bytes:
+    """Amazon flat file for NEW products — proper .xlsx, uploadable to Seller Central."""
+    headers = [
+        "item-sku", "update-delete", "item-name", "brand-name", "manufacturer",
+        "item-type", "product-description",
+        "bullet-point1", "bullet-point2", "bullet-point3", "bullet-point4", "bullet-point5",
+        "generic-keywords", "standard-price", "quantity",
+        "external-product-id", "external-product-id-type", "condition-type",
+    ]
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Nouveaux Produits"
+    ws.append(headers)
+    ws.append(["TemplateType=fptcustom", "Version=2021.1201"] + [""] * (len(headers) - 2))
+    for listing in listings:
+        bullets = listing.bullet_points + [""] * 5
+        ws.append([
+            listing.sku, "a", listing.title, listing.brand, listing.brand,
+            listing.category.lower().replace(" ", "_") or "home",
+            _strip_html(listing.description),
+            bullets[0], bullets[1], bullets[2], bullets[3], bullets[4],
+            listing.backend_keywords,
+            str(listing.price) if listing.price else "", "1",
+            listing.ean or "", "EAN" if listing.ean else "", "New",
+        ])
+    _style_header_row(ws, len(headers))
+    for i, h in enumerate(headers, 1):
+        ws.column_dimensions[openpyxl.utils.get_column_letter(i)].width = max(12, len(h) + 2)
+    ws.column_dimensions["C"].width = 40
+    ws.column_dimensions["G"].width = 50
+    out = io.BytesIO()
+    wb.save(out)
+    return out.getvalue()
+
+
+def to_listing_loader_xlsx(listings: List[AmazonListing]) -> bytes:
+    """Amazon Listing Loader for EXISTING products — proper .xlsx, uploadable to Seller Central."""
+    headers = [
+        "sku", "product-id", "product-id-type", "add-delete", "price", "quantity",
+        "condition-type", "item-name", "brand-name", "item-description",
+        "bullet-point1", "bullet-point2", "bullet-point3", "bullet-point4", "bullet-point5",
+        "generic-keywords",
+    ]
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Produits Existants"
+    ws.append(headers)
+    ws.append(["TemplateType=Offer", "Version=2021.1201"] + [""] * (len(headers) - 2))
+    for listing in listings:
+        bullets = listing.bullet_points + [""] * 5
+        ws.append([
+            listing.sku, listing.ean or "", "4" if listing.ean else "", "a",
+            str(listing.price) if listing.price else "", "1", "New",
+            listing.title, listing.brand, _strip_html(listing.description),
+            bullets[0], bullets[1], bullets[2], bullets[3], bullets[4],
+            listing.backend_keywords,
+        ])
+    _style_header_row(ws, len(headers))
+    for i, h in enumerate(headers, 1):
+        ws.column_dimensions[openpyxl.utils.get_column_letter(i)].width = max(12, len(h) + 2)
+    ws.column_dimensions["H"].width = 40
+    ws.column_dimensions["J"].width = 50
+    out = io.BytesIO()
+    wb.save(out)
+    return out.getvalue()
 
 
 def to_listing_loader_bytes(listings: List[AmazonListing]) -> bytes:

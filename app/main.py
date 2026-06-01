@@ -26,7 +26,7 @@ from app.services.amazon_sp import publish_listings
 from app.services.auth import verify_token
 from app.services.image_gen import generate_product_images, AMAZON_IMAGE_TYPES, _generate_image_dalle3
 from app.services.usage import log_usage, get_user_usage, get_all_users_usage
-from app.utils.export import to_csv_bytes, to_json_bytes, to_amazon_flat_file_bytes, to_listing_loader_bytes
+from app.utils.export import to_csv_bytes, to_json_bytes, to_amazon_flat_file_bytes, to_listing_loader_bytes, to_amazon_flat_file_xlsx, to_listing_loader_xlsx
 from app.db import init_db
 from app.routes.auth import router as auth_router, admin_router
 from app.routes.amazon_oauth import router as amazon_router
@@ -623,14 +623,20 @@ async def fill_amazon_template_endpoint(request: Request):
 
 @app.post("/api/export/flat-file")
 async def export_flat_file(listings: List[AmazonListing]):
-    return Response(content=to_amazon_flat_file_bytes(listings), media_type="text/plain",
-                    headers={"Content-Disposition": "attachment; filename=amazon_nouveaux_produits.txt"})
+    return Response(
+        content=to_amazon_flat_file_xlsx(listings),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": "attachment; filename=amazon_nouveaux_produits.xlsx"},
+    )
 
 
 @app.post("/api/export/listing-loader")
 async def export_listing_loader(listings: List[AmazonListing]):
-    return Response(content=to_listing_loader_bytes(listings), media_type="text/plain",
-                    headers={"Content-Disposition": "attachment; filename=amazon_produits_existants.txt"})
+    return Response(
+        content=to_listing_loader_xlsx(listings),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": "attachment; filename=amazon_produits_existants.xlsx"},
+    )
 
 
 # ── Images ───────────────────────────────────────────────────────────────────

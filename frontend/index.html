@@ -804,11 +804,11 @@
                 <div id="scExportDropdown" class="hidden absolute right-0 top-full mt-1 bg-white rounded-xl shadow-lg border border-gray-100 z-50 min-w-[240px] py-1">
                   <button onclick="exportResults('flat');toggleScMenu()" class="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 transition">
                     <div class="font-medium text-gray-800">➕ Nouveaux produits</div>
-                    <div class="text-xs text-gray-400 mt-0.5">Produit absent du catalogue Amazon</div>
+                    <div class="text-xs text-gray-400 mt-0.5">Fichier Excel .xlsx — à uploader dans Seller Central</div>
                   </button>
                   <button onclick="exportResults('listing-loader');toggleScMenu()" class="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 transition border-t border-gray-50">
                     <div class="font-medium text-gray-800">📋 Produits existants</div>
-                    <div class="text-xs text-gray-400 mt-0.5">Produit déjà dans le catalogue (a un ASIN/EAN)</div>
+                    <div class="text-xs text-gray-400 mt-0.5">Fichier Excel .xlsx — produit déjà dans le catalogue</div>
                   </button>
                 </div>
               </div>
@@ -2515,7 +2515,7 @@ document.addEventListener('click', e => {
 async function exportResults(format) {
   if (!generatedListings.length) return;
   const ep = { csv:'/api/export/csv', json:'/api/export/json', flat:'/api/export/flat-file', 'listing-loader':'/api/export/listing-loader' };
-  const fn = { csv:'listings.csv', json:'listings.json', flat:'amazon_nouveaux_produits.txt', 'listing-loader':'amazon_produits_existants.txt' };
+  const fn = { csv:'listings.csv', json:'listings.json', flat:'amazon_nouveaux_produits.xlsx', 'listing-loader':'amazon_produits_existants.xlsx' };
   const label = { csv:'CSV', json:'JSON', flat:'Nouveaux produits', 'listing-loader':'Produits existants' };
   const r = await authFetch(ep[format], { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(generatedListings) });
   const a = document.createElement('a');
@@ -2546,7 +2546,7 @@ async function fillAmazonTemplate(input) {
     }
     const a = document.createElement('a');
     a.href = URL.createObjectURL(await r.blob());
-    a.download = 'amazon_template_rempli.xlsx';
+    a.download = 'amazon_template_rempli.xlsm';
     a.click();
     showToast('✅', `Template rempli — ${generatedListings.length} fiche(s) prêtes à uploader`);
   } catch(e) {
@@ -2563,9 +2563,9 @@ async function downloadZipPack() {
 
   // Flat files Seller Central (les deux formats)
   const flatR = await authFetch('/api/export/flat-file', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(generatedListings) });
-  zip.file('amazon_nouveaux_produits.txt', await flatR.blob());
+  zip.file('amazon_nouveaux_produits.xlsx', await flatR.blob());
   const loaderR = await authFetch('/api/export/listing-loader', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(generatedListings) });
-  zip.file('amazon_produits_existants.txt', await loaderR.blob());
+  zip.file('amazon_produits_existants.xlsx', await loaderR.blob());
 
   // Images depuis le cache (base64 data URLs)
   const imgFolder = zip.folder('images');
@@ -2596,9 +2596,12 @@ async function downloadZipPack() {
     'PACK SYNQIO — IMPORT SELLER CENTRAL',
     '====================================',
     '',
-    '1. FICHIER LISTING : amazon_flat_file.txt',
+    '1. NOUVEAUX PRODUITS : amazon_nouveaux_produits.xlsx',
     '   → Seller Central > Inventaire > Ajouter des produits via un fichier de données',
-    '   → Onglet "Télécharger un fichier de données" > Sélectionner le fichier .txt > Soumettre',
+    '   → Onglet "Télécharger un fichier de données" > Sélectionner le fichier .xlsx > Soumettre',
+    '',
+    '   PRODUITS EXISTANTS : amazon_produits_existants.xlsx',
+    '   → Même procédure, si le produit a déjà un ASIN dans le catalogue Amazon',
     '',
     '2. IMAGES : dossier /images/',
     '   Nommage : {SKU}_{type}.png (ex: SKU001_main.png, SKU001_lifestyle.png)',
