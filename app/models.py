@@ -43,6 +43,9 @@ class AmazonListing(BaseModel):
     category: str
     price: Optional[float] = None
     ean: Optional[str] = None
+    color: Optional[str] = None
+    material: Optional[str] = None
+    weight_kg: Optional[float] = None
     a_plus_content: Optional[dict] = None
     seo_score: Optional[int] = None
     marketplace: Marketplace = Marketplace.AMAZON_FR

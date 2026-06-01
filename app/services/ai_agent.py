@@ -376,6 +376,9 @@ async def generate_listing(
                 category=product.category or "",
                 price=product.price,
                 ean=product.ean,
+                color=product.color,
+                material=product.material,
+                weight_kg=product.weight_kg,
                 marketplace=marketplace,
                 **{k: v for k, v in data.items() if k in AmazonListing.model_fields},
             ), token_usage

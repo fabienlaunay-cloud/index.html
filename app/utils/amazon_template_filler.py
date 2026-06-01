@@ -114,6 +114,10 @@ _EXACT_MAP = {
     "standard_price":                         lambda l: str(l.price) if l.price else "",
     "quantity":                               lambda l: "1",
     "condition_type":                         lambda l: "New",
+    "color_name":                             lambda l: l.color or "",
+    "material_type":                          lambda l: l.material or "",
+    "item_weight":                            lambda l: str(l.weight_kg) if l.weight_kg else "",
+    "item_weight_unit_of_measure":            lambda l: "KG" if l.weight_kg else "",
     # Listing Loader style (new format)
     "contribution_sku#1.value":               lambda l: l.sku,
     "::record_action":                        lambda l: "partial_update",
