@@ -1171,6 +1171,7 @@ let listingStatuses = JSON.parse(localStorage.getItem('synqio_listing_statuses')
 // Migrate legacy publishedSkus into listingStatuses
 publishedSkus.forEach(sku => { if (!listingStatuses[sku]) listingStatuses[sku] = 'published'; });
 let currentBatchId = localStorage.getItem('synqio_batch_id') || null;
+let _sessionFromHistory = false; // true when current listings came from history restore
 let currentDetailIdx = null;
 
 // Column mapping state
@@ -2589,6 +2590,7 @@ function clearPhotos() {
 // ── Generation ────────────────────────────────────────────────────────────────
 async function generateListings() {
   if (!parsedProducts.length) return;
+  const _batchToReplace = (!_sessionFromHistory && currentBatchId) ? currentBatchId : null;
   try { localStorage.removeItem('synqio_listings'); localStorage.removeItem('synqio_images'); } catch(e) {}
   document.getElementById('emptyState').classList.add('hidden');
   document.getElementById('resultsState').classList.add('hidden');
@@ -2667,7 +2669,12 @@ async function generateListings() {
 
     document.getElementById('progressBar').style.width = '100%';
     generatedListings = result.listings;
+    // Delete previous batch if regenerating in the same session (not from history)
+    if (_batchToReplace && _batchToReplace !== job_id) {
+      authFetch(`/api/history/${_batchToReplace}`, { method: 'DELETE' }).catch(() => {});
+    }
     currentBatchId = job_id;
+    _sessionFromHistory = false;
     try { localStorage.setItem('synqio_listings', JSON.stringify(generatedListings)); } catch(e) {}
     try { localStorage.setItem('synqio_batch_id', job_id); } catch(e) {}
     showResults(result);
@@ -3045,6 +3052,7 @@ async function restoreBatch(batchId) {
 
     generatedListings = listings;
     currentBatchId = batchId;
+    _sessionFromHistory = true;
     try { localStorage.setItem('synqio_listings', JSON.stringify(generatedListings)); } catch(e) {}
     try { localStorage.setItem('synqio_batch_id', batchId); } catch(e) {}
 
