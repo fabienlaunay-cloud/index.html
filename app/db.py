@@ -114,3 +114,99 @@ def set_config(key: str, value: str):
     )
     conn.commit()
     conn.close()
+
+
+# ── Generation history ────────────────────────────────────────────────────────
+
+def _ensure_history_table(conn):
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS generation_history (
+            id TEXT PRIMARY KEY,
+            user_email TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            marketplace TEXT NOT NULL,
+            product_count INTEGER NOT NULL DEFAULT 0,
+            avg_seo_score INTEGER DEFAULT 0,
+            label TEXT DEFAULT '',
+            listings_json TEXT NOT NULL DEFAULT '[]'
+        )
+    """)
+
+
+def save_generation(user_email: str, batch_id: str, marketplace: str,
+                    listings: list, label: str = "") -> None:
+    import json as _json
+    conn = get_db()
+    _ensure_history_table(conn)
+    top = [l for l in listings if not (l.get("parent_sku") and not l.get("is_parent"))]
+    product_count = len(top)
+    scores = [l.get("seo_score") or 0 for l in top if l.get("seo_score")]
+    avg_seo = round(sum(scores) / len(scores)) if scores else 0
+    conn.execute(
+        "INSERT OR REPLACE INTO generation_history "
+        "(id, user_email, marketplace, product_count, avg_seo_score, label, listings_json) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?)",
+        (batch_id, user_email, marketplace, product_count, avg_seo, label,
+         _json.dumps(listings, ensure_ascii=False, default=str)),
+    )
+    # Keep only the 50 most recent batches per user
+    conn.execute(
+        "DELETE FROM generation_history WHERE user_email = ? AND id NOT IN "
+        "(SELECT id FROM generation_history WHERE user_email = ? "
+        " ORDER BY created_at DESC LIMIT 50)",
+        (user_email, user_email),
+    )
+    conn.commit()
+    conn.close()
+
+
+def list_generations(user_email: str) -> list:
+    conn = get_db()
+    _ensure_history_table(conn)
+    rows = conn.execute(
+        "SELECT id, created_at, marketplace, product_count, avg_seo_score, label "
+        "FROM generation_history WHERE user_email = ? ORDER BY created_at DESC",
+        (user_email,),
+    ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def get_generation(batch_id: str, user_email: str):
+    import json as _json
+    conn = get_db()
+    _ensure_history_table(conn)
+    row = conn.execute(
+        "SELECT * FROM generation_history WHERE id = ? AND user_email = ?",
+        (batch_id, user_email),
+    ).fetchone()
+    conn.close()
+    if not row:
+        return None
+    d = dict(row)
+    d["listings"] = _json.loads(d.pop("listings_json", "[]"))
+    return d
+
+
+def delete_generation(batch_id: str, user_email: str) -> bool:
+    conn = get_db()
+    _ensure_history_table(conn)
+    cur = conn.execute(
+        "DELETE FROM generation_history WHERE id = ? AND user_email = ?",
+        (batch_id, user_email),
+    )
+    conn.commit()
+    conn.close()
+    return cur.rowcount > 0
+
+
+def update_generation_label(batch_id: str, user_email: str, label: str) -> bool:
+    conn = get_db()
+    _ensure_history_table(conn)
+    cur = conn.execute(
+        "UPDATE generation_history SET label = ? WHERE id = ? AND user_email = ?",
+        (label, batch_id, user_email),
+    )
+    conn.commit()
+    conn.close()
+    return cur.rowcount > 0

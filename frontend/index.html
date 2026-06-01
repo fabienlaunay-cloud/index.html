@@ -606,6 +606,10 @@
       <div id="healthBadge" class="flex items-center gap-2 bg-white/10 rounded-lg px-3 py-1.5 text-sm">
         <div class="w-2 h-2 rounded-full bg-gray-300 pulse"></div><span>...</span>
       </div>
+      <button onclick="openHistoryPanel()" class="flex items-center gap-1.5 bg-white/10 hover:bg-white/20 rounded-lg px-3 py-1.5 text-sm transition text-white" title="Historique des générations">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        Historique
+      </button>
       <div class="relative" id="mktSelectorWrapper">
         <button type="button" onclick="toggleMktDropdown(event)" class="flex items-center gap-2 bg-white/10 border border-white/20 text-white rounded-lg px-3 py-1.5 text-sm min-w-[170px] justify-between hover:bg-white/20 transition">
           <span id="mktSelectorLabel">🇫🇷 Amazon France</span>
@@ -2760,6 +2764,131 @@ function _renderGlobalProgress() {
   bar.classList.remove('hidden');
 }
 
+// ── History panel ─────────────────────────────────────────────────────────────
+
+const MKT_META_H = {
+  amazon_fr:'🇫🇷', amazon_de:'🇩🇪', amazon_it:'🇮🇹', amazon_es:'🇪🇸',
+  amazon_uk:'🇬🇧', amazon_nl:'🇳🇱', amazon_se:'🇸🇪', amazon_pl:'🇵🇱', amazon_be:'🇧🇪',
+};
+
+function openHistoryPanel() {
+  document.getElementById('historyOverlay').classList.remove('hidden');
+  const panel = document.getElementById('historyPanel');
+  panel.classList.remove('translate-x-full');
+  loadHistoryList();
+}
+
+function closeHistoryPanel() {
+  document.getElementById('historyOverlay').classList.add('hidden');
+  document.getElementById('historyPanel').classList.add('translate-x-full');
+}
+
+async function loadHistoryList() {
+  const container = document.getElementById('historyList');
+  container.innerHTML = '<p class="text-center text-gray-400 text-sm py-8">Chargement…</p>';
+  try {
+    const r = await authFetch('/api/history');
+    if (!r.ok) throw new Error();
+    const batches = await r.json();
+    if (!batches.length) {
+      container.innerHTML = '<div class="text-center py-12"><p class="text-4xl mb-3">📭</p><p class="text-gray-500 font-medium">Aucun lot sauvegardé</p><p class="text-gray-400 text-sm mt-1">Les prochaines générations apparaîtront ici</p></div>';
+      return;
+    }
+    container.innerHTML = batches.map(b => {
+      const flag = MKT_META_H[b.marketplace] || '🌐';
+      const date = new Date(b.created_at).toLocaleString('fr-FR', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' });
+      const seoCol = b.avg_seo_score >= 70 ? 'text-green-600' : b.avg_seo_score >= 40 ? 'text-yellow-600' : 'text-red-500';
+      const label = b.label ? `<span class="text-xs text-purple-700 bg-purple-50 border border-purple-200 px-2 py-0.5 rounded max-w-[140px] truncate">${_esc(b.label)}</span>` : '';
+      return `<div class="bg-white border border-gray-100 rounded-xl p-3 hover:border-purple-200 hover:shadow-sm transition" id="hentry-${_esc(b.id)}">
+        <div class="flex items-start justify-between gap-2 mb-1.5">
+          <div class="flex items-center gap-1.5 flex-wrap min-w-0">
+            <span class="text-base leading-none">${flag}</span>
+            <span class="text-xs font-medium text-gray-700 truncate">${_esc(b.marketplace.replace('amazon_','Amazon ').toUpperCase())}</span>
+            ${label}
+          </div>
+          <button onclick="deleteHistoryEntry('${_esc(b.id)}')" class="flex-shrink-0 text-gray-300 hover:text-red-500 transition text-lg leading-none" title="Supprimer">✕</button>
+        </div>
+        <div class="flex items-center gap-3 text-xs text-gray-500 mb-2.5">
+          <span>📅 ${date}</span>
+          <span>📦 ${b.product_count} fiche${b.product_count > 1 ? 's' : ''}</span>
+          <span class="font-semibold ${seoCol}">SEO ${b.avg_seo_score}</span>
+        </div>
+        <div class="flex gap-2">
+          <button onclick="restoreBatch('${_esc(b.id)}')" class="flex-1 gradient-bg text-white rounded-lg py-1.5 text-xs font-semibold hover:opacity-90 transition">
+            ↩ Charger ce lot
+          </button>
+          <button onclick="renameHistoryEntry('${_esc(b.id)}', this)" class="bg-gray-50 hover:bg-gray-100 text-gray-600 rounded-lg px-3 py-1.5 text-xs transition" title="Renommer">✏️</button>
+        </div>
+      </div>`;
+    }).join('');
+  } catch(e) {
+    container.innerHTML = '<p class="text-center text-red-400 text-sm py-8">Erreur de chargement</p>';
+  }
+}
+
+async function restoreBatch(batchId) {
+  try {
+    const r = await authFetch(`/api/history/${batchId}`);
+    if (!r.ok) throw new Error();
+    const batch = await r.json();
+    const listings = batch.listings || [];
+    if (!listings.length) { showToast('⚠️', 'Lot vide', true); return; }
+
+    generatedListings = listings;
+    try { localStorage.setItem('synqio_listings', JSON.stringify(generatedListings)); } catch(e) {}
+
+    const parentOnly = listings.filter(l => !l.parent_sku);
+    const avg = parentOnly.length ? Math.round(parentOnly.reduce((a, l) => a + (l.seo_score || 0), 0) / parentOnly.length) : 0;
+    const fakeResult = {
+      listings,
+      failed: [],
+      total: listings.length,
+      success_count: listings.length,
+      marketplace: listings[0]?.marketplace || 'amazon_fr',
+    };
+    showResults(fakeResult);
+    closeHistoryPanel();
+    showToast('✅', `Lot restauré — ${listings.length} fiche(s)`);
+  } catch(e) {
+    showToast('❌', 'Erreur lors du chargement', true);
+  }
+}
+
+async function deleteHistoryEntry(batchId) {
+  if (!confirm('Supprimer ce lot de l\'historique ?')) return;
+  try {
+    const r = await authFetch(`/api/history/${batchId}`, { method: 'DELETE' });
+    if (!r.ok) throw new Error();
+    document.getElementById(`hentry-${batchId}`)?.remove();
+    const list = document.getElementById('historyList');
+    if (list && !list.querySelector('[id^="hentry-"]')) {
+      list.innerHTML = '<div class="text-center py-12"><p class="text-4xl mb-3">📭</p><p class="text-gray-500 font-medium">Aucun lot sauvegardé</p></div>';
+    }
+    showToast('🗑️', 'Lot supprimé');
+  } catch(e) {
+    showToast('❌', 'Erreur lors de la suppression', true);
+  }
+}
+
+async function renameHistoryEntry(batchId, btn) {
+  const entry = document.getElementById(`hentry-${batchId}`);
+  const current = entry?.querySelector('span.text-purple-700')?.textContent || '';
+  const label = prompt('Nom du lot (laisser vide pour supprimer) :', current);
+  if (label === null) return;
+  try {
+    const r = await authFetch(`/api/history/${batchId}/label`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ label: label.trim() }),
+    });
+    if (!r.ok) throw new Error();
+    loadHistoryList();
+    showToast('✅', 'Lot renommé');
+  } catch(e) {
+    showToast('❌', 'Erreur lors du renommage', true);
+  }
+}
+
 function createListingCard(listing, idx) {
   const col = listing.seo_score >= 70 ? 'green' : listing.seo_score >= 40 ? 'yellow' : 'red';
   const card = document.createElement('div');
@@ -4213,6 +4342,21 @@ renderSegmentPresets();
         </div>
       </div>
     </div>
+  </div>
+</div>
+
+<!-- ═══════════════════ HISTORY PANEL (slide-over) ═══════════════════ -->
+<div id="historyOverlay" class="hidden fixed inset-0 bg-black/40 z-[280]" onclick="closeHistoryPanel()"></div>
+<div id="historyPanel" class="fixed top-0 right-0 h-full w-full max-w-md bg-white shadow-2xl z-[290] flex flex-col translate-x-full transition-transform duration-300">
+  <div class="flex items-center justify-between px-5 py-4 border-b border-gray-100 flex-shrink-0">
+    <div>
+      <h2 class="font-semibold text-gray-800">Historique des générations</h2>
+      <p class="text-xs text-gray-400 mt-0.5">Lots sauvegardés sur le serveur</p>
+    </div>
+    <button onclick="closeHistoryPanel()" class="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500 transition">✕</button>
+  </div>
+  <div id="historyList" class="flex-1 overflow-y-auto px-4 py-3 space-y-2">
+    <p class="text-center text-gray-400 text-sm py-8">Chargement…</p>
   </div>
 </div>
 

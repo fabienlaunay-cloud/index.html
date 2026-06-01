@@ -27,7 +27,7 @@ from app.services.image_gen import generate_product_images, AMAZON_IMAGE_TYPES, 
 from app.services.usage import log_usage, get_user_usage, get_all_users_usage
 from app.utils.export import to_csv_bytes, to_json_bytes, to_amazon_flat_file_bytes, to_listing_loader_bytes, to_amazon_flat_file_xlsx, to_listing_loader_xlsx, to_variation_flat_file_xlsx
 from app.utils.variation_handler import group_by_parent, build_parent_product, expand_to_variation_listings
-from app.db import init_db
+from app.db import init_db, save_generation, list_generations, get_generation, delete_generation, update_generation_label
 from app.routes.auth import router as auth_router, admin_router
 from app.routes.amazon_oauth import router as amazon_router
 
@@ -547,8 +547,19 @@ async def _run_generation_job(job_id: str, request: GenerationRequest, email: st
             total=n_total, success_count=len(all_listings),
             marketplace=target_mkts[0],
         )
+        result_dict = result.model_dump()
         _jobs[job_id].update({"status": "done", "progress": n_total,
-                               "result": result.model_dump()})
+                               "result": result_dict})
+        if email:
+            try:
+                save_generation(
+                    user_email=email,
+                    batch_id=job_id,
+                    marketplace=str(target_mkts[0].value),
+                    listings=result_dict.get("listings", []),
+                )
+            except Exception:
+                pass
     except Exception as e:
         _jobs[job_id].update({"status": "failed", "error": str(e)})
 
@@ -777,6 +788,43 @@ async def get_image_types():
 
 
 # ── Marketplaces ──────────────────────────────────────────────────────────────
+
+# ── Generation history ────────────────────────────────────────────────────────
+
+@app.get("/api/history")
+async def get_history(request: Request):
+    email = request.state.user_email
+    return list_generations(email)
+
+
+@app.get("/api/history/{batch_id}")
+async def get_history_batch(batch_id: str, request: Request):
+    email = request.state.user_email
+    batch = get_generation(batch_id, email)
+    if not batch:
+        raise HTTPException(status_code=404, detail="Lot introuvable")
+    return batch
+
+
+@app.delete("/api/history/{batch_id}")
+async def delete_history_batch(batch_id: str, request: Request):
+    email = request.state.user_email
+    if not delete_generation(batch_id, email):
+        raise HTTPException(status_code=404, detail="Lot introuvable")
+    return {"ok": True}
+
+
+class LabelUpdate(BaseModel):
+    label: str
+
+
+@app.patch("/api/history/{batch_id}/label")
+async def update_history_label(batch_id: str, body: LabelUpdate, request: Request):
+    email = request.state.user_email
+    if not update_generation_label(batch_id, email, body.label):
+        raise HTTPException(status_code=404, detail="Lot introuvable")
+    return {"ok": True}
+
 
 @app.get("/api/marketplaces")
 async def list_marketplaces():
