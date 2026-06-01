@@ -22,6 +22,9 @@
   @keyframes spin { to { transform: rotate(360deg); } }
   .pulse { animation: pulse 2s infinite; }
   @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
+  @keyframes marquee { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
+  .animate-marquee { animation: marquee 40s linear infinite; }
+  .animate-marquee:hover { animation-play-state: paused; }
   /* Landing — thème blanc */
   #login-screen { background: #ffffff; }
   .login-card { background: #1e1b4b; border: 1px solid rgba(255,255,255,0.1); }
@@ -142,6 +145,66 @@
       </div>
     </div>
   </header>
+
+  <!-- TICKER BANNER -->
+  <div class="bg-gradient-to-r from-purple-600 via-indigo-600 to-purple-600 overflow-hidden py-2.5 select-none">
+    <div class="flex animate-marquee whitespace-nowrap">
+      <!-- Bloc A (contenu original) -->
+      <div class="flex items-center gap-0 shrink-0">
+        <span class="inline-flex items-center gap-2 text-white/90 text-sm font-medium px-6">📸 <span>Photo + texte court <strong class="text-white">→ fiche produit complète en 60 s</strong></span></span>
+        <span class="text-white/30 mx-1">·</span>
+        <span class="inline-flex items-center gap-2 text-white/90 text-sm font-medium px-6">🤖 <span>Optimisé <strong class="text-white">algorithme Google COSMO</strong> — le SEO Amazon nouvelle génération</span></span>
+        <span class="text-white/30 mx-1">·</span>
+        <span class="inline-flex items-center gap-2 text-white/90 text-sm font-medium px-6">📊 <span><strong class="text-white">2 produits ou 1 000</strong> — même vitesse, même qualité</span></span>
+        <span class="text-white/30 mx-1">·</span>
+        <span class="inline-flex items-center gap-2 text-white/90 text-sm font-medium px-6">⚡ <span><strong class="text-white">Alerte conformité catégorie</strong> — électronique, mode, beauté… chaque segment a ses règles</span></span>
+        <span class="text-white/30 mx-1">·</span>
+        <span class="inline-flex items-center gap-2 text-white/90 text-sm font-medium px-6">📁 <span>Fichier <strong class="text-white">Excel Amazon Seller Central</strong> → fiches remplies automatiquement, prêtes à uploader</span></span>
+        <span class="text-white/30 mx-1">·</span>
+        <span class="inline-flex items-center gap-2 text-white/90 text-sm font-medium px-6">🎨 <span><strong class="text-white">7 visuels IA</strong> générés par produit — fond blanc, lifestyle, infographie</span></span>
+        <span class="text-white/30 mx-1">·</span>
+        <span class="inline-flex items-center gap-2 text-white/90 text-sm font-medium px-6">🌍 <span><strong class="text-white">Amazon FR, DE, IT, ES, UK, US…</strong> 8 marketplaces, traduction native incluse</span></span>
+        <span class="text-white/30 mx-1">·</span>
+        <span class="inline-flex items-center gap-2 text-white/90 text-sm font-medium px-6">📈 <span><strong class="text-white">Score SEO fiche par fiche</strong> — titre, bullets, mots-clés, contenu A+</span></span>
+        <span class="text-white/30 mx-1">·</span>
+        <span class="inline-flex items-center gap-2 text-white/90 text-sm font-medium px-6">🚀 <span><strong class="text-white">Push direct Seller Central</strong> — zéro copier-coller</span></span>
+        <span class="text-white/30 mx-1">·</span>
+        <span class="inline-flex items-center gap-2 text-white/90 text-sm font-medium px-6">✅ <span>Tableau de bord <strong class="text-white">Kanban</strong> — À compléter → Prêt → Publié</span></span>
+        <span class="text-white/30 mx-1">·</span>
+        <span class="inline-flex items-center gap-2 text-white/90 text-sm font-medium px-6">🔄 <span><strong class="text-white">Historique des lots</strong> — reprenez exactement où vous en étiez</span></span>
+        <span class="text-white/30 mx-1">·</span>
+        <span class="inline-flex items-center gap-2 text-white/90 text-sm font-medium px-6">🧩 <span><strong class="text-white">Variations parent-enfant</strong> — tailles, couleurs, bundles gérés nativement</span></span>
+        <span class="text-white/30 mx-1">·</span>
+      </div>
+      <!-- Bloc B (copie exacte pour boucle seamless) -->
+      <div class="flex items-center gap-0 shrink-0">
+        <span class="inline-flex items-center gap-2 text-white/90 text-sm font-medium px-6">📸 <span>Photo + texte court <strong class="text-white">→ fiche produit complète en 60 s</strong></span></span>
+        <span class="text-white/30 mx-1">·</span>
+        <span class="inline-flex items-center gap-2 text-white/90 text-sm font-medium px-6">🤖 <span>Optimisé <strong class="text-white">algorithme Google COSMO</strong> — le SEO Amazon nouvelle génération</span></span>
+        <span class="text-white/30 mx-1">·</span>
+        <span class="inline-flex items-center gap-2 text-white/90 text-sm font-medium px-6">📊 <span><strong class="text-white">2 produits ou 1 000</strong> — même vitesse, même qualité</span></span>
+        <span class="text-white/30 mx-1">·</span>
+        <span class="inline-flex items-center gap-2 text-white/90 text-sm font-medium px-6">⚡ <span><strong class="text-white">Alerte conformité catégorie</strong> — électronique, mode, beauté… chaque segment a ses règles</span></span>
+        <span class="text-white/30 mx-1">·</span>
+        <span class="inline-flex items-center gap-2 text-white/90 text-sm font-medium px-6">📁 <span>Fichier <strong class="text-white">Excel Amazon Seller Central</strong> → fiches remplies automatiquement, prêtes à uploader</span></span>
+        <span class="text-white/30 mx-1">·</span>
+        <span class="inline-flex items-center gap-2 text-white/90 text-sm font-medium px-6">🎨 <span><strong class="text-white">7 visuels IA</strong> générés par produit — fond blanc, lifestyle, infographie</span></span>
+        <span class="text-white/30 mx-1">·</span>
+        <span class="inline-flex items-center gap-2 text-white/90 text-sm font-medium px-6">🌍 <span><strong class="text-white">Amazon FR, DE, IT, ES, UK, US…</strong> 8 marketplaces, traduction native incluse</span></span>
+        <span class="text-white/30 mx-1">·</span>
+        <span class="inline-flex items-center gap-2 text-white/90 text-sm font-medium px-6">📈 <span><strong class="text-white">Score SEO fiche par fiche</strong> — titre, bullets, mots-clés, contenu A+</span></span>
+        <span class="text-white/30 mx-1">·</span>
+        <span class="inline-flex items-center gap-2 text-white/90 text-sm font-medium px-6">🚀 <span><strong class="text-white">Push direct Seller Central</strong> — zéro copier-coller</span></span>
+        <span class="text-white/30 mx-1">·</span>
+        <span class="inline-flex items-center gap-2 text-white/90 text-sm font-medium px-6">✅ <span>Tableau de bord <strong class="text-white">Kanban</strong> — À compléter → Prêt → Publié</span></span>
+        <span class="text-white/30 mx-1">·</span>
+        <span class="inline-flex items-center gap-2 text-white/90 text-sm font-medium px-6">🔄 <span><strong class="text-white">Historique des lots</strong> — reprenez exactement où vous en étiez</span></span>
+        <span class="text-white/30 mx-1">·</span>
+        <span class="inline-flex items-center gap-2 text-white/90 text-sm font-medium px-6">🧩 <span><strong class="text-white">Variations parent-enfant</strong> — tailles, couleurs, bundles gérés nativement</span></span>
+        <span class="text-white/30 mx-1">·</span>
+      </div>
+    </div>
+  </div>
 
   <!-- HERO -->
   <section class="max-w-6xl mx-auto px-6 pt-20 pb-20 text-center">
