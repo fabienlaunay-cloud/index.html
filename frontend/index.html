@@ -742,6 +742,54 @@
         </button>
       </div>
 
+      <!-- Voix de marque -->
+      <div class="bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
+        <button onclick="toggleBrandVoicePanel()" class="w-full flex items-center justify-between text-left">
+          <h2 class="font-semibold text-gray-800 flex items-center gap-2">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+            Voix de marque
+          </h2>
+          <div class="flex items-center gap-2">
+            <span id="brandVoiceBadge" class="hidden text-xs bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded font-medium">Configuré</span>
+            <span id="brandVoiceChevron" class="text-gray-400 text-sm transition-transform">▼</span>
+          </div>
+        </button>
+        <div id="brandVoicePanel" class="hidden mt-4 space-y-4">
+          <p class="text-xs text-gray-400">Ces paramètres s'injectent dans chaque génération — l'IA adapte automatiquement le style, les mots et les valeurs de la marque.</p>
+          <!-- Ton -->
+          <div>
+            <label class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2 block">Ton de marque</label>
+            <div class="flex flex-wrap gap-1.5" id="bvToneSelector">
+              <button onclick="setBrandTone('professionnel')" data-tone="professionnel" class="bv-tone-btn text-xs px-2.5 py-1 rounded-full border font-medium transition">Professionnel</button>
+              <button onclick="setBrandTone('premium')" data-tone="premium" class="bv-tone-btn text-xs px-2.5 py-1 rounded-full border font-medium transition">Premium</button>
+              <button onclick="setBrandTone('accessible')" data-tone="accessible" class="bv-tone-btn text-xs px-2.5 py-1 rounded-full border font-medium transition">Accessible</button>
+              <button onclick="setBrandTone('technique')" data-tone="technique" class="bv-tone-btn text-xs px-2.5 py-1 rounded-full border font-medium transition">Technique</button>
+              <button onclick="setBrandTone('lifestyle')" data-tone="lifestyle" class="bv-tone-btn text-xs px-2.5 py-1 rounded-full border font-medium transition">Lifestyle</button>
+            </div>
+          </div>
+          <!-- Cible -->
+          <div>
+            <label class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1 block">Cible client</label>
+            <input id="bv-target" type="text" placeholder="Ex : propriétaires de chien, femmes actives 25-45 ans…" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-xs focus:ring-2 focus:ring-purple-300 outline-none" oninput="saveBrandVoice()">
+          </div>
+          <!-- Valeurs -->
+          <div>
+            <label class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1 block">Valeurs / Promesse</label>
+            <textarea id="bv-values" rows="2" placeholder="Ex : durabilité, éco-responsable, fait en France, qualité artisanale…" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-xs focus:ring-2 focus:ring-purple-300 outline-none resize-none" oninput="saveBrandVoice()"></textarea>
+          </div>
+          <!-- Mots signature -->
+          <div>
+            <label class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1 block">Mots signature <span class="text-gray-400 font-normal">(séparés par virgule)</span></label>
+            <input id="bv-signature" type="text" placeholder="Ex : élégant, certifié, robuste, made in France" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-xs focus:ring-2 focus:ring-purple-300 outline-none" oninput="saveBrandVoice()">
+          </div>
+          <!-- Mots à éviter -->
+          <div>
+            <label class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1 block">Mots à éviter</label>
+            <input id="bv-avoid" type="text" placeholder="Ex : cheap, bas de gamme, économique, discount" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-xs focus:ring-2 focus:ring-purple-300 outline-none" oninput="saveBrandVoice()">
+          </div>
+        </div>
+      </div>
+
       <!-- Présets mots-clés par segment -->
       <div class="bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
         <button onclick="toggleSegmentPanel()" class="w-full flex items-center justify-between text-left">
@@ -1074,6 +1122,7 @@ let activeResultsFilter = null;   // null = Tous (résultats post-génération)
 let generatedListings = [];
 let photoMap = {};  // sku → "/api/photos/{filename}"
 let segmentPresets = JSON.parse(localStorage.getItem('synqio_segment_presets') || '{}');
+let brandVoice = JSON.parse(localStorage.getItem('synqio_brand_voice') || '{"tone":"professionnel"}');
 let resultsViewMode = localStorage.getItem('synqio_view_mode') || 'list';
 let currentDetailIdx = null;
 
@@ -1258,6 +1307,15 @@ function showApp(email) {
     checkHealth();
     loadUsage();
     _restoreSession();
+    // Restore brand voice badge (panel loads on open)
+    const bv = brandVoice || {};
+    const configured = bv.target_audience || bv.brand_values || (bv.signature_words||[]).length || (bv.avoid_words||[]).length;
+    document.getElementById('brandVoiceBadge')?.classList.toggle('hidden', !configured);
+    // Pre-select active tone chip even before opening panel
+    document.querySelectorAll('.bv-tone-btn').forEach(btn => {
+      const active = btn.dataset.tone === (bv.tone || 'professionnel');
+      btn.className = `bv-tone-btn text-xs px-2.5 py-1 rounded-full border font-medium transition ${active ? 'bg-purple-600 text-white border-purple-600' : 'bg-white text-gray-500 border-gray-200 hover:border-purple-300'}`;
+    });
   }
 }
 
@@ -2010,6 +2068,50 @@ function loadDemoData() {
 }
 
 // ── Segment keyword presets ───────────────────────────────────────────────────
+// ── Voix de marque ────────────────────────────────────────────────────────────
+function toggleBrandVoicePanel() {
+  const panel = document.getElementById('brandVoicePanel');
+  const chevron = document.getElementById('brandVoiceChevron');
+  const hidden = panel.classList.toggle('hidden');
+  if (chevron) chevron.style.transform = hidden ? '' : 'rotate(180deg)';
+  if (!hidden) _loadBrandVoiceUI();
+}
+
+function setBrandTone(tone) {
+  brandVoice.tone = tone;
+  saveBrandVoice();
+  document.querySelectorAll('.bv-tone-btn').forEach(btn => {
+    const active = btn.dataset.tone === tone;
+    btn.className = `bv-tone-btn text-xs px-2.5 py-1 rounded-full border font-medium transition ${active ? 'bg-purple-600 text-white border-purple-600' : 'bg-white text-gray-500 border-gray-200 hover:border-purple-300'}`;
+  });
+}
+
+function saveBrandVoice() {
+  brandVoice = {
+    tone: brandVoice.tone || 'professionnel',
+    target_audience: (document.getElementById('bv-target')?.value || '').trim(),
+    brand_values:    (document.getElementById('bv-values')?.value || '').trim(),
+    signature_words: (document.getElementById('bv-signature')?.value || '').split(',').map(w => w.trim()).filter(Boolean),
+    avoid_words:     (document.getElementById('bv-avoid')?.value || '').split(',').map(w => w.trim()).filter(Boolean),
+  };
+  localStorage.setItem('synqio_brand_voice', JSON.stringify(brandVoice));
+  // Badge "Configuré" si au moins un champ renseigné
+  const configured = brandVoice.target_audience || brandVoice.brand_values || brandVoice.signature_words.length || brandVoice.avoid_words.length;
+  document.getElementById('brandVoiceBadge')?.classList.toggle('hidden', !configured);
+}
+
+function _loadBrandVoiceUI() {
+  const bv = brandVoice || {};
+  setBrandTone(bv.tone || 'professionnel');
+  const t = document.getElementById('bv-target');    if (t) t.value = bv.target_audience || '';
+  const v = document.getElementById('bv-values');    if (v) v.value = bv.brand_values || '';
+  const s = document.getElementById('bv-signature'); if (s) s.value = (bv.signature_words || []).join(', ');
+  const a = document.getElementById('bv-avoid');     if (a) a.value = (bv.avoid_words || []).join(', ');
+  // Restore badge
+  const configured = bv.target_audience || bv.brand_values || (bv.signature_words||[]).length || (bv.avoid_words||[]).length;
+  document.getElementById('brandVoiceBadge')?.classList.toggle('hidden', !configured);
+}
+
 function saveSegmentPresets() {
   localStorage.setItem('synqio_segment_presets', JSON.stringify(segmentPresets));
 }
@@ -2171,6 +2273,7 @@ async function generateListings() {
         language: 'fr',
         style_tone: document.getElementById('styleTone').value,
         focus_keywords: document.getElementById('focusKeywords').value.split(',').map(k=>k.trim()).filter(Boolean),
+        brand_voice: brandVoice,
       }),
     });
     if (!r.ok) {

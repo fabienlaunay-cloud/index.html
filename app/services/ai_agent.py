@@ -4,7 +4,7 @@ import asyncio
 from typing import List, Optional
 import anthropic
 
-from app.models import RawProduct, AmazonListing, APlusContent, Marketplace
+from app.models import RawProduct, AmazonListing, APlusContent, Marketplace, BrandVoice
 
 _client: Optional[anthropic.AsyncAnthropic] = None
 
@@ -154,7 +154,35 @@ Tu réponds UNIQUEMENT en JSON valide selon le schéma demandé, sans commentair
 """
 
 
-def _build_user_prompt(product: RawProduct, constraints: dict, focus_keywords: List[str], style_tone: str) -> str:
+_TONE_DESCRIPTIONS = {
+    "premium":     "Premium et exclusif — vocabulaire élégant, évoque la qualité supérieure et le savoir-faire",
+    "accessible":  "Accessible et chaleureux — simple, direct, inclusif, proche du quotidien",
+    "technique":   "Technique et expert — précis, factuel, données chiffrées et spécifications en avant",
+    "lifestyle":   "Lifestyle et aspirationnel — ancré dans des moments de vie, émotionnel, inspirant",
+    "professionnel": "Professionnel et équilibré — sérieux, clair, orienté bénéfices concrets",
+}
+
+
+def _build_brand_voice_section(bv: "Optional[BrandVoice]") -> str:
+    if not bv:
+        return ""
+    parts = []
+    tone_desc = _TONE_DESCRIPTIONS.get(bv.tone, bv.tone)
+    parts.append(f"Ton de marque : {tone_desc}")
+    if bv.brand_values:
+        parts.append(f"Valeurs / Promesse de marque : {bv.brand_values}")
+    if bv.target_audience:
+        parts.append(f"Cible principale : {bv.target_audience}")
+    if bv.signature_words:
+        parts.append(f"Mots signature à intégrer naturellement (1-2 occurrences) : {', '.join(bv.signature_words)}")
+    if bv.avoid_words:
+        parts.append(f"Mots / expressions à ne JAMAIS utiliser : {', '.join(bv.avoid_words)}")
+    if not parts:
+        return ""
+    return "\n\n══ VOIX DE MARQUE — RÈGLES IMPÉRATIVES ══\n" + "\n".join(f"- {p}" for p in parts)
+
+
+def _build_user_prompt(product: RawProduct, constraints: dict, focus_keywords: List[str], style_tone: str, brand_voice: "Optional[BrandVoice]" = None) -> str:
     product_data = {
         "sku": product.sku,
         "nom": product.name,
@@ -195,11 +223,13 @@ Règle absolue : utilise EXCLUSIVEMENT ces mots-clés. Ne pas en inventer d'autr
     if product.images:
         image_note = f"\nImage de référence (style/esthétique) : {product.images[0]}"
 
+    bv_section = _build_brand_voice_section(brand_voice)
+
     return f"""CONTEXTE PRODUIT :
 {json.dumps(product_data, ensure_ascii=False, indent=2)}
 
-Ton de rédaction : {style_tone}
-Plateforme cible : {constraints['platform']}
+Ton de rédaction : {_TONE_DESCRIPTIONS.get(style_tone, style_tone)}
+Plateforme cible : {constraints['platform']}{bv_section}
 {image_note}{kw_instruction}
 
 CHECKLIST AVANT DE GÉNÉRER :
@@ -331,6 +361,7 @@ async def generate_listing(
     marketplace: Marketplace,
     focus_keywords: List[str],
     style_tone: str,
+    brand_voice: Optional[BrandVoice] = None,
     retries: int = 2,
 ) -> tuple:  # (AmazonListing, {"input_tokens": int, "output_tokens": int})
     constraints = MARKETPLACE_CONSTRAINTS.get(marketplace, MARKETPLACE_CONSTRAINTS[Marketplace.AMAZON_FR])
@@ -338,7 +369,7 @@ async def generate_listing(
     product_kw = list(product.focus_keywords or [])
     merged_kw = product_kw + [k for k in (focus_keywords or []) if k not in product_kw]
     system = _build_system_prompt(constraints)
-    user = _build_user_prompt(product, constraints, merged_kw, style_tone)
+    user = _build_user_prompt(product, constraints, merged_kw, style_tone, brand_voice)
     token_usage = {"input_tokens": 0, "output_tokens": 0}
 
     for attempt in range(retries + 1):
@@ -397,6 +428,7 @@ async def generate_listings_batch(
     marketplace: Marketplace,
     focus_keywords: List[str],
     style_tone: str,
+    brand_voice: Optional[BrandVoice] = None,
     concurrency: int = 2,
     on_progress=None,  # callable(done: int, total: int)
 ) -> tuple:  # (listings, failed, {"input_tokens": int, "output_tokens": int})
@@ -411,7 +443,7 @@ async def generate_listings_batch(
         nonlocal done_count, total_input_tokens, total_output_tokens
         async with semaphore:
             try:
-                listing, tokens = await generate_listing(product, marketplace, focus_keywords, style_tone)
+                listing, tokens = await generate_listing(product, marketplace, focus_keywords, style_tone, brand_voice)
                 listings.append(listing)
                 total_input_tokens += tokens.get("input_tokens", 0)
                 total_output_tokens += tokens.get("output_tokens", 0)

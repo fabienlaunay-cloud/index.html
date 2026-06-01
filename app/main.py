@@ -509,6 +509,7 @@ async def _run_generation_job(job_id: str, request: GenerationRequest, email: st
             marketplace=request.marketplace,
             focus_keywords=request.focus_keywords or [],
             style_tone=request.style_tone,
+            brand_voice=request.brand_voice,
             on_progress=on_progress,
         )
         if listings and email:

@@ -56,12 +56,21 @@ class APlusContent(BaseModel):
     modules: List[dict]
 
 
+class BrandVoice(BaseModel):
+    tone: str = "professionnel"          # professionnel | premium | accessible | technique | lifestyle
+    target_audience: str = ""            # cible client
+    brand_values: str = ""               # valeurs / promesse de marque
+    signature_words: List[str] = []      # mots à intégrer naturellement
+    avoid_words: List[str] = []          # mots à ne jamais utiliser
+
+
 class GenerationRequest(BaseModel):
     products: List[RawProduct]
     marketplace: Marketplace = Marketplace.AMAZON_FR
     language: str = "fr"
     style_tone: str = "professionnel"
     focus_keywords: Optional[List[str]] = []
+    brand_voice: Optional[BrandVoice] = None
 
 
 class GenerationResult(BaseModel):
