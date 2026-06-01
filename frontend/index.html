@@ -1157,7 +1157,26 @@ function showApp(email) {
     document.getElementById('adminView').classList.add('hidden');
     checkHealth();
     loadUsage();
+    _restoreSession();
   }
+}
+
+function _restoreSession() {
+  try {
+    const saved = localStorage.getItem('synqio_listings');
+    if (!saved) return;
+    const listings = JSON.parse(saved);
+    if (!listings || !listings.length) return;
+    generatedListings = listings;
+    try {
+      const savedImages = localStorage.getItem('synqio_images');
+      if (savedImages) Object.assign(imagesCache, JSON.parse(savedImages));
+    } catch(e) {}
+    const result = { listings, success_count: listings.length, failed: [], total: listings.length, marketplace: listings[0]?.marketplace || 'amazon_fr' };
+    showResults(result);
+    setStep(3);
+    showToast('🔄', `Session restaurée — ${listings.length} fiche(s) disponible(s)`);
+  } catch(e) {}
 }
 
 function showMainApp() {
@@ -1979,6 +1998,7 @@ function clearPhotos() {
 // ── Generation ────────────────────────────────────────────────────────────────
 async function generateListings() {
   if (!parsedProducts.length) return;
+  try { localStorage.removeItem('synqio_listings'); localStorage.removeItem('synqio_images'); } catch(e) {}
   document.getElementById('emptyState').classList.add('hidden');
   document.getElementById('resultsState').classList.add('hidden');
   document.getElementById('loadingState').classList.remove('hidden');
@@ -2297,6 +2317,7 @@ async function generateImages(idx) {
       if (job.status === 'done') {
         const data = job.result;
         imagesCache[listing.sku] = data;
+        try { localStorage.setItem('synqio_images', JSON.stringify(imagesCache)); } catch(e) {}
         renderImages(container, data);
         return;
       }
