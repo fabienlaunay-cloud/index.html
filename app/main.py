@@ -498,33 +498,49 @@ def _cleanup_jobs():
 
 async def _run_generation_job(job_id: str, request: GenerationRequest, email: str):
     _jobs[job_id]["status"] = "running"
+    target_mkts = request.marketplaces or [request.marketplace]
+    n_total = len(request.products) * len(target_mkts)
+    done_count = 0
 
-    def on_progress(done: int, total: int):
+    def on_progress(done: int, _total: int):
+        nonlocal done_count
+        done_count += 1
         if job_id in _jobs:
-            _jobs[job_id]["progress"] = done
+            _jobs[job_id]["progress"] = done_count
 
     try:
-        listings, failed, gen_tokens = await generate_listings_batch(
-            products=request.products,
-            marketplace=request.marketplace,
-            focus_keywords=request.focus_keywords or [],
-            style_tone=request.style_tone,
-            brand_voice=request.brand_voice,
-            on_progress=on_progress,
-        )
-        if listings and email:
-            log_usage(email, "sku_generated", len(listings))
-        if email and gen_tokens:
-            if gen_tokens.get("input_tokens"):
-                log_usage(email, "tokens_in", gen_tokens["input_tokens"])
-            if gen_tokens.get("output_tokens"):
-                log_usage(email, "tokens_out", gen_tokens["output_tokens"])
+        tasks = [
+            generate_listings_batch(
+                products=request.products,
+                marketplace=mkt,
+                focus_keywords=request.focus_keywords or [],
+                style_tone=request.style_tone,
+                brand_voice=request.brand_voice,
+                on_progress=on_progress,
+            )
+            for mkt in target_mkts
+        ]
+        results_all = await asyncio.gather(*tasks)
+
+        all_listings, all_failed, total_in, total_out = [], [], 0, 0
+        for listings, failed, tokens in results_all:
+            all_listings.extend(listings)
+            all_failed.extend(failed)
+            total_in  += tokens.get("input_tokens", 0)
+            total_out += tokens.get("output_tokens", 0)
+
+        if all_listings and email:
+            log_usage(email, "sku_generated", len(all_listings))
+        if email:
+            if total_in:  log_usage(email, "tokens_in",  total_in)
+            if total_out: log_usage(email, "tokens_out", total_out)
+
         result = GenerationResult(
-            listings=listings, failed=failed,
-            total=len(request.products), success_count=len(listings),
-            marketplace=request.marketplace,
+            listings=all_listings, failed=all_failed,
+            total=n_total, success_count=len(all_listings),
+            marketplace=target_mkts[0],
         )
-        _jobs[job_id].update({"status": "done", "progress": len(request.products),
+        _jobs[job_id].update({"status": "done", "progress": n_total,
                                "result": result.model_dump()})
     except Exception as e:
         _jobs[job_id].update({"status": "failed", "error": str(e)})
@@ -553,12 +569,14 @@ async def generate(request: GenerationRequest, req: Request):
                 f"(plan {usage['plan_label']} : {usage['skus_quota']}/mois). "
                 f"Vous demandez {len(request.products)} SKU.")
 
+    n_mkts = len(request.marketplaces) if request.marketplaces else 1
+    n_total = len(request.products) * n_mkts
     job_id = str(uuid4())
     _jobs[job_id] = {"status": "pending", "progress": 0,
-                     "total": len(request.products), "created_at": time.time()}
+                     "total": n_total, "created_at": time.time()}
     _cleanup_jobs()
     asyncio.create_task(_run_generation_job(job_id, request, email))
-    return {"job_id": job_id, "total": len(request.products)}
+    return {"job_id": job_id, "total": n_total}
 
 
 @app.get("/api/jobs/{job_id}")

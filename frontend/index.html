@@ -607,22 +607,22 @@
         <div class="w-2 h-2 rounded-full bg-gray-300 pulse"></div><span>...</span>
       </div>
       <div class="relative" id="mktSelectorWrapper">
-        <input type="hidden" id="marketplaceSelector" value="amazon_fr">
         <button type="button" onclick="toggleMktDropdown(event)" class="flex items-center gap-2 bg-white/10 border border-white/20 text-white rounded-lg px-3 py-1.5 text-sm min-w-[170px] justify-between hover:bg-white/20 transition">
           <span id="mktSelectorLabel">🇫🇷 Amazon France</span>
           <span class="text-white/60 text-xs ml-1">▾</span>
         </button>
-        <div id="mktSelectorList" class="hidden absolute right-0 top-10 bg-indigo-950 border border-white/20 rounded-xl shadow-2xl py-1.5 z-50 min-w-[200px]">
-          <div onclick="pickMkt('amazon_fr','🇫🇷 Amazon France')" class="px-4 py-2 text-sm text-white hover:bg-white/10 cursor-pointer rounded-lg mx-1">🇫🇷 Amazon France</div>
-          <div onclick="pickMkt('amazon_de','🇩🇪 Amazon Allemagne')" class="px-4 py-2 text-sm text-white hover:bg-white/10 cursor-pointer rounded-lg mx-1">🇩🇪 Amazon Allemagne</div>
-          <div onclick="pickMkt('amazon_it','🇮🇹 Amazon Italie')" class="px-4 py-2 text-sm text-white hover:bg-white/10 cursor-pointer rounded-lg mx-1">🇮🇹 Amazon Italie</div>
-          <div onclick="pickMkt('amazon_es','🇪🇸 Amazon Espagne')" class="px-4 py-2 text-sm text-white hover:bg-white/10 cursor-pointer rounded-lg mx-1">🇪🇸 Amazon Espagne</div>
-          <div onclick="pickMkt('amazon_uk','🇬🇧 Amazon UK')" class="px-4 py-2 text-sm text-white hover:bg-white/10 cursor-pointer rounded-lg mx-1">🇬🇧 Amazon UK</div>
+        <div id="mktSelectorList" class="hidden absolute right-0 top-10 bg-indigo-950 border border-white/20 rounded-xl shadow-2xl py-2 z-50 min-w-[220px]">
+          <p class="text-white/40 text-xs px-4 pb-1.5">Sélectionnez un ou plusieurs marchés</p>
+          <div onclick="toggleMkt('amazon_fr')" class="mkt-item flex items-center gap-3 px-4 py-2 text-sm text-white hover:bg-white/10 cursor-pointer rounded-lg mx-1" data-mkt="amazon_fr"><span class="w-4 h-4 rounded border border-white/40 flex items-center justify-center flex-shrink-0 mkt-check" id="mkt-check-amazon_fr"></span>🇫🇷 Amazon France</div>
+          <div onclick="toggleMkt('amazon_de')" class="mkt-item flex items-center gap-3 px-4 py-2 text-sm text-white hover:bg-white/10 cursor-pointer rounded-lg mx-1" data-mkt="amazon_de"><span class="w-4 h-4 rounded border border-white/40 flex items-center justify-center flex-shrink-0 mkt-check" id="mkt-check-amazon_de"></span>🇩🇪 Amazon Allemagne</div>
+          <div onclick="toggleMkt('amazon_it')" class="mkt-item flex items-center gap-3 px-4 py-2 text-sm text-white hover:bg-white/10 cursor-pointer rounded-lg mx-1" data-mkt="amazon_it"><span class="w-4 h-4 rounded border border-white/40 flex items-center justify-center flex-shrink-0 mkt-check" id="mkt-check-amazon_it"></span>🇮🇹 Amazon Italie</div>
+          <div onclick="toggleMkt('amazon_es')" class="mkt-item flex items-center gap-3 px-4 py-2 text-sm text-white hover:bg-white/10 cursor-pointer rounded-lg mx-1" data-mkt="amazon_es"><span class="w-4 h-4 rounded border border-white/40 flex items-center justify-center flex-shrink-0 mkt-check" id="mkt-check-amazon_es"></span>🇪🇸 Amazon Espagne</div>
+          <div onclick="toggleMkt('amazon_uk')" class="mkt-item flex items-center gap-3 px-4 py-2 text-sm text-white hover:bg-white/10 cursor-pointer rounded-lg mx-1" data-mkt="amazon_uk"><span class="w-4 h-4 rounded border border-white/40 flex items-center justify-center flex-shrink-0 mkt-check" id="mkt-check-amazon_uk"></span>🇬🇧 Amazon UK</div>
           <div class="border-t border-white/10 my-1"></div>
-          <div onclick="pickMkt('amazon_nl','🇳🇱 Amazon Pays-Bas')" class="px-4 py-2 text-sm text-white hover:bg-white/10 cursor-pointer rounded-lg mx-1">🇳🇱 Amazon Pays-Bas</div>
-          <div onclick="pickMkt('amazon_se','🇸🇪 Amazon Suède')" class="px-4 py-2 text-sm text-white hover:bg-white/10 cursor-pointer rounded-lg mx-1">🇸🇪 Amazon Suède</div>
-          <div onclick="pickMkt('amazon_pl','🇵🇱 Amazon Pologne')" class="px-4 py-2 text-sm text-white hover:bg-white/10 cursor-pointer rounded-lg mx-1">🇵🇱 Amazon Pologne</div>
-          <div onclick="pickMkt('amazon_be','🇧🇪 Amazon Belgique')" class="px-4 py-2 text-sm text-white hover:bg-white/10 cursor-pointer rounded-lg mx-1">🇧🇪 Amazon Belgique</div>
+          <div onclick="toggleMkt('amazon_nl')" class="mkt-item flex items-center gap-3 px-4 py-2 text-sm text-white hover:bg-white/10 cursor-pointer rounded-lg mx-1" data-mkt="amazon_nl"><span class="w-4 h-4 rounded border border-white/40 flex items-center justify-center flex-shrink-0 mkt-check" id="mkt-check-amazon_nl"></span>🇳🇱 Pays-Bas</div>
+          <div onclick="toggleMkt('amazon_se')" class="mkt-item flex items-center gap-3 px-4 py-2 text-sm text-white hover:bg-white/10 cursor-pointer rounded-lg mx-1" data-mkt="amazon_se"><span class="w-4 h-4 rounded border border-white/40 flex items-center justify-center flex-shrink-0 mkt-check" id="mkt-check-amazon_se"></span>🇸🇪 Suède</div>
+          <div onclick="toggleMkt('amazon_pl')" class="mkt-item flex items-center gap-3 px-4 py-2 text-sm text-white hover:bg-white/10 cursor-pointer rounded-lg mx-1" data-mkt="amazon_pl"><span class="w-4 h-4 rounded border border-white/40 flex items-center justify-center flex-shrink-0 mkt-check" id="mkt-check-amazon_pl"></span>🇵🇱 Pologne</div>
+          <div onclick="toggleMkt('amazon_be')" class="mkt-item flex items-center gap-3 px-4 py-2 text-sm text-white hover:bg-white/10 cursor-pointer rounded-lg mx-1" data-mkt="amazon_be"><span class="w-4 h-4 rounded border border-white/40 flex items-center justify-center flex-shrink-0 mkt-check" id="mkt-check-amazon_be"></span>🇧🇪 Belgique</div>
         </div>
       </div>
       <div class="relative">
@@ -1123,6 +1123,8 @@ let generatedListings = [];
 let photoMap = {};  // sku → "/api/photos/{filename}"
 let segmentPresets = JSON.parse(localStorage.getItem('synqio_segment_presets') || '{}');
 let brandVoice = JSON.parse(localStorage.getItem('synqio_brand_voice') || '{"tone":"professionnel"}');
+let selectedMarketplaces = JSON.parse(localStorage.getItem('synqio_marketplaces') || '["amazon_fr"]');
+let activeMarketplaceFilter = null;
 let resultsViewMode = localStorage.getItem('synqio_view_mode') || 'list';
 let currentDetailIdx = null;
 
@@ -1307,6 +1309,8 @@ function showApp(email) {
     checkHealth();
     loadUsage();
     _restoreSession();
+    _refreshMktCheckboxes();
+    _updateMktLabel();
     // Restore brand voice badge (panel loads on open)
     const bv = brandVoice || {};
     const configured = bv.target_audience || bv.brand_values || (bv.signature_words||[]).length || (bv.avoid_words||[]).length;
@@ -1507,15 +1511,62 @@ document.addEventListener('click', e => {
 });
 
 // ── Custom marketplace dropdowns ──────────────────────────────────────────────
+const MKT_META = {
+  amazon_fr: { flag:'🇫🇷', label:'Amazon France' },
+  amazon_de: { flag:'🇩🇪', label:'Amazon Allemagne' },
+  amazon_it: { flag:'🇮🇹', label:'Amazon Italie' },
+  amazon_es: { flag:'🇪🇸', label:'Amazon Espagne' },
+  amazon_uk: { flag:'🇬🇧', label:'Amazon UK' },
+  amazon_nl: { flag:'🇳🇱', label:'Pays-Bas' },
+  amazon_se: { flag:'🇸🇪', label:'Suède' },
+  amazon_pl: { flag:'🇵🇱', label:'Pologne' },
+  amazon_be: { flag:'🇧🇪', label:'Belgique' },
+};
+
 function toggleMktDropdown(e) {
   e.stopPropagation();
-  document.getElementById('pubMktList').classList.add('hidden');
+  document.getElementById('pubMktList')?.classList.add('hidden');
   document.getElementById('mktSelectorList').classList.toggle('hidden');
+  _refreshMktCheckboxes();
 }
-function pickMkt(value, label) {
-  document.getElementById('marketplaceSelector').value = value;
-  document.getElementById('mktSelectorLabel').textContent = label;
-  document.getElementById('mktSelectorList').classList.add('hidden');
+
+function toggleMkt(value) {
+  const idx = selectedMarketplaces.indexOf(value);
+  if (idx >= 0) {
+    if (selectedMarketplaces.length === 1) return; // always keep at least one
+    selectedMarketplaces.splice(idx, 1);
+  } else {
+    selectedMarketplaces.push(value);
+  }
+  localStorage.setItem('synqio_marketplaces', JSON.stringify(selectedMarketplaces));
+  _refreshMktCheckboxes();
+  _updateMktLabel();
+}
+
+function _refreshMktCheckboxes() {
+  Object.keys(MKT_META).forEach(mkt => {
+    const el = document.getElementById(`mkt-check-${mkt}`);
+    if (!el) return;
+    if (selectedMarketplaces.includes(mkt)) {
+      el.innerHTML = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+      el.className = 'w-4 h-4 rounded border border-purple-400 bg-purple-500 flex items-center justify-center flex-shrink-0 mkt-check';
+    } else {
+      el.innerHTML = '';
+      el.className = 'w-4 h-4 rounded border border-white/40 flex items-center justify-center flex-shrink-0 mkt-check';
+    }
+  });
+}
+
+function _updateMktLabel() {
+  const label = document.getElementById('mktSelectorLabel');
+  if (!label) return;
+  if (selectedMarketplaces.length === 1) {
+    const m = MKT_META[selectedMarketplaces[0]];
+    label.textContent = m ? `${m.flag} ${m.label}` : selectedMarketplaces[0];
+  } else {
+    const flags = selectedMarketplaces.map(m => MKT_META[m]?.flag || '').join('');
+    label.textContent = `${flags} ${selectedMarketplaces.length} marchés`;
+  }
 }
 function togglePubMkt(e) {
   e.stopPropagation();
@@ -1935,6 +1986,13 @@ function filterResults(seg) {
   _renderResultsChips();
 }
 
+function filterByMarketplace(mkt) {
+  activeMarketplaceFilter = mkt;
+  activeResultsFilter = null; // reset segment filter on marketplace change
+  renderListingsContainer();
+  _renderResultsChips();
+}
+
 function setResultsViewMode(mode) {
   resultsViewMode = mode;
   localStorage.setItem('synqio_view_mode', mode);
@@ -1946,22 +2004,43 @@ function _renderResultsChips() {
   const container = document.getElementById('resultsChipsContainer');
   if (!container) return;
   if (generatedListings.length === 0) { container.classList.add('hidden'); return; }
+
+  // Build marketplace map
+  const mktMap = {};
+  generatedListings.forEach(l => { mktMap[l.marketplace] = (mktMap[l.marketplace] || 0) + 1; });
+  const hasMultiMkt = Object.keys(mktMap).length > 1;
+
+  // Marketplace chips row (only if multiple)
+  const visibleForSeg = activeMarketplaceFilter
+    ? generatedListings.filter(l => l.marketplace === activeMarketplaceFilter)
+    : generatedListings;
+
   const segMap = {};
   let unmatched = 0;
-  generatedListings.forEach(l => {
+  visibleForSeg.forEach(l => {
     const s = _getListingSegment(l);
     if (s) segMap[s] = (segMap[s] || 0) + 1;
     else unmatched++;
   });
   container.classList.remove('hidden');
   const hasSegments = Object.keys(segMap).length > 0;
-  container.innerHTML = `<div class="bg-white rounded-2xl shadow-sm border border-gray-100 px-5 py-3 flex items-center gap-3">
+
+  const mktChipsHtml = hasMultiMkt ? `<div class="flex flex-wrap gap-1.5 items-center pb-2 border-b border-gray-100 mb-2 w-full">
+    <span class="text-xs text-gray-400 font-medium mr-1">Marché :</span>
+    <button onclick="filterByMarketplace(null)" class="text-xs px-2.5 py-1 rounded-full border font-medium transition ${!activeMarketplaceFilter ? 'bg-purple-600 text-white border-purple-600' : 'bg-white text-gray-500 border-gray-200 hover:border-purple-300'}">Tous (${generatedListings.length})</button>
+    ${Object.entries(mktMap).map(([mkt, n]) => {
+      const meta = MKT_META[mkt] || { flag:'🌐', label: mkt };
+      return `<button onclick="filterByMarketplace('${mkt}')" class="text-xs px-2.5 py-1 rounded-full border font-medium transition ${activeMarketplaceFilter === mkt ? 'bg-purple-600 text-white border-purple-600' : 'bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100'}">${meta.flag} ${meta.label} (${n})</button>`;
+    }).join('')}
+  </div>` : '';
+  container.innerHTML = `<div class="bg-white rounded-2xl shadow-sm border border-gray-100 px-5 py-3 flex items-center gap-3 flex-wrap">
     <div class="flex-1 flex flex-wrap gap-1.5 items-center">
+      ${mktChipsHtml}
       <span class="text-xs text-gray-400 font-medium mr-1">Filtrer :</span>
       ${hasSegments ? `<button onclick="filterResults(null)" data-seg="__all"
         class="segment-chip text-xs px-2.5 py-1 rounded-full border font-medium transition
                ${!activeResultsFilter ? 'bg-purple-600 text-white border-purple-600' : 'bg-white text-gray-500 border-gray-200 hover:border-purple-300'}">
-        Tous (${generatedListings.length})
+        Tous (${visibleForSeg.length})
       </button>
       ${Object.entries(segMap).map(([s, n]) => `
         <button onclick="filterResults(this.dataset.seg)" data-seg="${_esc(s)}"
@@ -2269,7 +2348,8 @@ async function generateListings() {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         products: productsToSend,
-        marketplace: document.getElementById('marketplaceSelector').value,
+        marketplace: selectedMarketplaces[0] || 'amazon_fr',
+        marketplaces: selectedMarketplaces,
         language: 'fr',
         style_tone: document.getElementById('styleTone').value,
         focus_keywords: document.getElementById('focusKeywords').value.split(',').map(k=>k.trim()).filter(Boolean),
@@ -2302,7 +2382,8 @@ async function generateListings() {
       const pct = total > 0 ? Math.round((job.progress / total) * 100) : 0;
       document.getElementById('progressBar').style.width = pct + '%';
       const loadingText = document.querySelector('#loadingState p');
-      if (loadingText) loadingText.textContent = `Génération COSMO en cours… ${job.progress}/${total} fiches`;
+      const mktSuffix = selectedMarketplaces.length > 1 ? ` — ${selectedMarketplaces.length} marchés` : '';
+      if (loadingText) loadingText.textContent = `Génération COSMO en cours… ${job.progress}/${total} fiches${mktSuffix}`;
 
       if (job.status === 'done') { result = job.result; break; }
       if (job.status === 'failed') throw new Error(job.error || 'Erreur de génération');
@@ -2324,6 +2405,7 @@ async function generateListings() {
 }
 
 function showResults(result) {
+  activeMarketplaceFilter = null;
   document.getElementById('loadingState').classList.add('hidden');
   document.getElementById('loadingState').classList.remove('flex');
   document.getElementById('emptyState').classList.add('hidden');
@@ -2343,6 +2425,7 @@ function renderListingsContainer() {
   const c = document.getElementById('listingsContainer');
   if (!c) return;
   const visible = generatedListings.filter((l) => {
+    if (activeMarketplaceFilter && l.marketplace !== activeMarketplaceFilter) return false;
     if (!activeResultsFilter) return true;
     const s = _getListingSegment(l);
     if (activeResultsFilter === '__none') return !s;

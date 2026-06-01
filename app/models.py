@@ -66,7 +66,8 @@ class BrandVoice(BaseModel):
 
 class GenerationRequest(BaseModel):
     products: List[RawProduct]
-    marketplace: Marketplace = Marketplace.AMAZON_FR
+    marketplace: Marketplace = Marketplace.AMAZON_FR   # kept for single-market compat
+    marketplaces: Optional[List[Marketplace]] = None   # multi-market: overrides marketplace
     language: str = "fr"
     style_tone: str = "professionnel"
     focus_keywords: Optional[List[str]] = []
