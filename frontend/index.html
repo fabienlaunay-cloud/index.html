@@ -2513,7 +2513,18 @@ async function checkAmazonStatus() {
     }
   } catch {
     box.className = 'mb-3 text-xs rounded-lg px-3 py-2 bg-gray-50 text-gray-400';
-    box.textContent = 'Impossible de vérifier la connexion';
+    box.textContent = 'Statut Amazon non disponible';
+    const dryRun = document.getElementById('dryRunCheck').checked;
+    btn.disabled = false;
+    if (dryRun) {
+      btn.className = 'w-full gradient-bg text-white rounded-lg py-2 text-sm font-semibold hover:opacity-90 transition';
+      btn.textContent = 'Publier en mode test (simulation)';
+      btn.onclick = publishListings;
+    } else {
+      btn.className = 'w-full bg-gray-400 text-white rounded-lg py-2 text-sm font-semibold';
+      btn.textContent = 'Connexion Amazon requise';
+      btn.onclick = null;
+    }
   }
 }
 
