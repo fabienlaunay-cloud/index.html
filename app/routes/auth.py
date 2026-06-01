@@ -286,6 +286,22 @@ class UpdatePlanRequest(BaseModel):
     plan: str
 
 
+class UpdateAdminRequest(BaseModel):
+    is_admin: bool
+
+
+@admin_router.patch("/users/{email}/admin")
+async def update_admin_role(email: str, req: UpdateAdminRequest, authorization: str = Header(None)):
+    caller = _require_admin(authorization)
+    if email.lower() == caller.lower():
+        raise HTTPException(400, "Vous ne pouvez pas modifier votre propre rôle admin")
+    conn = get_db()
+    conn.execute("UPDATE users SET is_admin = ? WHERE email = ?", (1 if req.is_admin else 0, email.lower()))
+    conn.commit()
+    conn.close()
+    return {"status": "updated", "email": email, "is_admin": req.is_admin}
+
+
 @admin_router.patch("/users/{email}/plan")
 async def update_plan(email: str, req: UpdatePlanRequest, authorization: str = Header(None)):
     _require_admin(authorization)
