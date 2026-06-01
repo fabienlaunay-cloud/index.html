@@ -796,7 +796,19 @@
                 Appliquer segments
               </button>
               <button onclick="exportResults('csv')" class="bg-green-50 hover:bg-green-100 text-green-700 rounded-lg px-3 py-2 text-sm font-medium transition">CSV</button>
-              <button onclick="exportResults('flat')" class="bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg px-3 py-2 text-sm font-medium transition">Seller Central</button>
+              <div class="relative" id="scExportMenu">
+                <button onclick="toggleScMenu()" class="bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg px-3 py-2 text-sm font-medium transition flex items-center gap-1">Seller Central <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button>
+                <div id="scExportDropdown" class="hidden absolute right-0 top-full mt-1 bg-white rounded-xl shadow-lg border border-gray-100 z-50 min-w-[240px] py-1">
+                  <button onclick="exportResults('flat');toggleScMenu()" class="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 transition">
+                    <div class="font-medium text-gray-800">➕ Nouveaux produits</div>
+                    <div class="text-xs text-gray-400 mt-0.5">Produit absent du catalogue Amazon</div>
+                  </button>
+                  <button onclick="exportResults('listing-loader');toggleScMenu()" class="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 transition border-t border-gray-50">
+                    <div class="font-medium text-gray-800">📋 Produits existants</div>
+                    <div class="text-xs text-gray-400 mt-0.5">Produit déjà dans le catalogue (a un ASIN/EAN)</div>
+                  </button>
+                </div>
+              </div>
               <button onclick="exportResults('json')" class="bg-gray-50 hover:bg-gray-100 text-gray-700 rounded-lg px-3 py-2 text-sm font-medium transition">{ } JSON</button>
               <button onclick="downloadZipPack()" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg px-3 py-2 text-sm font-medium transition flex items-center gap-1.5">📦 Pack ZIP</button>
               <button onclick="showPublishModal()" class="gradient-bg text-white rounded-lg px-4 py-2 text-sm font-semibold hover:opacity-90 transition">Publier</button>
@@ -2487,14 +2499,23 @@ async function regenerateSingleImage(btn) {
 
 function copyListing(idx) { navigator.clipboard.writeText(JSON.stringify(generatedListings[idx], null, 2)); showToast('📋', 'JSON copié'); }
 
+function toggleScMenu() {
+  document.getElementById('scExportDropdown').classList.toggle('hidden');
+}
+document.addEventListener('click', e => {
+  const menu = document.getElementById('scExportMenu');
+  if (menu && !menu.contains(e.target)) document.getElementById('scExportDropdown')?.classList.add('hidden');
+});
+
 async function exportResults(format) {
   if (!generatedListings.length) return;
-  const ep = {csv:'/api/export/csv', json:'/api/export/json', flat:'/api/export/flat-file'};
-  const fn = {csv:'listings.csv', json:'listings.json', flat:'amazon_flat_file.txt'};
+  const ep = { csv:'/api/export/csv', json:'/api/export/json', flat:'/api/export/flat-file', 'listing-loader':'/api/export/listing-loader' };
+  const fn = { csv:'listings.csv', json:'listings.json', flat:'amazon_nouveaux_produits.txt', 'listing-loader':'amazon_produits_existants.txt' };
+  const label = { csv:'CSV', json:'JSON', flat:'Nouveaux produits', 'listing-loader':'Produits existants' };
   const r = await authFetch(ep[format], { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(generatedListings) });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(await r.blob()); a.download = fn[format]; a.click();
-  showToast('✅', `Export ${format.toUpperCase()} téléchargé`);
+  showToast('✅', `${label[format]} téléchargé`);
 }
 
 
@@ -2505,9 +2526,11 @@ async function downloadZipPack() {
   showToast('⏳', 'Création du pack ZIP…');
   const zip = new JSZip();
 
-  // Flat file Seller Central
+  // Flat files Seller Central (les deux formats)
   const flatR = await authFetch('/api/export/flat-file', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(generatedListings) });
-  zip.file('amazon_flat_file.txt', await flatR.blob());
+  zip.file('amazon_nouveaux_produits.txt', await flatR.blob());
+  const loaderR = await authFetch('/api/export/listing-loader', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(generatedListings) });
+  zip.file('amazon_produits_existants.txt', await loaderR.blob());
 
   // Images depuis le cache (base64 data URLs)
   const imgFolder = zip.folder('images');

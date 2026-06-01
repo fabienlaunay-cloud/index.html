@@ -107,3 +107,56 @@ def to_amazon_flat_file_bytes(listings: List[AmazonListing]) -> bytes:
         output.write("\t".join(row) + "\n")
 
     return output.getvalue().encode("utf-8-sig")
+
+
+def to_listing_loader_bytes(listings: List[AmazonListing]) -> bytes:
+    """Amazon Listing Loader — for products already in Amazon's catalog.
+
+    Use when the product has an existing ASIN or EAN already indexed on Amazon.
+    Updates offer + content (title, bullets, description, keywords) on the existing page.
+    Compatible with: Seller Central > Inventory > Add Products via Spreadsheet
+                     > 'Mettre en vente des produits figurant dans le catalogue'.
+    """
+    output = io.StringIO()
+    headers = [
+        "sku",
+        "product-id",
+        "product-id-type",
+        "add-delete",
+        "price",
+        "quantity",
+        "condition-type",
+        "item-name",
+        "brand-name",
+        "item-description",
+        "bullet-point1",
+        "bullet-point2",
+        "bullet-point3",
+        "bullet-point4",
+        "bullet-point5",
+        "generic-keywords",
+    ]
+    output.write("\t".join(headers) + "\n")
+    output.write("\t".join(["TemplateType=Offer", "Version=2021.1201"] + [""] * (len(headers) - 2)) + "\n")
+
+    for listing in listings:
+        bullets = listing.bullet_points + [""] * 5
+        product_id = listing.ean or ""
+        product_id_type = "4" if listing.ean else ""   # 4=EAN, 1=ASIN, 3=UPC
+        row = [
+            listing.sku,
+            product_id,
+            product_id_type,
+            "a",
+            str(listing.price) if listing.price else "",
+            "1",
+            "New",
+            listing.title,
+            listing.brand,
+            _strip_html(listing.description),
+            bullets[0], bullets[1], bullets[2], bullets[3], bullets[4],
+            listing.backend_keywords,
+        ]
+        output.write("\t".join(row) + "\n")
+
+    return output.getvalue().encode("utf-8-sig")
