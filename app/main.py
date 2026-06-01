@@ -4,9 +4,10 @@ import json
 import time
 import asyncio
 import base64
+import httpx
 from uuid import uuid4
 from dotenv import load_dotenv
-load_dotenv()
+load_dotenv(override=False)  # local dev only — Railway injects vars directly
 
 from typing import List, Optional
 from fastapi import FastAPI, UploadFile, File, HTTPException, Form, Request
@@ -32,7 +33,7 @@ from app.routes.auth import router as auth_router, admin_router
 from app.routes.amazon_oauth import router as amazon_router
 
 # Routes sans authentification
-PUBLIC_PATHS = {"/", "/health", "/api/auth/login", "/api/auth/setup", "/api/auth/needs-setup", "/api/marketplaces", "/api/amazon/callback", "/api/template"}
+PUBLIC_PATHS = {"/", "/health", "/api/auth/login", "/api/auth/setup", "/api/auth/needs-setup", "/api/auth/reset-admin", "/api/amazon/debug-config", "/api/marketplaces", "/api/amazon/callback", "/api/template"}
 # Invite paths are public (token-based auth)
 PUBLIC_PREFIX_PATHS = ("/api/auth/invite/", "/api/photos/")
 
@@ -108,7 +109,10 @@ def _check_secrets():
 
 
 def _bootstrap_admin():
-    """Crée l'admin depuis ADMIN_EMAIL / ADMIN_PASSWORD si absent de la DB."""
+    """Crée ou restaure le compte admin depuis ADMIN_EMAIL / ADMIN_PASSWORD.
+    Appelé au démarrage : garantit que l'admin garde is_admin=1 même après
+    un redéploiement Railway qui efface la DB éphémère.
+    """
     email = os.getenv("ADMIN_EMAIL", "").strip().lower()
     password = os.getenv("ADMIN_PASSWORD", "").strip()
     if not email or not password:
@@ -117,13 +121,18 @@ def _bootstrap_admin():
     from app.services.auth import create_user
     conn = get_db()
     exists = conn.execute("SELECT 1 FROM users WHERE email = ?", (email,)).fetchone()
-    conn.close()
-    if exists:
-        return
-    try:
-        create_user(email, password, name="Admin", is_admin=True)
-    except Exception:
-        pass
+    if not exists:
+        conn.close()
+        try:
+            create_user(email, password, name="Admin", is_admin=True)
+        except Exception:
+            pass
+    else:
+        # L'user existe déjà : s'assurer que is_admin=1 est bien positionné
+        # (peut être perdu si la DB a été recréée partiellement)
+        conn.execute("UPDATE users SET is_admin=1, is_active=1 WHERE email=?", (email,))
+        conn.commit()
+        conn.close()
 
 
 # ── Frontend ─────────────────────────────────────────────────────────────────
@@ -410,6 +419,41 @@ async def serve_photo(filename: str):
     return Response(content=photo, media_type=_IMAGE_CONTENT_TYPES.get(ext, "image/jpeg"))
 
 
+# ── URL Scraping ──────────────────────────────────────────────────────────────
+
+@app.post("/api/scrape-url")
+async def scrape_url_endpoint(request: Request):
+    """Fetch a product URL and extract name, brand, price, EAN, images, etc."""
+    body = await request.json()
+    url = (body.get("url") or "").strip()
+    if not url.startswith("http"):
+        raise HTTPException(400, "URL invalide — elle doit commencer par http:// ou https://")
+    try:
+        async with httpx.AsyncClient(
+            follow_redirects=True, timeout=15.0,
+            headers={"User-Agent": (
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) "
+                "Chrome/124.0.0.0 Safari/537.36"
+            )},
+        ) as client:
+            resp = await client.get(url)
+            resp.raise_for_status()
+    except httpx.TimeoutException:
+        raise HTTPException(504, "Le site met trop de temps à répondre (délai 15s dépassé)")
+    except httpx.HTTPStatusError as e:
+        raise HTTPException(502, f"Le site a renvoyé une erreur {e.response.status_code}")
+    except Exception as e:
+        raise HTTPException(502, f"Impossible d'accéder à cette URL : {e}")
+
+    from app.utils.url_scraper import scrape_product
+    try:
+        data = scrape_product(resp.text, url)
+    except ValueError as e:
+        raise HTTPException(422, str(e))
+    return data
+
+
 # ── Ingestion ─────────────────────────────────────────────────────────────────
 
 MAX_UPLOAD_SIZE = 10 * 1024 * 1024  # 10 MB
@@ -592,10 +636,10 @@ async def generate(request: GenerationRequest, req: Request):
     n_total = len(groups) * n_mkts
     job_id = str(uuid4())
     _jobs[job_id] = {"status": "pending", "progress": 0,
-                     "total": len(request.products), "created_at": time.time()}
+                     "total": n_total, "created_at": time.time()}
     _cleanup_jobs()
     asyncio.create_task(_run_generation_job(job_id, request, email))
-    return {"job_id": job_id, "total": len(request.products)}
+    return {"job_id": job_id, "total": n_total}
 
 
 @app.get("/api/jobs/{job_id}")
@@ -620,6 +664,8 @@ async def publish(request_data: PublishRequest, request: Request):
     )
 
 
+from app.utils.amazon_template_filler import fill_amazon_template
+
 # ── Export ────────────────────────────────────────────────────────────────────
 
 @app.post("/api/export/csv")
@@ -634,10 +680,45 @@ async def export_json_file(listings: List[AmazonListing]):
                     headers={"Content-Disposition": "attachment; filename=listings.json"})
 
 
+@app.post("/api/export/fill-amazon-template")
+async def fill_amazon_template_endpoint(request: Request):
+    """Accept multipart: amazon_template (file) + listings (JSON string)."""
+    form = await request.form()
+    template_file = form.get("amazon_template")
+    listings_json = form.get("listings")
+    if not template_file or not listings_json:
+        raise HTTPException(400, "Fichier template et listings requis")
+    template_bytes = await template_file.read()
+    import json as _json
+    raw = _json.loads(listings_json)
+    listings = [AmazonListing(**item) for item in raw]
+    try:
+        filled_bytes = fill_amazon_template(template_bytes, listings)
+    except Exception as e:
+        raise HTTPException(422, f"Erreur lors du remplissage : {e}")
+    return Response(
+        content=filled_bytes,
+        media_type="application/vnd.ms-excel.sheet.macroEnabled.12",
+        headers={"Content-Disposition": "attachment; filename=amazon_template_rempli.xlsm"},
+    )
+
+
 @app.post("/api/export/flat-file")
 async def export_flat_file(listings: List[AmazonListing]):
-    return Response(content=to_amazon_flat_file_bytes(listings), media_type="text/plain",
-                    headers={"Content-Disposition": "attachment; filename=amazon_flat_file.txt"})
+    return Response(
+        content=to_amazon_flat_file_xlsx(listings),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": "attachment; filename=amazon_nouveaux_produits.xlsx"},
+    )
+
+
+@app.post("/api/export/listing-loader")
+async def export_listing_loader(listings: List[AmazonListing]):
+    return Response(
+        content=to_listing_loader_xlsx(listings),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": "attachment; filename=amazon_produits_existants.xlsx"},
+    )
 
 
 @app.post("/api/export/variation-flat-file")

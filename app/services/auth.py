@@ -73,17 +73,21 @@ def _b64url_decode(s: str) -> bytes:
     return base64.urlsafe_b64decode(s + "=" * (pad % 4))
 
 
-def create_token(email: str) -> str:
+def create_token(email: str, is_admin: bool = False) -> str:
     header = _b64url_encode(json.dumps({"alg": "HS256", "typ": "JWT"}).encode())
     exp = int((datetime.datetime.utcnow() + datetime.timedelta(hours=TOKEN_EXPIRE_HOURS)).timestamp())
-    payload = _b64url_encode(json.dumps({"sub": email, "exp": exp}).encode())
+    claims: dict = {"sub": email, "exp": exp}
+    if is_admin:
+        claims["adm"] = 1
+    payload = _b64url_encode(json.dumps(claims).encode())
     sig = _b64url_encode(
         hmac.new(SECRET_KEY.encode(), f"{header}.{payload}".encode(), hashlib.sha256).digest()
     )
     return f"{header}.{payload}.{sig}"
 
 
-def verify_token(token: str):
+def _decode_token_data(token: str) -> dict | None:
+    """Return the verified payload dict, or None if invalid/expired."""
     try:
         parts = token.split(".")
         if len(parts) != 3:
@@ -97,9 +101,14 @@ def verify_token(token: str):
         data = json.loads(_b64url_decode(payload_b64))
         if data.get("exp", 0) < datetime.datetime.utcnow().timestamp():
             return None
-        return data.get("sub")
+        return data
     except Exception:
         return None
+
+
+def verify_token(token: str):
+    data = _decode_token_data(token)
+    return data.get("sub") if data else None
 
 
 def authenticate_user(email: str, password: str):

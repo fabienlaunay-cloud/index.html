@@ -4,7 +4,7 @@ import httpx
 from fastapi import APIRouter, Request, HTTPException
 from fastapi.responses import RedirectResponse, HTMLResponse
 
-from app.db import get_db, get_config
+from app.db import get_db, get_config, set_config
 
 router = APIRouter(prefix="/api/amazon")
 
@@ -17,12 +17,15 @@ async def debug_config(request: Request):
     app_id = get_config("AMAZON_APP_ID", "")
     lwa_id = get_config("LWA_CLIENT_ID", "")
     lwa_secret = get_config("LWA_CLIENT_SECRET", "")
+    # Liste toutes les clés d'env contenant AMAZON ou LWA pour diagnostic
+    amazon_keys = {k: (v[:6] + "…" if v else "VIDE") for k, v in os.environ.items() if "AMAZON" in k or "LWA" in k}
     return {
         "AMAZON_APP_ID": app_id[:12] + "…" if app_id else "❌ VIDE",
         "LWA_CLIENT_ID": lwa_id[:20] + "…" if lwa_id else "❌ VIDE",
         "LWA_CLIENT_SECRET": "✅ présent" if lwa_secret else "❌ VIDE",
         "AMAZON_SP_MODE": get_config("AMAZON_SP_MODE", "demo"),
         "REDIRECT_URI": REDIRECT_URI,
+        "all_amazon_lwa_keys": amazon_keys,
     }
 
 
@@ -32,7 +35,7 @@ async def amazon_connect(request: Request):
     """Retourne l'URL d'autorisation Amazon (le JS gère la redirection)."""
     app_id = get_config("AMAZON_APP_ID", "").strip()
     if not app_id:
-        raise HTTPException(503, "AMAZON_APP_ID manquant — configurez cette variable dans Railway")
+        raise HTTPException(503, "AMAZON_APP_ID manquant — configurez-le dans l'espace admin SynqIO")
     email = request.state.user_email
     state = secrets.token_urlsafe(32)
     conn = get_db()
