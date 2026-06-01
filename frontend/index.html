@@ -2642,10 +2642,16 @@ async function generateListings() {
 
     // ── Étape 2 : poll jusqu'à completion ──
     let result = null;
+    let _jobMissed = 0;
     while (true) {
       await new Promise(res => setTimeout(res, 2000));
-      const jr = await authFetch(`/api/jobs/${job_id}`);
-      if (!jr.ok) throw new Error('Job introuvable');
+      const jr = await authFetch(`/api/jobs/${job_id}`).catch(() => null);
+      if (!jr || !jr.ok) {
+        if (++_jobMissed >= 4) throw new Error('Génération interrompue — le serveur a redémarré. Relancez la génération.');
+        await new Promise(res => setTimeout(res, 3000));
+        continue;
+      }
+      _jobMissed = 0;
       const job = await jr.json();
 
       // Mise à jour barre de progression
@@ -3418,10 +3424,16 @@ async function generateImages(idx) {
 
     // Step 2: poll until done
     let dots = 0;
+    let _jobMissed2 = 0;
     while (true) {
       await new Promise(res => setTimeout(res, 2500));
-      const jr = await authFetch(`/api/jobs/${job_id}`);
-      if (!jr.ok) throw new Error('Job introuvable');
+      const jr = await authFetch(`/api/jobs/${job_id}`).catch(() => null);
+      if (!jr || !jr.ok) {
+        if (++_jobMissed2 >= 4) throw new Error('Génération interrompue — le serveur a redémarré. Relancez la génération.');
+        await new Promise(res => setTimeout(res, 3000));
+        continue;
+      }
+      _jobMissed2 = 0;
       const job = await jr.json();
       dots = (dots + 1) % 4;
       container.querySelector('p')?.setAttribute('data-dots', '.'.repeat(dots));
@@ -3519,10 +3531,16 @@ async function regenerateSingleImage(btn) {
       throw new Error(msg);
     }
     const {job_id} = await r.json();
+    let _jobMissed3 = 0;
     while (true) {
       await new Promise(res => setTimeout(res, 2500));
-      const jr = await authFetch(`/api/jobs/${job_id}`);
-      if (!jr.ok) throw new Error('Job introuvable');
+      const jr = await authFetch(`/api/jobs/${job_id}`).catch(() => null);
+      if (!jr || !jr.ok) {
+        if (++_jobMissed3 >= 4) throw new Error('Génération interrompue — le serveur a redémarré. Relancez la génération.');
+        await new Promise(res => setTimeout(res, 3000));
+        continue;
+      }
+      _jobMissed3 = 0;
       const job = await jr.json();
       if (job.status === 'done') {
         const res = job.result;
@@ -4466,10 +4484,16 @@ async function generateImagesFromDetail() {
     });
     if (!r.ok) { const b = await r.json().catch(()=>{}); throw new Error(b?.detail || 'Erreur serveur'); }
     const { job_id } = await r.json();
+    let _jobMissed4 = 0;
     while (true) {
       await new Promise(res => setTimeout(res, 2500));
-      const jr = await authFetch(`/api/jobs/${job_id}`);
-      if (!jr.ok) throw new Error('Job introuvable');
+      const jr = await authFetch(`/api/jobs/${job_id}`).catch(() => null);
+      if (!jr || !jr.ok) {
+        if (++_jobMissed4 >= 4) throw new Error('Génération interrompue — le serveur a redémarré. Relancez la génération.');
+        await new Promise(res => setTimeout(res, 3000));
+        continue;
+      }
+      _jobMissed4 = 0;
       const job = await jr.json();
       if (job.status === 'done') {
         imagesCache[listing.sku] = job.result;
