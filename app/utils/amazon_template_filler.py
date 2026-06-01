@@ -1,16 +1,19 @@
 """
 Fills an Amazon inventory template (.xlsm/.xlsx) with listing data.
 
-Supports both Amazon template types:
-  - Category templates (new products): attributeRow=3, dataRow=4
+Supports all Amazon template types:
+  - Category templates (new/update products): attributeRow=3, dataRow=4
     e.g. ANIMAL_COLLAR.xlsm — has item_sku, item_name, bullet_point1…
   - Listing Loader (existing products): attributeRow=5, dataRow=7
     e.g. ListingLoader.xlsm — has contribution_sku#1.value, purchasable_offer[...]…
+  - Price & Quantity: attributeRow=5, dataRow=7
+    e.g. PriceAndQuantity.xlsm — has contribution_sku#1.value, purchasable_offer[...]…
 
-Row 1 metadata contains `attributeRow=N&dataRow=M` which we parse to locate
-the correct rows automatically.
+Row 1 metadata contains `settings=…attributeRow=N&dataRow=M` which we parse to locate
+the correct rows and the exact worksheet automatically.
 """
 
+import base64
 import io
 import re
 import urllib.parse
@@ -27,19 +30,17 @@ def _strip_html(text: str) -> str:
     return _HTML_RE.sub('', text or '').strip()
 
 
-def _parse_template_settings(wb: openpyxl.Workbook) -> dict:
+def _parse_template_settings(wb: openpyxl.Workbook) -> tuple[dict, Optional[openpyxl.worksheet.worksheet.Worksheet]]:
     """
     Read row 1 of the first sheet that contains 'settings=' metadata.
-    Returns dict with attributeRow, dataRow (1-indexed).
+    Returns (dict with attributeRow/dataRow, worksheet where settings were found).
+    Returning the worksheet avoids picking the wrong sheet (e.g. Dropdown Lists).
     """
     defaults = {"attributeRow": 3, "dataRow": 4}
     for ws in wb.worksheets:
-        cell_val = str(ws.cell(1, 1).value or '')
-        # settings is sometimes in col 1 or further right
         for col in range(1, min(10, ws.max_column + 1)):
             val = str(ws.cell(1, col).value or '')
             if 'settings=' in val or 'attributeRow=' in val:
-                # Parse as URL query string
                 qs = val.split('settings=', 1)[-1] if 'settings=' in val else val
                 params = dict(urllib.parse.parse_qsl(qs))
                 result = {**defaults}
@@ -47,8 +48,8 @@ def _parse_template_settings(wb: openpyxl.Workbook) -> dict:
                     result['attributeRow'] = int(params['attributeRow'])
                 if 'dataRow' in params:
                     result['dataRow'] = int(params['dataRow'])
-                return result
-    return defaults
+                return result, ws
+    return defaults, None
 
 
 def _find_template_worksheet(wb: openpyxl.Workbook, attr_row: int) -> Optional[openpyxl.worksheet.worksheet.Worksheet]:
@@ -137,20 +138,22 @@ def fill_amazon_template(template_bytes: bytes, listings: List[AmazonListing]) -
     """
     wb = openpyxl.load_workbook(io.BytesIO(template_bytes), keep_vba=True, data_only=True)
 
-    # 1. Parse settings to find attributeRow and dataRow
-    settings = _parse_template_settings(wb)
+    # 1. Parse settings — also returns the exact worksheet that holds the settings,
+    #    which is always the data sheet (avoids misidentifying Dropdown Lists, etc.)
+    settings, settings_ws = _parse_template_settings(wb)
     attr_row = settings['attributeRow']
     data_row = settings['dataRow']
 
-    # 2. Find the worksheet that has the template
-    ws = _find_template_worksheet(wb, attr_row)
+    # 2. Use the settings worksheet if found; fall back to heuristic search
+    ws = settings_ws or _find_template_worksheet(wb, attr_row)
     if ws is None:
         raise ValueError("Impossible de trouver la feuille template dans ce fichier Amazon.")
 
     # 3. Build column index from attribute row
     col_index = _build_col_index(ws, attr_row)
 
-    # 4. For category templates: get feed_product_type from existing content
+    # 4. For category templates: get feed_product_type from existing data rows,
+    #    or from the TemplateSignature base64 field in row 1 metadata.
     feed_product_type = ""
     fpt_col = col_index.get("feed_product_type")
     if fpt_col:
@@ -159,6 +162,16 @@ def fill_amazon_template(template_bytes: bytes, listings: List[AmazonListing]) -
             if v:
                 feed_product_type = str(v)
                 break
+        if not feed_product_type:
+            for col in range(1, min(6, ws.max_column + 1)):
+                val = str(ws.cell(1, col).value or '')
+                if 'TemplateSignature=' in val:
+                    sig = val.split('TemplateSignature=')[1].split('&')[0]
+                    try:
+                        feed_product_type = base64.b64decode(sig).decode('utf-8').strip()
+                    except Exception:
+                        pass
+                    break
 
     # 5. Write listing data starting at data_row
     for i, listing in enumerate(listings):
