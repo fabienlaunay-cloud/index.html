@@ -455,8 +455,8 @@ async def generate_product_images(
     # 3. Types sélectionnés (par défaut : tous)
     types_to_generate = selected_types or [t["id"] for t in AMAZON_IMAGE_TYPES]
 
-    # 4. Génération des images (séquentielle pour respecter la limite OpenAI 5 img/min)
-    semaphore = asyncio.Semaphore(1)
+    # 4. Génération des images (3 en parallèle — gpt-image-2 supporte 10 img/min)
+    semaphore = asyncio.Semaphore(3)
     results = []
 
     async def _gen_one(image_type: dict):
