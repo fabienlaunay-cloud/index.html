@@ -13,24 +13,10 @@ _IMAGE_TYPES = {"image/jpeg", "image/jpg", "image/png", "image/webp", "image/gif
 _MAX_FILE_SIZE = 20 * 1024 * 1024  # 20 MB
 
 
-def _ensure_table(conn):
-    conn.execute("""
-        CREATE TABLE IF NOT EXISTS chat_sessions (
-            id TEXT PRIMARY KEY,
-            user_email TEXT NOT NULL,
-            title TEXT DEFAULT 'Nouvelle conversation',
-            messages_json TEXT NOT NULL DEFAULT '[]',
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    """)
-
-
 @router.get("/sessions")
 async def list_sessions(request: Request):
     email = request.state.user_email
     conn = get_db()
-    _ensure_table(conn)
     rows = conn.execute(
         "SELECT id, title, created_at, updated_at FROM chat_sessions "
         "WHERE user_email = ? ORDER BY updated_at DESC LIMIT 50",
@@ -45,7 +31,6 @@ async def create_session(request: Request):
     email = request.state.user_email
     session_id = str(uuid4())
     conn = get_db()
-    _ensure_table(conn)
     conn.execute(
         "INSERT INTO chat_sessions (id, user_email, title, messages_json) VALUES (?, ?, ?, ?)",
         (session_id, email, "Nouvelle conversation", "[]"),
@@ -59,7 +44,6 @@ async def create_session(request: Request):
 async def get_session(session_id: str, request: Request):
     email = request.state.user_email
     conn = get_db()
-    _ensure_table(conn)
     row = conn.execute(
         "SELECT * FROM chat_sessions WHERE id = ? AND user_email = ?",
         (session_id, email),
@@ -83,7 +67,6 @@ async def send_message(
     email = request.state.user_email
 
     conn = get_db()
-    _ensure_table(conn)
     row = conn.execute(
         "SELECT id, messages_json FROM chat_sessions WHERE id = ? AND user_email = ?",
         (session_id, email),
@@ -110,7 +93,15 @@ async def send_message(
     from app.services.chat_agent import chat
     from app.services.usage import log_usage
 
-    result = await chat(session_id, email, message, processed_files)
+    msgs_before = json.loads(row["messages_json"] or "[]")
+
+    try:
+        result = await chat(
+            session_id, email, message, processed_files,
+            existing_messages=list(msgs_before),
+        )
+    except Exception as e:
+        raise HTTPException(500, f"Erreur agent: {e}")
 
     tokens = result.get("tokens", {})
     if tokens.get("input"):
@@ -119,7 +110,6 @@ async def send_message(
         log_usage(email, "tokens_out", tokens["output"])
 
     # Update title from first user message
-    msgs_before = json.loads(row["messages_json"] or "[]")
     if message.strip() and not any(m.get("role") == "user" for m in msgs_before):
         title = message[:60] + ("…" if len(message) > 60 else "")
         conn = get_db()
@@ -137,7 +127,6 @@ async def send_message(
 async def delete_session(session_id: str, request: Request):
     email = request.state.user_email
     conn = get_db()
-    _ensure_table(conn)
     cur = conn.execute(
         "DELETE FROM chat_sessions WHERE id = ? AND user_email = ?",
         (session_id, email),

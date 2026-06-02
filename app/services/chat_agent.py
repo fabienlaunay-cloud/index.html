@@ -88,24 +88,27 @@ async def chat(
     user_email: str,
     user_message: str,
     files: list,
+    existing_messages: list = None,
 ) -> dict:
     """
     Process one chat turn. Files is a list of dicts:
     {"type": "image"|"pdf", "data": bytes, "media_type": str, "name": str}
+    existing_messages: pre-loaded message history (avoids redundant DB read)
     """
     client = get_client()
 
-    conn = get_db()
-    row = conn.execute(
-        "SELECT messages_json FROM chat_sessions WHERE id = ? AND user_email = ?",
-        (session_id, user_email),
-    ).fetchone()
-    conn.close()
-
-    if not row:
-        raise ValueError(f"Session {session_id} introuvable")
-
-    messages = json.loads(row["messages_json"] or "[]")
+    if existing_messages is not None:
+        messages = existing_messages
+    else:
+        conn = get_db()
+        row = conn.execute(
+            "SELECT messages_json FROM chat_sessions WHERE id = ? AND user_email = ?",
+            (session_id, user_email),
+        ).fetchone()
+        conn.close()
+        if not row:
+            raise ValueError(f"Session {session_id} introuvable")
+        messages = json.loads(row["messages_json"] or "[]")
 
     # Build user content: files first, then text
     content = []
