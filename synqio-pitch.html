@@ -174,9 +174,13 @@
       padding: 28px 20px; text-align: center;
     }
     .team-avatar {
-      width: 64px; height: 64px; border-radius: 50%; margin: 0 auto 16px;
+      width: 80px; height: 80px; border-radius: 50%; margin: 0 auto 16px;
       display: flex; align-items: center; justify-content: center;
       font-size: 1.6rem; font-weight: 900;
+      overflow: hidden; border: 2px solid #1e293b;
+    }
+    .team-avatar img {
+      width: 100%; height: 100%; object-fit: cover; border-radius: 50%;
     }
     .av-blue { background: linear-gradient(135deg, #1e3a8a, #2563eb); }
     .av-cyan { background: linear-gradient(135deg, #0e7490, #06b6d4); }
@@ -482,25 +486,33 @@
     <p class="section-sub">Pas un outil tech sorti d'un lab : une solution façonnée par des praticiens Amazon au quotidien.</p>
     <div class="team-grid">
       <div class="team-card">
-        <div class="team-avatar av-blue">T</div>
-        <div class="team-name">Théo</div>
-        <div class="team-role">Développeur Full-Stack</div>
-        <span class="team-tag tag-blue">Architecture IA</span>
-      </div>
-      <div class="team-card">
-        <div class="team-avatar av-cyan">V</div>
-        <div class="team-name">Vincent</div>
-        <div class="team-role">Expert Amazon</div>
-        <span class="team-tag tag-blue">SP-API · Listings</span>
-      </div>
-      <div class="team-card">
-        <div class="team-avatar av-gold">L</div>
+        <div class="team-avatar av-gold">
+          <img src="team-linh.jpg" alt="Linh" onerror="this.style.display='none';this.parentElement.innerHTML='L';">
+        </div>
         <div class="team-name">Linh</div>
         <div class="team-role">Marketing & Digital</div>
         <span class="team-tag tag-gold">UX · Communication</span>
       </div>
       <div class="team-card">
-        <div class="team-avatar av-green">F</div>
+        <div class="team-avatar av-cyan">
+          <img src="team-vincent.jpg" alt="Vincent" onerror="this.style.display='none';this.parentElement.innerHTML='V';">
+        </div>
+        <div class="team-name">Vincent</div>
+        <div class="team-role">Expert Amazon</div>
+        <span class="team-tag tag-blue">SP-API · Listings</span>
+      </div>
+      <div class="team-card">
+        <div class="team-avatar av-blue">
+          <img src="team-theo.jpg" alt="Théo" onerror="this.style.display='none';this.parentElement.innerHTML='T';">
+        </div>
+        <div class="team-name">Théo</div>
+        <div class="team-role">Développeur Full-Stack</div>
+        <span class="team-tag tag-blue">Architecture IA</span>
+      </div>
+      <div class="team-card">
+        <div class="team-avatar av-green">
+          <img src="team-fabien.jpg" alt="Fabien" onerror="this.style.display='none';this.parentElement.innerHTML='F';">
+        </div>
         <div class="team-name">Fabien</div>
         <div class="team-role">Business & Stratégie</div>
         <span class="team-tag tag-blue">Vision · Partenariats</span>
