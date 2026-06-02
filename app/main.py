@@ -31,6 +31,7 @@ from app.utils.variation_handler import group_by_parent, build_parent_product, e
 from app.db import init_db, save_generation, list_generations, get_generation, delete_generation, update_generation_label
 from app.routes.auth import router as auth_router, admin_router
 from app.routes.amazon_oauth import router as amazon_router
+from app.routes.chat import router as chat_router
 
 # Routes sans authentification
 PUBLIC_PATHS = {"/", "/health", "/api/auth/login", "/api/auth/setup", "/api/auth/needs-setup", "/api/auth/reset-admin", "/api/amazon/debug-config", "/api/marketplaces", "/api/amazon/callback", "/api/template"}
@@ -81,6 +82,7 @@ app.add_middleware(AuthMiddleware)
 app.include_router(auth_router)
 app.include_router(admin_router)
 app.include_router(amazon_router)
+app.include_router(chat_router)
 
 
 @app.on_event("startup")

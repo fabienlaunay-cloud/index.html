@@ -699,6 +699,10 @@
       <button onclick="openHistoryPanel()" class="w-8 h-8 flex items-center justify-center bg-white/10 hover:bg-white/20 rounded-lg transition text-white flex-shrink-0" title="Historique des générations">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
       </button>
+      <button onclick="showChatView()" class="flex items-center gap-2 bg-white/15 hover:bg-white/25 border border-white/20 rounded-lg px-3 py-1.5 text-sm text-white transition flex-shrink-0" title="Assistant IA">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        <span class="hidden sm:inline font-medium">Assistant IA</span>
+      </button>
       <div class="relative" id="mktSelectorWrapper">
         <button type="button" onclick="toggleMktDropdown(event)" class="flex items-center gap-2 bg-white/10 border border-white/20 text-white rounded-lg px-3 py-1.5 text-sm min-w-[170px] justify-between hover:bg-white/20 transition">
           <span id="mktSelectorLabel">🇫🇷 Amazon France</span>
@@ -4888,6 +4892,116 @@ renderSegmentPresets();
   </div>
 </div>
 
+<!-- ═══════════════════ CHAT VIEW ═══════════════════ -->
+<div id="chatView" class="hidden fixed inset-0 z-[250] bg-gray-50 flex flex-col" style="font-family:'Inter',sans-serif">
+
+  <!-- Chat Header -->
+  <div class="gradient-bg text-white shadow-lg flex-shrink-0">
+    <div class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <button onclick="closeChatView()" class="flex items-center gap-2 bg-white/10 hover:bg-white/20 rounded-lg px-3 py-2 text-sm transition">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+          <span>Retour à l'app</span>
+        </button>
+        <div class="w-px h-5 bg-white/20"></div>
+        <div class="flex items-center gap-2">
+          <div class="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          </div>
+          <div>
+            <h1 class="font-bold text-base">Assistant IA Amazon</h1>
+            <p class="text-purple-200 text-xs">Décris tes produits, partage tes catalogues, génère tes fiches</p>
+          </div>
+        </div>
+      </div>
+      <button onclick="newChatSession()" class="flex items-center gap-2 bg-white/15 hover:bg-white/25 border border-white/20 rounded-lg px-3 py-2 text-sm transition">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Nouvelle conversation
+      </button>
+    </div>
+  </div>
+
+  <!-- Chat Body -->
+  <div class="flex flex-1 overflow-hidden max-w-7xl mx-auto w-full px-6 py-4 gap-4">
+
+    <!-- Sessions sidebar -->
+    <div class="w-64 flex-shrink-0 flex flex-col gap-2">
+      <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide px-1 mb-1">Conversations</p>
+      <div id="chatSessionsList" class="flex-1 overflow-y-auto space-y-1 pr-1">
+        <p class="text-gray-400 text-sm px-2 py-3">Chargement…</p>
+      </div>
+    </div>
+
+    <!-- Chat area -->
+    <div class="flex-1 flex flex-col bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+
+      <!-- Messages -->
+      <div id="chatMessages" class="flex-1 overflow-y-auto px-6 py-5 space-y-4">
+        <div id="chatWelcome" class="flex flex-col items-center justify-center h-full text-center py-12">
+          <div class="w-16 h-16 gradient-bg rounded-2xl flex items-center justify-center mb-4 shadow-lg">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          </div>
+          <h3 class="font-bold text-gray-800 text-lg mb-2">Ton assistant Amazon</h3>
+          <p class="text-gray-500 text-sm max-w-xs leading-relaxed">Décris tes produits en langage naturel, partage des images ou des PDF de catalogue. Je structure tout pour générer tes fiches optimisées.</p>
+          <div class="mt-6 grid grid-cols-1 gap-2 w-full max-w-sm">
+            <button onclick="chatQuickStart('J\'ai un nouveau produit à lister sur Amazon. Il s\'agit de ')" class="text-left px-4 py-3 bg-purple-50 hover:bg-purple-100 border border-purple-100 rounded-xl text-sm text-purple-700 transition">💡 "J'ai un nouveau produit à lister…"</button>
+            <button onclick="chatQuickStart('Voici mon catalogue produits : ')" class="text-left px-4 py-3 bg-purple-50 hover:bg-purple-100 border border-purple-100 rounded-xl text-sm text-purple-700 transition">📄 Partager un catalogue PDF</button>
+            <button onclick="chatQuickStart('Je veux créer des fiches pour ma marque ')" class="text-left px-4 py-3 bg-purple-50 hover:bg-purple-100 border border-purple-100 rounded-xl text-sm text-purple-700 transition">🏷️ "Créer des fiches pour ma marque…"</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Ready to generate banner -->
+      <div id="chatReadyBanner" class="hidden flex-shrink-0 mx-4 mb-3 bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 rounded-xl px-4 py-3 flex items-center gap-3">
+        <div class="w-8 h-8 bg-emerald-100 rounded-lg flex items-center justify-center flex-shrink-0">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        </div>
+        <div class="flex-1 min-w-0">
+          <p class="font-semibold text-emerald-800 text-sm">Fiches prêtes à générer</p>
+          <p id="chatReadyCount" class="text-xs text-emerald-600">1 produit extrait</p>
+        </div>
+        <button id="chatGenerateBtn" onclick="triggerChatGeneration()" class="flex-shrink-0 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg px-4 py-2 text-sm font-semibold transition shadow-sm">
+          Générer les fiches →
+        </button>
+      </div>
+
+      <!-- File drop zone -->
+      <div id="chatDropZone" class="hidden flex-shrink-0 mx-4 mb-2 border-2 border-dashed border-purple-200 bg-purple-50 rounded-xl px-4 py-3 text-center text-sm text-purple-600">
+        <p class="font-medium">Déposer les fichiers ici</p>
+        <p class="text-xs text-purple-400 mt-0.5">Images JPG/PNG, PDF (max 20 Mo)</p>
+      </div>
+
+      <!-- Attached files preview -->
+      <div id="chatFilePreview" class="hidden flex-shrink-0 px-4 pb-2 flex flex-wrap gap-2"></div>
+
+      <!-- Input area -->
+      <div class="flex-shrink-0 border-t border-gray-100 px-4 py-3">
+        <div class="flex items-end gap-2">
+          <label for="chatFileInput" class="flex-shrink-0 w-9 h-9 flex items-center justify-center bg-gray-100 hover:bg-purple-100 rounded-lg cursor-pointer transition text-gray-500 hover:text-purple-600" title="Joindre image ou PDF">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+          </label>
+          <input type="file" id="chatFileInput" class="hidden" multiple accept="image/*,.pdf" onchange="onChatFilesSelected(this.files)">
+          <textarea
+            id="chatInput"
+            placeholder="Décris tes produits, pose une question, ou colle un descriptif…"
+            class="flex-1 border border-gray-200 rounded-xl px-4 py-2.5 text-sm resize-none outline-none focus:ring-2 focus:ring-purple-300 focus:border-transparent transition"
+            rows="2"
+            style="max-height:120px;overflow-y:auto"
+            onkeydown="if((event.ctrlKey||event.metaKey)&&event.key==='Enter'){event.preventDefault();sendChatMessage();}"
+            oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,120)+'px'"
+          ></textarea>
+          <button onclick="sendChatMessage()" id="chatSendBtn"
+            class="flex-shrink-0 w-9 h-9 gradient-bg rounded-lg flex items-center justify-center text-white hover:opacity-90 transition shadow-sm disabled:opacity-40"
+            title="Envoyer (Ctrl+Entrée)">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+          </button>
+        </div>
+        <p class="text-xs text-gray-400 mt-1.5 text-right">Ctrl+Entrée pour envoyer</p>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- Lightbox pour afficher les images générées en grand -->
 <div id="lightbox" onclick="closeLightbox()" class="fixed inset-0 z-50 hidden bg-black/85 flex items-center justify-center p-4" style="cursor:zoom-out">
   <img id="lightbox-img" src="" alt="" class="max-w-full max-h-full rounded-xl shadow-2xl object-contain" style="max-height:90vh;max-width:90vw;cursor:default" onclick="event.stopPropagation()">
@@ -5090,5 +5204,434 @@ async function importFromUrl() {
     </div>
   </div>
 </div>
+
+<script>
+// ════════════════════════════════════════════════════════════
+//  CHAT IA — state
+// ════════════════════════════════════════════════════════════
+let _chatSessionId = null;
+let _chatFiles = [];        // {file: File, preview: string}
+let _chatReadyProducts = null;
+let _chatIsTyping = false;
+
+// ── Open / close ─────────────────────────────────────────────
+
+function showChatView() {
+  document.getElementById('chatView').classList.remove('hidden');
+  document.getElementById('app').classList.add('hidden');
+  loadChatSessions();
+}
+
+function closeChatView() {
+  document.getElementById('chatView').classList.add('hidden');
+  document.getElementById('app').classList.remove('hidden');
+}
+
+// ── Session management ────────────────────────────────────────
+
+async function loadChatSessions() {
+  try {
+    const r = await authFetch('/api/chat/sessions');
+    const sessions = await r.json();
+    renderChatSessions(sessions);
+    if (!_chatSessionId && sessions.length > 0) {
+      openChatSession(sessions[0].id);
+    } else if (!_chatSessionId) {
+      await newChatSession();
+    } else {
+      openChatSession(_chatSessionId);
+    }
+  } catch(e) {
+    document.getElementById('chatSessionsList').innerHTML =
+      '<p class="text-red-400 text-xs px-2">Erreur de chargement</p>';
+  }
+}
+
+function renderChatSessions(sessions) {
+  const list = document.getElementById('chatSessionsList');
+  if (!sessions.length) {
+    list.innerHTML = '<p class="text-gray-400 text-xs px-2 py-2">Aucune conversation</p>';
+    return;
+  }
+  list.innerHTML = sessions.map(s => `
+    <div class="group flex items-center gap-2 px-3 py-2.5 rounded-xl cursor-pointer transition text-sm ${s.id === _chatSessionId ? 'bg-purple-50 text-purple-700 font-medium' : 'text-gray-600 hover:bg-gray-100'}"
+         onclick="openChatSession('${s.id}')">
+      <svg class="flex-shrink-0 opacity-50" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+      <span class="flex-1 truncate">${escHtml(s.title)}</span>
+      <button onclick="event.stopPropagation();deleteChatSession('${s.id}')"
+        class="flex-shrink-0 opacity-0 group-hover:opacity-100 w-5 h-5 flex items-center justify-center rounded hover:bg-red-100 hover:text-red-600 transition text-gray-400 text-xs">✕</button>
+    </div>
+  `).join('');
+}
+
+async function newChatSession() {
+  try {
+    const r = await authFetch('/api/chat/sessions', {method:'POST'});
+    const s = await r.json();
+    _chatSessionId = s.id;
+    _chatFiles = [];
+    _chatReadyProducts = null;
+    document.getElementById('chatReadyBanner').classList.add('hidden');
+    document.getElementById('chatMessages').innerHTML = '';
+    resetChatWelcome();
+    await loadChatSessions();
+  } catch(e) {
+    showToast('❌', 'Impossible de créer une conversation');
+  }
+}
+
+function resetChatWelcome() {
+  document.getElementById('chatMessages').innerHTML = `
+    <div id="chatWelcome" class="flex flex-col items-center justify-center h-full text-center py-12">
+      <div class="w-16 h-16 gradient-bg rounded-2xl flex items-center justify-center mb-4 shadow-lg">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+      </div>
+      <h3 class="font-bold text-gray-800 text-lg mb-2">Ton assistant Amazon</h3>
+      <p class="text-gray-500 text-sm max-w-xs leading-relaxed">Décris tes produits en langage naturel, partage des images ou des PDF de catalogue.</p>
+      <div class="mt-6 grid grid-cols-1 gap-2 w-full max-w-sm">
+        <button onclick="chatQuickStart('J\\'ai un nouveau produit à lister sur Amazon. Il s\\'agit de ')" class="text-left px-4 py-3 bg-purple-50 hover:bg-purple-100 border border-purple-100 rounded-xl text-sm text-purple-700 transition">💡 "J'ai un nouveau produit à lister…"</button>
+        <button onclick="chatQuickStart('Voici mon catalogue produits : ')" class="text-left px-4 py-3 bg-purple-50 hover:bg-purple-100 border border-purple-100 rounded-xl text-sm text-purple-700 transition">📄 Partager un catalogue PDF</button>
+        <button onclick="chatQuickStart('Je veux créer des fiches pour ma marque ')" class="text-left px-4 py-3 bg-purple-50 hover:bg-purple-100 border border-purple-100 rounded-xl text-sm text-purple-700 transition">🏷️ "Créer des fiches pour ma marque…"</button>
+      </div>
+    </div>`;
+}
+
+async function openChatSession(sessionId) {
+  _chatSessionId = sessionId;
+  _chatFiles = [];
+  _chatReadyProducts = null;
+  renderChatFilePreview();
+  document.getElementById('chatReadyBanner').classList.add('hidden');
+  // Refresh sidebar highlighting
+  document.querySelectorAll('#chatSessionsList [onclick^="openChatSession"]').forEach(el => {
+    const id = el.getAttribute('onclick').match(/'([^']+)'/)?.[1];
+    if (id === sessionId) {
+      el.className = el.className.replace('text-gray-600 hover:bg-gray-100', 'bg-purple-50 text-purple-700 font-medium');
+    } else {
+      el.className = el.className.replace('bg-purple-50 text-purple-700 font-medium', 'text-gray-600 hover:bg-gray-100');
+    }
+  });
+  try {
+    const r = await authFetch(`/api/chat/sessions/${sessionId}`);
+    const s = await r.json();
+    renderChatMessages(s.messages || []);
+  } catch(e) {}
+}
+
+async function deleteChatSession(sessionId) {
+  try {
+    await authFetch(`/api/chat/sessions/${sessionId}`, {method:'DELETE'});
+    if (_chatSessionId === sessionId) {
+      _chatSessionId = null;
+    }
+    await loadChatSessions();
+  } catch(e) {}
+}
+
+// ── Message rendering ─────────────────────────────────────────
+
+function renderChatMessages(messages) {
+  const container = document.getElementById('chatMessages');
+  if (!messages.length) {
+    resetChatWelcome();
+    return;
+  }
+  container.innerHTML = messages.map(m => renderChatBubble(m)).join('');
+  scrollChatToBottom();
+}
+
+function renderChatBubble(msg) {
+  const isUser = msg.role === 'user';
+  const text = msg.text || '';
+
+  // Clean text: remove [READY_TO_GENERATE]...[/READY_TO_GENERATE] block
+  const cleanText = text.replace(/\[READY_TO_GENERATE\][\s\S]*?\[\/READY_TO_GENERATE\]/g, '').trim();
+  const hasReady = text.includes('[READY_TO_GENERATE]');
+
+  const filesNote = msg.has_files
+    ? `<span class="inline-flex items-center gap-1 text-xs text-purple-400 mt-1"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>Fichier(s) joint(s)</span>` : '';
+
+  const readyNote = hasReady && !isUser
+    ? `<div class="mt-2 inline-flex items-center gap-1.5 text-xs bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-lg px-2 py-1">
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        Produits extraits — prêts à générer
+      </div>` : '';
+
+  if (isUser) {
+    return `<div class="flex justify-end">
+      <div class="max-w-[75%] bg-purple-600 text-white rounded-2xl rounded-tr-md px-4 py-3 text-sm leading-relaxed">
+        ${escHtml(cleanText || '(fichier partagé)')}
+        ${filesNote}
+      </div>
+    </div>`;
+  } else {
+    return `<div class="flex gap-3">
+      <div class="w-7 h-7 flex-shrink-0 gradient-bg rounded-lg flex items-center justify-center mt-0.5">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+      </div>
+      <div class="max-w-[80%] bg-gray-50 border border-gray-100 rounded-2xl rounded-tl-md px-4 py-3 text-sm leading-relaxed text-gray-800">
+        ${formatChatMarkdown(cleanText)}
+        ${readyNote}
+      </div>
+    </div>`;
+  }
+}
+
+function appendChatMessage(msg) {
+  const welcome = document.getElementById('chatWelcome');
+  if (welcome) welcome.remove();
+  const container = document.getElementById('chatMessages');
+  const div = document.createElement('div');
+  div.innerHTML = renderChatBubble(msg);
+  container.appendChild(div.firstElementChild);
+  scrollChatToBottom();
+}
+
+function showChatTyping() {
+  const welcome = document.getElementById('chatWelcome');
+  if (welcome) welcome.remove();
+  const container = document.getElementById('chatMessages');
+  const el = document.createElement('div');
+  el.id = 'chatTypingIndicator';
+  el.innerHTML = `<div class="flex gap-3">
+    <div class="w-7 h-7 flex-shrink-0 gradient-bg rounded-lg flex items-center justify-center">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+    </div>
+    <div class="bg-gray-50 border border-gray-100 rounded-2xl rounded-tl-md px-4 py-3">
+      <div class="flex gap-1.5 items-center h-4">
+        <div class="w-2 h-2 bg-gray-400 rounded-full" style="animation:pulse 1.2s 0s infinite"></div>
+        <div class="w-2 h-2 bg-gray-400 rounded-full" style="animation:pulse 1.2s 0.2s infinite"></div>
+        <div class="w-2 h-2 bg-gray-400 rounded-full" style="animation:pulse 1.2s 0.4s infinite"></div>
+      </div>
+    </div>
+  </div>`;
+  container.appendChild(el);
+  scrollChatToBottom();
+}
+
+function removeChatTyping() {
+  const el = document.getElementById('chatTypingIndicator');
+  if (el) el.remove();
+}
+
+function scrollChatToBottom() {
+  const c = document.getElementById('chatMessages');
+  c.scrollTop = c.scrollHeight;
+}
+
+// ── Send message ──────────────────────────────────────────────
+
+async function sendChatMessage() {
+  if (_chatIsTyping) return;
+  const input = document.getElementById('chatInput');
+  const message = input.value.trim();
+  if (!message && !_chatFiles.length) return;
+  if (!_chatSessionId) return;
+
+  _chatIsTyping = true;
+  document.getElementById('chatSendBtn').disabled = true;
+
+  // Show user message immediately
+  appendChatMessage({
+    role: 'user',
+    text: message,
+    has_files: _chatFiles.length > 0,
+  });
+
+  input.value = '';
+  input.style.height = 'auto';
+
+  // Build multipart form
+  const fd = new FormData();
+  fd.append('message', message);
+  for (const {file} of _chatFiles) {
+    fd.append('files', file);
+  }
+  _chatFiles = [];
+  renderChatFilePreview();
+
+  showChatTyping();
+
+  try {
+    const r = await fetch(`${API}/api/chat/sessions/${_chatSessionId}/message`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}` },
+      body: fd,
+    });
+    removeChatTyping();
+    if (!r.ok) {
+      const err = await r.json().catch(() => ({detail: 'Erreur serveur'}));
+      throw new Error(err.detail || 'Erreur');
+    }
+    const data = await r.json();
+    appendChatMessage({ role: 'assistant', text: data.reply, has_files: false });
+
+    if (data.ready_products && data.ready_products.length > 0) {
+      _chatReadyProducts = data.ready_products;
+      const banner = document.getElementById('chatReadyBanner');
+      banner.classList.remove('hidden');
+      document.getElementById('chatReadyCount').textContent =
+        `${data.ready_products.length} produit${data.ready_products.length > 1 ? 's' : ''} extrait${data.ready_products.length > 1 ? 's' : ''}`;
+    }
+
+    // Refresh sessions list (title may have updated)
+    loadChatSessionsQuiet();
+  } catch(e) {
+    removeChatTyping();
+    appendChatMessage({ role: 'assistant', text: `❌ Erreur : ${e.message}`, has_files: false });
+  } finally {
+    _chatIsTyping = false;
+    document.getElementById('chatSendBtn').disabled = false;
+  }
+}
+
+async function loadChatSessionsQuiet() {
+  try {
+    const r = await authFetch('/api/chat/sessions');
+    const sessions = await r.json();
+    renderChatSessions(sessions);
+  } catch(e) {}
+}
+
+// ── Quick start buttons ───────────────────────────────────────
+
+function chatQuickStart(text) {
+  const input = document.getElementById('chatInput');
+  input.value = text;
+  input.focus();
+  input.style.height = 'auto';
+  input.style.height = Math.min(input.scrollHeight, 120) + 'px';
+}
+
+// ── File attachments ──────────────────────────────────────────
+
+function onChatFilesSelected(fileList) {
+  for (const f of Array.from(fileList)) {
+    const isImg = f.type.startsWith('image/');
+    const isPdf = f.type === 'application/pdf' || f.name.toLowerCase().endsWith('.pdf');
+    if (!isImg && !isPdf) continue;
+    if (f.size > 20 * 1024 * 1024) { showToast('⚠️', `${f.name} trop volumineux (max 20 Mo)`); continue; }
+    const preview = isImg ? URL.createObjectURL(f) : null;
+    _chatFiles.push({ file: f, preview });
+  }
+  document.getElementById('chatFileInput').value = '';
+  renderChatFilePreview();
+}
+
+function renderChatFilePreview() {
+  const container = document.getElementById('chatFilePreview');
+  if (!_chatFiles.length) {
+    container.classList.add('hidden');
+    container.innerHTML = '';
+    return;
+  }
+  container.classList.remove('hidden');
+  container.innerHTML = _chatFiles.map((item, i) => {
+    const isImg = !!item.preview;
+    return `<div class="relative flex items-center gap-1.5 bg-purple-50 border border-purple-100 rounded-lg px-2 py-1.5 text-xs text-purple-700">
+      ${isImg ? `<img src="${item.preview}" class="w-8 h-8 object-cover rounded">` : '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>'}
+      <span class="max-w-[120px] truncate">${escHtml(item.file.name)}</span>
+      <button onclick="removeChatFile(${i})" class="ml-1 text-purple-400 hover:text-red-500">✕</button>
+    </div>`;
+  }).join('');
+}
+
+function removeChatFile(idx) {
+  if (_chatFiles[idx]?.preview) URL.revokeObjectURL(_chatFiles[idx].preview);
+  _chatFiles.splice(idx, 1);
+  renderChatFilePreview();
+}
+
+// Drag-and-drop on chat area
+document.addEventListener('DOMContentLoaded', () => {
+  const chatArea = document.getElementById('chatView');
+  if (!chatArea) return;
+  chatArea.addEventListener('dragover', e => {
+    e.preventDefault();
+    document.getElementById('chatDropZone').classList.remove('hidden');
+  });
+  chatArea.addEventListener('dragleave', e => {
+    if (!chatArea.contains(e.relatedTarget)) {
+      document.getElementById('chatDropZone').classList.add('hidden');
+    }
+  });
+  chatArea.addEventListener('drop', e => {
+    e.preventDefault();
+    document.getElementById('chatDropZone').classList.add('hidden');
+    if (e.dataTransfer?.files) onChatFilesSelected(e.dataTransfer.files);
+  });
+});
+
+// ── Generate from chat ────────────────────────────────────────
+
+function triggerChatGeneration() {
+  if (!_chatReadyProducts || !_chatReadyProducts.length) return;
+
+  // Normalise products to RawProduct shape
+  const normalized = _chatReadyProducts.map(p => ({
+    sku: p.sku || `CHAT-${Date.now()}`,
+    name: p.name || '',
+    brand: p.brand || '',
+    category: p.category || '',
+    description: p.description || '',
+    price: p.price || null,
+    ean: p.ean || null,
+    features: p.features || [],
+    images: [],
+    focus_keywords: p.focus_keywords || [],
+    parent_sku: null,
+    variation_theme: null,
+    variation_value: null,
+    extra: {},
+    weight_kg: null,
+    dimensions_cm: null,
+    color: null,
+    material: null,
+    size: null,
+  }));
+
+  closeChatView();
+
+  setTimeout(() => {
+    try {
+      parsedProducts = normalized;
+      showProductsList(parsedProducts);
+      setStep(2);
+      showToast('✅', `${parsedProducts.length} produit(s) importé(s) depuis le chat`);
+      // Auto-trigger generation after a short delay
+      setTimeout(() => {
+        const btn = document.getElementById('generateBtn');
+        if (btn && !btn.disabled) btn.click();
+      }, 600);
+    } catch(err) {
+      showToast('❌', 'Erreur lors de l\'import des produits');
+    }
+  }, 300);
+}
+
+// ── Markdown formatter (minimal) ─────────────────────────────
+
+function formatChatMarkdown(text) {
+  if (!text) return '';
+  let h = escHtml(text);
+  // Bold
+  h = h.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  // Bullets
+  h = h.replace(/^[-•]\s+(.+)$/gm, '<li class="ml-4 list-disc">$1</li>');
+  h = h.replace(/((<li[^>]*>.*<\/li>\n?)+)/g, '<ul class="space-y-0.5 my-1">$1</ul>');
+  // Line breaks
+  h = h.replace(/\n/g, '<br>');
+  return h;
+}
+
+function escHtml(s) {
+  return String(s)
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;');
+}
+</script>
+
 </body>
 </html>
