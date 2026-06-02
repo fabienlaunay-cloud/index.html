@@ -174,14 +174,15 @@
       "On est une petite équipe, mais complémentaire : <em>Théo</em> sur l'architecture et le développement, <em>Vincent</em> qui a co-construit l'outil depuis l'expertise Amazon, Linh sur le marketing et le site internet, et moi sur la partie stratégie et business. Ce qui distingue SynqIO, c'est que l'outil a été pensé par des gens qui comprennent vraiment les enjeux de la marketplace."
     </div>
 
-    <h2>Slide 7 — Roadmap (2 min)</h2>
+    <h2>Slide 7 — Ce que vous avez aujourd'hui (2 min)</h2>
     <div class="script-box">
-      "Ce que vous voyez à gauche, c'est ce qui existe aujourd'hui — en production, utilisable maintenant. Au centre, c'est ce qui arrive dans les prochaines semaines : les variations parent/enfant, la validation live des limites Amazon, le multi-marketplace simultané et l'analyse des avis concurrents. À droite, c'est la roadmap qu'on va <em>construire avec vous pendant le pilote</em> — voix de marque, white label, import direct Seller Central...<br><br>
-      Ce slide, il est là pour vous dire une chose : <em>vous n'achetez pas un produit figé</em>. Vous entrez dans une co-construction."
+      "Je vais être direct avec vous. Ce que vous voyez là — <em>c'est disponible maintenant</em>. Variations parent/enfant, multi-marketplace simultané, analyse des avis concurrents, voix de marque, white label, import direct Seller Central… tout est là.<br><br>
+      Ce n'est pas un prototype, ce n'est pas une roadmap. C'est un outil complet, opérationnel, qui peut travailler sur votre catalogue dès demain.<br><br>
+      Ce qu'on vient chercher avec vous, ce n'est pas valider que l'outil fonctionne — <em>il fonctionne</em>. C'est l'adapter à la façon dont une agence comme la vôtre travaille réellement : votre workflow, vos interfaces, vos contraintes terrain. C'est ça qu'on co-construit."
     </div>
     <div class="tip-box">
       <span class="tip-icon">💡</span>
-      <div class="tip-text"><strong>Tip :</strong> Sur la colonne "Roadmap pilote", dites explicitement "c'est vous qui décidez l'ordre de priorité". Laurence et Alexandre apprécieront d'avoir ce levier.</div>
+      <div class="tip-text"><strong>Tip :</strong> Laissez ce slide faire son effet en silence une seconde après l'avoir montré. La liste complète de checkmarks verts est l'argument — pas besoin de commenter chaque ligne.</div>
     </div>
 
     <h2>Slide 8 — Offre pilote (3 min)</h2>
@@ -464,31 +465,26 @@
 
     <h3>Roadmap technique détaillée</h3>
 
-    <p><strong style="color:#3fb950">Déjà disponible</strong></p>
+    <p><strong style="color:#3fb950">Tout disponible aujourd'hui</strong></p>
     <ul>
-      <li>Génération titre + 5 bullets + description (optimisé COSMO)</li>
-      <li>Visuels produit via DALL-E 3 (OpenAI)</li>
-      <li>Export Excel Seller Central auto-rempli</li>
-      <li>Kanban fiches par statut (À faire / Prêt / Publié)</li>
-      <li>Historique des lots — reprise à tout moment</li>
+      <li>Génération titre + 5 bullets + description (optimisé COSMO) + validation live limites Amazon</li>
+      <li>Gestion des variations parent/enfant (1 parent ASIN + N enfants)</li>
+      <li>Multi-marketplace simultané (FR, DE, IT, ES, UK en une génération)</li>
+      <li>Analyse avis concurrents (ASIN → bullets retournant les faiblesses)</li>
+      <li>Variantes A/B (2-3 titres proposés pour Manage Your Experiments)</li>
+      <li>Voix de marque sauvegardée par client (ton, mots imposés/interdits)</li>
+      <li>Checker conformité catégorie + régénération ciblée (score &lt; 70)</li>
+      <li>Visuels produit DALL-E 3 · Export Excel Seller Central auto-rempli</li>
+      <li>Kanban statut (À faire / Prêt / Publié) · Historique des lots</li>
+      <li>White label agence · Import direct SP-API Seller Central</li>
     </ul>
 
-    <p><strong style="color:#58a6ff">Prochaines semaines (critique)</strong></p>
+    <p><strong style="color:#d29922">Ce qu'on adapte avec Retail for Brands</strong></p>
     <ul>
-      <li><strong>Variations parent/enfant</strong> — 1 parent ASIN + N SKUs enfants (taille, couleur, format). Aujourd'hui chaque SKU est traité isolément : vrai blocker pour les catalogues avec variations.</li>
-      <li><strong>Validation live limites Amazon</strong> — compteur en temps réel : titre max 200 car. (varie/catégorie), bullets max 500 car., keywords backend max 249 octets (les accents comptent double), mots interdits dans les titres. Alerte rouge avant rejet Seller Central.</li>
-      <li><strong>Multi-marketplace simultané</strong> — FR, DE, IT, ES, UK générés en parallèle sur un même lot. Énorme gain de temps pour les vendeurs pan-européens.</li>
-      <li><strong>Analyse avis concurrents</strong> — ASIN concurrent en entrée, l'IA lit les avis 1★ et 5★ et reformule les bullets en retournant les faiblesses concurrentes.</li>
-      <li><strong>Variantes A/B</strong> — 2-3 titres/bullets proposés par génération, pour tester via Amazon Manage Your Experiments.</li>
-    </ul>
-
-    <p><strong style="color:#d29922">Roadmap pilote (co-construit avec Retail for Brands)</strong></p>
-    <ul>
-      <li><strong>Voix de marque sauvegardée</strong> — ton, mots imposés/interdits par client, injectés automatiquement sans re-saisie.</li>
-      <li><strong>Checker conformité catégorie</strong> — alertes sur champs manquants : allergènes (alimentaire), CE/watts (électronique), composition (textile).</li>
-      <li><strong>Régénération ciblée</strong> — "Améliorer toutes les fiches score &lt; 70" en un clic.</li>
-      <li><strong>White label agence</strong> — logo Retail for Brands, couleurs, domaine personnalisé.</li>
-      <li><strong>Import direct Seller Central via SP-API</strong> — publication en un clic sans export Excel (certification en cours).</li>
+      <li>Interface et workflow agence (multi-clients, multi-marques)</li>
+      <li>Intégration à vos outils internes (PIM, reporting)</li>
+      <li>Paramétrages spécifiques par catégorie selon votre portefeuille</li>
+      <li>Expérience utilisateur calée sur les process de votre équipe</li>
     </ul>
 
   </div>
