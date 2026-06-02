@@ -222,6 +222,16 @@ Chaque prompt doit produire une image digne d'une campagne publicitaire professi
 Sois précis sur : le sujet, la personne (si applicable), la scène, l'éclairage, l'angle, l'ambiance, les couleurs.
 Longueur : 120-200 mots par prompt.
 
+═══ SPECS TECHNIQUES OBLIGATOIRES — images studio (hero, infographic, detail, dimensions, packaging) ═══
+Inclus systématiquement ces éléments dans les prompts de type studio :
+- "studio product photography"
+- "dual softbox lighting, diffused light, no harsh shadows"
+- "85mm lens, f/8, ISO 100, shallow depth of field"
+- "white seamless background"
+- Décrire la matière exacte du produit et ses reflets : mat, brillant, satiné, métallique, tissé, translucide, etc.
+  Ex : "matte soft-touch rubber casing with subtle light reflection", "brushed aluminium with specular highlight", "glossy lacquered surface with crisp reflections"
+- Post-traitement décrit dans le prompt : "post-processed, upscaled to 4K, professional shadow correction, clean edges, color graded"
+
 Réponds UNIQUEMENT en JSON valide."""
 
     image_specs = "\n".join(
