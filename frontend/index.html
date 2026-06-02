@@ -2816,16 +2816,23 @@ function renderListingsContainer() {
     if (activeResultsFilter === '__none') return !s;
     return s === activeResultsFilter;
   });
+
+  // Save active tab and visibility state per card before DOM is cleared
+  const savedTabs = {};
+  const wasVisible = {};
+  visible.forEach((l) => {
+    const idx = generatedListings.indexOf(l);
+    const el = document.getElementById(`card-${idx}`);
+    wasVisible[idx] = !!el;
+    savedTabs[idx] = _getActiveTab(idx);
+  });
+
   if (resultsViewMode === 'grid') {
     c.className = 'grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3';
     c.innerHTML = '';
     visible.forEach((l) => {
       const idx = generatedListings.indexOf(l);
       c.appendChild(createGridCard(l, idx));
-    });
-    visible.forEach((l) => {
-      const idx = generatedListings.indexOf(l);
-      _restoreImagesInCard(idx);
     });
   } else {
     c.className = 'space-y-4';
@@ -2834,10 +2841,16 @@ function renderListingsContainer() {
       const idx = generatedListings.indexOf(l);
       c.appendChild(createListingCard(l, idx));
     });
-    // Restore images for visible cards
+    // Restore images and the correct tab for each card
     visible.forEach((l) => {
       const idx = generatedListings.indexOf(l);
       _restoreImagesInCard(idx);
+      // If card was already visible: restore exact same tab
+      // If card is newly appearing: default to images tab when images are cached
+      const tab = wasVisible[idx]
+        ? savedTabs[idx]
+        : (imagesCache[l.sku] ? 'images' : 'bullets');
+      switchTab(idx, tab);
     });
   }
   _renderGlobalProgress();
@@ -3219,7 +3232,7 @@ function createListingCard(listing, idx) {
 function createGridCard(listing, idx) {
   const col = listing.seo_score >= 70 ? 'green' : listing.seo_score >= 40 ? 'yellow' : 'red';
   const cached = imagesCache[listing.sku];
-  const mainImg = cached?.images?.find(i => i.slot === 'main' || i.id === 'main')?.url || '';
+  const mainImg = cached?.images?.find(i => i.id === 'hero' || i.slot === 'MAIN')?.url || '';
   const isParent = listing.is_parent && (listing.children || []).length > 0;
   const card = document.createElement('div');
   card.id = `card-${idx}`;
