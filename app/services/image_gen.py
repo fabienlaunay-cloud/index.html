@@ -1,5 +1,5 @@
 """
-Génération d'images produit Amazon via Claude (prompts) + gpt-image-1 (images).
+Génération d'images produit Amazon via Claude (prompts) + gpt-image-2 (images).
 Si OPENAI_API_KEY absent → retourne uniquement les prompts.
 """
 
@@ -143,7 +143,7 @@ AMAZON_IMAGE_TYPES = [
 async def _describe_product_from_image(image_bytes: bytes) -> str:
     """Claude Vision → description visuelle précise du produit (couleurs exactes, matériaux, hardware).
 
-    On analyse la photo AVANT de générer les prompts gpt-image-1 pour que
+    On analyse la photo AVANT de générer les prompts gpt-image-2 pour que
     les prompts contiennent les vraies couleurs du produit, pas des couleurs inventées.
     """
     import base64
@@ -193,7 +193,7 @@ async def _describe_product_from_image(image_bytes: bytes) -> str:
 async def _generate_prompts_with_claude(product_info: dict) -> dict[str, str]:
     """Claude génère des prompts DALL-E optimisés pour chaque type d'image Amazon."""
     system = """Tu es un directeur artistique expert en photographie produit haut de gamme et en publicité e-commerce.
-Tu rédiges des prompts photo ultra-cinématiques en anglais pour gpt-image-1, au niveau d'une campagne publicitaire Apple ou Nike.
+Tu rédiges des prompts photo ultra-cinématiques en anglais pour gpt-image-2, au niveau d'une campagne publicitaire Apple ou Nike.
 
 ═══ IMAGE PRINCIPALE (hero / MAIN) — règles strictes ═══
 - Fond blanc ABSOLU RGB(255,255,255) — aucune exception
@@ -243,7 +243,7 @@ Réponds UNIQUEMENT en JSON valide."""
     user = f"""Produit à photographier :
 {json.dumps(product_info, ensure_ascii=False, indent=2)}
 {visual_block}
-Génère 7 prompts gpt-image-1 de qualité publicitaire haut de gamme pour ce produit.
+Génère 7 prompts gpt-image-2 de qualité publicitaire haut de gamme pour ce produit.
 
 RÈGLES PAR TYPE :
 {image_specs}
@@ -334,7 +334,7 @@ async def _download_reference_image(url: str) -> Optional[bytes]:
 
 
 async def _generate_image_dalle3(prompt: str, image_id: str, reference_image: Optional[bytes] = None, _retry: int = 4) -> Optional[str]:
-    """Génère une image via gpt-image-1.
+    """Génère une image via gpt-image-2.
     Si reference_image fourni → endpoint /images/edits (produit réel comme base).
     Sinon → endpoint /images/generations (text-to-image).
     Retry automatique sur rate-limit 429.
@@ -345,7 +345,7 @@ async def _generate_image_dalle3(prompt: str, image_id: str, reference_image: Op
 
     prompt = prompt[:3500] if len(prompt) > 3500 else prompt
 
-    # Quand une photo de référence est fournie, forcer gpt-image-1 à conserver
+    # Quand une photo de référence est fournie, forcer gpt-image-2 à conserver
     # le produit réel plutôt que d'en inventer un nouveau.
     if reference_image:
         preservation = (
@@ -363,7 +363,7 @@ async def _generate_image_dalle3(prompt: str, image_id: str, reference_image: Op
                 "https://api.openai.com/v1/images/edits",
                 headers={"Authorization": f"Bearer {api_key}"},
                 data={
-                    "model": "gpt-image-1",
+                    "model": "gpt-image-2",
                     "prompt": prompt,
                     "n": "1",
                     "size": "1024x1024",
@@ -375,7 +375,7 @@ async def _generate_image_dalle3(prompt: str, image_id: str, reference_image: Op
             resp = await client.post(
                 "https://api.openai.com/v1/images/generations",
                 headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
-                json={"model": "gpt-image-1", "prompt": prompt, "n": 1, "size": "1024x1024", "quality": "medium"},
+                json={"model": "gpt-image-2", "prompt": prompt, "n": 1, "size": "1024x1024", "quality": "medium"},
             )
 
         if resp.status_code == 429 and _retry > 0:
@@ -412,7 +412,7 @@ async def generate_product_images(
     reference_image_bytes: bytes = None,
 ) -> list[dict]:
     """
-    Pipeline complet : Claude → prompts → gpt-image-1 → images.
+    Pipeline complet : Claude → prompts → gpt-image-2 → images.
     Si reference_image_bytes fourni (photo déjà en mémoire via ZIP upload) ou
     reference_image_url (URL externe publique), utilise /images/edits pour que
     les visuels correspondent au vrai produit.
