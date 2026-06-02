@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SynqIO — Guide Présentateur</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --bg: #0d1117; --surface: #161b22; --border: #21262d;
+      --text: #e6edf3; --muted: #8b949e; --blue: #58a6ff;
+      --green: #3fb950; --gold: #d29922; --red: #f85149;
+      --accent: #1f6feb;
+    }
+    body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; line-height: 1.7; padding: 0 0 80px; }
+    .header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 24px 40px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 10; }
+    .header-logo { font-size: 1.4rem; font-weight: 900; color: #58a6ff; }
+    .header-badge { background: #1f6feb20; border: 1px solid #1f6feb; color: #58a6ff; font-size: 0.78rem; padding: 4px 14px; border-radius: 20px; }
+    .container { max-width: 900px; margin: 0 auto; padding: 48px 40px 0; }
+
+    /* Tab nav */
+    .tabs { display: flex; gap: 4px; margin-bottom: 36px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 4px; width: fit-content; }
+    .tab { padding: 8px 20px; border-radius: 8px; cursor: pointer; font-size: 0.88rem; font-weight: 600; color: var(--muted); transition: all 0.2s; border: none; background: none; }
+    .tab.active { background: var(--accent); color: white; }
+    .tab:hover:not(.active) { color: var(--text); }
+    .panel { display: none; }
+    .panel.active { display: block; }
+
+    h1 { font-size: 1.8rem; font-weight: 800; margin-bottom: 8px; color: var(--text); }
+    h2 { font-size: 1.3rem; font-weight: 700; margin: 40px 0 16px; color: var(--text); border-left: 3px solid var(--accent); padding-left: 14px; }
+    h3 { font-size: 1.05rem; font-weight: 700; margin: 28px 0 10px; color: #58a6ff; }
+    p { margin-bottom: 14px; color: var(--muted); font-size: 0.95rem; }
+    p strong { color: var(--text); }
+    ul, ol { padding-left: 20px; margin-bottom: 16px; }
+    li { margin-bottom: 8px; color: var(--muted); font-size: 0.93rem; }
+    li strong { color: var(--text); }
+
+    .script-box {
+      background: #0d1117; border: 1px solid #1f6feb; border-radius: 10px;
+      padding: 20px 24px; margin: 16px 0; font-size: 0.92rem; line-height: 1.75;
+      position: relative;
+    }
+    .script-box::before {
+      content: 'À dire'; position: absolute; top: -10px; left: 16px;
+      background: var(--accent); color: white; font-size: 0.7rem; font-weight: 700;
+      padding: 2px 10px; border-radius: 10px; letter-spacing: 1px; text-transform: uppercase;
+    }
+    .script-box em { color: var(--blue); font-style: normal; font-weight: 600; }
+
+    .tip-box {
+      background: #161b22; border: 1px solid #3fb95030; border-radius: 10px;
+      padding: 16px 20px; margin: 16px 0; display: flex; gap: 12px; align-items: flex-start;
+    }
+    .tip-icon { font-size: 1.1rem; margin-top: 2px; flex-shrink: 0; }
+    .tip-text { font-size: 0.88rem; color: var(--muted); }
+    .tip-text strong { color: #3fb950; }
+
+    .warn-box {
+      background: #161b22; border: 1px solid #d2992230; border-radius: 10px;
+      padding: 16px 20px; margin: 16px 0; display: flex; gap: 12px;
+    }
+    .warn-text { font-size: 0.88rem; color: var(--muted); }
+    .warn-text strong { color: var(--gold); }
+
+    /* FAQ */
+    .faq-item { border: 1px solid var(--border); border-radius: 10px; margin-bottom: 12px; overflow: hidden; }
+    .faq-q {
+      padding: 16px 20px; cursor: pointer; font-size: 0.93rem; font-weight: 600;
+      display: flex; justify-content: space-between; align-items: center;
+      background: var(--surface);
+    }
+    .faq-q:hover { background: #1c2128; }
+    .faq-chevron { font-size: 0.8rem; color: var(--muted); transition: transform 0.2s; }
+    .faq-item.open .faq-chevron { transform: rotate(180deg); }
+    .faq-a { display: none; padding: 16px 20px; background: var(--bg); font-size: 0.88rem; color: var(--muted); border-top: 1px solid var(--border); line-height: 1.7; }
+    .faq-item.open .faq-a { display: block; }
+    .faq-a strong { color: var(--text); }
+
+    /* Commercial */
+    .price-table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+    .price-table th { background: var(--surface); padding: 12px 16px; text-align: left; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); border: 1px solid var(--border); }
+    .price-table td { padding: 14px 16px; border: 1px solid var(--border); font-size: 0.9rem; vertical-align: top; }
+    .price-table tr:nth-child(even) td { background: #0d1117; }
+    .price-table td strong { color: var(--blue); }
+    .price-hl { background: #1f6feb10; }
+    .badge-green { background: #3fb95020; color: #3fb950; border: 1px solid #3fb95040; font-size: 0.75rem; padding: 2px 10px; border-radius: 20px; display: inline-block; }
+    .badge-gold { background: #d2992220; color: var(--gold); border: 1px solid #d2992240; font-size: 0.75rem; padding: 2px 10px; border-radius: 20px; display: inline-block; }
+
+    /* Infra */
+    .infra-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 20px 0; }
+    .infra-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 20px; }
+    .infra-card h4 { font-size: 0.9rem; font-weight: 700; margin-bottom: 10px; color: var(--blue); }
+    .infra-card ul { padding-left: 16px; }
+    .infra-card li { font-size: 0.83rem; margin-bottom: 6px; }
+
+    code { background: #161b22; border: 1px solid var(--border); border-radius: 4px; padding: 1px 6px; font-family: monospace; font-size: 0.85rem; color: #79c0ff; }
+
+    .divider { border: none; border-top: 1px solid var(--border); margin: 32px 0; }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-logo">SynqIO</div>
+  <div class="header-badge">Guide Présentateur — Retail for Brands · Juin 2026</div>
+</div>
+
+<div class="container">
+
+  <h1>Guide Présentateur</h1>
+  <p>Réunion avec <strong>Laurence Taylor</strong>, <strong>Alexandre</strong> et <strong>Vincent</strong> — Retail for Brands.</p>
+
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('script')">Script</button>
+    <button class="tab" onclick="switchTab('faq')">FAQ objections</button>
+    <button class="tab" onclick="switchTab('offre')">Offre commerciale</button>
+    <button class="tab" onclick="switchTab('infra')">Infra & technique</button>
+  </div>
+
+  <!-- ── PANEL : SCRIPT ── -->
+  <div class="panel active" id="panel-script">
+
+    <h2>Avant la réunion</h2>
+    <div class="tip-box">
+      <span class="tip-icon">✅</span>
+      <div class="tip-text"><strong>Check-list pré-réunion :</strong> Ouvrir <code>synqio-pitch.html</code> en plein écran · Avoir l'URL <code>web-production-393ef.up.railway.app</code> dans un onglet · Être connecté à votre compte admin SynqIO · Préparer un SKU réel à saisir pour la démo.</div>
+    </div>
+
+    <h2>Slide 1 — Accueil (30 sec)</h2>
+    <div class="script-box">
+      "Merci Laurence, Alexandre, Vincent, d'avoir pris le temps. Ce qu'on a construit s'appelle <em>SynqIO</em>, et je vais vous montrer quelque chose de très concret — on va lancer une génération de fiche Amazon en direct tout à l'heure. Mais d'abord, le contexte."
+    </div>
+
+    <h2>Slide 2 — Le problème (2 min)</h2>
+    <div class="script-box">
+      "Vous le savez mieux que personne : créer une fiche Amazon bien faite, c'est 2 à 3 heures de travail. Recherche de mots-clés, rédaction, conformité Seller Central, relecture… <em>Multipliez ça par des centaines de SKUs et plusieurs marques.</em><br><br>
+      Le coût humain — content managers, chefs de projet — c'est facilement 40 à 80 000 euros par an d'ETP. Et malgré tout ce temps investi, une fiche non parfaitement optimisée pour l'algorithme COSMO d'Amazon peut vous faire perdre 20 à 30% de conversion. C'est invisible mais dévastateur."
+    </div>
+    <div class="tip-box">
+      <span class="tip-icon">💡</span>
+      <div class="tip-text"><strong>Astuce :</strong> Laissez Vincent confirmer le chiffre des 2-3h par fiche — il vit ça au quotidien. Sa validation en réunion vaut plus que votre discours.</div>
+    </div>
+
+    <h2>Slide 3 — La solution (3 min)</h2>
+    <div class="script-box">
+      "SynqIO, c'est un <em>agent IA spécialisé Amazon</em>. Pas un ChatGPT généraliste qu'on a rebrandé — un système entraîné sur les meilleures pratiques Amazon, avec de la vraie expertise terrain dedans.<br><br>
+      En pratique : vous entrez un SKU, une description produit, quelques caractéristiques. L'agent génère un <em>titre optimisé, 5 bullet points, une description longue</em>, et des <em>visuels produit</em> via DALL-E 3 (l'IA image d'OpenAI). Et il vous sort un fichier Excel Seller Central rempli, prêt à importer."
+    </div>
+    <div class="tip-box">
+      <span class="tip-icon">💡</span>
+      <div class="tip-text"><strong>Astuce :</strong> Sur ce slide, montrez le navigateur mockup et dites "voilà ce que voit l'utilisateur". Puis dites "on va voir le vrai dans quelques minutes".</div>
+    </div>
+
+    <h2>Slide 4 — ROI (2 min)</h2>
+    <div class="script-box">
+      "Concrètement, ça donne quoi ? <em>20 fois plus vite</em> : de 2-3 heures à moins de 10 minutes. <em>40 à 80k€ économisés par an</em> : c'est l'équivalent de 1 à 2 postes. Et sur la conversion, nos estimations terrain — confirmées par Vincent — montrent entre <em>15 et 25% d'amélioration</em> quand la fiche est vraiment optimisée pour COSMO."
+    </div>
+    <div class="warn-box">
+      <span>⚠️</span>
+      <div class="warn-text" style="margin-left:10px"><strong>Important :</strong> Ne promettez pas +25% comme garantie contractuelle. Dites "estimations basées sur les résultats terrain de notre expert Amazon". C'est honnête et crédible.</div>
+    </div>
+
+    <h2>Slide 5 — Marques (2 min)</h2>
+    <div class="script-box">
+      "Et ce n'est pas théorique. SynqIO a déjà été utilisé et testé sur des marques réelles — celles que gère Vincent : <em>Éphytose, Scholl, Berocca, Parodontax, Viviscal, ProRhinel</em>. Ce sont ces retours terrain qui ont façonné l'outil."
+    </div>
+    <div class="tip-box">
+      <span class="tip-icon">💡</span>
+      <div class="tip-text"><strong>Astuce :</strong> Regardez Vincent quand vous citez les marques — son hochement de tête (ou son sourire) sera votre meilleure proof point auprès de Laurence et Alexandre.</div>
+    </div>
+
+    <h2>Slide 6 — Équipe (1 min)</h2>
+    <div class="script-box">
+      "On est une petite équipe, mais complémentaire : <em>Théo</em> sur l'architecture et le développement, <em>Vincent</em> qui a co-construit l'outil depuis l'expertise Amazon, une expertise marketing et site internet, et moi sur la partie stratégie et business. Ce qui distingue SynqIO, c'est que l'outil a été pensé par des gens qui comprennent vraiment les enjeux de la marketplace."
+    </div>
+
+    <h2>Slide 7 — Offre pilote (3 min)</h2>
+    <div class="script-box">
+      "Voilà pourquoi on est là. On ne veut pas ouvrir les vannes à 50 clients d'un coup. On veut d'abord travailler avec <em>une agence de référence</em>, affiner l'outil sur des cas réels, et construire ensemble le produit qui correspond exactement aux besoins des agences Amazon.<br><br>
+      Ce qu'on propose : <em>5 marques, 1 mois</em>. Accès complet, support direct, et vos retours orientent directement la roadmap. À l'issue du mois, on fait un bilan ensemble et on définit le modèle long terme.<br><br>
+      Retail for Brands, pour nous, c'est le partenaire idéal : les bons experts, le bon portefeuille, la bonne exigence."
+    </div>
+
+    <h2>Slide 8 — Démo live</h2>
+    <div class="script-box">
+      "Maintenant — on regarde ça en vrai."
+      <br><br>
+      [Cliquer sur le lien SynqIO · Se connecter · Entrer un SKU réel · Lancer la génération · Montrer le résultat en direct]
+    </div>
+    <div class="tip-box">
+      <span class="tip-icon">🎯</span>
+      <div class="tip-text"><strong>Démo tip :</strong> Utilisez Éphytose ou Berocca comme produit exemple — Vincent les connaît parfaitement et pourra commenter la qualité du résultat en direct. C'est votre meilleur closing argument.</div>
+    </div>
+
+    <h2>Closing (1 min)</h2>
+    <div class="script-box">
+      "Ce qu'on vous propose concrètement, c'est de démarrer la semaine prochaine. On vous donne accès, on configure les 5 premières marques ensemble, et dans un mois on compare avant / après. Est-ce que vous êtes ouverts à ça ?"
+    </div>
+  </div>
+
+  <!-- ── PANEL : FAQ ── -->
+  <div class="panel" id="panel-faq">
+
+    <h2>Questions / Objections probables</h2>
+    <p>Cliquez sur chaque question pour voir la réponse recommandée.</p>
+
+    <div class="faq-item">
+      <div class="faq-q" onclick="toggleFaq(this)">
+        "C'est quoi la différence avec ChatGPT ?" <span class="faq-chevron">▼</span>
+      </div>
+      <div class="faq-a">
+        <strong>Réponse :</strong> "ChatGPT est un assistant généraliste. SynqIO est un agent spécialisé Amazon — il connaît les contraintes de caractères de Seller Central, l'algorithme COSMO, les règles par catégorie produit, et il s'améliore en continu avec les retours d'experts Amazon. C'est la différence entre un généraliste et un spécialiste."
+      </div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-q" onclick="toggleFaq(this)">
+        "La qualité des fiches est vraiment bonne ?" <span class="faq-chevron">▼</span>
+      </div>
+      <div class="faq-a">
+        <strong>Réponse :</strong> "Montrez la démo en direct. Laissez Vincent commenter. C'est la meilleure réponse. Si on parle de qualité abstraite : le contenu est toujours relu et ajusté par votre équipe — SynqIO fait 90% du travail, vous gardez la main sur le 10% créatif et la touche de marque."
+      </div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-q" onclick="toggleFaq(this)">
+        "Qu'est-ce qui se passe si Amazon change son algorithme ?" <span class="faq-chevron">▼</span>
+      </div>
+      <div class="faq-a">
+        <strong>Réponse :</strong> "C'est précisément l'avantage d'un SaaS vs un outil interne : on met à jour SynqIO quand Amazon évolue. Votre équipe n'a rien à faire — l'outil reste à jour. Et Vincent, qui suit Amazon au quotidien, est dans notre boucle d'amélioration continue."
+      </div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-q" onclick="toggleFaq(this)">
+        "Quel est le prix après le pilote ?" <span class="faq-chevron">▼</span>
+      </div>
+      <div class="faq-a">
+        <strong>Réponse :</strong> "On définit ça ensemble à l'issue du mois pilote, en fonction de la valeur réelle mesurée. Ce qu'on sait, c'est que le modèle cible est une licence mensuelle par marque ou par volume de SKUs. Notre priorité aujourd'hui, c'est de valider la valeur avant de parler de prix." <em>[Voir onglet Offre commerciale pour les chiffres.]</em>
+      </div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-q" onclick="toggleFaq(this)">
+        "Est-ce que les données de nos clients sont sécurisées ?" <span class="faq-chevron">▼</span>
+      </div>
+      <div class="faq-a">
+        <strong>Réponse :</strong> "SynqIO est hébergé sur Railway (infrastructure cloud sécurisée, Europe). Les données produit ne sont pas partagées entre clients — chaque compte est isolé. L'IA (Claude d'Anthropic + DALL-E 3 d'OpenAI) traite les données via des APIs certifiées SOC 2. Aucune donnée commerciale sensible n'est stockée par les fournisseurs IA."
+      </div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-q" onclick="toggleFaq(this)">
+        "Vous êtes combien dans l'équipe ? C'est sérieux ?" <span class="faq-chevron">▼</span>
+      </div>
+      <div class="faq-a">
+        <strong>Réponse :</strong> "On est une équipe de 4, intentionnellement. Les meilleurs outils SaaS démarrent petits et agiles. Notre force : chaque décision produit passe directement par un expert Amazon (Vincent), pas par 3 niveaux de management. Ce pilote avec vous, c'est justement pour grandir intelligemment — avec les bons partenaires."
+      </div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-q" onclick="toggleFaq(this)">
+        "On peut tester avec une seule marque d'abord ?" <span class="faq-chevron">▼</span>
+      </div>
+      <div class="faq-a">
+        <strong>Réponse :</strong> "Bien sûr. Si vous préférez commencer avec 1-2 marques pour valider en interne, on peut adapter. L'objectif est que vous ayez suffisamment de données pour mesurer un vrai impact en 1 mois — avec une seule marque ça peut fonctionner si elle a un catalogue suffisant."
+      </div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-q" onclick="toggleFaq(this)">
+        "Amazon va pas nous pénaliser pour du contenu IA ?" <span class="faq-chevron">▼</span>
+      </div>
+      <div class="faq-a">
+        <strong>Réponse :</strong> "Amazon ne pénalise pas le contenu IA — ce qui compte, c'est la qualité et la conformité. SynqIO génère du contenu qui respecte les guidelines Amazon (longueur, format, mots interdits). La vraie question c'est : est-ce que le contenu est pertinent et optimisé ? Et c'est exactement ce qu'on fait."
+      </div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-q" onclick="toggleFaq(this)">
+        "Vous gérez quoi comme marketplaces ?" <span class="faq-chevron">▼</span>
+      </div>
+      <div class="faq-a">
+        <strong>Réponse :</strong> "Aujourd'hui SynqIO génère du contenu en français (marketplace .fr). L'extension multilingue (DE, ES, IT, UK) est sur la roadmap — c'est justement l'un des points qu'on veut prioriser avec votre feedback pendant le pilote."
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ── PANEL : OFFRE COMMERCIALE ── -->
+  <div class="panel" id="panel-offre">
+
+    <h2>Offre commerciale — Retail for Brands</h2>
+
+    <h3>Phase 1 — Pilote (1 mois)</h3>
+    <table class="price-table">
+      <thead>
+        <tr><th>Élément</th><th>Détail</th><th>Tarif</th></tr>
+      </thead>
+      <tbody>
+        <tr class="price-hl">
+          <td><strong>Accès pilote SynqIO</strong></td>
+          <td>5 marques · Génération illimitée · 1 mois · Support prioritaire direct</td>
+          <td><strong>Gratuit</strong> <br><span class="badge-green">Offre partenaire</span></td>
+        </tr>
+        <tr>
+          <td>Onboarding & configuration</td>
+          <td>Formation équipe · Paramétrage par marque</td>
+          <td>Inclus</td>
+        </tr>
+        <tr>
+          <td>Support & itérations</td>
+          <td>Accès direct équipe SynqIO · Bugs résolus sous 24h</td>
+          <td>Inclus</td>
+        </tr>
+        <tr>
+          <td>Export Seller Central</td>
+          <td>Fichier Excel Amazon auto-rempli par fiche générée</td>
+          <td>Inclus</td>
+        </tr>
+        <tr>
+          <td>Bilan fin de mois</td>
+          <td>KPIs · Mesure ROI · Définition roadmap commune</td>
+          <td>Inclus</td>
+        </tr>
+      </tbody>
+    </table>
+    <p><em>Contrepartie attendue : feedbacks structurés hebdomadaires + autorisation de référencer Retail for Brands comme partenaire pilote.</em></p>
+
+    <hr class="divider">
+
+    <h3>Phase 2 — Modèle post-pilote (à négocier)</h3>
+    <table class="price-table">
+      <thead>
+        <tr><th>Formule</th><th>Pour qui</th><th>Tarif indicatif</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Starter</strong><br><span class="badge-green">Suggéré pilote</span></td>
+          <td>1-3 marques · jusqu'à 200 SKUs/mois</td>
+          <td><strong>250-400€/mois</strong></td>
+        </tr>
+        <tr>
+          <td><strong>Business</strong></td>
+          <td>4-10 marques · jusqu'à 1 000 SKUs/mois</td>
+          <td><strong>700-900€/mois</strong></td>
+        </tr>
+        <tr>
+          <td><strong>Scale / Agence</strong><br><span class="badge-gold">Cible RfB</span></td>
+          <td>Marques illimitées · SKUs illimités · White label possible</td>
+          <td><strong>Sur devis</strong></td>
+        </tr>
+      </tbody>
+    </table>
+    <div class="warn-box">
+      <span>⚠️</span>
+      <div class="warn-text" style="margin-left:10px"><strong>Ces tarifs sont indicatifs</strong> — ne les partagez pas par écrit avant la fin du pilote. Ils servent à vous positionner dans la discussion, pas à engager contractuellement. La valeur réelle mesurée pendant le pilote guidera la négociation.</div>
+    </div>
+
+    <hr class="divider">
+
+    <h3>Argumentaire ROI pour Laurence</h3>
+    <p>Si Laurence demande "pourquoi payer X€/mois ?" :</p>
+    <ul>
+      <li><strong>Un content manager coûte ~3 000€/mois</strong> (salaire + charges). SynqIO à 700€/mois = -77% sur ce poste.</li>
+      <li><strong>Une agence externe de copywriting Amazon</strong> facture 50-150€ par fiche. Pour 100 fiches/mois = 5 000 à 15 000€. SynqIO = -85 à -95%.</li>
+      <li><strong>Le gain de temps est immédiat</strong> : vos équipes peuvent se concentrer sur la stratégie, pas la saisie.</li>
+    </ul>
+
+    <hr class="divider">
+
+    <h3>Prochaines étapes proposées</h3>
+    <ol>
+      <li>Accord verbal en réunion → email de confirmation sous 24h</li>
+      <li>Création des accès SynqIO pour les 5 marques (dans la semaine)</li>
+      <li>Session onboarding 30 min (visio ou présentiel) avec Vincent + équipe RfB</li>
+      <li>Point d'étape à 2 semaines</li>
+      <li>Bilan complet à J+30 → proposition commerciale définitive</li>
+    </ol>
+
+  </div>
+
+  <!-- ── PANEL : INFRA ── -->
+  <div class="panel" id="panel-infra">
+
+    <h2>Infrastructure & technique</h2>
+    <p>À utiliser si des questions techniques précises sont posées (sécurité, intégration, scalabilité).</p>
+
+    <h3>Architecture globale</h3>
+    <div class="infra-grid">
+      <div class="infra-card">
+        <h4>Frontend</h4>
+        <ul>
+          <li>Application web single-page (HTML/JS/Tailwind CSS)</li>
+          <li>Accessible depuis n'importe quel navigateur</li>
+          <li>Pas d'installation client requise</li>
+          <li>Interface responsive (desktop + tablette)</li>
+        </ul>
+      </div>
+      <div class="infra-card">
+        <h4>Backend</h4>
+        <ul>
+          <li>API Python (FastAPI) — performant et scalable</li>
+          <li>Base de données SQLite persistante sur volume dédié</li>
+          <li>Authentification JWT (tokens sécurisés)</li>
+          <li>Rate limiting et protection brute force</li>
+        </ul>
+      </div>
+      <div class="infra-card">
+        <h4>Hébergement</h4>
+        <ul>
+          <li><strong>Railway.app</strong> — cloud infrastructure EU</li>
+          <li>HTTPS/TLS sur toutes les connexions</li>
+          <li>Volume persistant pour les données utilisateurs</li>
+          <li>Déploiement continu (mises à jour sans interruption)</li>
+        </ul>
+      </div>
+      <div class="infra-card">
+        <h4>IA & APIs tierces</h4>
+        <ul>
+          <li><strong>Anthropic Claude</strong> — génération texte fiches</li>
+          <li><strong>OpenAI DALL-E 3</strong> — génération images produit</li>
+          <li><strong>Amazon SP-API</strong> — intégration Seller Central (en cours de certification)</li>
+          <li>Tous les fournisseurs sont SOC 2 Type II certifiés</li>
+        </ul>
+      </div>
+    </div>
+
+    <h3>Sécurité des données</h3>
+    <ul>
+      <li><strong>Isolation des comptes</strong> : chaque client voit uniquement ses propres données.</li>
+      <li><strong>Chiffrement en transit</strong> : HTTPS/TLS sur toutes les API calls.</li>
+      <li><strong>Mots de passe</strong> : hashés avec bcrypt (standard industrie), jamais stockés en clair.</li>
+      <li><strong>Tokens JWT</strong> : expiration automatique (7 jours), révocables côté serveur.</li>
+      <li><strong>Données IA</strong> : les données produit envoyées à Claude/DALL-E ne sont pas utilisées pour entraîner les modèles (accords enterprise avec Anthropic et OpenAI).</li>
+    </ul>
+
+    <h3>Amazon SP-API — statut</h3>
+    <div class="warn-box">
+      <span>⚠️</span>
+      <div class="warn-text" style="margin-left:10px">
+        <strong>En cours de certification :</strong> L'application SynqIO est enregistrée sur Amazon Developer Portal (Sandbox, ID : <code>amzn1.sp.solution.5d19a782-61fd-4660-a714-959b46c28401</code>). La certification production est en cours de revue Amazon. Une fois validée : connexion directe au compte Seller Central pour import automatique des fiches.<br><br>
+        <strong>En attendant :</strong> Export via fichier Excel Seller Central — importation manuelle par le client.
+      </div>
+    </div>
+
+    <h3>Scalabilité</h3>
+    <ul>
+      <li><strong>Architecture stateless</strong> : le backend peut être scalé horizontalement sans modification.</li>
+      <li><strong>Jobs asynchrones</strong> : les générations tournent en tâches de fond — pas de timeout même sur de gros catalogues.</li>
+      <li><strong>Multitenancy</strong> : conçu pour gérer plusieurs agences et marques sur la même instance.</li>
+      <li><strong>SLA cible</strong> : 99.5% uptime (Railway garantit 99.9% sur l'infrastructure).</li>
+    </ul>
+
+    <h3>Roadmap technique (prochains 3 mois)</h3>
+    <ol>
+      <li>Certification Amazon SP-API production → import automatique Seller Central</li>
+      <li>Support multilingue (DE, ES, IT, EN)</li>
+      <li>Connecteur API REST pour intégration PIM/ERP clients</li>
+      <li>Dashboard analytics : taux de conversion avant/après par SKU</li>
+      <li>White label (logo + couleurs agence)</li>
+    </ol>
+
+  </div>
+
+</div>
+
+<script>
+  function switchTab(id) {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    event.target.classList.add('active');
+    document.getElementById('panel-' + id).classList.add('active');
+  }
+
+  function toggleFaq(el) {
+    const item = el.parentElement;
+    item.classList.toggle('open');
+  }
+</script>
+</body>
+</html>

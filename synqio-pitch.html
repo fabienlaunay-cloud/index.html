@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SynqIO — Retail for Brands</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --bg: #080d1a;
+      --surface: #0f1829;
+      --blue: #2563eb;
+      --blue-light: #3b82f6;
+      --gold: #f59e0b;
+      --gold-light: #fcd34d;
+      --text: #f1f5f9;
+      --muted: #94a3b8;
+      --accent: #06b6d4;
+    }
+    html, body {
+      height: 100%; background: var(--bg); color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      overflow: hidden;
+    }
+    .deck { width: 100vw; height: 100vh; position: relative; }
+    .slide {
+      position: absolute; inset: 0;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      padding: 60px;
+      opacity: 0; pointer-events: none;
+      transition: opacity 0.5s ease;
+    }
+    .slide.active { opacity: 1; pointer-events: all; }
+
+    /* ── Slide 1 — Cover ── */
+    #s1 { background: radial-gradient(ellipse at 60% 40%, #1e3a8a22 0%, transparent 60%), radial-gradient(ellipse at 20% 80%, #0e7490 10%, transparent 50%), var(--bg); }
+    .logo-mark {
+      font-size: 3rem; font-weight: 900; letter-spacing: -2px;
+      background: linear-gradient(135deg, #60a5fa, #06b6d4);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      margin-bottom: 8px;
+    }
+    .logo-mark span { color: var(--gold); -webkit-text-fill-color: var(--gold); }
+    .tagline { font-size: 1.1rem; color: var(--muted); letter-spacing: 3px; text-transform: uppercase; margin-bottom: 48px; }
+    .cover-headline {
+      font-size: clamp(2rem, 4vw, 3.2rem); font-weight: 700; text-align: center;
+      line-height: 1.2; max-width: 800px; margin-bottom: 20px;
+    }
+    .cover-sub { font-size: 1.2rem; color: var(--muted); text-align: center; max-width: 600px; margin-bottom: 60px; }
+    .badge {
+      display: inline-flex; align-items: center; gap: 8px;
+      border: 1px solid #1e40af; border-radius: 50px;
+      padding: 10px 24px; font-size: 0.9rem; color: #93c5fd;
+      background: #1e3a8a20;
+    }
+    .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--gold); animation: pulse 2s infinite; }
+    @keyframes pulse { 0%,100% { opacity:1; transform:scale(1); } 50% { opacity:.5; transform:scale(0.8); } }
+
+    /* ── Section headers ── */
+    .slide-label {
+      position: absolute; top: 36px; left: 60px;
+      font-size: 0.75rem; letter-spacing: 3px; text-transform: uppercase; color: #334155;
+      font-weight: 600;
+    }
+    .slide-num {
+      position: absolute; bottom: 36px; right: 60px;
+      font-size: 0.75rem; color: #1e293b; font-weight: 600;
+    }
+
+    /* ── Slide 2 — Problème ── */
+    #s2 { background: var(--bg); }
+    .section-title {
+      font-size: clamp(1.8rem, 3vw, 2.6rem); font-weight: 700;
+      margin-bottom: 16px; text-align: center;
+    }
+    .section-sub { color: var(--muted); font-size: 1.05rem; text-align: center; margin-bottom: 56px; max-width: 650px; }
+    .pain-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; max-width: 900px; width: 100%; }
+    .pain-card {
+      background: #0f1829; border: 1px solid #1e293b; border-radius: 16px;
+      padding: 32px 28px;
+    }
+    .pain-icon { font-size: 2rem; margin-bottom: 16px; }
+    .pain-title { font-size: 1.05rem; font-weight: 700; margin-bottom: 10px; }
+    .pain-body { font-size: 0.9rem; color: var(--muted); line-height: 1.6; }
+    .pain-stat { font-size: 2rem; font-weight: 800; color: #ef4444; margin-bottom: 4px; }
+
+    /* ── Slide 3 — Solution ── */
+    #s3 { background: var(--bg); }
+    .solution-wrap { display: grid; grid-template-columns: 1fr 1fr; gap: 60px; max-width: 1000px; align-items: center; }
+    .solution-left {}
+    .solution-right { display: flex; flex-direction: column; gap: 20px; }
+    .solution-title { font-size: clamp(1.8rem, 3vw, 2.8rem); font-weight: 800; line-height: 1.2; margin-bottom: 20px; }
+    .sol-highlight { color: var(--accent); }
+    .solution-desc { color: var(--muted); font-size: 1rem; line-height: 1.7; margin-bottom: 32px; }
+    .feature-pill {
+      display: flex; align-items: center; gap: 12px;
+      background: #0f1829; border: 1px solid #1e293b; border-radius: 12px;
+      padding: 14px 20px; font-size: 0.9rem;
+    }
+    .pill-icon { width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1rem; flex-shrink: 0; }
+    .pill-blue { background: #1e3a8a; }
+    .pill-cyan { background: #0e7490; }
+    .pill-gold { background: #78350f; }
+    .pill-green { background: #14532d; }
+    .pill-label { font-weight: 600; }
+    .pill-sub { color: var(--muted); font-size: 0.82rem; margin-top: 2px; }
+
+    /* ── Browser mockup ── */
+    .browser {
+      background: #0f1829; border: 1px solid #1e3a8a; border-radius: 14px;
+      overflow: hidden; box-shadow: 0 0 60px #2563eb20;
+    }
+    .browser-bar {
+      background: #0a1220; padding: 10px 16px; display: flex; align-items: center; gap: 8px;
+    }
+    .bdr { width: 10px; height: 10px; border-radius: 50%; }
+    .bdr-r { background: #ef4444; } .bdr-y { background: #f59e0b; } .bdr-g { background: #22c55e; }
+    .browser-url {
+      flex: 1; margin-left: 12px; background: #1e293b; border-radius: 6px;
+      padding: 4px 12px; font-size: 0.78rem; color: var(--muted);
+    }
+    .browser-body { padding: 24px; display: flex; flex-direction: column; gap: 10px; }
+    .mock-row { height: 8px; border-radius: 4px; background: #1e293b; }
+    .mock-row.short { width: 60%; }
+    .mock-row.med { width: 80%; }
+    .mock-highlight { height: 12px; border-radius: 4px; background: linear-gradient(90deg, #1e3a8a, #0e7490); width: 90%; }
+    .mock-tag {
+      display: inline-block; background: #14532d; color: #86efac; font-size: 0.7rem;
+      padding: 3px 10px; border-radius: 20px; margin-top: 6px;
+    }
+
+    /* ── Slide 4 — ROI ── */
+    #s4 { background: var(--bg); }
+    .roi-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 28px; max-width: 1000px; width: 100%; margin-bottom: 40px; }
+    .roi-card {
+      background: #0f1829; border-radius: 20px; padding: 36px 28px;
+      position: relative; overflow: hidden;
+      border: 1px solid #1e293b;
+    }
+    .roi-card::before {
+      content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+    }
+    .roi-card.blue::before { background: linear-gradient(90deg, #2563eb, #06b6d4); }
+    .roi-card.gold::before { background: linear-gradient(90deg, #f59e0b, #fcd34d); }
+    .roi-card.green::before { background: linear-gradient(90deg, #16a34a, #4ade80); }
+    .roi-number {
+      font-size: clamp(2.5rem, 4vw, 4rem); font-weight: 900; line-height: 1;
+      margin-bottom: 8px;
+    }
+    .roi-card.blue .roi-number { background: linear-gradient(135deg, #60a5fa, #06b6d4); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .roi-card.gold .roi-number { color: var(--gold); }
+    .roi-card.green .roi-number { color: #4ade80; }
+    .roi-label { font-size: 1rem; font-weight: 700; margin-bottom: 8px; }
+    .roi-desc { font-size: 0.85rem; color: var(--muted); line-height: 1.5; }
+    .source-note { font-size: 0.75rem; color: #334155; text-align: center; }
+
+    /* ── Slide 5 — Marques ── */
+    #s5 { background: var(--bg); }
+    .brands-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; max-width: 860px; width: 100%; margin-bottom: 32px; }
+    .brand-card {
+      background: #0f1829; border: 1px solid #1e293b; border-radius: 14px;
+      padding: 24px; text-align: center;
+    }
+    .brand-name { font-size: 1.15rem; font-weight: 800; margin-bottom: 6px; }
+    .brand-cat { font-size: 0.78rem; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; }
+    .brand-tag { font-size: 0.75rem; background: #1e3a8a30; color: #93c5fd; border: 1px solid #1e40af40; border-radius: 20px; padding: 3px 10px; margin-top: 10px; display: inline-block; }
+    .brands-note { font-size: 0.88rem; color: var(--muted); text-align: center; font-style: italic; }
+
+    /* ── Slide 6 — Équipe ── */
+    #s6 { background: var(--bg); }
+    .team-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; max-width: 900px; width: 100%; }
+    .team-card {
+      background: #0f1829; border: 1px solid #1e293b; border-radius: 16px;
+      padding: 28px 20px; text-align: center;
+    }
+    .team-avatar {
+      width: 64px; height: 64px; border-radius: 50%; margin: 0 auto 16px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.6rem; font-weight: 900;
+    }
+    .av-blue { background: linear-gradient(135deg, #1e3a8a, #2563eb); }
+    .av-cyan { background: linear-gradient(135deg, #0e7490, #06b6d4); }
+    .av-gold { background: linear-gradient(135deg, #78350f, #d97706); }
+    .av-green { background: linear-gradient(135deg, #14532d, #16a34a); }
+    .team-name { font-size: 1rem; font-weight: 700; margin-bottom: 4px; }
+    .team-role { font-size: 0.82rem; color: var(--muted); margin-bottom: 12px; }
+    .team-tag {
+      font-size: 0.72rem; border-radius: 20px; padding: 3px 10px; display: inline-block;
+    }
+    .tag-blue { background: #1e3a8a30; color: #93c5fd; border: 1px solid #1e40af40; }
+    .tag-gold { background: #78350f30; color: #fcd34d; border: 1px solid #d9770640; }
+    .creds-banner {
+      margin-top: 36px; background: #0f1829; border: 1px solid #1e293b; border-radius: 12px;
+      padding: 16px 32px; display: flex; gap: 40px; align-items: center;
+    }
+    .cred-item { text-align: center; }
+    .cred-num { font-size: 1.5rem; font-weight: 800; color: var(--accent); }
+    .cred-label { font-size: 0.78rem; color: var(--muted); margin-top: 2px; }
+
+    /* ── Slide 7 — Offre pilote ── */
+    #s7 { background: var(--bg); }
+    .offer-wrap { display: grid; grid-template-columns: 1fr 1fr; gap: 48px; max-width: 1000px; align-items: start; }
+    .offer-left {}
+    .offer-right {}
+    .offer-title { font-size: clamp(1.6rem, 2.5vw, 2.2rem); font-weight: 800; margin-bottom: 16px; line-height: 1.2; }
+    .offer-desc { color: var(--muted); font-size: 0.95rem; line-height: 1.7; margin-bottom: 32px; }
+    .timeline { display: flex; flex-direction: column; gap: 0; }
+    .tl-item { display: flex; gap: 20px; }
+    .tl-left { display: flex; flex-direction: column; align-items: center; }
+    .tl-dot { width: 14px; height: 14px; border-radius: 50%; background: var(--blue-light); flex-shrink: 0; margin-top: 4px; }
+    .tl-line { width: 2px; background: #1e293b; flex: 1; min-height: 32px; margin: 4px 0; }
+    .tl-content { padding-bottom: 32px; }
+    .tl-week { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 2px; color: var(--accent); font-weight: 600; margin-bottom: 4px; }
+    .tl-title { font-size: 0.95rem; font-weight: 700; margin-bottom: 4px; }
+    .tl-body { font-size: 0.85rem; color: var(--muted); line-height: 1.5; }
+    .offer-box {
+      background: linear-gradient(135deg, #0f1829, #0a1220); border: 1px solid #1e3a8a;
+      border-radius: 20px; padding: 32px; position: relative; overflow: hidden;
+    }
+    .offer-box::before {
+      content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+      background: linear-gradient(90deg, #2563eb, #06b6d4, #f59e0b);
+    }
+    .offer-badge {
+      display: inline-block; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 2px;
+      font-weight: 700; color: var(--gold); border: 1px solid var(--gold); border-radius: 20px;
+      padding: 4px 12px; margin-bottom: 20px;
+    }
+    .offer-perks { list-style: none; display: flex; flex-direction: column; gap: 14px; margin-bottom: 28px; }
+    .offer-perks li { display: flex; gap: 12px; align-items: flex-start; font-size: 0.9rem; }
+    .check { color: #4ade80; font-weight: 700; flex-shrink: 0; margin-top: 2px; }
+    .next-step {
+      background: linear-gradient(135deg, #1e3a8a, #0e7490); border-radius: 12px;
+      padding: 16px 20px; font-size: 0.9rem; font-weight: 600; color: white;
+      text-align: center;
+    }
+
+    /* ── Slide 8 — Demo ── */
+    #s8 { background: radial-gradient(ellipse at 50% 40%, #1e3a8a25 0%, transparent 60%), var(--bg); }
+    .demo-cta { text-align: center; }
+    .demo-label { font-size: 0.85rem; letter-spacing: 3px; text-transform: uppercase; color: var(--muted); margin-bottom: 24px; }
+    .demo-title { font-size: clamp(2rem, 4vw, 3rem); font-weight: 800; margin-bottom: 16px; }
+    .demo-sub { color: var(--muted); font-size: 1rem; margin-bottom: 48px; }
+    .demo-link {
+      display: inline-flex; align-items: center; gap: 12px;
+      background: linear-gradient(135deg, #2563eb, #0891b2);
+      color: white; text-decoration: none; border-radius: 50px;
+      padding: 18px 40px; font-size: 1.05rem; font-weight: 700;
+      box-shadow: 0 0 40px #2563eb40; transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .demo-link:hover { transform: scale(1.04); box-shadow: 0 0 60px #2563eb60; }
+    .arrow { font-size: 1.3rem; }
+    .demo-contacts { margin-top: 56px; display: flex; gap: 40px; justify-content: center; }
+    .contact-item { text-align: center; }
+    .contact-name { font-size: 1rem; font-weight: 700; }
+    .contact-role { font-size: 0.82rem; color: var(--muted); margin-top: 4px; }
+
+    /* ── Navigation ── */
+    .nav {
+      position: fixed; bottom: 40px; left: 50%; transform: translateX(-50%);
+      display: flex; align-items: center; gap: 12px; z-index: 100;
+    }
+    .nav-btn {
+      width: 44px; height: 44px; border-radius: 50%; border: 1px solid #1e293b;
+      background: #0f1829; color: var(--text); cursor: pointer; font-size: 1rem;
+      display: flex; align-items: center; justify-content: center;
+      transition: background 0.2s, border-color 0.2s;
+    }
+    .nav-btn:hover { background: #1e293b; border-color: #334155; }
+    .nav-dots { display: flex; gap: 8px; }
+    .nav-dot {
+      width: 8px; height: 8px; border-radius: 50%; background: #1e293b; cursor: pointer;
+      transition: background 0.2s, transform 0.2s;
+    }
+    .nav-dot.active { background: var(--blue-light); transform: scale(1.3); }
+
+    /* ── Progress bar ── */
+    .progress { position: fixed; top: 0; left: 0; height: 3px; background: linear-gradient(90deg, #2563eb, #06b6d4); transition: width 0.5s ease; z-index: 100; }
+
+    /* ── Gradient text ── */
+    .grad-text { background: linear-gradient(135deg, #60a5fa, #06b6d4); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .gold-text { color: var(--gold); }
+
+    .divider { width: 60px; height: 3px; background: linear-gradient(90deg, var(--blue-light), var(--accent)); border-radius: 2px; margin: 0 auto 32px; }
+  </style>
+</head>
+<body>
+
+<div class="progress" id="progress"></div>
+
+<div class="deck">
+
+  <!-- ── Slide 1 — Cover ── -->
+  <div class="slide active" id="s1">
+    <div class="logo-mark">Synq<span>IO</span></div>
+    <div class="tagline">Agent IA · Amazon Listings</div>
+    <h1 class="cover-headline">Générez des fiches Amazon<br><span class="grad-text">10× plus vite</span>, vendez davantage.</h1>
+    <p class="cover-sub">La seule solution IA co-construite avec des experts Amazon pour optimiser automatiquement titres, bullet points et visuels produit.</p>
+    <div class="badge">
+      <span class="dot"></span>
+      Présentation exclusive — Retail for Brands · Juin 2026
+    </div>
+    <div class="slide-num">1 / 8</div>
+  </div>
+
+  <!-- ── Slide 2 — Le problème ── -->
+  <div class="slide" id="s2">
+    <div class="slide-label">Le défi</div>
+    <h2 class="section-title">Créer des fiches Amazon,<br><span style="color:#ef4444">un travail titanesque</span></h2>
+    <p class="section-sub">Pour chaque marque, chaque SKU, chaque marketplace : un processus manuel, répétitif et risqué.</p>
+    <div class="pain-grid">
+      <div class="pain-card">
+        <div class="pain-stat">2-3h</div>
+        <div class="pain-title">par fiche produit</div>
+        <div class="pain-body">Recherche mots-clés, rédaction optimisée, mise en conformité Seller Central, relecture… multiplié par des centaines de SKUs.</div>
+      </div>
+      <div class="pain-card">
+        <div class="pain-stat">40–80k€</div>
+        <div class="pain-title">coût annuel humain</div>
+        <div class="pain-body">1 à 2 équivalents temps plein dédiés à la création et mise à jour de contenu produit. Un coût fixe, quelle que soit la charge.</div>
+      </div>
+      <div class="pain-card">
+        <div class="pain-stat">-30%</div>
+        <div class="pain-title">de conversion perdue</div>
+        <div class="pain-body">Une fiche non optimisée pour l'algorithme COSMO d'Amazon pénalise le référencement et fait fuir les acheteurs avant l'ajout au panier.</div>
+      </div>
+    </div>
+    <div class="slide-num">2 / 8</div>
+  </div>
+
+  <!-- ── Slide 3 — La solution ── -->
+  <div class="slide" id="s3">
+    <div class="slide-label">La solution</div>
+    <div class="solution-wrap">
+      <div class="solution-left">
+        <h2 class="solution-title">SynqIO génère vos fiches <span class="sol-highlight">en quelques minutes.</span></h2>
+        <p class="solution-desc">Un agent IA entraîné sur les meilleures pratiques Amazon, piloté par vos experts, livrant un contenu prêt à publier directement dans Seller Central.</p>
+        <div class="browser">
+          <div class="browser-bar">
+            <div class="bdr bdr-r"></div><div class="bdr bdr-y"></div><div class="bdr bdr-g"></div>
+            <div class="browser-url">synqio.app — Génération en cours…</div>
+          </div>
+          <div class="browser-body">
+            <div class="mock-highlight"></div>
+            <div class="mock-row med"></div>
+            <div class="mock-row"></div>
+            <div class="mock-row short"></div>
+            <div class="mock-row med"></div>
+            <span class="mock-tag">Fiche générée · Export Seller Central prêt</span>
+          </div>
+        </div>
+      </div>
+      <div class="solution-right">
+        <div class="feature-pill">
+          <div class="pill-icon pill-blue">AI</div>
+          <div>
+            <div class="pill-label">Titre + 5 bullet points</div>
+            <div class="pill-sub">Optimisés pour l'algorithme COSMO d'Amazon</div>
+          </div>
+        </div>
+        <div class="feature-pill">
+          <div class="pill-icon pill-cyan">img</div>
+          <div>
+            <div class="pill-label">Visuels produit générés</div>
+            <div class="pill-sub">Images IA (DALL-E 3) aux standards Amazon</div>
+          </div>
+        </div>
+        <div class="feature-pill">
+          <div class="pill-icon pill-gold">xls</div>
+          <div>
+            <div class="pill-label">Export Excel automatique</div>
+            <div class="pill-sub">Fichier Seller Central rempli — prêt à importer</div>
+          </div>
+        </div>
+        <div class="feature-pill">
+          <div class="pill-icon pill-green">hist</div>
+          <div>
+            <div class="pill-label">Historique & Kanban</div>
+            <div class="pill-sub">Suivi des fiches par statut : À compléter · Prêt · Publié</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="slide-num">3 / 8</div>
+  </div>
+
+  <!-- ── Slide 4 — ROI ── -->
+  <div class="slide" id="s4">
+    <div class="slide-label">Impact business</div>
+    <h2 class="section-title">Un retour sur investissement <span class="grad-text">immédiat</span></h2>
+    <div class="divider"></div>
+    <div class="roi-grid">
+      <div class="roi-card blue">
+        <div class="roi-number">×20</div>
+        <div class="roi-label">Plus rapide</div>
+        <div class="roi-desc">De 2-3 heures à moins de 10 minutes par fiche produit complète, prête à publier.</div>
+      </div>
+      <div class="roi-card gold">
+        <div class="roi-number">40-80k€</div>
+        <div class="roi-label">Économisés / an</div>
+        <div class="roi-desc">Remplacement de 1 à 2 postes de content manager dédiés aux fiches Amazon.</div>
+      </div>
+      <div class="roi-card green">
+        <div class="roi-number">+15-25%</div>
+        <div class="roi-label">De conversion estimée</div>
+        <div class="roi-desc">Fiches optimisées pour COSMO : meilleur ranking organique + taux d'ajout au panier supérieur.</div>
+      </div>
+    </div>
+    <p class="source-note">Estimations basées sur les standards industrie Amazon (Marketplace Pulse, 2024) et retours terrain experts SynqIO.</p>
+    <div class="slide-num">4 / 8</div>
+  </div>
+
+  <!-- ── Slide 5 — Marques ── -->
+  <div class="slide" id="s5">
+    <div class="slide-label">Cas clients</div>
+    <h2 class="section-title">Des marques qui nous <span class="gold-text">font confiance</span></h2>
+    <p class="section-sub">SynqIO est déjà utilisé et testé sur le portefeuille de nos experts Amazon.</p>
+    <div class="brands-grid">
+      <div class="brand-card">
+        <div class="brand-name" style="color:#60a5fa">Éphytose</div>
+        <div class="brand-cat">Complément alimentaire</div>
+        <div class="brand-tag">Santé & bien-être</div>
+      </div>
+      <div class="brand-card">
+        <div class="brand-name" style="color:#34d399">Scholl</div>
+        <div class="brand-cat">Soin des pieds</div>
+        <div class="brand-tag">Santé grand public</div>
+      </div>
+      <div class="brand-card">
+        <div class="brand-name" style="color:#fbbf24">Berocca</div>
+        <div class="brand-cat">Vitamines & énergie</div>
+        <div class="brand-tag">Nutraceutique</div>
+      </div>
+      <div class="brand-card">
+        <div class="brand-name" style="color:#f87171">Parodontax</div>
+        <div class="brand-cat">Hygiène bucco-dentaire</div>
+        <div class="brand-tag">Soins bucco-dentaires</div>
+      </div>
+      <div class="brand-card">
+        <div class="brand-name" style="color:#a78bfa">Viviscal</div>
+        <div class="brand-cat">Soin capillaire</div>
+        <div class="brand-tag">Beauté & santé</div>
+      </div>
+      <div class="brand-card">
+        <div class="brand-name" style="color:#67e8f9">ProRhinel</div>
+        <div class="brand-cat">Soins ORL</div>
+        <div class="brand-tag">Santé & pharmacie</div>
+      </div>
+    </div>
+    <p class="brands-note">Marques du portefeuille de notre expert Amazon — fiches testées et validées en conditions réelles.</p>
+    <div class="slide-num">5 / 8</div>
+  </div>
+
+  <!-- ── Slide 6 — Équipe ── -->
+  <div class="slide" id="s6">
+    <div class="slide-label">L'équipe</div>
+    <h2 class="section-title">Co-construit avec des <span class="grad-text">experts terrain</span></h2>
+    <p class="section-sub">Pas un outil tech sorti d'un lab : une solution façonnée par des praticiens Amazon au quotidien.</p>
+    <div class="team-grid">
+      <div class="team-card">
+        <div class="team-avatar av-blue">T</div>
+        <div class="team-name">Théo</div>
+        <div class="team-role">Développeur Full-Stack</div>
+        <span class="team-tag tag-blue">Architecture IA</span>
+      </div>
+      <div class="team-card">
+        <div class="team-avatar av-cyan">V</div>
+        <div class="team-name">Vincent</div>
+        <div class="team-role">Expert Amazon</div>
+        <span class="team-tag tag-blue">SP-API · Listings</span>
+      </div>
+      <div class="team-card">
+        <div class="team-avatar av-gold">M</div>
+        <div class="team-name">Marketing</div>
+        <div class="team-role">Brand & Digital</div>
+        <span class="team-tag tag-gold">UX · Communication</span>
+      </div>
+      <div class="team-card">
+        <div class="team-avatar av-green">F</div>
+        <div class="team-name">Fabien</div>
+        <div class="team-role">Business & Stratégie</div>
+        <span class="team-tag tag-blue">Vision · Partenariats</span>
+      </div>
+    </div>
+    <div class="creds-banner">
+      <div class="cred-item">
+        <div class="cred-num">5+</div>
+        <div class="cred-label">Ans d'expertise Amazon</div>
+      </div>
+      <div class="cred-item">
+        <div class="cred-num">6</div>
+        <div class="cred-label">Marques validées</div>
+      </div>
+      <div class="cred-item">
+        <div class="cred-num">100%</div>
+        <div class="cred-label">Agile & évolutif</div>
+      </div>
+      <div class="cred-item">
+        <div class="cred-num">SP-API</div>
+        <div class="cred-label">Amazon Certified</div>
+      </div>
+    </div>
+    <div class="slide-num">6 / 8</div>
+  </div>
+
+  <!-- ── Slide 7 — Offre pilote ── -->
+  <div class="slide" id="s7">
+    <div class="slide-label">L'offre</div>
+    <div class="offer-wrap">
+      <div class="offer-left">
+        <h2 class="offer-title">Un pilote <span class="gold-text">sur mesure</span><br>pour Retail for Brands</h2>
+        <p class="offer-desc">Avant d'ouvrir SynqIO aux marques en direct, nous travaillons en priorité avec 1 à 2 agences partenaires. Retail for Brands est notre partenaire naturel : les bons experts, les bonnes marques.</p>
+        <div class="timeline">
+          <div class="tl-item">
+            <div class="tl-left"><div class="tl-dot"></div><div class="tl-line"></div></div>
+            <div class="tl-content">
+              <div class="tl-week">Semaine 1</div>
+              <div class="tl-title">Onboarding & intégration</div>
+              <div class="tl-body">Accès SynqIO pour 5 marques — configuration, formation équipe.</div>
+            </div>
+          </div>
+          <div class="tl-item">
+            <div class="tl-left"><div class="tl-dot"></div><div class="tl-line"></div></div>
+            <div class="tl-content">
+              <div class="tl-week">Semaines 2-3</div>
+              <div class="tl-title">Production réelle + support dédié</div>
+              <div class="tl-body">Génération de fiches sur catalogue réel. Itérations rapides sur vos retours.</div>
+            </div>
+          </div>
+          <div class="tl-item">
+            <div class="tl-left"><div class="tl-dot"></div></div>
+            <div class="tl-content" style="padding-bottom:0">
+              <div class="tl-week">Semaine 4</div>
+              <div class="tl-title">Bilan & roadmap commune</div>
+              <div class="tl-body">KPIs, ajustements, définition du modèle commercial long terme.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="offer-right">
+        <div class="offer-box">
+          <span class="offer-badge">Offre Partenaire Pilote</span>
+          <ul class="offer-perks">
+            <li><span class="check">✓</span> <span><strong>5 marques</strong> incluses dans le pilote</span></li>
+            <li><span class="check">✓</span> <span>Génération illimitée de fiches pendant 1 mois</span></li>
+            <li><span class="check">✓</span> <span>Export Excel Seller Central automatique</span></li>
+            <li><span class="check">✓</span> <span>Support prioritaire & accès direct à l'équipe</span></li>
+            <li><span class="check">✓</span> <span>Co-construction de la roadmap selon vos besoins</span></li>
+            <li><span class="check">✓</span> <span>Tarif partenaire préférentiel post-pilote garanti</span></li>
+          </ul>
+          <div class="next-step">Objectif : valider le ROI sur 1 mois, puis scaler ensemble</div>
+        </div>
+      </div>
+    </div>
+    <div class="slide-num">7 / 8</div>
+  </div>
+
+  <!-- ── Slide 8 — Demo ── -->
+  <div class="slide" id="s8">
+    <div class="demo-cta">
+      <div class="demo-label">Démonstration live</div>
+      <h2 class="demo-title">Voyons-le en <span class="grad-text">action</span></h2>
+      <p class="demo-sub">Un SKU, une fiche complète, en direct. Regardez SynqIO travailler.</p>
+      <a class="demo-link" href="https://web-production-393ef.up.railway.app" target="_blank">
+        Ouvrir SynqIO <span class="arrow">→</span>
+      </a>
+    </div>
+    <div class="demo-contacts">
+      <div class="contact-item">
+        <div class="contact-name">Fabien</div>
+        <div class="contact-role">Business & Stratégie · SynqIO</div>
+      </div>
+    </div>
+    <div class="slide-num">8 / 8</div>
+  </div>
+
+</div><!-- /deck -->
+
+<!-- Navigation -->
+<div class="nav">
+  <button class="nav-btn" id="prev">←</button>
+  <div class="nav-dots" id="dots"></div>
+  <button class="nav-btn" id="next">→</button>
+</div>
+
+<script>
+  const slides = document.querySelectorAll('.slide');
+  const dotsEl = document.getElementById('dots');
+  const progress = document.getElementById('progress');
+  let cur = 0;
+  const total = slides.length;
+
+  // Build dots
+  slides.forEach((_, i) => {
+    const d = document.createElement('div');
+    d.className = 'nav-dot' + (i === 0 ? ' active' : '');
+    d.addEventListener('click', () => goTo(i));
+    dotsEl.appendChild(d);
+  });
+
+  function goTo(n) {
+    slides[cur].classList.remove('active');
+    dotsEl.children[cur].classList.remove('active');
+    cur = Math.max(0, Math.min(total - 1, n));
+    slides[cur].classList.add('active');
+    dotsEl.children[cur].classList.add('active');
+    progress.style.width = ((cur + 1) / total * 100) + '%';
+  }
+
+  document.getElementById('next').addEventListener('click', () => goTo(cur + 1));
+  document.getElementById('prev').addEventListener('click', () => goTo(cur - 1));
+
+  document.addEventListener('keydown', e => {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === ' ') goTo(cur + 1);
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') goTo(cur - 1);
+  });
+
+  // Touch swipe
+  let tx = 0;
+  document.addEventListener('touchstart', e => tx = e.touches[0].clientX);
+  document.addEventListener('touchend', e => {
+    const dx = tx - e.changedTouches[0].clientX;
+    if (Math.abs(dx) > 50) dx > 0 ? goTo(cur + 1) : goTo(cur - 1);
+  });
+
+  // Init progress
+  progress.style.width = (1 / total * 100) + '%';
+</script>
+</body>
+</html>
