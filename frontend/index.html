@@ -2823,6 +2823,10 @@ function renderListingsContainer() {
       const idx = generatedListings.indexOf(l);
       c.appendChild(createGridCard(l, idx));
     });
+    visible.forEach((l) => {
+      const idx = generatedListings.indexOf(l);
+      _restoreImagesInCard(idx);
+    });
   } else {
     c.className = 'space-y-4';
     c.innerHTML = '';
@@ -3312,7 +3316,7 @@ function buildCardHTML(listing, idx, editMode) {
       </div>
       <div id="content-${idx}-aplus" class="hidden">${listing.a_plus_content ? `<div class="space-y-3"><div class="bg-purple-50 rounded-lg p-3"><p class="font-semibold text-purple-800 text-sm">✨ ${listing.a_plus_content.headline}</p></div>${(listing.a_plus_content.modules||[]).map(m=>`<div class="border border-gray-100 rounded-lg p-3"><p class="text-xs text-gray-500 uppercase tracking-wide mb-1">${(m.type||'').replace('_',' ')}</p><p class="font-semibold text-gray-800 text-sm mb-1">${m.title||''}</p><p class="text-gray-600 text-sm">${m.body||''}</p></div>`).join('')}</div>` : '<p class="text-gray-400 text-sm">Non disponible</p>'}</div>
       <div id="content-${idx}-images" class="hidden">
-        <div id="images-container-${idx}" class="text-center py-6 text-gray-400 text-sm">Cliquez sur "Générer les images" pour lancer la création</div>
+        <div id="images-container-${idx}" class="text-center py-6 text-gray-400 text-sm">${imagesCache[listing.sku] ? '' : 'Cliquez sur "Générer les images" pour lancer la création'}</div>
       </div>
       ${isParent ? _buildVariationChildrenTable(listing, idx, editMode) : ''}
     </div>
@@ -3335,7 +3339,7 @@ function buildCardHTML(listing, idx, editMode) {
       ${editMode
         ? `<button onclick="saveEdit(${idx})" class="ml-auto gradient-bg text-white rounded-lg px-3 py-1.5 text-xs font-semibold transition flex items-center gap-1"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Enregistrer</button>
            <button onclick="cancelEdit(${idx})" class="text-xs text-gray-400 hover:text-gray-600">Annuler</button>`
-        : `<button onclick="switchTab(${idx},'images');generateImages(${idx})" class="ml-auto bg-pink-50 hover:bg-pink-100 text-pink-700 rounded-lg px-3 py-1.5 text-xs font-medium transition flex items-center gap-1">Générer les images</button>
+        : `<button onclick="switchTab(${idx},'images');generateImages(${idx})" class="ml-auto bg-pink-50 hover:bg-pink-100 text-pink-700 rounded-lg px-3 py-1.5 text-xs font-medium transition flex items-center gap-1">${imagesCache[listing.sku] ? `Voir les images (${(imagesCache[listing.sku].images||[]).length})` : 'Générer les images'}</button>
            <button onclick="event.stopPropagation();openListingDetail(${idx})" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg px-3 py-1.5 text-xs font-medium transition flex items-center gap-1" title="Ouvrir dans une fenêtre"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg> Ouvrir</button>
            <button onclick="enterEditMode(${idx})" class="bg-purple-50 hover:bg-purple-100 text-purple-700 rounded-lg px-3 py-1.5 text-xs font-medium transition flex items-center gap-1"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4Z"/></svg> Éditer</button>
            <button onclick="copyListing(${idx})" class="text-xs text-gray-500 hover:text-purple-600">Copier JSON</button>`}
@@ -3494,6 +3498,7 @@ function switchTab(idx, tab) {
   document.getElementById(`content-${idx}-${tab}`)?.classList.remove('hidden');
   const a = document.getElementById(`tab-${idx}-${tab}`);
   if(a){a.classList.add('tab-active');a.classList.remove('text-gray-400');}
+  if (tab === 'images') _restoreImagesInCard(idx);
 }
 
 // ── Image generation ──────────────────────────────────────────────────────────
