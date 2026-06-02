@@ -377,12 +377,14 @@ async def generate_listing(
             response = await get_client().messages.create(
                 model="claude-sonnet-4-6",
                 max_tokens=8192,
-                system=system,
+                system=[{"type": "text", "text": system, "cache_control": {"type": "ephemeral"}}],
                 messages=[{"role": "user", "content": user}],
             )
             token_usage = {
                 "input_tokens": response.usage.input_tokens,
                 "output_tokens": response.usage.output_tokens,
+                "cache_read_input_tokens": getattr(response.usage, "cache_read_input_tokens", 0),
+                "cache_creation_input_tokens": getattr(response.usage, "cache_creation_input_tokens", 0),
             }
             raw = response.content[0].text.strip()
             # Strip markdown code fences if present
@@ -429,7 +431,7 @@ async def generate_listings_batch(
     focus_keywords: List[str],
     style_tone: str,
     brand_voice: Optional[BrandVoice] = None,
-    concurrency: int = 2,
+    concurrency: int = 5,
     on_progress=None,  # callable(done: int, total: int)
 ) -> tuple:  # (listings, failed, {"input_tokens": int, "output_tokens": int})
     semaphore = asyncio.Semaphore(concurrency)
