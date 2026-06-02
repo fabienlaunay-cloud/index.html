@@ -765,6 +765,7 @@ class ImageRequest(BaseModel):
     selected_types: Optional[List[str]] = None
     reference_image_url: Optional[str] = None
     batch_id: Optional[str] = None   # generation history id to attach images to
+    marketplace: Optional[str] = None
 
 
 async def _persist_images(sku: str, images: list) -> list:
@@ -821,6 +822,7 @@ async def _run_image_job(job_id: str, req: ImageRequest, email: str):
             selected_types=req.selected_types,
             reference_image_url=ref_url,
             reference_image_bytes=ref_bytes,
+            marketplace=req.marketplace,
         )
         generated = [i for i in images if i.get("has_image")]
         if generated and email:

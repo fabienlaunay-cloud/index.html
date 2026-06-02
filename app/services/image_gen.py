@@ -190,7 +190,17 @@ async def _describe_product_from_image(image_bytes: bytes) -> str:
     return response.content[0].text.strip()
 
 
-async def _generate_prompts_with_claude(product_info: dict) -> dict[str, str]:
+_MARKETPLACE_LANG = {
+    "amazon_fr": ("French", "Français"),
+    "amazon_de": ("German", "Deutsch"),
+    "amazon_it": ("Italian", "Italiano"),
+    "amazon_es": ("Spanish", "Español"),
+    "amazon_co_uk": ("English", "English"),
+    "amazon_com": ("English", "English"),
+}
+
+
+async def _generate_prompts_with_claude(product_info: dict, marketplace: str = None) -> dict[str, str]:
     """Claude génère des prompts DALL-E optimisés pour chaque type d'image Amazon."""
     system = """Tu es un directeur artistique expert en photographie produit haut de gamme et en publicité e-commerce.
 Tu rédiges des prompts photo ultra-cinématiques en anglais pour gpt-image-2, au niveau d'une campagne publicitaire Apple ou Nike.
@@ -234,6 +244,8 @@ Inclus systématiquement ces éléments dans les prompts de type studio :
 
 Réponds UNIQUEMENT en JSON valide."""
 
+    lang_en, lang_native = _MARKETPLACE_LANG.get(marketplace or "", ("French", "Français"))
+
     image_specs = "\n".join(
         f'- {t["id"]} ({t["label"]}): {t["amazon_rule"]} | Style: {t["style_hint"]}'
         for t in AMAZON_IMAGE_TYPES
@@ -250,9 +262,18 @@ Réponds UNIQUEMENT en JSON valide."""
 → Le produit généré doit être instantanément reconnaissable comme le même produit que sur la photo cliente.
 """
 
+    lang_instruction = (
+        f"\n🌍 LANGUE DES TEXTES VISIBLES DANS L'IMAGE :\n"
+        f"- Le marché cible est '{marketplace}' → les annotations textuelles visibles dans l'image infographic "
+        f"DOIVENT être rédigées en {lang_en} ({lang_native}).\n"
+        f"- Pour tous les autres types d'images (hero, lifestyle, detail, dimensions, packaging) : aucun texte visible dans l'image.\n"
+        f"- Les prompts eux-mêmes restent en anglais pour gpt-image-2, mais précisez explicitement "
+        f"\"all annotation text in {lang_en}\" dans le prompt infographic.\n"
+    ) if marketplace else ""
+
     user = f"""Produit à photographier :
 {json.dumps(product_info, ensure_ascii=False, indent=2)}
-{visual_block}
+{visual_block}{lang_instruction}
 Génère 7 prompts gpt-image-2 de qualité publicitaire haut de gamme pour ce produit.
 
 RÈGLES PAR TYPE :
@@ -264,7 +285,7 @@ INSTRUCTIONS CRÉATIVES :
   Précise : description physique de la personne (âge, style), lieu exact, activité, lumière, émotion ressentie.
   Exemple pour un casque : "A young woman in her late 20s, wearing the headphones while walking through a sunlit Paris street,
   light jacket, confident and joyful expression, golden hour light, shallow depth of field, bokeh background, editorial photography"
-- Pour infographic : produit sur fond clair avec annotations techniques épurées
+- Pour infographic : produit sur fond clair avec annotations techniques épurées, texte des annotations en {lang_en}
 - Pour detail : gros plan macro sur la matière/finition la plus impressionnante du produit
 - Pour dimensions : produit tenu naturellement en main pour montrer l'échelle
 - Pour packaging : tout le contenu de la boîte disposé élégamment (flat lay Apple-style)
@@ -420,6 +441,7 @@ async def generate_product_images(
     selected_types: list = None,
     reference_image_url: str = None,
     reference_image_bytes: bytes = None,
+    marketplace: str = None,
 ) -> list[dict]:
     """
     Pipeline complet : Claude → prompts → gpt-image-2 → images.
@@ -450,7 +472,7 @@ async def generate_product_images(
             pass
 
     # 3. Génération des prompts via Claude (avec description visuelle exacte si disponible)
-    prompts, tok_in, tok_out = await _generate_prompts_with_claude(product_info)
+    prompts, tok_in, tok_out = await _generate_prompts_with_claude(product_info, marketplace=marketplace)
 
     # 3. Types sélectionnés (par défaut : tous)
     types_to_generate = selected_types or [t["id"] for t in AMAZON_IMAGE_TYPES]

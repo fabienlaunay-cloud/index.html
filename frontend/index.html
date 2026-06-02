@@ -3516,7 +3516,7 @@ async function generateImages(idx) {
     const referenceImageUrl = rawProduct?.images?.[0] || '';
     const r = await authFetch('/api/generate-images', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ sku: listing.sku, product_name: listing.title, brand: listing.brand || '', category: listing.category || '', features: listing.bullet_points || [], color: rawProduct?.color || '', material: rawProduct?.material || '', reference_image_url: referenceImageUrl, batch_id: currentBatchId }),
+      body: JSON.stringify({ sku: listing.sku, product_name: listing.title, brand: listing.brand || '', category: listing.category || '', features: listing.bullet_points || [], color: rawProduct?.color || '', material: rawProduct?.material || '', reference_image_url: referenceImageUrl, batch_id: currentBatchId, marketplace: listing.marketplace || '' }),
     });
     if (!r.ok) {
       let msg = 'Erreur serveur';
@@ -4583,7 +4583,7 @@ async function generateImagesFromDetail() {
     const referenceImageUrl = rawProduct?.images?.[0] || '';
     const r = await authFetch('/api/generate-images', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ sku: listing.sku, product_name: listing.title, brand: listing.brand || '', category: listing.category || '', features: listing.bullet_points || [], color: rawProduct?.color || '', material: rawProduct?.material || '', reference_image_url: referenceImageUrl, batch_id: currentBatchId }),
+      body: JSON.stringify({ sku: listing.sku, product_name: listing.title, brand: listing.brand || '', category: listing.category || '', features: listing.bullet_points || [], color: rawProduct?.color || '', material: rawProduct?.material || '', reference_image_url: referenceImageUrl, batch_id: currentBatchId, marketplace: listing.marketplace || '' }),
     });
     if (!r.ok) { const b = await r.json().catch(()=>{}); throw new Error(b?.detail || 'Erreur serveur'); }
     const { job_id } = await r.json();
