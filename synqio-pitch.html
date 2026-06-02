@@ -282,6 +282,30 @@
     .gold-text { color: var(--gold); }
 
     .divider { width: 60px; height: 3px; background: linear-gradient(90deg, var(--blue-light), var(--accent)); border-radius: 2px; margin: 0 auto 32px; }
+
+    /* ── Slide Roadmap ── */
+    #s8 { background: var(--bg); }
+    .road-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; max-width: 1060px; width: 100%; }
+    .road-col { display: flex; flex-direction: column; gap: 0; }
+    .road-header {
+      border-radius: 12px 12px 0 0; padding: 14px 18px;
+      font-size: 0.78rem; font-weight: 700; letter-spacing: 2px; text-transform: uppercase;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .road-header.green { background: #14532d; color: #86efac; }
+    .road-header.blue  { background: #1e3a8a; color: #93c5fd; }
+    .road-header.gold  { background: #78350f; color: #fcd34d; }
+    .road-dot { width: 8px; height: 8px; border-radius: 50%; }
+    .road-dot.green { background: #4ade80; }
+    .road-dot.blue  { background: #60a5fa; }
+    .road-dot.gold  { background: var(--gold); }
+    .road-body { background: #0f1829; border: 1px solid #1e293b; border-top: none; border-radius: 0 0 12px 12px; padding: 6px 0; flex: 1; }
+    .road-item { padding: 11px 18px; display: flex; gap: 10px; align-items: flex-start; border-bottom: 1px solid #0d1626; }
+    .road-item:last-child { border-bottom: none; }
+    .road-check { font-size: 0.85rem; flex-shrink: 0; margin-top: 1px; }
+    .road-item-text { font-size: 0.82rem; line-height: 1.4; }
+    .road-item-title { font-weight: 700; color: var(--text); margin-bottom: 2px; }
+    .road-item-sub { color: var(--muted); font-size: 0.77rem; }
   </style>
 </head>
 <body>
@@ -300,7 +324,7 @@
       <span class="dot"></span>
       Présentation exclusive — Retail for Brands · Juin 2026
     </div>
-    <div class="slide-num">1 / 8</div>
+    <div class="slide-num">1 / 9</div>
   </div>
 
   <!-- ── Slide 2 — Le problème ── -->
@@ -325,7 +349,7 @@
         <div class="pain-body">Une fiche non optimisée pour l'algorithme COSMO d'Amazon pénalise le référencement et fait fuir les acheteurs avant l'ajout au panier.</div>
       </div>
     </div>
-    <div class="slide-num">2 / 8</div>
+    <div class="slide-num">2 / 9</div>
   </div>
 
   <!-- ── Slide 3 — La solution ── -->
@@ -381,7 +405,7 @@
         </div>
       </div>
     </div>
-    <div class="slide-num">3 / 8</div>
+    <div class="slide-num">3 / 9</div>
   </div>
 
   <!-- ── Slide 4 — ROI ── -->
@@ -407,7 +431,7 @@
       </div>
     </div>
     <p class="source-note">Estimations basées sur les standards industrie Amazon (Marketplace Pulse, 2024) et retours terrain experts SynqIO.</p>
-    <div class="slide-num">4 / 8</div>
+    <div class="slide-num">4 / 9</div>
   </div>
 
   <!-- ── Slide 5 — Marques ── -->
@@ -448,7 +472,7 @@
       </div>
     </div>
     <p class="brands-note">Marques du portefeuille de notre expert Amazon — fiches testées et validées en conditions réelles.</p>
-    <div class="slide-num">5 / 8</div>
+    <div class="slide-num">5 / 9</div>
   </div>
 
   <!-- ── Slide 6 — Équipe ── -->
@@ -500,7 +524,7 @@
         <div class="cred-label">Amazon Certified</div>
       </div>
     </div>
-    <div class="slide-num">6 / 8</div>
+    <div class="slide-num">6 / 9</div>
   </div>
 
   <!-- ── Slide 7 — Offre pilote ── -->
@@ -552,11 +576,100 @@
         </div>
       </div>
     </div>
-    <div class="slide-num">7 / 8</div>
+    <div class="slide-num">7 / 9</div>
   </div>
 
-  <!-- ── Slide 8 — Demo ── -->
+  <!-- ── Slide 8 — Roadmap ── -->
   <div class="slide" id="s8">
+    <div class="slide-label">Vision produit</div>
+    <h2 class="section-title" style="margin-bottom:8px">Un outil <span class="grad-text">qui évolue avec vous</span></h2>
+    <p class="section-sub" style="margin-bottom:28px">Co-construit avec les agences partenaires — votre feedback pilote directement la roadmap.</p>
+    <div class="road-grid">
+
+      <div class="road-col">
+        <div class="road-header green"><span class="road-dot green"></span>Disponible aujourd'hui</div>
+        <div class="road-body">
+          <div class="road-item">
+            <span class="road-check" style="color:#4ade80">✓</span>
+            <div class="road-item-text"><div class="road-item-title">Génération titre + bullets + description</div><div class="road-item-sub">Optimisé algorithme COSMO Amazon</div></div>
+          </div>
+          <div class="road-item">
+            <span class="road-check" style="color:#4ade80">✓</span>
+            <div class="road-item-text"><div class="road-item-title">Visuels produit IA (DALL-E 3)</div><div class="road-item-sub">Images aux standards Amazon</div></div>
+          </div>
+          <div class="road-item">
+            <span class="road-check" style="color:#4ade80">✓</span>
+            <div class="road-item-text"><div class="road-item-title">Export Excel Seller Central</div><div class="road-item-sub">Fichier prêt à importer</div></div>
+          </div>
+          <div class="road-item">
+            <span class="road-check" style="color:#4ade80">✓</span>
+            <div class="road-item-text"><div class="road-item-title">Kanban fiches (À faire / Prêt / Publié)</div><div class="road-item-sub">Suivi statut par SKU</div></div>
+          </div>
+          <div class="road-item">
+            <span class="road-check" style="color:#4ade80">✓</span>
+            <div class="road-item-text"><div class="road-item-title">Historique des lots</div><div class="road-item-sub">Retrouver & reprendre toute génération passée</div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="road-col">
+        <div class="road-header blue"><span class="road-dot blue"></span>Prochaines semaines</div>
+        <div class="road-body">
+          <div class="road-item">
+            <span class="road-check" style="color:#60a5fa">→</span>
+            <div class="road-item-text"><div class="road-item-title">Gestion des variations parent/enfant</div><div class="road-item-sub">1 parent ASIN + N enfants (taille, couleur…)</div></div>
+          </div>
+          <div class="road-item">
+            <span class="road-check" style="color:#60a5fa">→</span>
+            <div class="road-item-text"><div class="road-item-title">Validation live limites Amazon</div><div class="road-item-sub">Compteur caractères, mots interdits, 249 octets keywords</div></div>
+          </div>
+          <div class="road-item">
+            <span class="road-check" style="color:#60a5fa">→</span>
+            <div class="road-item-text"><div class="road-item-title">Multi-marketplace simultané</div><div class="road-item-sub">FR · DE · IT · ES · UK en une seule génération</div></div>
+          </div>
+          <div class="road-item">
+            <span class="road-check" style="color:#60a5fa">→</span>
+            <div class="road-item-text"><div class="road-item-title">Analyse avis concurrents</div><div class="road-item-sub">ASIN concurrent → bullets retournant les faiblesses</div></div>
+          </div>
+          <div class="road-item">
+            <span class="road-check" style="color:#60a5fa">→</span>
+            <div class="road-item-text"><div class="road-item-title">Variantes A/B (2-3 titres proposés)</div><div class="road-item-sub">Choisir ou mixer pour Manage Your Experiments</div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="road-col">
+        <div class="road-header gold"><span class="road-dot gold"></span>Roadmap pilote</div>
+        <div class="road-body">
+          <div class="road-item">
+            <span class="road-check" style="color:var(--gold)">◆</span>
+            <div class="road-item-text"><div class="road-item-title">Voix de marque sauvegardée</div><div class="road-item-sub">Ton, mots imposés/interdits par client — injectés automatiquement</div></div>
+          </div>
+          <div class="road-item">
+            <span class="road-check" style="color:var(--gold)">◆</span>
+            <div class="road-item-text"><div class="road-item-title">Checker conformité catégorie</div><div class="road-item-sub">Allergènes, CE, composition textile… selon catégorie détectée</div></div>
+          </div>
+          <div class="road-item">
+            <span class="road-check" style="color:var(--gold)">◆</span>
+            <div class="road-item-text"><div class="road-item-title">Régénération ciblée</div><div class="road-item-sub">"Améliorer toutes les fiches score &lt; 70" en un clic</div></div>
+          </div>
+          <div class="road-item">
+            <span class="road-check" style="color:var(--gold)">◆</span>
+            <div class="road-item-text"><div class="road-item-title">White label agence</div><div class="road-item-sub">Votre logo, vos couleurs, votre domaine</div></div>
+          </div>
+          <div class="road-item">
+            <span class="road-check" style="color:var(--gold)">◆</span>
+            <div class="road-item-text"><div class="road-item-title">Import direct Seller Central (SP-API)</div><div class="road-item-sub">Publication en un clic, sans export Excel</div></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+    <div class="slide-num">8 / 9</div>
+  </div>
+
+  <!-- ── Slide 9 — Demo ── -->
+  <div class="slide" id="s9">
     <div class="demo-cta">
       <div class="demo-label">Démonstration live</div>
       <h2 class="demo-title">Voyons-le en <span class="grad-text">action</span></h2>
@@ -571,7 +684,7 @@
         <div class="contact-role">Business & Stratégie · SynqIO</div>
       </div>
     </div>
-    <div class="slide-num">8 / 8</div>
+    <div class="slide-num">9 / 9</div>
   </div>
 
 </div><!-- /deck -->

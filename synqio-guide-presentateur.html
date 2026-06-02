@@ -174,7 +174,17 @@
       "On est une petite équipe, mais complémentaire : <em>Théo</em> sur l'architecture et le développement, <em>Vincent</em> qui a co-construit l'outil depuis l'expertise Amazon, Linh sur le marketing et le site internet, et moi sur la partie stratégie et business. Ce qui distingue SynqIO, c'est que l'outil a été pensé par des gens qui comprennent vraiment les enjeux de la marketplace."
     </div>
 
-    <h2>Slide 7 — Offre pilote (3 min)</h2>
+    <h2>Slide 7 — Roadmap (2 min)</h2>
+    <div class="script-box">
+      "Ce que vous voyez à gauche, c'est ce qui existe aujourd'hui — en production, utilisable maintenant. Au centre, c'est ce qui arrive dans les prochaines semaines : les variations parent/enfant, la validation live des limites Amazon, le multi-marketplace simultané et l'analyse des avis concurrents. À droite, c'est la roadmap qu'on va <em>construire avec vous pendant le pilote</em> — voix de marque, white label, import direct Seller Central...<br><br>
+      Ce slide, il est là pour vous dire une chose : <em>vous n'achetez pas un produit figé</em>. Vous entrez dans une co-construction."
+    </div>
+    <div class="tip-box">
+      <span class="tip-icon">💡</span>
+      <div class="tip-text"><strong>Tip :</strong> Sur la colonne "Roadmap pilote", dites explicitement "c'est vous qui décidez l'ordre de priorité". Laurence et Alexandre apprécieront d'avoir ce levier.</div>
+    </div>
+
+    <h2>Slide 8 — Offre pilote (3 min)</h2>
     <div class="script-box">
       "Voilà pourquoi on est là. On ne veut pas ouvrir les vannes à 50 clients d'un coup. On veut d'abord travailler avec <em>une agence de référence</em>, affiner l'outil sur des cas réels, et construire ensemble le produit qui correspond exactement aux besoins des agences Amazon.<br><br>
       Ce qu'on propose : <em>5 marques, 1 mois</em>. Accès complet, support direct, et vos retours orientent directement la roadmap. À l'issue du mois, on fait un bilan ensemble et on définit le modèle long terme.<br><br>
@@ -452,14 +462,34 @@
       <li><strong>SLA cible</strong> : 99.5% uptime (Railway garantit 99.9% sur l'infrastructure).</li>
     </ul>
 
-    <h3>Roadmap technique (prochains 3 mois)</h3>
-    <ol>
-      <li>Certification Amazon SP-API production → import automatique Seller Central</li>
-      <li>Support multilingue (DE, ES, IT, EN)</li>
-      <li>Connecteur API REST pour intégration PIM/ERP clients</li>
-      <li>Dashboard analytics : taux de conversion avant/après par SKU</li>
-      <li>White label (logo + couleurs agence)</li>
-    </ol>
+    <h3>Roadmap technique détaillée</h3>
+
+    <p><strong style="color:#3fb950">Déjà disponible</strong></p>
+    <ul>
+      <li>Génération titre + 5 bullets + description (optimisé COSMO)</li>
+      <li>Visuels produit via DALL-E 3 (OpenAI)</li>
+      <li>Export Excel Seller Central auto-rempli</li>
+      <li>Kanban fiches par statut (À faire / Prêt / Publié)</li>
+      <li>Historique des lots — reprise à tout moment</li>
+    </ul>
+
+    <p><strong style="color:#58a6ff">Prochaines semaines (critique)</strong></p>
+    <ul>
+      <li><strong>Variations parent/enfant</strong> — 1 parent ASIN + N SKUs enfants (taille, couleur, format). Aujourd'hui chaque SKU est traité isolément : vrai blocker pour les catalogues avec variations.</li>
+      <li><strong>Validation live limites Amazon</strong> — compteur en temps réel : titre max 200 car. (varie/catégorie), bullets max 500 car., keywords backend max 249 octets (les accents comptent double), mots interdits dans les titres. Alerte rouge avant rejet Seller Central.</li>
+      <li><strong>Multi-marketplace simultané</strong> — FR, DE, IT, ES, UK générés en parallèle sur un même lot. Énorme gain de temps pour les vendeurs pan-européens.</li>
+      <li><strong>Analyse avis concurrents</strong> — ASIN concurrent en entrée, l'IA lit les avis 1★ et 5★ et reformule les bullets en retournant les faiblesses concurrentes.</li>
+      <li><strong>Variantes A/B</strong> — 2-3 titres/bullets proposés par génération, pour tester via Amazon Manage Your Experiments.</li>
+    </ul>
+
+    <p><strong style="color:#d29922">Roadmap pilote (co-construit avec Retail for Brands)</strong></p>
+    <ul>
+      <li><strong>Voix de marque sauvegardée</strong> — ton, mots imposés/interdits par client, injectés automatiquement sans re-saisie.</li>
+      <li><strong>Checker conformité catégorie</strong> — alertes sur champs manquants : allergènes (alimentaire), CE/watts (électronique), composition (textile).</li>
+      <li><strong>Régénération ciblée</strong> — "Améliorer toutes les fiches score &lt; 70" en un clic.</li>
+      <li><strong>White label agence</strong> — logo Retail for Brands, couleurs, domaine personnalisé.</li>
+      <li><strong>Import direct Seller Central via SP-API</strong> — publication en un clic sans export Excel (certification en cours).</li>
+    </ul>
 
   </div>
 
