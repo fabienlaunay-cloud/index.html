@@ -2,9 +2,11 @@ from datetime import datetime
 from app.db import get_db
 
 PLAN_QUOTAS = {
-    "starter":  {"skus": 200,  "images": 50,  "label": "Starter"},
-    "business": {"skus": 600,  "images": 200, "label": "Business"},
-    "scale":    {"skus": 1500, "images": 500, "label": "Scale"},
+    # skus = quota mensuel sauf maintenance (annual_pool=True → quota annuel de 300)
+    "starter":     {"skus": 200,  "images": 50,  "label": "Starter",          "commitment_months": 0,  "price_monthly": 390,  "price_setup": 490,  "annual_pool": False},
+    "business":    {"skus": 600,  "images": 200, "label": "Business",         "commitment_months": 3,  "price_monthly": 790,  "price_setup": 990,  "annual_pool": False},
+    "scale":       {"skus": 1500, "images": 500, "label": "Scale",            "commitment_months": 6,  "price_monthly": 1490, "price_setup": 1990, "annual_pool": False},
+    "maintenance": {"skus": 300,  "images": 100, "label": "Pro / Maintenance","commitment_months": 12, "price_monthly": 90,   "price_setup": 0,    "annual_pool": True},
 }
 
 # Tarifs Claude Sonnet + gpt-image-1
@@ -26,6 +28,12 @@ def _current_month() -> str:
     return datetime.utcnow().strftime("%Y-%m")
 
 
+def _current_year_months() -> list[str]:
+    """Retourne les 12 mois de l'année courante (pour le pool annuel maintenance)."""
+    year = datetime.utcnow().strftime("%Y")
+    return [f"{year}-{m:02d}" for m in range(1, 13)]
+
+
 def log_usage(user_email: str, action: str, count: int = 1):
     conn = get_db()
     conn.execute(
@@ -39,26 +47,40 @@ def log_usage(user_email: str, action: str, count: int = 1):
 def get_user_usage(user_email: str, month: str = None) -> dict:
     month = month or _current_month()
     conn = get_db()
-    rows = conn.execute(
-        "SELECT action, SUM(count) as total FROM usage WHERE user_email = ? AND month = ? GROUP BY action",
-        (user_email, month),
-    ).fetchall()
     plan_row = conn.execute(
         "SELECT plan FROM users WHERE email = ?", (user_email,)
     ).fetchone()
+    plan = (plan_row["plan"] if plan_row and plan_row["plan"] else None) or "starter"
+    quota = PLAN_QUOTAS.get(plan, PLAN_QUOTAS["starter"])
+
+    if quota.get("annual_pool"):
+        # Pool annuel : on agrège tous les mois de l'année en cours
+        months = _current_year_months()
+        placeholders = ",".join("?" * len(months))
+        rows = conn.execute(
+            f"SELECT action, SUM(count) as total FROM usage "
+            f"WHERE user_email = ? AND month IN ({placeholders}) GROUP BY action",
+            (user_email, *months),
+        ).fetchall()
+        period_label = datetime.utcnow().strftime("%Y")
+    else:
+        rows = conn.execute(
+            "SELECT action, SUM(count) as total FROM usage WHERE user_email = ? AND month = ? GROUP BY action",
+            (user_email, month),
+        ).fetchall()
+        period_label = month
     conn.close()
 
     usage = {r["action"]: r["total"] for r in rows}
-    plan = plan_row["plan"] if plan_row and plan_row["plan"] else "starter"
-    quota = PLAN_QUOTAS.get(plan, PLAN_QUOTAS["starter"])
-    tokens_in  = usage.get("tokens_in", 0)
-    tokens_out = usage.get("tokens_out", 0)
+    tokens_in   = usage.get("tokens_in", 0)
+    tokens_out  = usage.get("tokens_out", 0)
     images_used = usage.get("image_generated", 0)
 
     return {
-        "month": month,
+        "month": period_label,
         "plan": plan,
         "plan_label": quota["label"],
+        "annual_pool": quota.get("annual_pool", False),
         "skus_used": usage.get("sku_generated", 0),
         "skus_quota": quota["skus"],
         "images_used": images_used,
@@ -67,6 +89,7 @@ def get_user_usage(user_email: str, month: str = None) -> dict:
         "tokens_out": tokens_out,
         "tokens_total": tokens_in + tokens_out,
         "cost_usd": _compute_cost(tokens_in, tokens_out, images_used),
+        "commitment_months": quota.get("commitment_months", 0),
     }
 
 
@@ -85,13 +108,14 @@ def get_all_users_usage(month: str = None) -> list:
         usage = {r["action"]: r["total"] for r in rows}
         plan = u["plan"] or "starter"
         quota = PLAN_QUOTAS.get(plan, PLAN_QUOTAS["starter"])
-        tokens_in  = usage.get("tokens_in", 0)
-        tokens_out = usage.get("tokens_out", 0)
+        tokens_in   = usage.get("tokens_in", 0)
+        tokens_out  = usage.get("tokens_out", 0)
         images_used = usage.get("image_generated", 0)
         result.append({
             "email": u["email"],
             "name": u["name"],
             "plan": plan,
+            "plan_label": quota["label"],
             "skus_used": usage.get("sku_generated", 0),
             "skus_quota": quota["skus"],
             "images_used": images_used,
