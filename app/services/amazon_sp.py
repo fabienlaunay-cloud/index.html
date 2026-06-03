@@ -391,3 +391,136 @@ def _demo_publish(listings: List[AmazonListing], marketplace: Marketplace, dry_r
             entry["aplus_status"] = "demo_submitted"
         report.append(entry)
     return PublishResult(published=len(listings), failed=0, errors=[], report=report)
+
+
+async def fetch_seller_catalog(
+    user_email: str,
+    marketplace: Marketplace,
+) -> list:
+    """
+    Fetches all seller's listings from SP-API with pagination.
+    Returns list of {sku, asin, ean, title}.
+    In demo mode, returns sample data.
+    """
+    if _is_demo():
+        return [
+            {"sku": "DEMO-SKU-001", "asin": "B08XYZ1234", "ean": "3760123456789", "title": "Produit Démo 1"},
+            {"sku": "DEMO-SKU-042", "asin": "B09ABC5678", "ean": "3760987654321", "title": "Produit Démo 2"},
+            {"sku": "YOGA-MAT-007", "asin": "B07DEF9012", "ean": "3760111222333", "title": "Tapis Yoga Démo"},
+        ]
+
+    creds = _get_sp_credentials(user_email)
+    marketplace_id = MARKETPLACE_IDS.get(marketplace, MARKETPLACE_IDS[Marketplace.AMAZON_FR])
+
+    lwa_token = await _get_lwa_token(creds)
+    loop = asyncio.get_event_loop()
+    temp_creds = await loop.run_in_executor(None, lambda: _assume_role(creds))
+
+    seller_id = creds["seller_id"]
+    semaphore = asyncio.Semaphore(1)
+    items = []
+    page_token = None
+    page_count = 0
+    max_pages = 50
+
+    while page_count < max_pages:
+        async with semaphore:
+            url = (
+                f"{_sp_endpoint()}/listings/2021-08-01/items/{seller_id}"
+                f"?marketplaceIds={marketplace_id}&includedData=summaries,attributes"
+            )
+            if page_token:
+                url += f"&pageToken={page_token}"
+
+            headers = _sign_request("GET", url, b"", temp_creds, lwa_token)
+            async with httpx.AsyncClient(timeout=30) as client:
+                resp = await client.get(url, headers=headers)
+                resp.raise_for_status()
+                data = resp.json()
+
+            for item in data.get("items", []):
+                sku = item.get("sku", "")
+                if not sku:
+                    continue
+                summaries = item.get("summaries", [])
+                asin = summaries[0].get("asin", "") if summaries else ""
+                title = summaries[0].get("itemName", "") if summaries else ""
+
+                # Extract EAN from attributes
+                ean = ""
+                attrs = item.get("attributes", {})
+                ext_ids = attrs.get("externally_assigned_product_identifier", [])
+                for ext_id in ext_ids:
+                    if ext_id.get("type", "").upper() == "EAN":
+                        ean = ext_id.get("value", "")
+                        break
+
+                items.append({"sku": sku, "asin": asin, "ean": ean, "title": title})
+
+            page_token = data.get("pagination", {}).get("nextPageToken")
+            page_count += 1
+
+            if not page_token:
+                break
+
+            await asyncio.sleep(0.5)
+
+    return items
+
+
+async def lookup_asins_by_eans(
+    eans: list,
+    marketplace: Marketplace,
+    user_email: str = None,
+) -> dict:
+    """
+    Lookup ASINs for a list of EANs via SP-API Catalog Items API.
+    Returns {ean: asin} dict (only for EANs that have an ASIN on Amazon).
+    In demo mode, returns a sample mapping for known demo EANs.
+    """
+    if _is_demo():
+        demo_map = {
+            "3760123456789": "B08XYZ1234",
+            "3760987654321": "B09ABC5678",
+            "3760111222333": "B07DEF9012",
+        }
+        return {ean: demo_map[ean] for ean in eans if ean in demo_map}
+
+    creds = _get_sp_credentials(user_email)
+    marketplace_id = MARKETPLACE_IDS.get(marketplace, MARKETPLACE_IDS[Marketplace.AMAZON_FR])
+
+    lwa_token = await _get_lwa_token(creds)
+    loop = asyncio.get_event_loop()
+    temp_creds = await loop.run_in_executor(None, lambda: _assume_role(creds))
+
+    result = {}
+    batch_size = 10
+
+    for i in range(0, len(eans), batch_size):
+        batch = eans[i:i + batch_size]
+        identifiers = ",".join(batch)
+        url = (
+            f"{_sp_endpoint()}/catalog/2022-04-01/items"
+            f"?identifiers={identifiers}&identifiersType=EAN"
+            f"&marketplaceIds={marketplace_id}&includedData=identifiers"
+        )
+        headers = _sign_request("GET", url, b"", temp_creds, lwa_token)
+        async with httpx.AsyncClient(timeout=30) as client:
+            resp = await client.get(url, headers=headers)
+            if resp.status_code != 200:
+                continue
+            data = resp.json()
+
+        for item in data.get("items", []):
+            asin = item.get("asin", "")
+            if not asin:
+                continue
+            # Find which EAN this item corresponds to
+            for id_entry in item.get("identifiers", []):
+                for id_item in id_entry.get("identifiers", []):
+                    if id_item.get("identifierType", "").upper() == "EAN":
+                        ean_val = id_item.get("identifier", "")
+                        if ean_val in batch:
+                            result[ean_val] = asin
+
+    return result

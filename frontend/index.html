@@ -1101,6 +1101,12 @@
           <span id="productsCount" class="ml-auto bg-purple-100 text-purple-700 text-xs font-bold px-2 py-0.5 rounded-full"></span>
         </h2>
         <div id="productsListItems" class="space-y-2 max-h-64 overflow-y-auto"></div>
+        <div id="resolveSkusContainer" class="hidden mt-3 pt-3 border-t border-gray-100">
+          <button id="resolveSkusBtn" onclick="resolveSkus()"
+            class="w-full px-3 py-2 bg-orange-50 text-orange-600 border border-orange-200 rounded-lg text-xs font-semibold hover:bg-orange-100 transition">
+            🔗 Récupérer SKU Amazon
+          </button>
+        </div>
       </div>
     </div>
 
@@ -1375,6 +1381,20 @@
 
       <!-- Statut connexion Amazon -->
       <div id="amazonStatusBox" class="mb-3 text-xs rounded-lg px-3 py-2 bg-gray-50 text-gray-400">Vérification connexion...</div>
+
+      <!-- Catalogue produits -->
+      <div id="catalogSyncSection" class="hidden mt-4 border-t border-gray-100 pt-4">
+        <div class="flex items-center justify-between mb-2">
+          <div>
+            <p class="text-sm font-semibold text-gray-700">Catalogue produits</p>
+            <p id="catalogStatus" class="text-xs text-gray-400">Non synchronisé</p>
+          </div>
+          <button onclick="syncCatalog()" id="syncCatalogBtn"
+            class="px-3 py-1.5 bg-orange-50 text-orange-600 border border-orange-200 rounded-lg text-xs font-semibold hover:bg-orange-100 transition">
+            Synchroniser
+          </button>
+        </div>
+      </div>
 
       <div id="publishApiForm">
         <div class="mb-3">
@@ -2659,9 +2679,15 @@ function showProductsList(products) {
   document.getElementById('productsListItems').innerHTML = chips + visible.map(p => {
     const seg = _getProductSegment(p);
     const hasKwFile = p.focus_keywords?.length > 0;
+    const skuBadge = p._skuSource === 'catalog'
+      ? `<span class="inline-flex items-center gap-0.5 text-xs bg-green-50 text-green-700 border border-green-200 px-1.5 py-0.5 rounded flex-shrink-0" title="SKU depuis Seller Central"><span class="w-1.5 h-1.5 bg-green-500 rounded-full inline-block"></span>SC</span>`
+      : p._skuSource === 'amazon'
+      ? `<span class="inline-flex items-center gap-0.5 text-xs bg-orange-50 text-orange-700 border border-orange-200 px-1.5 py-0.5 rounded flex-shrink-0" title="ASIN trouvé sur Amazon"><span class="w-1.5 h-1.5 bg-orange-500 rounded-full inline-block"></span>ASIN</span>`
+      : '';
     return `
     <div class="flex items-center gap-2 p-2.5 bg-gray-50 rounded-lg text-sm">
       <span class="font-mono text-xs bg-purple-50 text-purple-700 px-2 py-0.5 rounded flex-shrink-0">${p.sku}</span>
+      ${skuBadge}
       <span class="text-gray-700 truncate flex-1">${p.name}</span>
       ${photoMap[p.sku] ? `<span class="text-indigo-500 text-xs flex-shrink-0" title="Photo associée"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></span>` : ''}
       ${hasKwFile ? `<span class="text-green-500 text-xs flex-shrink-0" title="Mots-clés du fichier"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg></span>` : ''}
@@ -2669,6 +2695,7 @@ function showProductsList(products) {
     </div>`;
   }).join('');
   document.getElementById('productsList').classList.remove('hidden');
+  _updateResolveSkusBtn();
 }
 
 function loadDemoData() {
@@ -3992,22 +4019,33 @@ async function showPublishModal() {
 }
 function closePublishModal() { document.getElementById('publishModal').classList.add('hidden'); }
 
+let _amazonConnected = false;
+
 async function checkAmazonStatus() {
   const box = document.getElementById('amazonStatusBox');
   const btn = document.getElementById('publishApiBtn');
+  const catalogSection = document.getElementById('catalogSyncSection');
   try {
     const r = await authFetch('/api/amazon/status');
     const data = await r.json();
     if (data.connected) {
+      _amazonConnected = true;
       box.className = 'mb-3 text-xs rounded-lg px-3 py-2 bg-green-50 text-green-700';
       box.innerHTML = `✅ Seller Central connecté <span class="text-green-500">(${data.seller_id})</span> — <a href="#" onclick="disconnectAmazon(); return false;" class="underline text-green-600">Déconnecter</a>`;
       btn.disabled = false;
       btn.className = 'w-full gradient-bg text-white rounded-lg py-2 text-sm font-semibold hover:opacity-90 transition';
       btn.textContent = 'Publier via API';
       btn.onclick = publishListings;
+      if (catalogSection) {
+        catalogSection.classList.remove('hidden');
+        loadCatalogStatus();
+      }
+      _updateResolveSkusBtn();
     } else {
+      _amazonConnected = false;
       box.className = 'mb-3 text-xs rounded-lg px-3 py-2 bg-amber-50 text-amber-700';
       box.innerHTML = '⚠️ Seller Central non connecté';
+      if (catalogSection) catalogSection.classList.add('hidden');
       btn.disabled = false;
       const dryRun = document.getElementById('dryRunCheck').checked;
       if (dryRun) {
@@ -4029,10 +4067,13 @@ async function checkAmazonStatus() {
           } catch(e) { if (popup) popup.close(); showToast('❌', 'Erreur lors de la connexion Amazon'); }
         };
       }
+      _updateResolveSkusBtn();
     }
   } catch {
+    _amazonConnected = false;
     box.className = 'mb-3 text-xs rounded-lg px-3 py-2 bg-gray-50 text-gray-400';
     box.textContent = 'Statut Amazon non disponible';
+    if (catalogSection) catalogSection.classList.add('hidden');
     const dryRun = document.getElementById('dryRunCheck').checked;
     btn.disabled = false;
     if (dryRun) {
@@ -4044,6 +4085,97 @@ async function checkAmazonStatus() {
       btn.textContent = 'Connexion Amazon requise';
       btn.onclick = null;
     }
+    _updateResolveSkusBtn();
+  }
+}
+
+function _updateResolveSkusBtn() {
+  const container = document.getElementById('resolveSkusContainer');
+  if (!container) return;
+  const hasEans = parsedProducts.some(p => p.ean);
+  if (_amazonConnected && hasEans) {
+    container.classList.remove('hidden');
+  } else {
+    container.classList.add('hidden');
+  }
+}
+
+async function loadCatalogStatus() {
+  try {
+    const r = await authFetch('/api/amazon/catalog');
+    if (!r.ok) return;
+    const data = await r.json();
+    const statusEl = document.getElementById('catalogStatus');
+    if (!statusEl) return;
+    if (data.total > 0) {
+      const parts = Object.entries(data.summary || {}).map(([mk, cnt]) => `${cnt} sur ${mk.replace('amazon_', '').toUpperCase()}`);
+      statusEl.textContent = parts.length ? parts.join(', ') : `${data.total} produits synchronisés`;
+    } else {
+      statusEl.textContent = 'Non synchronisé';
+    }
+  } catch(e) {}
+}
+
+async function syncCatalog() {
+  const btn = document.getElementById('syncCatalogBtn');
+  btn.disabled = true; btn.textContent = 'Synchro...';
+  try {
+    const marketplace = (document.getElementById('publishMarketplace')?.value) || selectedMarketplaces[0] || 'amazon_fr';
+    const r = await authFetch('/api/amazon/catalog/sync', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({marketplace})
+    });
+    const d = await r.json();
+    if (r.ok) {
+      document.getElementById('catalogStatus').textContent = `${d.synced} produits synchronisés`;
+      showToast('✅', `Catalogue synchronisé : ${d.synced} produits`);
+    }
+  } catch(e) { showToast('❌', 'Erreur synchronisation'); }
+  finally { btn.disabled = false; btn.textContent = 'Synchroniser'; }
+}
+
+async function resolveSkus() {
+  const eans = parsedProducts.filter(p => p.ean).map(p => ({ean: p.ean, sku: p.sku}));
+  if (!eans.length) { showToast('ℹ️', 'Aucun EAN dans vos produits'); return; }
+
+  const btn = document.getElementById('resolveSkusBtn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Résolution...'; }
+
+  try {
+    const marketplace = selectedMarketplaces[0] || 'amazon_fr';
+    const r = await authFetch('/api/amazon/resolve-skus', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        eans: eans.map(e => e.ean),
+        marketplace
+      })
+    });
+    if (!r.ok) throw new Error();
+    const results = await r.json(); // [{ean, sku, asin, source}]
+
+    let catalogCount = 0, amazonCount = 0;
+    results.forEach(res => {
+      const idx = parsedProducts.findIndex(p => p.ean === res.ean);
+      if (idx === -1) return;
+      if (res.source === 'catalog' && res.sku) {
+        parsedProducts[idx].sku = res.sku;
+        parsedProducts[idx]._skuSource = 'catalog';
+        catalogCount++;
+      } else if (res.source === 'amazon' && res.asin) {
+        parsedProducts[idx]._asin = res.asin;
+        parsedProducts[idx]._skuSource = 'amazon';
+        amazonCount++;
+      }
+    });
+
+    showProductsList(parsedProducts); // re-render with updated SKUs
+    showToast('✅', `${catalogCount} SKU récupérés depuis Seller Central${amazonCount ? `, ${amazonCount} ASIN Amazon trouvés` : ''}`);
+  } catch(e) {
+    showToast('❌', 'Erreur lors de la résolution des SKU');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '🔗 Récupérer SKU Amazon'; }
   }
 }
 

@@ -3,8 +3,11 @@ import secrets
 import httpx
 from fastapi import APIRouter, Request, HTTPException
 from fastapi.responses import RedirectResponse, HTMLResponse
+from pydantic import BaseModel
+from typing import List, Optional
 
-from app.db import get_db, get_config, set_config
+from app.db import get_db, get_config, set_config, save_catalog_items, get_catalog, get_catalog_summary
+from app.models import Marketplace
 
 router = APIRouter(prefix="/api/amazon")
 
@@ -144,3 +147,103 @@ async def amazon_disconnect(request: Request):
     conn.commit()
     conn.close()
     return {"disconnected": True}
+
+
+# ── Catalog sync & SKU resolution ─────────────────────────────────────────────
+
+class CatalogSyncBody(BaseModel):
+    marketplace: str = "amazon_fr"
+
+
+class ResolveSkusBody(BaseModel):
+    eans: List[str]
+    marketplace: str = "amazon_fr"
+
+
+def _parse_marketplace(value: str) -> Marketplace:
+    """Convert marketplace string like 'amazon_fr' to Marketplace enum."""
+    try:
+        return Marketplace(value)
+    except ValueError:
+        return Marketplace.AMAZON_FR
+
+
+@router.post("/catalog/sync")
+async def catalog_sync(request: Request, body: CatalogSyncBody):
+    """Fetch seller catalog from SP-API and persist to product_catalog table."""
+    from app.services.amazon_sp import fetch_seller_catalog
+    email = request.state.user_email
+    marketplace = _parse_marketplace(body.marketplace)
+    items = await fetch_seller_catalog(email, marketplace)
+    count = save_catalog_items(email, body.marketplace, items)
+    return {"synced": count, "marketplace": body.marketplace}
+
+
+@router.get("/catalog")
+async def catalog_get(request: Request, marketplace: Optional[str] = None):
+    """Return catalog summary or full catalog for one marketplace."""
+    email = request.state.user_email
+    summary = get_catalog_summary(email)
+    total = sum(summary.values())
+    if marketplace:
+        items = get_catalog(email, marketplace)
+        return {"summary": summary, "total": total, "marketplace": marketplace, "items": items}
+    return {"summary": summary, "total": total}
+
+
+@router.post("/resolve-skus")
+async def resolve_skus(request: Request, body: ResolveSkusBody):
+    """
+    For each EAN, resolve to SKU/ASIN:
+      1. Check product_catalog for this user+marketplace → source: "catalog"
+      2. Lookup via SP-API EAN search → source: "amazon"
+      3. Not found → source: "new"
+    """
+    from app.services.amazon_sp import lookup_asins_by_eans
+    email = request.state.user_email
+    marketplace_str = body.marketplace
+
+    # Step 1: check local catalog
+    catalog_rows = get_catalog(email, marketplace_str)
+    catalog_by_ean = {row["ean"]: row for row in catalog_rows if row.get("ean")}
+
+    results = []
+    eans_for_api = []
+
+    for ean in body.eans:
+        if ean in catalog_by_ean:
+            row = catalog_by_ean[ean]
+            results.append({
+                "ean": ean,
+                "sku": row["sku"],
+                "asin": row.get("asin", ""),
+                "source": "catalog",
+            })
+        else:
+            eans_for_api.append(ean)
+
+    # Step 2: lookup remaining EANs via SP-API
+    if eans_for_api:
+        marketplace = _parse_marketplace(marketplace_str)
+        try:
+            asin_map = await lookup_asins_by_eans(eans_for_api, marketplace, email)
+        except Exception:
+            asin_map = {}
+
+        for ean in eans_for_api:
+            if ean in asin_map:
+                results.append({
+                    "ean": ean,
+                    "sku": None,
+                    "asin": asin_map[ean],
+                    "source": "amazon",
+                })
+            else:
+                results.append({
+                    "ean": ean,
+                    "sku": None,
+                    "asin": None,
+                    "source": "new",
+                })
+
+    return results

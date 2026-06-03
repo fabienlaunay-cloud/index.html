@@ -175,6 +175,20 @@ def _init_db_pg():
     """)
     conn.execute("ALTER TABLE generation_history ADD COLUMN IF NOT EXISTS images_json TEXT NOT NULL DEFAULT '{}'")
 
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS product_catalog (
+            id SERIAL PRIMARY KEY,
+            user_email TEXT NOT NULL,
+            marketplace TEXT NOT NULL,
+            sku TEXT NOT NULL,
+            asin TEXT DEFAULT '',
+            ean TEXT DEFAULT '',
+            title TEXT DEFAULT '',
+            synced_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(user_email, marketplace, sku)
+        )
+    """)
+
     conn.commit()
     conn.close()
 
@@ -263,6 +277,20 @@ def _init_db_sqlite():
             messages_json TEXT NOT NULL DEFAULT '[]',
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS product_catalog (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_email TEXT NOT NULL,
+            marketplace TEXT NOT NULL,
+            sku TEXT NOT NULL,
+            asin TEXT DEFAULT '',
+            ean TEXT DEFAULT '',
+            title TEXT DEFAULT '',
+            synced_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(user_email, marketplace, sku)
         )
     """)
 
@@ -444,3 +472,69 @@ def update_generation_label(batch_id: str, user_email: str, label: str) -> bool:
     conn.commit()
     conn.close()
     return cur.rowcount > 0
+
+
+# ── Product catalog ───────────────────────────────────────────────────────────
+
+def save_catalog_items(user_email: str, marketplace: str, items: list) -> int:
+    """Upsert items into product_catalog. Returns count saved."""
+    if not items:
+        return 0
+    conn = get_db()
+    database_url = os.getenv("DATABASE_URL")
+    count = 0
+    for item in items:
+        sku = item.get("sku", "")
+        if not sku:
+            continue
+        if database_url:
+            conn.execute(
+                """
+                INSERT INTO product_catalog (user_email, marketplace, sku, asin, ean, title, synced_at)
+                VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                ON CONFLICT(user_email, marketplace, sku) DO UPDATE SET
+                    asin = EXCLUDED.asin,
+                    ean = EXCLUDED.ean,
+                    title = EXCLUDED.title,
+                    synced_at = CURRENT_TIMESTAMP
+                """,
+                (user_email, marketplace, sku,
+                 item.get("asin", ""), item.get("ean", ""), item.get("title", "")),
+            )
+        else:
+            conn.execute(
+                """
+                INSERT OR REPLACE INTO product_catalog (user_email, marketplace, sku, asin, ean, title, synced_at)
+                VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                """,
+                (user_email, marketplace, sku,
+                 item.get("asin", ""), item.get("ean", ""), item.get("title", "")),
+            )
+        count += 1
+    conn.commit()
+    conn.close()
+    return count
+
+
+def get_catalog(user_email: str, marketplace: str) -> list:
+    """Return all catalog items for user+marketplace as list of dicts."""
+    conn = get_db()
+    rows = conn.execute(
+        "SELECT sku, asin, ean, title, synced_at FROM product_catalog "
+        "WHERE user_email = ? AND marketplace = ? ORDER BY sku",
+        (user_email, marketplace),
+    ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def get_catalog_summary(user_email: str) -> dict:
+    """Return {marketplace: count} summary across all marketplaces."""
+    conn = get_db()
+    rows = conn.execute(
+        "SELECT marketplace, COUNT(*) as cnt FROM product_catalog "
+        "WHERE user_email = ? GROUP BY marketplace",
+        (user_email,),
+    ).fetchall()
+    conn.close()
+    return {r["marketplace"]: r["cnt"] for r in rows}
