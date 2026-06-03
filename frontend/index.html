@@ -7260,22 +7260,47 @@ function _auditSyncImgUrls() {
 function _auditApplyPrefillData(data, url) {
   if (data.title) {
     document.getElementById('auditTitle').value = data.title;
-    document.getElementById('auditTitleLen').textContent = data.title.length + '/200';
+    const tl = data.title.length;
+    const lenEl = document.getElementById('auditTitleLen');
+    lenEl.textContent = tl + '/200';
+    lenEl.className = 'text-xs ' + (tl > 200 ? 'text-red-500' : tl > 150 ? 'text-green-600' : 'text-gray-400');
   }
+  // Clear all bullets first, then fill
+  [0,1,2,3,4].forEach(i => { document.getElementById('auditB'+i).value = ''; });
   (data.bullets || []).forEach((b, i) => { if (i < 5) document.getElementById('auditB'+i).value = b; });
+
   if ((data.image_urls || []).length > 0) {
     document.getElementById('auditImgUrls').value = data.image_urls.join('\n');
     _auditImgUrlsChanged(document.getElementById('auditImgUrls'));
   }
+
+  // Detect marketplace from URL
   if (url) {
-    const mktMap = {'.amazon.de/':'amazon_de', '.amazon.co.uk/':'amazon_uk', '.amazon.it/':'amazon_it', '.amazon.es/':'amazon_es'};
-    for (const [p, m] of Object.entries(mktMap)) { if (url.includes(p)) { document.getElementById('auditMkt').value = m; break; } }
+    const mktMap = {
+      'amazon.fr': 'amazon_fr',
+      'amazon.de': 'amazon_de',
+      'amazon.co.uk': 'amazon_uk',
+      'amazon.it': 'amazon_it',
+      'amazon.es': 'amazon_es',
+      'amazon.nl': 'amazon_nl',
+      'amazon.pl': 'amazon_pl',
+      'amazon.se': 'amazon_se',
+    };
+    for (const [domain, val] of Object.entries(mktMap)) {
+      if (url.includes(domain)) { document.getElementById('auditMkt').value = val; break; }
+    }
   }
+
   const parts = [];
   if (data.title) parts.push('titre');
   if ((data.bullets||[]).length) parts.push(`${data.bullets.length} bullet${data.bullets.length>1?'s':''}`);
   if ((data.image_urls||[]).length) parts.push(`${data.image_urls.length} image${data.image_urls.length>1?'s':''}`);
-  return parts.join(', ') || 'données partielles';
+  const missing = [];
+  if (!data.title) missing.push('titre');
+  if (!(data.bullets||[]).length) missing.push('bullets');
+  if (!(data.image_urls||[]).length) missing.push('images');
+
+  return { ok: parts.join(', ') || 'données partielles', missing };
 }
 
 async function auditPrefill() {
@@ -7312,8 +7337,9 @@ async function auditPrefill() {
       return;
     }
 
-    const imported = _auditApplyPrefillData(data, url);
-    msg.textContent = '✅ Importé : ' + imported + '. Vérifiez et complétez si besoin.';
+    const { ok, missing } = _auditApplyPrefillData(data, url);
+    const missNote = missing.length ? ` — à remplir manuellement : ${missing.join(', ')} (et mots-clés backend, non visibles sur Amazon).` : ' — pensez à ajouter vos mots-clés backend.';
+    msg.textContent = '✅ Importé : ' + ok + '.' + missNote;
     msg.className = 'text-xs text-green-600';
     fallback.classList.add('hidden');
   } catch(e) {
@@ -7336,8 +7362,9 @@ async function auditPrefillFromHtml() {
     });
     const data = await r.json();
     if (!r.ok) { msg.textContent = data.detail || 'Extraction impossible'; msg.className = 'text-xs text-red-500'; return; }
-    const imported = _auditApplyPrefillData(data, null);
-    msg.textContent = '✅ Extrait : ' + imported + '. Vérifiez et complétez si besoin.';
+    const { ok, missing } = _auditApplyPrefillData(data, null);
+    const missNote2 = missing.length ? ` — à remplir manuellement : ${missing.join(', ')}.` : '';
+    msg.textContent = '✅ Extrait : ' + ok + '.' + missNote2 + ' Pensez à ajouter vos mots-clés backend.';
     msg.className = 'text-xs text-green-600';
     document.getElementById('auditHtmlFallback').classList.add('hidden');
     document.getElementById('auditHtmlSource').value = '';

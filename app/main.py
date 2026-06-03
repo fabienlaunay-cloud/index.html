@@ -1258,39 +1258,56 @@ def _scrape_amazon_for_audit(html_text: str) -> dict:
 
     result: dict = {"title": "", "bullets": [], "image_urls": []}
 
-    # Title — id="productTitle"
+    # ── Title ──────────────────────────────────────────────────────────────────
+    # Primary: id="productTitle"
     m = _re.search(r'<span[^>]+id=["\']productTitle["\'][^>]*>(.*?)</span>', html_text, _re.DOTALL | _re.IGNORECASE)
     if m:
         result["title"] = _clean(m.group(1))
 
     # Fallback: og:title
     if not result["title"]:
-        m = _re.search(r'<meta[^>]+property=["\']og:title["\'][^>]+content=["\']([^"\']+)', html_text, _re.IGNORECASE)
-        if m:
-            result["title"] = _html.unescape(m.group(1).strip())
+        for pat in (
+            r'<meta[^>]+property=["\']og:title["\'][^>]+content=["\']([^"\']+)',
+            r'<meta[^>]+content=["\']([^"\']+)["\'][^>]+property=["\']og:title["\']',
+        ):
+            mm = _re.search(pat, html_text, _re.IGNORECASE)
+            if mm:
+                result["title"] = _html.unescape(mm.group(1).strip())
+                break
 
-    # Bullets — feature-bullets ul li a-list-item
+    # ── Bullets ────────────────────────────────────────────────────────────────
+    # Strategy: find the feature-bullets section first, then extract list items
+    feature_section = ""
+    fs = _re.search(
+        r'id=["\']feature-bullets["\'][^>]*>(.*?)(?:id=["\'](?:productDescription|aplus)["\']|</div>\s*</div>\s*</div>)',
+        html_text, _re.DOTALL | _re.IGNORECASE,
+    )
+    if fs:
+        feature_section = fs.group(1)
+
+    search_area = feature_section or html_text
     bullet_matches = _re.findall(
         r'<span[^>]+class=["\'][^"\']*a-list-item[^"\']*["\'][^>]*>(.*?)</span>',
-        html_text, _re.DOTALL | _re.IGNORECASE,
+        search_area, _re.DOTALL | _re.IGNORECASE,
     )
     seen_b: set = set()
     for raw in bullet_matches:
         b = _clean(raw)
-        if len(b) > 15 and b not in seen_b:
+        # Skip very short strings or strings that look like navigation / UI labels
+        if len(b) > 20 and b not in seen_b and not b.startswith(("Voir ", "En savoir", "See more", "Read more")):
             seen_b.add(b)
             result["bullets"].append(b)
         if len(result["bullets"]) >= 5:
             break
 
-    # Images — colorImages JS object (hiRes > large)
+    # ── Images ─────────────────────────────────────────────────────────────────
+    # Primary: colorImages JS object (hiRes > large > main)
     for key in ("hiRes", "large", "main"):
-        img_urls = _re.findall(rf'"{key}"\s*:\s*"(https://[^"]+\.jpg[^"]*)"', html_text)
+        img_urls = _re.findall(rf'"{key}"\s*:\s*"(https://[^"]+\.(?:jpg|jpeg|png)[^"]*)"', html_text, _re.IGNORECASE)
         if img_urls:
             seen_u: set = set()
             for u in img_urls:
-                # Normalise to largest variant: strip ._SX/SY/AC_ suffix
-                base = _re.sub(r'\._[A-Z0-9_,]+_\.', '.', u)
+                base = _re.sub(r'\._[A-Z0-9_,]+_\.', '.', u)  # strip size suffix
                 if base not in seen_u:
                     seen_u.add(base)
                     result["image_urls"].append(base)
@@ -1298,11 +1315,16 @@ def _scrape_amazon_for_audit(html_text: str) -> dict:
                     break
             break
 
-    # Fallback: data-old-hires or landingImage src
+    # Fallback: data-old-hires attribute
     if not result["image_urls"]:
-        m = _re.search(r'data-old-hires=["\']([^"\']+)["\']', html_text)
-        if m:
-            result["image_urls"] = [m.group(1)]
+        for pat in (
+            r'data-old-hires=["\']([^"\']+)["\']',
+            r'"landingAsinColor"[^}]*?"large"\s*:\s*"(https://[^"]+)"',
+        ):
+            mm = _re.search(pat, html_text)
+            if mm:
+                result["image_urls"] = [mm.group(1)]
+                break
 
     return result
 
@@ -1442,29 +1464,56 @@ KEYWORDS BACKEND ({kw_bytes}/249 bytes) :
 
 IMAGES : {effective_img_count} image(s)"""
 
-    # Build message content — add images for vision analysis (max 4)
+    # Build message content — download images as base64 for vision (max 4)
     urls_to_analyze = [u for u in req.image_urls if u.startswith("http")][:4]
+    vision_used = False
+
     if urls_to_analyze:
-        content: list = []
-        for img_url in urls_to_analyze:
-            content.append({"type": "image", "source": {"type": "url", "url": img_url}})
-        content.append({
-            "type": "text",
-            "text": text_prompt + "\n\nNOTE : Les images ci-dessus sont les vraies images produit Amazon. Analyse-les visuellement pour scorer la dimension IMAGES : fond blanc (image 1), produit bien visible, visuels lifestyle, infographie, angles multiples. Ajuste le score et les issues/suggestions en conséquence.",
-        })
+        img_blocks: list = []
+        async with httpx.AsyncClient(timeout=8.0) as img_client:
+            for img_url in urls_to_analyze:
+                try:
+                    ir = await img_client.get(img_url, headers={"Referer": "https://www.amazon.fr/"})
+                    if ir.status_code == 200:
+                        ct = ir.headers.get("content-type", "image/jpeg").split(";")[0].strip()
+                        if ct not in ("image/jpeg", "image/png", "image/gif", "image/webp"):
+                            ct = "image/jpeg"
+                        img_blocks.append({
+                            "type": "image",
+                            "source": {
+                                "type": "base64",
+                                "media_type": ct,
+                                "data": base64.b64encode(ir.content).decode(),
+                            },
+                        })
+                except Exception:
+                    pass  # skip unreachable images silently
+
+        if img_blocks:
+            vision_used = True
+            content: list = img_blocks + [{
+                "type": "text",
+                "text": text_prompt + "\n\nNOTE : Les images ci-dessus sont les vraies images produit Amazon. Analyse-les visuellement pour scorer la dimension IMAGES : fond blanc (image 1), produit bien visible, visuels lifestyle, infographie, angles multiples. Ajuste le score et les issues/suggestions en conséquence.",
+            }]
+        else:
+            content = text_prompt
     else:
         content = text_prompt
 
+    import re as _re_json
     resp = await get_client().messages.create(
-        model="claude-haiku-4-5-20251001" if not urls_to_analyze else "claude-sonnet-4-6",
-        max_tokens=900,
+        model="claude-haiku-4-5-20251001" if not vision_used else "claude-sonnet-4-6",
+        max_tokens=1500,
         system=_AUDIT_SYSTEM,
         messages=[{"role": "user", "content": content}],
     )
     raw = resp.content[0].text.strip()
+    # Strip markdown code fences if Claude wraps its JSON
+    raw = _re_json.sub(r'^```(?:json)?\s*', '', raw, flags=_re_json.MULTILINE)
+    raw = _re_json.sub(r'\s*```$', '', raw, flags=_re_json.MULTILINE).strip()
     try:
         result = _json.loads(raw)
-        result["vision_used"] = bool(urls_to_analyze)
+        result["vision_used"] = vision_used
         return result
     except Exception:
         raise HTTPException(500, "Erreur d'analyse — réessayez")
