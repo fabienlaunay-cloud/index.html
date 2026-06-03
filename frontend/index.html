@@ -6683,7 +6683,7 @@ function escHtml(s) {
 <div id="helpBubble" class="hidden" style="position:fixed;bottom:24px;right:24px;z-index:9998;display:flex;flex-direction:column;align-items:flex-end">
 
   <!-- Fenêtre de chat — 3 états : open / minimized / closed -->
-  <div id="helpWindow" style="width:340px;background:#fff;border-radius:20px;box-shadow:0 8px 40px rgba(0,0,0,0.18);overflow:hidden;margin-bottom:10px;display:none;flex-direction:column;transition:height 0.2s ease">
+  <div id="helpWindow" style="width:340px;background:#fff;border-radius:20px;box-shadow:0 8px 40px rgba(0,0,0,0.18);overflow:hidden;margin-bottom:10px;display:none;flex-direction:column">
     <!-- Header — cliquable pour réduire/ouvrir -->
     <div onclick="_helpToggleMinimize()" style="background:linear-gradient(135deg,#7c3aed,#6d28d9);padding:12px 14px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;flex-shrink:0">
       <div style="display:flex;align-items:center;gap:10px">
@@ -6745,16 +6745,21 @@ function _helpClose() {
 }
 
 function _helpToggleMinimize() {
+  const win  = document.getElementById('helpWindow');
+  const body = document.getElementById('helpBody');
+  const btn  = document.getElementById('helpMinBtn');
   if (_helpState === 'open') {
     _helpState = 'minimized';
-    document.getElementById('helpBody').style.display = 'none';
-    document.getElementById('helpMinBtn').textContent = '+';
-    document.getElementById('helpMinBtn').title = 'Agrandir';
+    body.style.display = 'none';
+    win.style.height = 'auto';       // let the window shrink to header only
+    btn.textContent = '+';
+    btn.title = 'Agrandir';
   } else if (_helpState === 'minimized') {
     _helpState = 'open';
-    document.getElementById('helpBody').style.display = 'flex';
-    document.getElementById('helpMinBtn').textContent = '−';
-    document.getElementById('helpMinBtn').title = 'Réduire';
+    body.style.display = 'flex';
+    win.style.height = '';           // remove explicit height, let content expand
+    btn.textContent = '−';
+    btn.title = 'Réduire';
     document.getElementById('helpInput').focus();
   }
 }
