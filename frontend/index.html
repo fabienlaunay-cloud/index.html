@@ -906,16 +906,16 @@
       </button>
       <div class="relative" id="mktSelectorWrapper">
         <button type="button" onclick="toggleMktDropdown(event)" class="flex items-center gap-2 bg-white/10 border border-white/20 text-white rounded-lg px-3 py-1.5 text-sm min-w-[170px] justify-between hover:bg-white/20 transition">
-          <span id="mktSelectorLabel">🇫🇷 Amazon France</span>
+          <span id="mktSelectorLabel">Amazon France</span>
           <span class="text-white/60 text-xs ml-1">▾</span>
         </button>
         <div id="mktSelectorList" class="hidden absolute right-0 top-10 bg-indigo-950 border border-white/20 rounded-xl shadow-2xl py-2 z-50 min-w-[220px]">
           <p class="text-white/40 text-xs px-4 pb-1.5">Sélectionnez un ou plusieurs marchés</p>
-          <div onclick="toggleMkt('amazon_fr')" class="mkt-item flex items-center gap-3 px-4 py-2 text-sm text-white hover:bg-white/10 cursor-pointer rounded-lg mx-1" data-mkt="amazon_fr"><span class="w-4 h-4 rounded border border-white/40 flex items-center justify-center flex-shrink-0 mkt-check" id="mkt-check-amazon_fr"></span>🇫🇷 Amazon France</div>
-          <div onclick="toggleMkt('amazon_de')" class="mkt-item flex items-center gap-3 px-4 py-2 text-sm text-white hover:bg-white/10 cursor-pointer rounded-lg mx-1" data-mkt="amazon_de"><span class="w-4 h-4 rounded border border-white/40 flex items-center justify-center flex-shrink-0 mkt-check" id="mkt-check-amazon_de"></span>🇩🇪 Amazon Allemagne</div>
-          <div onclick="toggleMkt('amazon_it')" class="mkt-item flex items-center gap-3 px-4 py-2 text-sm text-white hover:bg-white/10 cursor-pointer rounded-lg mx-1" data-mkt="amazon_it"><span class="w-4 h-4 rounded border border-white/40 flex items-center justify-center flex-shrink-0 mkt-check" id="mkt-check-amazon_it"></span>🇮🇹 Amazon Italie</div>
-          <div onclick="toggleMkt('amazon_es')" class="mkt-item flex items-center gap-3 px-4 py-2 text-sm text-white hover:bg-white/10 cursor-pointer rounded-lg mx-1" data-mkt="amazon_es"><span class="w-4 h-4 rounded border border-white/40 flex items-center justify-center flex-shrink-0 mkt-check" id="mkt-check-amazon_es"></span>🇪🇸 Amazon Espagne</div>
-          <div onclick="toggleMkt('amazon_uk')" class="mkt-item flex items-center gap-3 px-4 py-2 text-sm text-white hover:bg-white/10 cursor-pointer rounded-lg mx-1" data-mkt="amazon_uk"><span class="w-4 h-4 rounded border border-white/40 flex items-center justify-center flex-shrink-0 mkt-check" id="mkt-check-amazon_uk"></span>🇬🇧 Amazon UK</div>
+          <div onclick="toggleMkt('amazon_fr')" class="mkt-item flex items-center gap-3 px-4 py-2 text-sm text-white hover:bg-white/10 cursor-pointer rounded-lg mx-1" data-mkt="amazon_fr"><span class="w-4 h-4 rounded border border-white/40 flex items-center justify-center flex-shrink-0 mkt-check" id="mkt-check-amazon_fr"></span>Amazon France</div>
+          <div onclick="toggleMkt('amazon_de')" class="mkt-item flex items-center gap-3 px-4 py-2 text-sm text-white hover:bg-white/10 cursor-pointer rounded-lg mx-1" data-mkt="amazon_de"><span class="w-4 h-4 rounded border border-white/40 flex items-center justify-center flex-shrink-0 mkt-check" id="mkt-check-amazon_de"></span>Amazon Allemagne</div>
+          <div onclick="toggleMkt('amazon_it')" class="mkt-item flex items-center gap-3 px-4 py-2 text-sm text-white hover:bg-white/10 cursor-pointer rounded-lg mx-1" data-mkt="amazon_it"><span class="w-4 h-4 rounded border border-white/40 flex items-center justify-center flex-shrink-0 mkt-check" id="mkt-check-amazon_it"></span>Amazon Italie</div>
+          <div onclick="toggleMkt('amazon_es')" class="mkt-item flex items-center gap-3 px-4 py-2 text-sm text-white hover:bg-white/10 cursor-pointer rounded-lg mx-1" data-mkt="amazon_es"><span class="w-4 h-4 rounded border border-white/40 flex items-center justify-center flex-shrink-0 mkt-check" id="mkt-check-amazon_es"></span>Amazon Espagne</div>
+          <div onclick="toggleMkt('amazon_uk')" class="mkt-item flex items-center gap-3 px-4 py-2 text-sm text-white hover:bg-white/10 cursor-pointer rounded-lg mx-1" data-mkt="amazon_uk"><span class="w-4 h-4 rounded border border-white/40 flex items-center justify-center flex-shrink-0 mkt-check" id="mkt-check-amazon_uk"></span>Amazon UK</div>
           <div class="border-t border-white/10 my-1"></div>
           <div onclick="toggleMkt('amazon_nl')" class="mkt-item flex items-center gap-3 px-4 py-2 text-sm text-white hover:bg-white/10 cursor-pointer rounded-lg mx-1" data-mkt="amazon_nl"><span class="w-4 h-4 rounded border border-white/40 flex items-center justify-center flex-shrink-0 mkt-check" id="mkt-check-amazon_nl"></span>🇳🇱 Pays-Bas</div>
           <div onclick="toggleMkt('amazon_se')" class="mkt-item flex items-center gap-3 px-4 py-2 text-sm text-white hover:bg-white/10 cursor-pointer rounded-lg mx-1" data-mkt="amazon_se"><span class="w-4 h-4 rounded border border-white/40 flex items-center justify-center flex-shrink-0 mkt-check" id="mkt-check-amazon_se"></span>🇸🇪 Suède</div>
@@ -1034,11 +1034,11 @@
           <div>
             <label class="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1 block">Marketplace</label>
             <select id="auditMkt" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-purple-400">
-              <option value="amazon_fr">🇫🇷 Amazon France</option>
-              <option value="amazon_de">🇩🇪 Amazon Allemagne</option>
-              <option value="amazon_uk">🇬🇧 Amazon UK</option>
-              <option value="amazon_it">🇮🇹 Amazon Italie</option>
-              <option value="amazon_es">🇪🇸 Amazon Espagne</option>
+              <option value="amazon_fr">Amazon France</option>
+              <option value="amazon_de">Amazon Allemagne</option>
+              <option value="amazon_uk">Amazon UK</option>
+              <option value="amazon_it">Amazon Italie</option>
+              <option value="amazon_es">Amazon Espagne</option>
             </select>
           </div>
 
@@ -1200,13 +1200,13 @@
 
         <!-- Empty state -->
         <div id="trackEmpty" class="bg-white rounded-2xl shadow-sm border border-gray-100 flex flex-col items-center justify-center text-center py-24">
-          <div class="text-5xl mb-4">📈</div>
+          <div class="w-12 h-12 rounded-2xl bg-purple-50 flex items-center justify-center mb-4 mx-auto"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg></div>
           <p class="text-gray-700 font-semibold text-lg mb-1">Suivi post-publication</p>
           <p class="text-gray-400 text-sm max-w-xs">Ajoutez une fiche publiée et saisissez vos métriques<br>Seller Central pour construire votre boucle de preuve.</p>
           <div class="mt-6 grid grid-cols-3 gap-3 text-xs text-gray-400 max-w-sm">
-            <div class="bg-gray-50 rounded-xl p-3"><div class="text-lg mb-1">📅</div>J0 · J30 · J60 · J90</div>
-            <div class="bg-gray-50 rounded-xl p-3"><div class="text-lg mb-1">📈</div>Sessions & conversion</div>
-            <div class="bg-gray-50 rounded-xl p-3"><div class="text-lg mb-1">🔑</div>Rang keyword</div>
+            <div class="bg-gray-50 rounded-xl p-3 text-left"><div class="text-xs font-semibold text-gray-500 mb-1">Périodes</div>J0 · J30 · J60 · J90</div>
+            <div class="bg-gray-50 rounded-xl p-3 text-left"><div class="text-xs font-semibold text-gray-500 mb-1">Métriques</div>Sessions & conversion</div>
+            <div class="bg-gray-50 rounded-xl p-3 text-left"><div class="text-xs font-semibold text-gray-500 mb-1">SEO</div>Rang keyword</div>
           </div>
         </div>
 
@@ -1270,7 +1270,7 @@
             <div class="flex items-center justify-between mb-4">
               <h4 class="font-semibold text-gray-700 text-sm">Données de performance</h4>
               <div class="flex gap-2">
-                <button onclick="openCsvImportModal()" class="text-xs px-3 py-1.5 bg-gray-50 border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-100 transition font-medium">📤 Import CSV Amazon</button>
+                <button onclick="openCsvImportModal()" class="text-xs px-3 py-1.5 bg-gray-50 border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-100 transition font-medium">Import CSV Amazon</button>
                 <button onclick="openAddSnapModal()" class="gradient-bg text-white text-xs font-semibold px-3 py-1.5 rounded-lg hover:opacity-90 transition">+ Saisie manuelle</button>
               </div>
             </div>
@@ -1318,11 +1318,11 @@
       <div>
         <label class="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1 block">Marketplace</label>
         <select id="atMkt" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-purple-400">
-          <option value="amazon_fr">🇫🇷 Amazon France</option>
-          <option value="amazon_de">🇩🇪 Amazon Allemagne</option>
-          <option value="amazon_uk">🇬🇧 Amazon UK</option>
-          <option value="amazon_it">🇮🇹 Amazon Italie</option>
-          <option value="amazon_es">🇪🇸 Amazon Espagne</option>
+          <option value="amazon_fr">Amazon France</option>
+          <option value="amazon_de">Amazon Allemagne</option>
+          <option value="amazon_uk">Amazon UK</option>
+          <option value="amazon_it">Amazon Italie</option>
+          <option value="amazon_es">Amazon Espagne</option>
         </select>
       </div>
       <div class="flex gap-3 pt-2">
@@ -1870,15 +1870,15 @@
           <div class="relative" id="pubMktWrapper">
             <input type="hidden" id="publishMarketplace" value="amazon_fr">
             <button type="button" onclick="togglePubMkt(event)" class="w-full flex items-center justify-between border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 bg-white hover:bg-gray-50 transition">
-              <span id="pubMktLabel">🇫🇷 Amazon France</span>
+              <span id="pubMktLabel">Amazon France</span>
               <span class="text-gray-400 text-xs">▾</span>
             </button>
             <div id="pubMktList" class="hidden absolute left-0 top-11 bg-white border border-gray-200 rounded-xl shadow-xl py-1.5 z-50 w-full">
-              <div onclick="pickPubMkt('amazon_fr','🇫🇷 Amazon France')" class="px-4 py-2 text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-700 cursor-pointer rounded-lg mx-1">🇫🇷 Amazon France</div>
-              <div onclick="pickPubMkt('amazon_de','🇩🇪 Amazon Allemagne')" class="px-4 py-2 text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-700 cursor-pointer rounded-lg mx-1">🇩🇪 Amazon Allemagne</div>
-              <div onclick="pickPubMkt('amazon_it','🇮🇹 Amazon Italie')" class="px-4 py-2 text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-700 cursor-pointer rounded-lg mx-1">🇮🇹 Amazon Italie</div>
-              <div onclick="pickPubMkt('amazon_es','🇪🇸 Amazon Espagne')" class="px-4 py-2 text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-700 cursor-pointer rounded-lg mx-1">🇪🇸 Amazon Espagne</div>
-              <div onclick="pickPubMkt('amazon_uk','🇬🇧 Amazon UK')" class="px-4 py-2 text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-700 cursor-pointer rounded-lg mx-1">🇬🇧 Amazon UK</div>
+              <div onclick="pickPubMkt('amazon_fr','Amazon France')" class="px-4 py-2 text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-700 cursor-pointer rounded-lg mx-1">Amazon France</div>
+              <div onclick="pickPubMkt('amazon_de','Amazon Allemagne')" class="px-4 py-2 text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-700 cursor-pointer rounded-lg mx-1">Amazon Allemagne</div>
+              <div onclick="pickPubMkt('amazon_it','Amazon Italie')" class="px-4 py-2 text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-700 cursor-pointer rounded-lg mx-1">Amazon Italie</div>
+              <div onclick="pickPubMkt('amazon_es','Amazon Espagne')" class="px-4 py-2 text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-700 cursor-pointer rounded-lg mx-1">Amazon Espagne</div>
+              <div onclick="pickPubMkt('amazon_uk','Amazon UK')" class="px-4 py-2 text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-700 cursor-pointer rounded-lg mx-1">Amazon UK</div>
               <div class="border-t border-gray-100 my-1"></div>
               <div onclick="pickPubMkt('amazon_nl','🇳🇱 Amazon Pays-Bas')" class="px-4 py-2 text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-700 cursor-pointer rounded-lg mx-1">🇳🇱 Amazon Pays-Bas</div>
               <div onclick="pickPubMkt('amazon_se','🇸🇪 Amazon Suède')" class="px-4 py-2 text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-700 cursor-pointer rounded-lg mx-1">🇸🇪 Amazon Suède</div>
@@ -6907,14 +6907,14 @@ function _renderTrackList() {
     document.getElementById('trackDetail').classList.add('hidden');
     return;
   }
-  const MKT = {amazon_fr:'🇫🇷',amazon_de:'🇩🇪',amazon_uk:'🇬🇧',amazon_it:'🇮🇹',amazon_es:'🇪🇸'};
+  const MKT = {amazon_fr:'FR',amazon_de:'DE',amazon_uk:'UK',amazon_it:'IT',amazon_es:'ES',amazon_nl:'NL',amazon_pl:'PL',amazon_se:'SE'};
   el.innerHTML = _trackListings.map(l => {
     const active = l.id === _trackActiveId;
     return `<div onclick="selectTrackedListing('${l.id}')" class="cursor-pointer rounded-xl p-3 border transition ${active ? 'border-purple-400 bg-purple-50' : 'border-gray-100 bg-white hover:border-purple-200'}">
       <div class="flex items-start justify-between gap-2">
         <div class="min-w-0">
           <p class="text-sm font-semibold text-gray-800 truncate">${_esc(l.title || l.sku || l.asin)}</p>
-          <p class="text-xs text-gray-400 mt-0.5">${MKT[l.marketplace]||'🌐'} ${l.asin ? `ASIN: ${l.asin}` : `SKU: ${l.sku}`}</p>
+          <p class="text-xs text-gray-400 mt-0.5"><span class="font-mono text-xs bg-gray-100 px-1 rounded">${MKT[l.marketplace]||'—'}</span> ${l.asin ? `ASIN: ${l.asin}` : `SKU: ${l.sku}`}</p>
           ${l.published_at ? `<p class="text-xs text-gray-400">Publié: ${new Date(l.published_at).toLocaleDateString('fr-FR')}</p>` : ''}
         </div>
         <div class="flex items-center gap-1 flex-shrink-0">
@@ -6946,11 +6946,11 @@ async function selectTrackedListing(id) {
   document.getElementById('trackEmpty').classList.add('hidden');
   document.getElementById('trackDetail').classList.remove('hidden');
 
-  const MKT = {amazon_fr:'🇫🇷 Amazon France',amazon_de:'🇩🇪 Amazon Allemagne',amazon_uk:'🇬🇧 Amazon UK',amazon_it:'🇮🇹 Amazon Italie',amazon_es:'🇪🇸 Amazon Espagne'};
+  const MKT = {amazon_fr:'Amazon France',amazon_de:'Amazon Allemagne',amazon_uk:'Amazon UK',amazon_it:'Amazon Italie',amazon_es:'Amazon Espagne'};
   document.getElementById('tdTitle').textContent = listing.title || listing.sku || listing.asin;
   document.getElementById('tdAsin').textContent = listing.asin || listing.sku;
   document.getElementById('tdMkt').textContent = MKT[listing.marketplace] || listing.marketplace;
-  document.getElementById('tdPublished').textContent = listing.published_at ? '📅 ' + new Date(listing.published_at).toLocaleDateString('fr-FR', {day:'2-digit',month:'short',year:'numeric'}) : '';
+  document.getElementById('tdPublished').textContent = listing.published_at ? new Date(listing.published_at).toLocaleDateString('fr-FR', {day:'2-digit',month:'short',year:'numeric'}) : '';
   const sc = listing.seo_score;
   document.getElementById('tdSeoScore').textContent = sc ? `Score SynqIO : ${sc}/100` : '';
 
