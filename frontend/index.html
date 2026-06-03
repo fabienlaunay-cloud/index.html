@@ -1421,10 +1421,11 @@
         <textarea id="csvText" rows="6" placeholder="Date,ASIN,Sessions,Unit Session Percentage,Units Ordered,Ordered Product Sales…" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-xs resize-none focus:outline-none focus:border-purple-400 font-mono"></textarea>
       </div>
       <p id="csvImportMsg" class="hidden text-sm font-medium"></p>
-      <div class="flex gap-3 pt-1">
+      <div id="csvImportBtns" class="flex gap-3 pt-1">
         <button onclick="document.getElementById('csvImportModal').classList.add('hidden')" class="flex-1 border border-gray-200 text-gray-600 rounded-xl py-2.5 text-sm font-semibold hover:bg-gray-50 transition">Annuler</button>
         <button onclick="submitCsvImport()" class="flex-1 gradient-bg text-white rounded-xl py-2.5 text-sm font-semibold hover:opacity-90 transition">Importer</button>
       </div>
+      <button id="csvOkBtn" onclick="document.getElementById('csvImportModal').classList.add('hidden')" class="hidden w-full gradient-bg text-white rounded-xl py-2.5 text-sm font-semibold hover:opacity-90 transition">OK</button>
     </div>
   </div>
 
@@ -7389,8 +7390,9 @@ function openCsvImportModal() {
   document.getElementById('csvText').value = '';
   document.getElementById('csvFileInput').value = '';
   document.getElementById('csvFileNameDisplay').textContent = 'Parcourir mon ordinateur…';
-  const msg = document.getElementById('csvImportMsg');
-  msg.classList.add('hidden');
+  document.getElementById('csvImportMsg').classList.add('hidden');
+  document.getElementById('csvImportBtns').classList.remove('hidden');
+  document.getElementById('csvOkBtn').classList.add('hidden');
   document.getElementById('csvImportModal').classList.remove('hidden');
 }
 
@@ -7419,6 +7421,8 @@ async function submitCsvImport() {
     if (!r.ok) throw new Error(data.detail || 'Erreur');
     msg.className = 'text-sm font-medium text-green-600';
     msg.textContent = `✅ ${data.imported} ligne${data.imported>1?'s':''} importée${data.imported>1?'s':''}`;
+    document.getElementById('csvImportBtns').classList.add('hidden');
+    document.getElementById('csvOkBtn').classList.remove('hidden');
     await selectTrackedListing(_trackActiveId);
     loadTrackListings();
   } catch(e) {
