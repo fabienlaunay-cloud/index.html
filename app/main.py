@@ -53,7 +53,7 @@ from app.routes.amazon_oauth import router as amazon_router
 from app.routes.chat import router as chat_router
 
 # Routes sans authentification
-PUBLIC_PATHS = {"/", "/health", "/api/auth/login", "/api/auth/setup", "/api/auth/needs-setup", "/api/auth/reset-admin", "/api/amazon/debug-config", "/api/marketplaces", "/api/amazon/callback", "/api/template"}
+PUBLIC_PATHS = {"/", "/health", "/api/auth/login", "/api/auth/setup", "/api/auth/needs-setup", "/api/auth/reset-admin", "/api/auth/debug-admin", "/api/amazon/debug-config", "/api/marketplaces", "/api/amazon/callback", "/api/template"}
 # Invite paths are public (token-based auth)
 PUBLIC_PREFIX_PATHS = ("/api/auth/invite/", "/api/photos/")
 
@@ -144,7 +144,7 @@ def _bootstrap_admin():
     if not email or not password:
         return
     from app.db import get_db
-    from app.services.auth import create_user
+    from app.services.auth import create_user, hash_password
     conn = get_db()
     exists = conn.execute("SELECT 1 FROM users WHERE email = ?", (email,)).fetchone()
     if not exists:
@@ -154,9 +154,11 @@ def _bootstrap_admin():
         except Exception:
             pass
     else:
-        # L'user existe déjà : s'assurer que is_admin=1 est bien positionné
-        # (peut être perdu si la DB a été recréée partiellement)
-        conn.execute("UPDATE users SET is_admin=1, is_active=1 WHERE email=?", (email,))
+        # Sync password + flags depuis les env vars Railway à chaque démarrage
+        conn.execute(
+            "UPDATE users SET is_admin=1, is_active=1, password_hash=? WHERE email=?",
+            (hash_password(password), email),
+        )
         conn.commit()
         conn.close()
 
@@ -181,7 +183,8 @@ async def health():
     try:
         from app.db import get_db
         conn = get_db()
-        user_count = conn.execute("SELECT COUNT(*) FROM users").fetchone()[0]
+        row = conn.execute("SELECT COUNT(*) AS cnt FROM users").fetchone()
+        user_count = row["cnt"] if row else 0
         conn.close()
     except Exception:
         pass

@@ -88,8 +88,9 @@ def _require_admin(authorization: str = None) -> str:
 @router.get("/needs-setup")
 async def needs_setup():
     conn = get_db()
-    count = conn.execute("SELECT COUNT(*) FROM users").fetchone()[0]
+    row = conn.execute("SELECT COUNT(*) AS cnt FROM users").fetchone()
     conn.close()
+    count = row["cnt"] if row else 0
     return {"needs_setup": count == 0}
 
 
@@ -101,8 +102,9 @@ async def setup_first_user(req: SetupRequest):
     if required_secret and req.setup_secret != required_secret:
         raise HTTPException(403, "Clé d'installation invalide — définissez SETUP_SECRET dans Railway")
     conn = get_db()
-    count = conn.execute("SELECT COUNT(*) FROM users").fetchone()[0]
+    row = conn.execute("SELECT COUNT(*) AS cnt FROM users").fetchone()
     conn.close()
+    count = row["cnt"] if row else 0
     if count > 0:
         raise HTTPException(403, "Setup déjà effectué")
     _validate_password(req.password)
@@ -190,6 +192,26 @@ async def accept_invite(token: str, req: AcceptInviteRequest):
     conn.close()
     jwt_token = create_token(email)
     return {"token": jwt_token, "email": email, "is_admin": False}
+
+
+@router.get("/debug-admin")
+async def debug_admin():
+    """Diagnostic public — vérifie si des admins existent et si la DB répond."""
+    try:
+        conn = get_db()
+        row = conn.execute("SELECT COUNT(*) AS cnt FROM users WHERE is_admin = 1 AND is_active = 1").fetchone()
+        admin_count = row["cnt"] if row else 0
+        row2 = conn.execute("SELECT COUNT(*) AS cnt FROM users").fetchone()
+        total = row2["cnt"] if row2 else 0
+        conn.close()
+        return {
+            "db_ok": True,
+            "total_users": total,
+            "active_admins": admin_count,
+            "admin_email_configured": bool(os.getenv("ADMIN_EMAIL")),
+        }
+    except Exception as e:
+        return {"db_ok": False, "error": str(e)}
 
 
 class ResetAdminRequest(BaseModel):

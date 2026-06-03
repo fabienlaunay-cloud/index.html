@@ -135,6 +135,10 @@ def create_user(email: str, password: str, name: str = "", is_admin: bool = Fals
         return {"email": email.lower().strip(), "name": name, "is_admin": is_admin}
     except sqlite3.IntegrityError:
         raise ValueError(f"L'email {email} existe déjà")
+    except Exception as e:
+        if "unique" in str(e).lower() or "duplicate" in str(e).lower():
+            raise ValueError(f"L'email {email} existe déjà")
+        raise
     finally:
         conn.close()
 
