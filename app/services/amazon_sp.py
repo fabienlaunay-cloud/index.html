@@ -328,11 +328,6 @@ async def publish_listings(
     dry_run: bool = True,
     user_email: str = None,
 ) -> PublishResult:
-    # Gate A+ : vérifier avant de lancer les appels SP-API
-    if user_email and any(l.a_plus_content for l in listings):
-        from app.services.usage import require_feature
-        require_feature(user_email, "a_plus")
-
     if _is_demo() or dry_run:
         return _demo_publish(listings, marketplace, dry_run)
 

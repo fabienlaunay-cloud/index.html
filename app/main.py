@@ -43,7 +43,7 @@ from app.services.ai_agent import generate_listings_batch
 from app.services.amazon_sp import publish_listings
 from app.services.auth import verify_token
 from app.services.image_gen import generate_product_images, AMAZON_IMAGE_TYPES, _generate_image_dalle3
-from app.services.usage import log_usage, get_user_usage, get_all_users_usage, require_feature
+from app.services.usage import log_usage, get_user_usage, get_all_users_usage
 from app.services import storage
 from app.utils.export import to_csv_bytes, to_json_bytes, to_amazon_flat_file_bytes, to_listing_loader_bytes, to_amazon_flat_file_xlsx, to_listing_loader_xlsx, to_variation_flat_file_xlsx
 from app.utils.variation_handler import group_by_parent, build_parent_product, expand_to_variation_listings
@@ -660,9 +660,6 @@ async def generate(request: GenerationRequest, req: Request):
 
     email = getattr(req.state, "user_email", None)
     if email:
-        # Gate multi-marketplace (Business+)
-        if len(request.marketplaces or []) > 1:
-            require_feature(email, "multi_marketplace")
         usage = get_user_usage(email)
         remaining = usage["skus_quota"] - usage["skus_used"]
         if remaining <= 0:
@@ -889,7 +886,6 @@ async def generate_images(req: ImageRequest, request: Request):
         raise HTTPException(503, "ANTHROPIC_API_KEY manquante")
     email = getattr(request.state, "user_email", None)
     if email:
-        require_feature(email, "image_gen")
         usage = get_user_usage(email)
         imgs_remaining = max(0, usage.get("images_quota", 200) - usage.get("images_used", 0))
         if imgs_remaining <= 0:
