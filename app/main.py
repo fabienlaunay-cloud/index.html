@@ -9,8 +9,26 @@ from uuid import uuid4
 from dotenv import load_dotenv
 load_dotenv(override=False)  # local dev only — Railway injects vars directly
 
+from collections import defaultdict
+from threading import Lock as _Lock
 from typing import List, Optional
 from fastapi import FastAPI, UploadFile, File, HTTPException, Form, Request
+
+# ── In-memory per-user rate limiter ──────────────────────────────────────────
+# State is per-process — fine for single-instance Railway deployment.
+_rl_data: dict[str, list[float]] = defaultdict(list)
+_rl_lock = _Lock()
+
+def _rate_limit(key: str, limit: int, window: int = 3600) -> bool:
+    """Return True if request is allowed; False if rate-limit exceeded.
+    key: e.g. f"{email}:generate". limit: max calls. window: seconds."""
+    now = time.time()
+    with _rl_lock:
+        _rl_data[key] = [t for t in _rl_data[key] if now - t < window]
+        if len(_rl_data[key]) >= limit:
+            return False
+        _rl_data[key].append(now)
+        return True
 from fastapi.responses import Response, HTMLResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -26,6 +44,7 @@ from app.services.amazon_sp import publish_listings
 from app.services.auth import verify_token
 from app.services.image_gen import generate_product_images, AMAZON_IMAGE_TYPES, _generate_image_dalle3
 from app.services.usage import log_usage, get_user_usage, get_all_users_usage
+from app.services import storage
 from app.utils.export import to_csv_bytes, to_json_bytes, to_amazon_flat_file_bytes, to_listing_loader_bytes, to_amazon_flat_file_xlsx, to_listing_loader_xlsx, to_variation_flat_file_xlsx
 from app.utils.variation_handler import group_by_parent, build_parent_product, expand_to_variation_listings
 from app.db import init_db, save_generation, list_generations, get_generation, delete_generation, update_generation_label
@@ -340,12 +359,9 @@ async def download_template():
     )
 
 
-# ── Photo store (mémoire + disque Railway Volume) ─────────────────────────────
+# ── Photo store (R2 or local disk) ────────────────────────────────────────────
 
 from app.db import _PROJECT_ROOT
-
-_PHOTOS_DIR = os.path.join(_PROJECT_ROOT, "data", "photos")
-os.makedirs(_PHOTOS_DIR, exist_ok=True)
 
 _IMAGE_EXTS = {".jpg", ".jpeg", ".png", ".webp", ".gif"}
 _IMAGE_CONTENT_TYPES = {
@@ -354,19 +370,12 @@ _IMAGE_CONTENT_TYPES = {
 }
 
 
-def _save_photo(filename: str, data: bytes):
-    """Sauvegarde sur disque (Railway Volume) — survit aux redéploiements."""
-    with open(os.path.join(_PHOTOS_DIR, filename), "wb") as f:
-        f.write(data)
+def _save_photo(filename: str, data: bytes, content_type: str = "application/octet-stream"):
+    storage.put(filename, data, content_type)
 
 
 def _load_photo(filename: str) -> bytes | None:
-    """Charge depuis disque."""
-    path = os.path.join(_PHOTOS_DIR, filename)
-    if os.path.exists(path):
-        with open(path, "rb") as f:
-            return f.read()
-    return None
+    return storage.get(filename)
 
 
 _ZIP_MAX_COMPRESSED   = 100 * 1024 * 1024   # 100 MB compressed
@@ -418,18 +427,21 @@ async def upload_photos_zip(request: Request):
         _save_photo(filename, data)
         matched.append({"sku": sku, "url": f"/api/photos/{filename}", "filename": filename})
 
-    return {"matched": matched, "skipped": skipped, "count": len(matched), "photos_dir": _PHOTOS_DIR}
+    return {"matched": matched, "skipped": skipped, "count": len(matched)}
 
 
 @app.get("/api/photos/list")
 async def list_photos():
-    """Debug : liste les photos stockées sur disque."""
-    try:
-        files = os.listdir(_PHOTOS_DIR)
-        image_files = [f for f in files if os.path.splitext(f)[1].lower() in _IMAGE_EXTS]
-        return {"photos_dir": _PHOTOS_DIR, "count": len(image_files), "files": sorted(image_files)}
-    except Exception as e:
-        return {"error": str(e), "photos_dir": _PHOTOS_DIR}
+    from app.services.storage import USE_R2, LOCAL_DIR
+    files = storage.list_keys()
+    image_exts = set(_IMAGE_EXTS)
+    image_files = [f for f in files if os.path.splitext(f)[1].lower() in image_exts]
+    return {
+        "backend": "r2" if USE_R2 else "disk",
+        "location": f"r2://{os.getenv('R2_BUCKET_NAME','')}" if USE_R2 else LOCAL_DIR,
+        "count": len(image_files),
+        "files": sorted(image_files),
+    }
 
 
 @app.get("/api/photos/{filename}")
@@ -652,6 +664,8 @@ async def generate(request: GenerationRequest, req: Request):
                 f"Quota insuffisant — il vous reste {remaining} SKU ce mois "
                 f"(plan {usage['plan_label']} : {usage['skus_quota']}/mois). "
                 f"Vous demandez {len(request.products)} SKU.")
+        if not _rate_limit(f"{email}:generate", limit=20, window=3600):
+            raise HTTPException(429, "Trop de générations — maximum 20/heure. Réessayez dans quelques minutes.")
 
     n_mkts = len(request.marketplaces) if request.marketplaces else 1
     groups = group_by_parent(request.products)
@@ -769,7 +783,7 @@ class ImageRequest(BaseModel):
 
 
 async def _persist_images(sku: str, images: list) -> list:
-    """Download temp DALL-E URLs / decode base64 → save to _PHOTOS_DIR permanently.
+    """Download temp DALL-E URLs / decode base64 → save to storage permanently.
     Returns the same list with urls replaced by /api/photos/... paths."""
     import base64 as _b64
     for img in images:
@@ -778,8 +792,7 @@ async def _persist_images(sku: str, images: list) -> list:
             continue
         ext = "png"
         filename = f"gen_{sku}_{img.get('id','img')}.{ext}"
-        dest = os.path.join(_PHOTOS_DIR, filename)
-        if os.path.exists(dest):
+        if storage.exists(filename):
             img["url"] = f"/api/photos/{filename}"
             continue
         try:
@@ -865,6 +878,15 @@ async def generate_images(req: ImageRequest, request: Request):
     if not os.getenv("ANTHROPIC_API_KEY"):
         raise HTTPException(503, "ANTHROPIC_API_KEY manquante")
     email = getattr(request.state, "user_email", None)
+    if email:
+        usage = get_user_usage(email)
+        imgs_remaining = max(0, usage.get("images_quota", 200) - usage.get("images_used", 0))
+        if imgs_remaining <= 0:
+            raise HTTPException(429,
+                f"Quota d'images atteint ce mois (plan {usage['plan_label']}). "
+                "Contactez-nous pour augmenter votre quota.")
+        if not _rate_limit(f"{email}:images", limit=10, window=3600):
+            raise HTTPException(429, "Trop de générations d'images — maximum 10/heure.")
     job_id = str(uuid4())
     _jobs[job_id] = {"status": "pending", "progress": 0, "total": 7, "created_at": time.time()}
     _cleanup_jobs()
@@ -908,6 +930,8 @@ async def generate_image_single(req: SingleImageRequest, request: Request):
     if not os.getenv("OPENAI_API_KEY"):
         raise HTTPException(503, "OPENAI_API_KEY manquante — impossible de régénérer l'image")
     email = getattr(request.state, "user_email", None)
+    if email and not _rate_limit(f"{email}:images", limit=10, window=3600):
+        raise HTTPException(429, "Trop de générations d'images — maximum 10/heure.")
     job_id = str(uuid4())
     _jobs[job_id] = {"status": "pending", "progress": 0, "total": 1, "created_at": time.time()}
     _cleanup_jobs()
