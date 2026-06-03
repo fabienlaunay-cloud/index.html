@@ -160,7 +160,7 @@ def _bootstrap_admin():
     if not email or not password:
         return
     from app.db import get_db
-    from app.services.auth import create_user
+    from app.services.auth import create_user, hash_password
     conn = get_db()
     exists = conn.execute("SELECT 1 FROM users WHERE email = ?", (email,)).fetchone()
     if not exists:
@@ -170,9 +170,11 @@ def _bootstrap_admin():
         except Exception:
             pass
     else:
-        # L'user existe déjà : s'assurer que is_admin=1 est bien positionné
-        # (peut être perdu si la DB a été recréée partiellement)
-        conn.execute("UPDATE users SET is_admin=1, is_active=1 WHERE email=?", (email,))
+        # Sync password + flags depuis les env vars Railway à chaque démarrage
+        conn.execute(
+            "UPDATE users SET is_admin=1, is_active=1, password_hash=? WHERE email=?",
+            (hash_password(password), email),
+        )
         conn.commit()
         conn.close()
 
