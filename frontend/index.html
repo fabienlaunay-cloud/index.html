@@ -4039,14 +4039,23 @@ function showPublishReport(result, dryRun) {
   if (existing) existing.remove();
 
   const statusLabel = dryRun ? '🧪 Mode test (simulation)' : '🚀 Publication réelle';
+  const _aplusLabel = s => {
+    if (!s) return '';
+    if (s === 'submitted')     return '<span class="text-purple-600 font-medium">A+ soumis ✓</span>';
+    if (s === 'demo_submitted') return '<span class="text-purple-400">A+ démo</span>';
+    if (s === 'pending_asin')  return '<span class="text-amber-500">A+ en attente ASIN</span>';
+    if (s === 'failed' || s === 'error') return '<span class="text-red-500">A+ erreur</span>';
+    return '';
+  };
   const rows = (result.report || []).map(item => {
-    const icon = item.status === 'dry_run' ? '🧪' : item.status === 'demo_published' ? '✅' : '✅';
+    const icon = item.status === 'dry_run' ? '🧪' : '✅';
     const statusText = item.status === 'dry_run' ? 'Simulé' : item.status === 'demo_published' ? 'Publié (démo)' : 'Publié';
+    const aplusBadge = _aplusLabel(item.aplus_status);
     return `<tr class="border-b border-gray-100">
       <td class="py-2 px-3 text-xs font-mono text-gray-600">${item.sku || '—'}</td>
       <td class="py-2 px-3 text-xs text-gray-800 max-w-xs truncate">${item.title || '—'}</td>
       <td class="py-2 px-3 text-xs text-center">${item.seo_score != null ? `<span class="font-semibold text-purple-700">${item.seo_score}</span>` : '—'}</td>
-      <td class="py-2 px-3 text-xs text-center">${icon} ${statusText}</td>
+      <td class="py-2 px-3 text-xs text-center">${icon} ${statusText}${aplusBadge ? `<br><span class="text-xs">${aplusBadge}</span>` : ''}</td>
     </tr>`;
   }).join('');
 
