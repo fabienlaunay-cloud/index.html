@@ -1156,6 +1156,13 @@
           <!-- Dimension cards -->
           <div id="auditDimCards" class="grid grid-cols-1 sm:grid-cols-2 gap-4"></div>
 
+          <!-- Bridge: send to generator -->
+          <button id="auditSendToGenBtn" onclick="_auditSendToGen()"
+            class="hidden w-full gradient-bg text-white rounded-xl py-3 font-semibold text-sm hover:opacity-90 transition flex items-center justify-center gap-2">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+            Générer une version améliorée de cette fiche
+          </button>
+
         </div>
       </div>
     </div>
@@ -7424,6 +7431,7 @@ async function runAudit() {
 function _renderAuditResults(data, visionUsed) {
   document.getElementById('auditEmpty').classList.add('hidden');
   document.getElementById('auditResults').classList.remove('hidden');
+  document.getElementById('auditSendToGenBtn').classList.remove('hidden');
 
   // Global score
   const gs = data.global_score ?? 0;
@@ -7469,6 +7477,9 @@ function _renderAuditResults(data, visionUsed) {
   }).join('');
 }
 
+// Store improved data keyed by field — avoids JSON-in-onclick quoting bugs
+const _auditImproveStore = {};
+
 async function auditImprove(field) {
   const btn = document.getElementById('auditImproveBtn-' + field);
   if (btn) { btn.disabled = true; btn.textContent = '…'; }
@@ -7486,6 +7497,9 @@ async function auditImprove(field) {
     });
     if (!r.ok) throw new Error((await r.json()).detail || 'Erreur');
     const data = await r.json();
+
+    _auditImproveStore[field] = data.improved; // store for safe retrieval
+
     const improved = Array.isArray(data.improved)
       ? data.improved.map((b, i) => `<p class="text-xs text-gray-700 mb-1"><span class="font-semibold text-purple-600">${i+1}.</span> ${_esc(b)}</p>`).join('')
       : `<p class="text-xs text-gray-700">${_esc(String(data.improved))}</p>`;
@@ -7498,8 +7512,8 @@ async function auditImprove(field) {
         ${improved}
         ${data.explanation ? `<p class="text-xs text-gray-400 italic mt-2">${_esc(data.explanation)}</p>` : ''}
         <div class="flex gap-2 mt-3">
-          <button onclick="_auditApply('${field}', ${JSON.stringify(data.improved)})" class="flex-1 text-xs font-semibold bg-purple-600 text-white rounded-lg py-1.5 hover:opacity-90 transition">Appliquer dans le formulaire</button>
-          <button onclick="_auditCopy(${JSON.stringify(Array.isArray(data.improved) ? data.improved.join('\n\n') : data.improved)})" class="px-3 text-xs font-semibold bg-white border border-gray-200 text-gray-600 rounded-lg py-1.5 hover:bg-gray-50 transition">Copier</button>
+          <button onclick="_auditApply('${field}')" class="flex-1 text-xs font-semibold bg-purple-600 text-white rounded-lg py-1.5 hover:opacity-90 transition">Appliquer dans le formulaire</button>
+          <button onclick="_auditCopy('${field}')" class="px-3 text-xs font-semibold bg-white border border-gray-200 text-gray-600 rounded-lg py-1.5 hover:bg-gray-50 transition">Copier</button>
         </div>
       </div>`;
   } catch(e) {
@@ -7509,10 +7523,15 @@ async function auditImprove(field) {
   }
 }
 
-function _auditApply(field, value) {
+function _auditApply(field) {
+  const value = _auditImproveStore[field];
+  if (value === undefined) return;
   if (field === 'title') {
     document.getElementById('auditTitle').value = value;
-    document.getElementById('auditTitleLen').textContent = value.length + '/200';
+    const tl = String(value).length;
+    const lenEl = document.getElementById('auditTitleLen');
+    lenEl.textContent = tl + '/200';
+    lenEl.className = 'text-xs ' + (tl > 200 ? 'text-red-500' : tl > 150 ? 'text-green-600' : 'text-gray-400');
   } else if (field === 'bullets' && Array.isArray(value)) {
     value.forEach((b, i) => { if (i < 5) document.getElementById('auditB'+i).value = b; });
   } else if (field === 'keywords') {
@@ -7522,8 +7541,47 @@ function _auditApply(field, value) {
   showToast('✅', 'Appliqué — relancez l\'analyse pour voir le nouveau score');
 }
 
-function _auditCopy(text) {
+function _auditCopy(field) {
+  const value = _auditImproveStore[field];
+  if (value === undefined) return;
+  const text = Array.isArray(value) ? value.join('\n\n') : String(value);
   navigator.clipboard.writeText(text).then(() => showToast('', 'Copié !'));
+}
+
+function _auditSendToGen() {
+  const title   = document.getElementById('auditTitle').value.trim();
+  const bullets = [0,1,2,3,4].map(i => document.getElementById('auditB'+i).value.trim()).filter(Boolean);
+  const kw      = document.getElementById('auditKw').value.trim();
+  const mkt     = document.getElementById('auditMkt').value;
+
+  const product = {
+    sku: 'AUDIT-' + Date.now(),
+    name: title || 'Produit issu de l\'audit',
+    brand: '',
+    category: '',
+    description: bullets.join(' '),
+    price: null,
+    ean: null,
+    features: bullets,
+    focus_keywords: kw ? kw.split(/[\s,]+/).filter(Boolean) : [],
+    images: [],
+    extra: {},
+  };
+
+  parsedProducts = [product];
+  showProductsList(parsedProducts);
+  document.getElementById('generateBtn').disabled = false;
+
+  // Set marketplace selector in generator
+  const mktSel = document.getElementById('marketplaceSelect');
+  if (mktSel) {
+    const mktVal = mkt.replace('amazon_', '').toUpperCase();
+    [...mktSel.options].forEach(o => { if (o.value.includes(mktVal) || o.value === mkt) o.selected = true; });
+  }
+
+  switchAppMode('generate');
+  setStep(2);
+  showToast('✅', 'Fiche chargée dans le générateur — complétez marque/catégorie puis lancez');
 }
 </script>
 
