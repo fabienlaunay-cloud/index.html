@@ -446,6 +446,10 @@ async def list_photos():
 
 @app.get("/api/photos/{filename}")
 async def serve_photo(filename: str):
+    # When R2 public access is enabled, redirect directly to CDN (no server bandwidth)
+    cdn = storage.public_url(filename)
+    if cdn:
+        return Response(status_code=302, headers={"Location": cdn})
     photo = _load_photo(filename)
     if not photo:
         raise HTTPException(404, "Photo non trouvée")
