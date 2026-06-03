@@ -27,6 +27,9 @@
   .animate-marquee:hover { animation-play-state: paused; }
   .banner-scroll { display: inline-block; animation: marquee 32s linear infinite; }
   .banner-scroll:hover { animation-play-state: paused; }
+  .audit-ring { transition: stroke-dashoffset 0.7s cubic-bezier(.4,0,.2,1); transform-origin: center; }
+  .audit-dim-card { transition: box-shadow 0.15s; }
+  .audit-dim-card:hover { box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
   /* Landing — thème blanc */
   #login-screen { background: #ffffff; }
   .login-card { background: #1e1b4b; border: 1px solid rgba(255,255,255,0.1); }
@@ -958,7 +961,19 @@
 </div>
 
 <main class="max-w-7xl mx-auto px-6 py-8">
-  <div class="flex items-center gap-2 mb-8 text-sm">
+
+  <!-- ── Mode toggle ──────────────────────────────────────────────────────── -->
+  <div class="flex gap-2 mb-6">
+    <button id="modeGenerateBtn" onclick="switchAppMode('generate')" class="flex items-center gap-2 px-5 py-2 rounded-full text-sm font-semibold bg-purple-600 text-white shadow-sm transition">
+      ✨ Générer des fiches
+    </button>
+    <button id="modeAuditBtn" onclick="switchAppMode('audit')" class="flex items-center gap-2 px-5 py-2 rounded-full text-sm font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200 transition">
+      🔍 Auditer une fiche
+    </button>
+  </div>
+
+  <!-- ── Step indicator (generate mode only) ─────────────────────────────── -->
+  <div id="stepBar" class="flex items-center gap-2 mb-8 text-sm">
     <div id="step1" class="flex items-center gap-2 px-4 py-2 rounded-full bg-purple-600 text-white font-medium"><span>1</span> Import données</div>
     <div class="h-px flex-1 bg-gray-300"></div>
     <div id="step2" class="flex items-center gap-2 px-4 py-2 rounded-full bg-gray-200 text-gray-500 font-medium"><span>2</span> Génération IA</div>
@@ -968,6 +983,139 @@
     <div id="step4" class="flex items-center gap-2 px-4 py-2 rounded-full bg-gray-200 text-gray-500 font-medium"><span>4</span> Publication</div>
   </div>
 
+  <!-- ── Audit section ────────────────────────────────────────────────────── -->
+  <div id="auditSection" class="hidden">
+    <div class="grid grid-cols-12 gap-6">
+
+      <!-- Left: form -->
+      <div class="col-span-12 lg:col-span-5 space-y-4">
+        <div class="bg-white rounded-2xl shadow-sm p-6 border border-gray-100 space-y-4">
+          <h2 class="font-semibold text-gray-800 flex items-center gap-2 text-base">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            Analyser une fiche existante
+          </h2>
+
+          <!-- Marketplace -->
+          <div>
+            <label class="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1 block">Marketplace</label>
+            <select id="auditMkt" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-purple-400">
+              <option value="amazon_fr">🇫🇷 Amazon France</option>
+              <option value="amazon_de">🇩🇪 Amazon Allemagne</option>
+              <option value="amazon_uk">🇬🇧 Amazon UK</option>
+              <option value="amazon_it">🇮🇹 Amazon Italie</option>
+              <option value="amazon_es">🇪🇸 Amazon Espagne</option>
+            </select>
+          </div>
+
+          <!-- Title -->
+          <div>
+            <div class="flex items-center justify-between mb-1">
+              <label class="text-xs font-medium text-gray-500 uppercase tracking-wide">Titre</label>
+              <span id="auditTitleLen" class="text-xs text-gray-400">0/200</span>
+            </div>
+            <textarea id="auditTitle" rows="2" oninput="document.getElementById('auditTitleLen').textContent=this.value.length+'/200';document.getElementById('auditTitleLen').className='text-xs '+(this.value.length>200?'text-red-500':this.value.length>150?'text-green-600':'text-gray-400')"
+              class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm resize-none focus:outline-none focus:border-purple-400"
+              placeholder="Copiez-collez le titre Amazon complet…"></textarea>
+          </div>
+
+          <!-- Bullets -->
+          <div>
+            <label class="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1 block">Bullet points (1 à 5)</label>
+            <div class="space-y-2" id="auditBulletsContainer">
+              <textarea id="auditB0" rows="2" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm resize-none focus:outline-none focus:border-purple-400" placeholder="Bullet 1…"></textarea>
+              <textarea id="auditB1" rows="2" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm resize-none focus:outline-none focus:border-purple-400" placeholder="Bullet 2…"></textarea>
+              <textarea id="auditB2" rows="2" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm resize-none focus:outline-none focus:border-purple-400" placeholder="Bullet 3…"></textarea>
+              <textarea id="auditB3" rows="2" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm resize-none focus:outline-none focus:border-purple-400" placeholder="Bullet 4…"></textarea>
+              <textarea id="auditB4" rows="2" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm resize-none focus:outline-none focus:border-purple-400" placeholder="Bullet 5…"></textarea>
+            </div>
+          </div>
+
+          <!-- Backend keywords -->
+          <div>
+            <div class="flex items-center justify-between mb-1">
+              <label class="text-xs font-medium text-gray-500 uppercase tracking-wide">Mots-clés backend</label>
+              <span id="auditKwBytes" class="text-xs text-gray-400">0/249 bytes</span>
+            </div>
+            <textarea id="auditKw" rows="3" oninput="_auditKwCount(this)"
+              class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm resize-none focus:outline-none focus:border-purple-400"
+              placeholder="mot1 mot2 mot3… (max 249 bytes, séparés par espaces)"></textarea>
+          </div>
+
+          <!-- Image count -->
+          <div>
+            <div class="flex items-center justify-between mb-1">
+              <label class="text-xs font-medium text-gray-500 uppercase tracking-wide">Nombre d'images</label>
+              <span id="auditImgVal" class="text-sm font-semibold text-purple-700">0</span>
+            </div>
+            <input type="range" id="auditImgCount" min="0" max="9" value="0"
+              oninput="document.getElementById('auditImgVal').textContent=this.value"
+              class="w-full accent-purple-600">
+            <div class="flex justify-between text-xs text-gray-300 mt-0.5"><span>0</span><span>3</span><span>5</span><span>7</span><span>9</span></div>
+          </div>
+
+          <!-- Submit -->
+          <button id="auditRunBtn" onclick="runAudit()"
+            class="w-full gradient-bg text-white rounded-xl py-3 font-semibold text-sm hover:opacity-90 transition flex items-center justify-center gap-2">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            Analyser la fiche
+          </button>
+        </div>
+      </div>
+
+      <!-- Right: results -->
+      <div class="col-span-12 lg:col-span-7">
+
+        <!-- Empty state -->
+        <div id="auditEmpty" class="bg-white rounded-2xl shadow-sm border border-gray-100 flex flex-col items-center justify-center text-center py-24">
+          <div class="text-5xl mb-4">🔍</div>
+          <p class="text-gray-700 font-semibold text-lg mb-1">Diagnostic de fiche Amazon</p>
+          <p class="text-gray-400 text-sm max-w-xs">Renseignez les champs de votre fiche existante<br>et cliquez sur "Analyser la fiche"</p>
+          <div class="mt-6 grid grid-cols-2 gap-3 text-xs text-gray-400 max-w-xs">
+            <div class="bg-gray-50 rounded-xl p-3"><div class="text-lg mb-1">📝</div>Titre &amp; bullets</div>
+            <div class="bg-gray-50 rounded-xl p-3"><div class="text-lg mb-1">🔑</div>Keywords backend</div>
+            <div class="bg-gray-50 rounded-xl p-3"><div class="text-lg mb-1">🖼️</div>Nombre d'images</div>
+            <div class="bg-gray-50 rounded-xl p-3"><div class="text-lg mb-1">⚡</div>Score 0–100 / champ</div>
+          </div>
+        </div>
+
+        <!-- Results -->
+        <div id="auditResults" class="hidden space-y-4">
+
+          <!-- Global score card -->
+          <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+            <div class="flex items-center gap-5">
+              <div class="relative flex-shrink-0" style="width:88px;height:88px">
+                <svg width="88" height="88" viewBox="0 0 88 88">
+                  <circle cx="44" cy="44" r="36" fill="none" stroke="#e5e7eb" stroke-width="9"/>
+                  <circle id="auditGlobalRing" cx="44" cy="44" r="36" fill="none" stroke="#7c3aed" stroke-width="9"
+                    stroke-linecap="round" stroke-dasharray="226.2" stroke-dashoffset="226.2"
+                    transform="rotate(-90 44 44)" class="audit-ring"/>
+                </svg>
+                <div class="absolute inset-0 flex flex-col items-center justify-center">
+                  <span id="auditGlobalScore" class="text-2xl font-bold text-gray-800">—</span>
+                  <span class="text-xs text-gray-400">/100</span>
+                </div>
+              </div>
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2 mb-1">
+                  <h3 class="font-bold text-gray-800 text-lg">Score global</h3>
+                  <span id="auditGlobalLabel" class="text-xs font-semibold px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">—</span>
+                </div>
+                <p id="auditSummary" class="text-sm text-gray-500 leading-relaxed"></p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Dimension cards -->
+          <div id="auditDimCards" class="grid grid-cols-1 sm:grid-cols-2 gap-4"></div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Generator section ────────────────────────────────────────────────── -->
+  <div id="generatorSection">
   <div class="grid grid-cols-12 gap-6">
     <div class="col-span-12 lg:col-span-4 space-y-4">
       <div class="bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
@@ -1211,6 +1359,7 @@
       </div>
     </div>
   </div>
+  </div><!-- /generatorSection -->
 </main>
 </div><!-- /app -->
 
@@ -6368,6 +6517,180 @@ async function sendHelpMessage() {
 function _initHelpBubble() {
   const bubble = document.getElementById('helpBubble');
   if (bubble) bubble.classList.remove('hidden');
+}
+</script>
+
+<script>
+// ── Audit tool ─────────────────────────────────────────────────────────────────
+
+function switchAppMode(mode) {
+  const isAudit = mode === 'audit';
+  document.getElementById('auditSection').classList.toggle('hidden', !isAudit);
+  document.getElementById('generatorSection').classList.toggle('hidden', isAudit);
+  document.getElementById('stepBar').classList.toggle('hidden', isAudit);
+  document.getElementById('modeAuditBtn').className = isAudit
+    ? 'flex items-center gap-2 px-5 py-2 rounded-full text-sm font-semibold bg-purple-600 text-white shadow-sm transition'
+    : 'flex items-center gap-2 px-5 py-2 rounded-full text-sm font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200 transition';
+  document.getElementById('modeGenerateBtn').className = isAudit
+    ? 'flex items-center gap-2 px-5 py-2 rounded-full text-sm font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200 transition'
+    : 'flex items-center gap-2 px-5 py-2 rounded-full text-sm font-semibold bg-purple-600 text-white shadow-sm transition';
+}
+
+function _auditKwCount(el) {
+  const bytes = new TextEncoder().encode(el.value).length;
+  const span = document.getElementById('auditKwBytes');
+  span.textContent = bytes + '/249 bytes';
+  span.className = 'text-xs ' + (bytes > 249 ? 'text-red-500' : bytes > 200 ? 'text-amber-500' : 'text-gray-400');
+}
+
+function _auditScoreColor(s) {
+  if (s >= 75) return { ring: '#16a34a', bg: 'bg-green-50', text: 'text-green-700', border: 'border-green-200', label: 'Bon', labelCls: 'bg-green-100 text-green-700' };
+  if (s >= 50) return { ring: '#d97706', bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200', label: 'À améliorer', labelCls: 'bg-amber-100 text-amber-700' };
+  return { ring: '#dc2626', bg: 'bg-red-50', text: 'text-red-700', border: 'border-red-200', label: 'Critique', labelCls: 'bg-red-100 text-red-700' };
+}
+
+function _auditRingOffset(score) {
+  const circ = 2 * Math.PI * 36; // r=36 → 226.2
+  return circ - (score / 100) * circ;
+}
+
+async function runAudit() {
+  const title = document.getElementById('auditTitle').value.trim();
+  const bullets = [0,1,2,3,4].map(i => document.getElementById('auditB'+i).value.trim());
+  const kw = document.getElementById('auditKw').value.trim();
+  const images = parseInt(document.getElementById('auditImgCount').value, 10);
+  const mkt = document.getElementById('auditMkt').value;
+
+  if (!title && bullets.every(b => !b)) {
+    showToast('⚠️', 'Renseignez au moins le titre ou les bullets', true);
+    return;
+  }
+
+  const btn = document.getElementById('auditRunBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<div class="spinner" style="width:18px;height:18px;border-width:2px"></div> Analyse en cours…';
+
+  try {
+    const r = await authFetch('/api/audit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title, bullets, backend_keywords: kw, image_count: images, marketplace: mkt }),
+    });
+    if (!r.ok) throw new Error((await r.json()).detail || 'Erreur');
+    const data = await r.json();
+    _renderAuditResults(data);
+  } catch(e) {
+    showToast('❌', e.message || 'Erreur d\'analyse', true);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg> Analyser la fiche';
+  }
+}
+
+function _renderAuditResults(data) {
+  document.getElementById('auditEmpty').classList.add('hidden');
+  document.getElementById('auditResults').classList.remove('hidden');
+
+  // Global score
+  const gs = data.global_score ?? 0;
+  const gc = _auditScoreColor(gs);
+  document.getElementById('auditGlobalScore').textContent = gs;
+  document.getElementById('auditGlobalLabel').textContent = gc.label;
+  document.getElementById('auditGlobalLabel').className = 'text-xs font-semibold px-2 py-0.5 rounded-full ' + gc.labelCls;
+  document.getElementById('auditSummary').textContent = data.summary || '';
+  const ring = document.getElementById('auditGlobalRing');
+  ring.setAttribute('stroke', gc.ring);
+  setTimeout(() => ring.setAttribute('stroke-dashoffset', String(_auditRingOffset(gs))), 50);
+
+  // Dimension cards
+  const dims = [
+    { key: 'title',    label: 'Titre',              icon: '📝' },
+    { key: 'bullets',  label: 'Bullet points',      icon: '•••' },
+    { key: 'keywords', label: 'Keywords backend',   icon: '🔑' },
+    { key: 'images',   label: 'Images',             icon: '🖼️' },
+  ];
+  const container = document.getElementById('auditDimCards');
+  container.innerHTML = dims.map(d => {
+    const dim = data[d.key] || {};
+    const score = dim.score ?? 0;
+    const c = _auditScoreColor(score);
+    const issues = (dim.issues || []).map(i => `<li class="flex gap-1.5 items-start"><span class="${c.text} mt-0.5 flex-shrink-0">✕</span><span>${_esc(i)}</span></li>`).join('');
+    const suggs = (dim.suggestions || []).map(s => `<li class="flex gap-1.5 items-start"><span class="text-purple-500 mt-0.5 flex-shrink-0">→</span><span>${_esc(s)}</span></li>`).join('');
+    const canImprove = score < 75 && d.key !== 'images';
+    return `<div class="bg-white rounded-2xl border ${c.border} p-4 audit-dim-card" id="auditCard-${d.key}">
+      <div class="flex items-center justify-between mb-3">
+        <div class="flex items-center gap-2">
+          <span class="text-base leading-none">${d.icon}</span>
+          <span class="font-semibold text-gray-800 text-sm">${d.label}</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="text-lg font-bold ${c.text}">${score}</span>
+          <span class="text-xs font-medium px-2 py-0.5 rounded-full ${c.labelCls}">${c.label}</span>
+        </div>
+      </div>
+      ${issues ? `<ul class="text-xs text-gray-600 space-y-1 mb-2">${issues}</ul>` : ''}
+      ${suggs ? `<ul class="text-xs text-gray-500 space-y-1 mb-3">${suggs}</ul>` : ''}
+      ${canImprove ? `<button onclick="auditImprove('${d.key}')" id="auditImproveBtn-${d.key}" class="w-full text-xs font-semibold text-purple-700 bg-purple-50 hover:bg-purple-100 border border-purple-200 rounded-lg py-1.5 transition">⚡ Améliorer avec l'IA</button>` : ''}
+      <div id="auditImproveResult-${d.key}" class="hidden mt-3"></div>
+    </div>`;
+  }).join('');
+}
+
+async function auditImprove(field) {
+  const btn = document.getElementById('auditImproveBtn-' + field);
+  if (btn) { btn.disabled = true; btn.textContent = '…'; }
+
+  const title   = document.getElementById('auditTitle').value.trim();
+  const bullets = [0,1,2,3,4].map(i => document.getElementById('auditB'+i).value.trim());
+  const kw      = document.getElementById('auditKw').value.trim();
+  const mkt     = document.getElementById('auditMkt').value;
+
+  try {
+    const r = await authFetch('/api/audit/improve', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ field, title, bullets, backend_keywords: kw, marketplace: mkt }),
+    });
+    if (!r.ok) throw new Error((await r.json()).detail || 'Erreur');
+    const data = await r.json();
+    const improved = Array.isArray(data.improved)
+      ? data.improved.map((b, i) => `<p class="text-xs text-gray-700 mb-1"><span class="font-semibold text-purple-600">${i+1}.</span> ${_esc(b)}</p>`).join('')
+      : `<p class="text-xs text-gray-700">${_esc(String(data.improved))}</p>`;
+
+    const resEl = document.getElementById('auditImproveResult-' + field);
+    resEl.classList.remove('hidden');
+    resEl.innerHTML = `
+      <div class="bg-purple-50 border border-purple-200 rounded-xl p-3">
+        <p class="text-xs font-semibold text-purple-700 mb-2">✨ Version améliorée</p>
+        ${improved}
+        ${data.explanation ? `<p class="text-xs text-gray-400 italic mt-2">${_esc(data.explanation)}</p>` : ''}
+        <div class="flex gap-2 mt-3">
+          <button onclick="_auditApply('${field}', ${JSON.stringify(data.improved)})" class="flex-1 text-xs font-semibold bg-purple-600 text-white rounded-lg py-1.5 hover:opacity-90 transition">Appliquer dans le formulaire</button>
+          <button onclick="_auditCopy(${JSON.stringify(Array.isArray(data.improved) ? data.improved.join('\n\n') : data.improved)})" class="px-3 text-xs font-semibold bg-white border border-gray-200 text-gray-600 rounded-lg py-1.5 hover:bg-gray-50 transition">Copier</button>
+        </div>
+      </div>`;
+  } catch(e) {
+    showToast('❌', e.message || 'Erreur', true);
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerHTML = '⚡ Améliorer avec l\'IA'; }
+  }
+}
+
+function _auditApply(field, value) {
+  if (field === 'title') {
+    document.getElementById('auditTitle').value = value;
+    document.getElementById('auditTitleLen').textContent = value.length + '/200';
+  } else if (field === 'bullets' && Array.isArray(value)) {
+    value.forEach((b, i) => { if (i < 5) document.getElementById('auditB'+i).value = b; });
+  } else if (field === 'keywords') {
+    document.getElementById('auditKw').value = value;
+    _auditKwCount(document.getElementById('auditKw'));
+  }
+  showToast('✅', 'Appliqué — relancez l\'analyse pour voir le nouveau score');
+}
+
+function _auditCopy(text) {
+  navigator.clipboard.writeText(text).then(() => showToast('', 'Copié !'));
 }
 </script>
 

@@ -1194,3 +1194,137 @@ async def help_chat(req_body: HelpChatRequest, request: Request):
         messages=messages,
     )
     return {"reply": resp.content[0].text}
+
+
+# ── Audit ──────────────────────────────────────────────────────────────────────
+
+_AUDIT_SYSTEM = """Tu es un expert Amazon SEO. Analyse la fiche produit fournie et retourne UNIQUEMENT un objet JSON valide, sans texte avant ni après, sans bloc markdown.
+
+Structure JSON exacte :
+{
+  "global_score": <entier 0-100>,
+  "title":    {"score": <0-100>, "issues": [<max 3 strings courtes>], "suggestions": [<max 3 strings courtes>]},
+  "bullets":  {"score": <0-100>, "issues": [<max 3 strings courtes>], "suggestions": [<max 3 strings courtes>]},
+  "keywords": {"score": <0-100>, "issues": [<max 3 strings courtes>], "suggestions": [<max 3 strings courtes>]},
+  "images":   {"score": <0-100>, "issues": [<max 2 strings courtes>], "suggestions": [<max 2 strings courtes>]},
+  "summary": "<2 phrases max>"
+}
+
+Critères de scoring :
+
+TITRE (poids 30%) :
+- Longueur 150-180 chars → 40 pts ; 100-149 ou 181-200 → 25 pts ; <100 ou >200 → 10 pts
+- Mots-clés principaux dans les 80 premiers chars → 30 pts
+- Pas de majuscules abusives, caractères interdits (!?$¡¿), répétitions → 30 pts
+
+BULLETS (poids 30%) :
+- 5 bullets → 25 pts ; 4 → 15 pts ; <4 → 5 pts
+- Longueur moyenne >150 chars → 25 pts ; 80-150 → 15 pts ; <80 → 5 pts
+- Bénéfice client (pas juste technique) dans ≥3 bullets → 25 pts
+- Mots-clés secondaires variés → 25 pts
+
+KEYWORDS BACKEND (poids 20%) :
+- Vide → 0
+- ≤249 bytes → 40 pts
+- Pas de répétition avec le titre → 30 pts
+- Diversité et pertinence → 30 pts
+
+IMAGES (poids 20%) :
+- 7+ → 100 pts ; 5-6 → 70 pts ; 3-4 → 40 pts ; 1-2 → 20 pts ; 0 → 0 pts
+
+GLOBAL : titre×0.3 + bullets×0.3 + keywords×0.2 + images×0.2 (si keywords vide : titre×0.375 + bullets×0.375 + images×0.25).
+Chaque string de issues/suggestions : <80 chars, actionnable, en français."""
+
+_IMPROVE_SYSTEM = """Tu es un expert Amazon SEO. Améliore le champ demandé d'une fiche Amazon.
+Retourne UNIQUEMENT un objet JSON valide, sans texte avant ni après :
+- Pour "title"    → {"improved": "<titre optimisé>", "explanation": "<1 phrase>"}
+- Pour "bullets"  → {"improved": ["bullet 1","bullet 2","bullet 3","bullet 4","bullet 5"], "explanation": "<1 phrase>"}
+- Pour "keywords" → {"improved": "<keywords ≤249 bytes, séparés par espaces>", "explanation": "<1 phrase>"}
+
+Règles :
+- Titre : 150-180 chars, mots-clés en tête, Marque + Produit + 2-3 caractéristiques clés
+- Bullets : 5 bullets, 150-200 chars chacun, commencer par un bénéfice client, pas de point final
+- Keywords : ≤249 bytes UTF-8, pas de doublons avec le titre, pluriels/synonymes/longue traîne"""
+
+
+class AuditRequest(BaseModel):
+    title: str = ""
+    bullets: list[str] = []
+    backend_keywords: str = ""
+    image_count: int = 0
+    marketplace: str = "amazon_fr"
+
+
+class AuditImproveRequest(BaseModel):
+    field: str
+    title: str = ""
+    bullets: list[str] = []
+    backend_keywords: str = ""
+    marketplace: str = "amazon_fr"
+
+
+@app.post("/api/audit")
+async def audit_listing(req: AuditRequest, request: Request):
+    if not os.getenv("ANTHROPIC_API_KEY"):
+        raise HTTPException(503, "Service indisponible")
+    from app.services.ai_agent import get_client
+    import json as _json
+    lang = "français" if "fr" in req.marketplace else ("anglais" if "uk" in req.marketplace else "langue locale du marché")
+    bullets_text = "\n".join(f"• {b}" for b in req.bullets if b.strip()) or "(aucun bullet)"
+    kw_bytes = len(req.backend_keywords.encode("utf-8"))
+    prompt = f"""Marketplace : {req.marketplace} (langue fiches : {lang})
+
+TITRE ({len(req.title)} chars) :
+{req.title or "(vide)"}
+
+BULLETS ({len([b for b in req.bullets if b.strip()])}/5) :
+{bullets_text}
+
+KEYWORDS BACKEND ({kw_bytes}/249 bytes) :
+{req.backend_keywords or "(vide)"}
+
+IMAGES : {req.image_count} image(s)"""
+
+    resp = await get_client().messages.create(
+        model="claude-haiku-4-5-20251001",
+        max_tokens=900,
+        system=_AUDIT_SYSTEM,
+        messages=[{"role": "user", "content": prompt}],
+    )
+    raw = resp.content[0].text.strip()
+    try:
+        return _json.loads(raw)
+    except Exception:
+        raise HTTPException(500, "Erreur d'analyse — réessayez")
+
+
+@app.post("/api/audit/improve")
+async def audit_improve(req: AuditImproveRequest, request: Request):
+    if not os.getenv("ANTHROPIC_API_KEY"):
+        raise HTTPException(503, "Service indisponible")
+    if req.field not in ("title", "bullets", "keywords"):
+        raise HTTPException(400, "Champ invalide")
+    from app.services.ai_agent import get_client
+    import json as _json
+    lang = "français" if "fr" in req.marketplace else ("anglais" if "uk" in req.marketplace else "langue locale du marché")
+    bullets_text = "\n".join(f"• {b}" for b in req.bullets if b.strip()) or "(aucun)"
+    prompt = f"""Marketplace : {req.marketplace} (langue : {lang})
+Champ à améliorer : {req.field}
+
+Fiche actuelle :
+TITRE : {req.title or "(vide)"}
+BULLETS :
+{bullets_text}
+KEYWORDS : {req.backend_keywords or "(vide)"}"""
+
+    resp = await get_client().messages.create(
+        model="claude-haiku-4-5-20251001",
+        max_tokens=700,
+        system=_IMPROVE_SYSTEM,
+        messages=[{"role": "user", "content": prompt}],
+    )
+    raw = resp.content[0].text.strip()
+    try:
+        return _json.loads(raw)
+    except Exception:
+        raise HTTPException(500, "Erreur de génération")
