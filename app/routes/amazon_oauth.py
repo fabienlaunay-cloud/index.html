@@ -40,7 +40,8 @@ async def amazon_connect(request: Request):
     state = secrets.token_urlsafe(32)
     conn = get_db()
     conn.execute(
-        "INSERT OR REPLACE INTO amazon_oauth_states (state, user_email) VALUES (?, ?)",
+        "INSERT INTO amazon_oauth_states (state, user_email) VALUES (?, ?) "
+        "ON CONFLICT(state) DO UPDATE SET user_email=EXCLUDED.user_email",
         (state, email),
     )
     conn.commit()

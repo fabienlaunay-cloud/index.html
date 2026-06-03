@@ -656,6 +656,142 @@
     </div>
   </section>
 
+  <!-- FAQ -->
+  <section class="land-section-alt py-20">
+    <div class="max-w-3xl mx-auto px-6">
+      <div class="text-center mb-14">
+        <span class="inline-block bg-purple-100 text-purple-700 text-xs font-bold px-4 py-1.5 rounded-full mb-4 tracking-wide uppercase">FAQ</span>
+        <h2 class="text-3xl md:text-4xl font-black text-gray-900 mb-3">Questions fréquentes</h2>
+        <p class="text-gray-500 text-lg">Tout ce que vous voulez savoir avant de démarrer.</p>
+      </div>
+
+      <div class="space-y-3" id="faqList">
+
+        <!-- Q1 -->
+        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+          <button onclick="toggleFaq(this)" class="w-full flex items-center justify-between px-6 py-5 text-left gap-4 hover:bg-gray-50 transition">
+            <span class="font-semibold text-gray-900 text-sm md:text-base">SynqIO génère-t-il vraiment des fiches complètes en quelques minutes ?</span>
+            <svg class="faq-chevron flex-shrink-0 w-5 h-5 text-purple-500 transition-transform duration-200" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="faq-body hidden px-6 pb-5">
+            <p class="text-gray-600 text-sm leading-relaxed">Oui. En important votre catalogue (fichier Excel, CSV ou PDF fournisseur), SynqIO génère automatiquement pour chaque SKU : titre optimisé, bullets, description, keywords backend et 7 visuels produit. La génération d'une fiche complète prend 30 à 90 secondes selon la complexité du produit. Pour 100 SKU, comptez environ 15 à 20 minutes.</p>
+          </div>
+        </div>
+
+        <!-- Q2 -->
+        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+          <button onclick="toggleFaq(this)" class="w-full flex items-center justify-between px-6 py-5 text-left gap-4 hover:bg-gray-50 transition">
+            <span class="font-semibold text-gray-900 text-sm md:text-base">Qui est propriétaire des images générées par l'IA ?</span>
+            <svg class="faq-chevron flex-shrink-0 w-5 h-5 text-purple-500 transition-transform duration-200" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="faq-body hidden px-6 pb-5">
+            <p class="text-gray-600 text-sm leading-relaxed mb-3"><strong class="text-gray-800">Les images générées vous appartiennent à 100 %.</strong> Dès que vous téléchargez ou publiez un visuel produit créé via SynqIO, vous en détenez tous les droits commerciaux et pouvez les utiliser librement sur Amazon, votre site e-commerce, vos réseaux sociaux ou tout autre canal de vente.</p>
+            <p class="text-gray-600 text-sm leading-relaxed mb-3">SynqIO ne conserve aucun droit de licence, de réutilisation ou de revente sur les images que vous générez. Vos visuels sont produits à partir de vos données produits (photos de référence, descriptions, caractéristiques) et sont uniques à votre catalogue.</p>
+            <p class="text-gray-600 text-sm leading-relaxed">Si vous fournissez une photo de référence pour guider la génération, cette photo reste votre propriété et n'est utilisée que pour produire vos visuels — elle n'est ni stockée à des fins commerciales ni partagée avec des tiers.</p>
+          </div>
+        </div>
+
+        <!-- Q3 -->
+        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+          <button onclick="toggleFaq(this)" class="w-full flex items-center justify-between px-6 py-5 text-left gap-4 hover:bg-gray-50 transition">
+            <span class="font-semibold text-gray-900 text-sm md:text-base">Les visuels générés sont-ils conformes aux règles Amazon ?</span>
+            <svg class="faq-chevron flex-shrink-0 w-5 h-5 text-purple-500 transition-transform duration-200" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="faq-body hidden px-6 pb-5">
+            <p class="text-gray-600 text-sm leading-relaxed">Nos prompts IA intègrent nativement les règles Amazon : fond blanc RGB(255,255,255) obligatoire pour la photo principale (slot MAIN), pas de texte ni logo sur l'image hero, produit occupant 85 %+ du cadre. Les 6 images secondaires (lifestyle, infographie, zoom matière, dimensions, packaging) sont conçues pour respecter les recommandations des slots PT01 à PT06. L'équipe SynqIO ajuste régulièrement les paramètres en fonction des évolutions des guidelines Amazon.</p>
+          </div>
+        </div>
+
+        <!-- Q4 -->
+        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+          <button onclick="toggleFaq(this)" class="w-full flex items-center justify-between px-6 py-5 text-left gap-4 hover:bg-gray-50 transition">
+            <span class="font-semibold text-gray-900 text-sm md:text-base">Mes données produits sont-elles confidentielles ?</span>
+            <svg class="faq-chevron flex-shrink-0 w-5 h-5 text-purple-500 transition-transform duration-200" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="faq-body hidden px-6 pb-5">
+            <p class="text-gray-600 text-sm leading-relaxed">Vos données produits (catalogues, EAN, prix, descriptions, photos) sont strictement confidentielles et liées à votre compte. Elles ne sont jamais partagées avec d'autres utilisateurs ni utilisées pour entraîner des modèles. Les transferts sont chiffrés (HTTPS/TLS). Vous pouvez supprimer vos données à tout moment depuis votre espace client.</p>
+          </div>
+        </div>
+
+        <!-- Q5 -->
+        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+          <button onclick="toggleFaq(this)" class="w-full flex items-center justify-between px-6 py-5 text-left gap-4 hover:bg-gray-50 transition">
+            <span class="font-semibold text-gray-900 text-sm md:text-base">Quels marketplaces sont supportés ?</span>
+            <svg class="faq-chevron flex-shrink-0 w-5 h-5 text-purple-500 transition-transform duration-200" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="faq-body hidden px-6 pb-5">
+            <p class="text-gray-600 text-sm leading-relaxed">SynqIO génère des fiches optimisées pour Amazon France, Allemagne, Italie, Espagne et Royaume-Uni. Pour chaque marketplace, les textes sont rédigés dans la langue locale (FR, DE, IT, ES, EN) avec une optimisation SEO adaptée aux habitudes de recherche du pays. La génération multi-pays en un seul import est disponible dès le plan Starter.</p>
+          </div>
+        </div>
+
+        <!-- Q6 -->
+        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+          <button onclick="toggleFaq(this)" class="w-full flex items-center justify-between px-6 py-5 text-left gap-4 hover:bg-gray-50 transition">
+            <span class="font-semibold text-gray-900 text-sm md:text-base">Comment se passe l'intégration avec mon compte Amazon ?</span>
+            <svg class="faq-chevron flex-shrink-0 w-5 h-5 text-purple-500 transition-transform duration-200" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="faq-body hidden px-6 pb-5">
+            <p class="text-gray-600 text-sm leading-relaxed">La connexion se fait via l'API officielle Amazon Selling Partner (SP-API). Lors du setup, vous autorisez SynqIO depuis votre Seller Central en quelques clics — aucune manipulation technique requise de votre côté. Une fois connecté, vous pouvez pousser vos fiches directement sur Amazon depuis l'interface SynqIO, sans copier-coller.</p>
+          </div>
+        </div>
+
+        <!-- Q7 -->
+        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+          <button onclick="toggleFaq(this)" class="w-full flex items-center justify-between px-6 py-5 text-left gap-4 hover:bg-gray-50 transition">
+            <span class="font-semibold text-gray-900 text-sm md:text-base">À quoi correspond le "Setup unique" dans la tarification ?</span>
+            <svg class="faq-chevron flex-shrink-0 w-5 h-5 text-purple-500 transition-transform duration-200" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="faq-body hidden px-6 pb-5">
+            <p class="text-gray-600 text-sm leading-relaxed">Le setup couvre : la configuration de votre compte SynqIO, la connexion SP-API à votre compte Amazon Seller, le calibrage de l'agent IA sur votre catalogue (persona de marque, ton, catégories prioritaires) et une session de prise en main de 30 à 60 min. C'est un investissement unique — vous ne le payez qu'à l'ouverture du compte.</p>
+          </div>
+        </div>
+
+        <!-- Q8 -->
+        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+          <button onclick="toggleFaq(this)" class="w-full flex items-center justify-between px-6 py-5 text-left gap-4 hover:bg-gray-50 transition">
+            <span class="font-semibold text-gray-900 text-sm md:text-base">Puis-je modifier les fiches générées avant publication ?</span>
+            <svg class="faq-chevron flex-shrink-0 w-5 h-5 text-purple-500 transition-transform duration-200" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="faq-body hidden px-6 pb-5">
+            <p class="text-gray-600 text-sm leading-relaxed">Absolument. Toutes les fiches sont éditables directement dans l'interface : titre, bullets, description, prix, EAN, et chaque image peut être régénérée individuellement. Vous gardez le contrôle total. La publication sur Amazon ne se fait qu'une fois que vous avez validé le contenu — SynqIO ne publie jamais automatiquement sans votre accord.</p>
+          </div>
+        </div>
+
+        <!-- Q9 -->
+        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+          <button onclick="toggleFaq(this)" class="w-full flex items-center justify-between px-6 py-5 text-left gap-4 hover:bg-gray-50 transition">
+            <span class="font-semibold text-gray-900 text-sm md:text-base">Quels résultats peut-on espérer sur le taux de conversion ?</span>
+            <svg class="faq-chevron flex-shrink-0 w-5 h-5 text-purple-500 transition-transform duration-200" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="faq-body hidden px-6 pb-5">
+            <p class="text-gray-600 text-sm leading-relaxed">Les résultats varient selon le secteur et l'état initial des fiches, mais nos clients observent en moyenne +18 à +35 % de taux de conversion sur les SKU traités dans les 60 premiers jours. L'impact est surtout visible sur les fiches qui partaient d'un contenu minimal (description absente, photo fournisseur basique) remplacées par des visuels studio et des textes SEO optimisés.</p>
+          </div>
+        </div>
+
+        <!-- Q10 -->
+        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+          <button onclick="toggleFaq(this)" class="w-full flex items-center justify-between px-6 py-5 text-left gap-4 hover:bg-gray-50 transition">
+            <span class="font-semibold text-gray-900 text-sm md:text-base">L'abonnement est-il sans engagement ?</span>
+            <svg class="faq-chevron flex-shrink-0 w-5 h-5 text-purple-500 transition-transform duration-200" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="faq-body hidden px-6 pb-5">
+            <p class="text-gray-600 text-sm leading-relaxed">Le plan Starter est sans engagement — résiliable à tout moment. Les plans Business (3 mois) et Scale (6 mois) offrent un tarif préférentiel en contrepartie d'un engagement minimal. Dans tous les cas, vous conservez l'accès à vos fiches et visuels générés même après résiliation.</p>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="mt-12 text-center">
+        <p class="text-gray-500 text-sm mb-4">Vous avez une autre question ?</p>
+        <a href="https://calendly.com/fl-synqio/30min" target="_blank"
+           class="inline-flex items-center gap-2 bg-white border-2 border-purple-200 hover:border-purple-400 text-purple-700 font-semibold px-6 py-3 rounded-2xl transition text-sm shadow-sm">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          Parler à un expert — 30 min offertes
+        </a>
+      </div>
+    </div>
+  </section>
+
   <!-- FOOTER -->
   <footer class="bg-gray-50 border-t border-gray-200 py-10">
     <div class="max-w-6xl mx-auto px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
@@ -666,6 +802,7 @@
         <span class="text-gray-400 text-sm">© 2025 SynqIO — MarketplaceAI</span>
       </div>
       <div class="flex flex-wrap gap-5 justify-center">
+        <a href="#faqList" onclick="document.getElementById('faqList').scrollIntoView({behavior:'smooth'});return false;" class="text-gray-400 hover:text-gray-700 text-sm transition">FAQ</a>
         <a href="/mentions-legales.html" class="text-gray-400 hover:text-gray-700 text-sm transition">Mentions légales</a>
         <a href="/politique-confidentialite.html" class="text-gray-400 hover:text-gray-700 text-sm transition">Confidentialité</a>
         <a href="/cgu.html" class="text-gray-400 hover:text-gray-700 text-sm transition">CGU</a>
@@ -699,9 +836,12 @@
       <button onclick="openHistoryPanel()" class="w-8 h-8 flex items-center justify-center bg-white/10 hover:bg-white/20 rounded-lg transition text-white flex-shrink-0" title="Historique des générations">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
       </button>
-      <button onclick="showChatView()" class="flex items-center gap-2 bg-white/15 hover:bg-white/25 border border-white/20 rounded-lg px-3 py-1.5 text-sm text-white transition flex-shrink-0" title="Assistant IA">
+      <button onclick="showChatView()" class="flex items-center gap-2 bg-white/15 hover:bg-white/25 border border-white/20 rounded-lg px-3 py-1.5 text-sm text-white transition flex-shrink-0" title="Parler à votre agent IA">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-        <span class="hidden sm:inline font-medium">Assistant IA</span>
+        <span class="hidden sm:inline">
+          <span class="font-medium">Parler à votre agent IA</span>
+          <span class="block text-purple-200 text-xs leading-tight" style="font-size:10px">Plus vous me parlez, plus je m'améliore</span>
+        </span>
       </button>
       <div class="relative" id="mktSelectorWrapper">
         <button type="button" onclick="toggleMktDropdown(event)" class="flex items-center gap-2 bg-white/10 border border-white/20 text-white rounded-lg px-3 py-1.5 text-sm min-w-[170px] justify-between hover:bg-white/20 transition">
@@ -2813,6 +2953,17 @@ function renderListingsContainer() {
     if (activeResultsFilter === '__none') return !s;
     return s === activeResultsFilter;
   });
+
+  // Save active tab and visibility state per card before DOM is cleared
+  const savedTabs = {};
+  const wasVisible = {};
+  visible.forEach((l) => {
+    const idx = generatedListings.indexOf(l);
+    const el = document.getElementById(`card-${idx}`);
+    wasVisible[idx] = !!el;
+    savedTabs[idx] = _getActiveTab(idx);
+  });
+
   if (resultsViewMode === 'grid') {
     c.className = 'grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3';
     c.innerHTML = '';
@@ -2827,10 +2978,16 @@ function renderListingsContainer() {
       const idx = generatedListings.indexOf(l);
       c.appendChild(createListingCard(l, idx));
     });
-    // Restore images for visible cards
+    // Restore images and the correct tab for each card
     visible.forEach((l) => {
       const idx = generatedListings.indexOf(l);
       _restoreImagesInCard(idx);
+      // If card was already visible: restore exact same tab
+      // If card is newly appearing: default to images tab when images are cached
+      const tab = wasVisible[idx]
+        ? savedTabs[idx]
+        : (imagesCache[l.sku] ? 'images' : 'bullets');
+      switchTab(idx, tab);
     });
   }
   _renderGlobalProgress();
@@ -3212,7 +3369,7 @@ function createListingCard(listing, idx) {
 function createGridCard(listing, idx) {
   const col = listing.seo_score >= 70 ? 'green' : listing.seo_score >= 40 ? 'yellow' : 'red';
   const cached = imagesCache[listing.sku];
-  const mainImg = cached?.images?.find(i => i.slot === 'main' || i.id === 'main')?.url || '';
+  const mainImg = cached?.images?.find(i => i.id === 'hero' || i.slot === 'MAIN')?.url || '';
   const isParent = listing.is_parent && (listing.children || []).length > 0;
   const card = document.createElement('div');
   card.id = `card-${idx}`;
@@ -3309,7 +3466,7 @@ function buildCardHTML(listing, idx, editMode) {
       </div>
       <div id="content-${idx}-aplus" class="hidden">${listing.a_plus_content ? `<div class="space-y-3"><div class="bg-purple-50 rounded-lg p-3"><p class="font-semibold text-purple-800 text-sm">✨ ${listing.a_plus_content.headline}</p></div>${(listing.a_plus_content.modules||[]).map(m=>`<div class="border border-gray-100 rounded-lg p-3"><p class="text-xs text-gray-500 uppercase tracking-wide mb-1">${(m.type||'').replace('_',' ')}</p><p class="font-semibold text-gray-800 text-sm mb-1">${m.title||''}</p><p class="text-gray-600 text-sm">${m.body||''}</p></div>`).join('')}</div>` : '<p class="text-gray-400 text-sm">Non disponible</p>'}</div>
       <div id="content-${idx}-images" class="hidden">
-        <div id="images-container-${idx}" class="text-center py-6 text-gray-400 text-sm">Cliquez sur "Générer les images" pour lancer la création</div>
+        <div id="images-container-${idx}" class="text-center py-6 text-gray-400 text-sm">${imagesCache[listing.sku] ? '' : 'Cliquez sur "Générer les images" pour lancer la création'}</div>
       </div>
       ${isParent ? _buildVariationChildrenTable(listing, idx, editMode) : ''}
     </div>
@@ -3332,7 +3489,7 @@ function buildCardHTML(listing, idx, editMode) {
       ${editMode
         ? `<button onclick="saveEdit(${idx})" class="ml-auto gradient-bg text-white rounded-lg px-3 py-1.5 text-xs font-semibold transition flex items-center gap-1"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Enregistrer</button>
            <button onclick="cancelEdit(${idx})" class="text-xs text-gray-400 hover:text-gray-600">Annuler</button>`
-        : `<button onclick="switchTab(${idx},'images');generateImages(${idx})" class="ml-auto bg-pink-50 hover:bg-pink-100 text-pink-700 rounded-lg px-3 py-1.5 text-xs font-medium transition flex items-center gap-1">Générer les images</button>
+        : `<button onclick="switchTab(${idx},'images');generateImages(${idx})" class="ml-auto bg-pink-50 hover:bg-pink-100 text-pink-700 rounded-lg px-3 py-1.5 text-xs font-medium transition flex items-center gap-1">${imagesCache[listing.sku] ? `Voir les images (${(imagesCache[listing.sku].images||[]).length})` : 'Générer les images'}</button>
            <button onclick="event.stopPropagation();openListingDetail(${idx})" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg px-3 py-1.5 text-xs font-medium transition flex items-center gap-1" title="Ouvrir dans une fenêtre"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg> Ouvrir</button>
            <button onclick="enterEditMode(${idx})" class="bg-purple-50 hover:bg-purple-100 text-purple-700 rounded-lg px-3 py-1.5 text-xs font-medium transition flex items-center gap-1"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4Z"/></svg> Éditer</button>
            <button onclick="copyListing(${idx})" class="text-xs text-gray-500 hover:text-purple-600">Copier JSON</button>`}
@@ -3491,6 +3648,7 @@ function switchTab(idx, tab) {
   document.getElementById(`content-${idx}-${tab}`)?.classList.remove('hidden');
   const a = document.getElementById(`tab-${idx}-${tab}`);
   if(a){a.classList.add('tab-active');a.classList.remove('text-gray-400');}
+  if (tab === 'images') _restoreImagesInCard(idx);
 }
 
 // ── Image generation ──────────────────────────────────────────────────────────
@@ -3508,7 +3666,7 @@ async function generateImages(idx) {
     const referenceImageUrl = rawProduct?.images?.[0] || '';
     const r = await authFetch('/api/generate-images', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ sku: listing.sku, product_name: listing.title, brand: listing.brand || '', category: listing.category || '', features: listing.bullet_points || [], color: rawProduct?.color || '', material: rawProduct?.material || '', reference_image_url: referenceImageUrl, batch_id: currentBatchId }),
+      body: JSON.stringify({ sku: listing.sku, product_name: listing.title, brand: listing.brand || '', category: listing.category || '', features: listing.bullet_points || [], color: rawProduct?.color || '', material: rawProduct?.material || '', reference_image_url: referenceImageUrl, batch_id: currentBatchId, marketplace: listing.marketplace || '' }),
     });
     if (!r.ok) {
       let msg = 'Erreur serveur';
@@ -3557,7 +3715,7 @@ function renderImages(container, data) {
   const notice = hasImages ? '' : `<div class="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-4 text-sm text-blue-800"><p class="font-semibold mb-1">💡 Prompts générés — Images non générées</p><p>Ajoutez <code class="bg-blue-100 px-1 rounded">OPENAI_API_KEY</code> dans Railway pour générer les images. En attendant, copiez les prompts dans Midjourney ou Canva IA.</p></div>`;
   const cards = data.images.map(img => {
     const imgHtml = img.url
-      ? `<div class="relative group cursor-zoom-in" onclick="openLightbox(${JSON.stringify(img.url)})"><img src="${img.url}" alt="${_esc(img.label)}" class="w-full h-48 object-cover"><div class="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition flex items-center justify-center"><span class="hidden group-hover:flex bg-white/90 rounded-lg px-3 py-1.5 text-xs font-medium gap-1 items-center shadow">🔍 Agrandir</span></div></div>`
+      ? `<div class="relative group cursor-zoom-in" onclick="openLightbox(this.querySelector('img').src)"><img src="${_esc(img.url)}" alt="${_esc(img.label)}" class="w-full h-48 object-cover"><div class="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition flex items-center justify-center"><span class="hidden group-hover:flex bg-white/90 rounded-lg px-3 py-1.5 text-xs font-medium gap-1 items-center shadow">🔍 Agrandir</span></div></div>`
       : `<div class="h-36 bg-gradient-to-br from-gray-100 to-gray-50 flex items-center justify-center"><span class="text-4xl">${img.id==='hero'?'📸':img.id.includes('lifestyle')?'🌅':img.id==='infographic'?'📊':img.id==='detail'?'🔍':img.id==='dimensions'?'📐':img.id==='packaging'?'📦':'🖼️'}</span></div>`;
     return `
     <div class="border border-gray-100 rounded-xl overflow-hidden" data-sku="${_esc(sku)}" data-imgid="${img.id}">
@@ -3881,14 +4039,23 @@ function showPublishReport(result, dryRun) {
   if (existing) existing.remove();
 
   const statusLabel = dryRun ? '🧪 Mode test (simulation)' : '🚀 Publication réelle';
+  const _aplusLabel = s => {
+    if (!s) return '';
+    if (s === 'submitted')     return '<span class="text-purple-600 font-medium">A+ soumis ✓</span>';
+    if (s === 'demo_submitted') return '<span class="text-purple-400">A+ démo</span>';
+    if (s === 'pending_asin')  return '<span class="text-amber-500">A+ en attente ASIN</span>';
+    if (s === 'failed' || s === 'error') return '<span class="text-red-500">A+ erreur</span>';
+    return '';
+  };
   const rows = (result.report || []).map(item => {
-    const icon = item.status === 'dry_run' ? '🧪' : item.status === 'demo_published' ? '✅' : '✅';
+    const icon = item.status === 'dry_run' ? '🧪' : '✅';
     const statusText = item.status === 'dry_run' ? 'Simulé' : item.status === 'demo_published' ? 'Publié (démo)' : 'Publié';
+    const aplusBadge = _aplusLabel(item.aplus_status);
     return `<tr class="border-b border-gray-100">
       <td class="py-2 px-3 text-xs font-mono text-gray-600">${item.sku || '—'}</td>
       <td class="py-2 px-3 text-xs text-gray-800 max-w-xs truncate">${item.title || '—'}</td>
       <td class="py-2 px-3 text-xs text-center">${item.seo_score != null ? `<span class="font-semibold text-purple-700">${item.seo_score}</span>` : '—'}</td>
-      <td class="py-2 px-3 text-xs text-center">${icon} ${statusText}</td>
+      <td class="py-2 px-3 text-xs text-center">${icon} ${statusText}${aplusBadge ? `<br><span class="text-xs">${aplusBadge}</span>` : ''}</td>
     </tr>`;
   }).join('');
 
@@ -4012,6 +4179,14 @@ function togglePwdSetup() {
 }
 
 // ── ROI Calculator ────────────────────────────────────────────────────────────
+function toggleFaq(btn) {
+  const body = btn.nextElementSibling;
+  const chevron = btn.querySelector('.faq-chevron');
+  const isOpen = !body.classList.contains('hidden');
+  body.classList.toggle('hidden', isOpen);
+  chevron.style.transform = isOpen ? '' : 'rotate(180deg)';
+}
+
 function calcROI() {
   const skus = parseInt(document.getElementById('roi-skus').value);
   const timePerSku = parseFloat(document.getElementById('roi-time').value);
@@ -4575,7 +4750,7 @@ async function generateImagesFromDetail() {
     const referenceImageUrl = rawProduct?.images?.[0] || '';
     const r = await authFetch('/api/generate-images', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ sku: listing.sku, product_name: listing.title, brand: listing.brand || '', category: listing.category || '', features: listing.bullet_points || [], color: rawProduct?.color || '', material: rawProduct?.material || '', reference_image_url: referenceImageUrl, batch_id: currentBatchId }),
+      body: JSON.stringify({ sku: listing.sku, product_name: listing.title, brand: listing.brand || '', category: listing.category || '', features: listing.bullet_points || [], color: rawProduct?.color || '', material: rawProduct?.material || '', reference_image_url: referenceImageUrl, batch_id: currentBatchId, marketplace: listing.marketplace || '' }),
     });
     if (!r.ok) { const b = await r.json().catch(()=>{}); throw new Error(b?.detail || 'Erreur serveur'); }
     const { job_id } = await r.json();
@@ -5003,7 +5178,7 @@ renderSegmentPresets();
 </div>
 
 <!-- Lightbox pour afficher les images générées en grand -->
-<div id="lightbox" onclick="closeLightbox()" class="fixed inset-0 z-50 hidden bg-black/85 flex items-center justify-center p-4" style="cursor:zoom-out">
+<div id="lightbox" onclick="closeLightbox()" class="fixed inset-0 z-[500] hidden bg-black/85 flex items-center justify-center p-4" style="cursor:zoom-out">
   <img id="lightbox-img" src="" alt="" class="max-w-full max-h-full rounded-xl shadow-2xl object-contain" style="max-height:90vh;max-width:90vw;cursor:default" onclick="event.stopPropagation()">
   <button onclick="closeLightbox()" class="absolute top-4 right-4 text-white/80 hover:text-white bg-black/40 hover:bg-black/60 rounded-full w-10 h-10 flex items-center justify-center text-xl transition">✕</button>
 </div>

@@ -1,5 +1,5 @@
 """
-Génération d'images produit Amazon via Claude (prompts) + gpt-image-1 (images).
+Génération d'images produit Amazon via Claude (prompts) + gpt-image-2 (images).
 Si OPENAI_API_KEY absent → retourne uniquement les prompts.
 """
 
@@ -143,7 +143,7 @@ AMAZON_IMAGE_TYPES = [
 async def _describe_product_from_image(image_bytes: bytes) -> str:
     """Claude Vision → description visuelle précise du produit (couleurs exactes, matériaux, hardware).
 
-    On analyse la photo AVANT de générer les prompts gpt-image-1 pour que
+    On analyse la photo AVANT de générer les prompts gpt-image-2 pour que
     les prompts contiennent les vraies couleurs du produit, pas des couleurs inventées.
     """
     import base64
@@ -190,10 +190,20 @@ async def _describe_product_from_image(image_bytes: bytes) -> str:
     return response.content[0].text.strip()
 
 
-async def _generate_prompts_with_claude(product_info: dict) -> dict[str, str]:
+_MARKETPLACE_LANG = {
+    "amazon_fr": ("French", "Français"),
+    "amazon_de": ("German", "Deutsch"),
+    "amazon_it": ("Italian", "Italiano"),
+    "amazon_es": ("Spanish", "Español"),
+    "amazon_co_uk": ("English", "English"),
+    "amazon_com": ("English", "English"),
+}
+
+
+async def _generate_prompts_with_claude(product_info: dict, marketplace: str = None) -> dict[str, str]:
     """Claude génère des prompts DALL-E optimisés pour chaque type d'image Amazon."""
     system = """Tu es un directeur artistique expert en photographie produit haut de gamme et en publicité e-commerce.
-Tu rédiges des prompts photo ultra-cinématiques en anglais pour gpt-image-1, au niveau d'une campagne publicitaire Apple ou Nike.
+Tu rédiges des prompts photo ultra-cinématiques en anglais pour gpt-image-2, au niveau d'une campagne publicitaire Apple ou Nike.
 
 ═══ IMAGE PRINCIPALE (hero / MAIN) — règles strictes ═══
 - Fond blanc ABSOLU RGB(255,255,255) — aucune exception
@@ -222,7 +232,19 @@ Chaque prompt doit produire une image digne d'une campagne publicitaire professi
 Sois précis sur : le sujet, la personne (si applicable), la scène, l'éclairage, l'angle, l'ambiance, les couleurs.
 Longueur : 120-200 mots par prompt.
 
+═══ SPECS TECHNIQUES OBLIGATOIRES — images studio (hero, infographic, detail, dimensions, packaging) ═══
+Inclus systématiquement ces éléments dans les prompts de type studio :
+- "studio product photography"
+- "dual softbox lighting, diffused light, no harsh shadows"
+- "85mm lens, f/8, ISO 100, shallow depth of field"
+- "white seamless background"
+- Décrire la matière exacte du produit et ses reflets : mat, brillant, satiné, métallique, tissé, translucide, etc.
+  Ex : "matte soft-touch rubber casing with subtle light reflection", "brushed aluminium with specular highlight", "glossy lacquered surface with crisp reflections"
+- Post-traitement décrit dans le prompt : "post-processed, upscaled to 4K, professional shadow correction, clean edges, color graded"
+
 Réponds UNIQUEMENT en JSON valide."""
+
+    lang_en, lang_native = _MARKETPLACE_LANG.get(marketplace or "", ("French", "Français"))
 
     image_specs = "\n".join(
         f'- {t["id"]} ({t["label"]}): {t["amazon_rule"]} | Style: {t["style_hint"]}'
@@ -240,10 +262,19 @@ Réponds UNIQUEMENT en JSON valide."""
 → Le produit généré doit être instantanément reconnaissable comme le même produit que sur la photo cliente.
 """
 
+    lang_instruction = (
+        f"\n🌍 LANGUE DES TEXTES VISIBLES DANS L'IMAGE :\n"
+        f"- Le marché cible est '{marketplace}' → les annotations textuelles visibles dans l'image infographic "
+        f"DOIVENT être rédigées en {lang_en} ({lang_native}).\n"
+        f"- Pour tous les autres types d'images (hero, lifestyle, detail, dimensions, packaging) : aucun texte visible dans l'image.\n"
+        f"- Les prompts eux-mêmes restent en anglais pour gpt-image-2, mais précisez explicitement "
+        f"\"all annotation text in {lang_en}\" dans le prompt infographic.\n"
+    ) if marketplace else ""
+
     user = f"""Produit à photographier :
 {json.dumps(product_info, ensure_ascii=False, indent=2)}
-{visual_block}
-Génère 7 prompts gpt-image-1 de qualité publicitaire haut de gamme pour ce produit.
+{visual_block}{lang_instruction}
+Génère 7 prompts gpt-image-2 de qualité publicitaire haut de gamme pour ce produit.
 
 RÈGLES PAR TYPE :
 {image_specs}
@@ -254,7 +285,7 @@ INSTRUCTIONS CRÉATIVES :
   Précise : description physique de la personne (âge, style), lieu exact, activité, lumière, émotion ressentie.
   Exemple pour un casque : "A young woman in her late 20s, wearing the headphones while walking through a sunlit Paris street,
   light jacket, confident and joyful expression, golden hour light, shallow depth of field, bokeh background, editorial photography"
-- Pour infographic : produit sur fond clair avec annotations techniques épurées
+- Pour infographic : produit sur fond clair avec annotations techniques épurées, texte des annotations en {lang_en}
 - Pour detail : gros plan macro sur la matière/finition la plus impressionnante du produit
 - Pour dimensions : produit tenu naturellement en main pour montrer l'échelle
 - Pour packaging : tout le contenu de la boîte disposé élégamment (flat lay Apple-style)
@@ -334,7 +365,7 @@ async def _download_reference_image(url: str) -> Optional[bytes]:
 
 
 async def _generate_image_dalle3(prompt: str, image_id: str, reference_image: Optional[bytes] = None, _retry: int = 4) -> Optional[str]:
-    """Génère une image via gpt-image-1.
+    """Génère une image via gpt-image-2.
     Si reference_image fourni → endpoint /images/edits (produit réel comme base).
     Sinon → endpoint /images/generations (text-to-image).
     Retry automatique sur rate-limit 429.
@@ -345,7 +376,7 @@ async def _generate_image_dalle3(prompt: str, image_id: str, reference_image: Op
 
     prompt = prompt[:3500] if len(prompt) > 3500 else prompt
 
-    # Quand une photo de référence est fournie, forcer gpt-image-1 à conserver
+    # Quand une photo de référence est fournie, forcer gpt-image-2 à conserver
     # le produit réel plutôt que d'en inventer un nouveau.
     if reference_image:
         preservation = (
@@ -363,7 +394,7 @@ async def _generate_image_dalle3(prompt: str, image_id: str, reference_image: Op
                 "https://api.openai.com/v1/images/edits",
                 headers={"Authorization": f"Bearer {api_key}"},
                 data={
-                    "model": "gpt-image-1",
+                    "model": "gpt-image-2",
                     "prompt": prompt,
                     "n": "1",
                     "size": "1024x1024",
@@ -375,7 +406,7 @@ async def _generate_image_dalle3(prompt: str, image_id: str, reference_image: Op
             resp = await client.post(
                 "https://api.openai.com/v1/images/generations",
                 headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
-                json={"model": "gpt-image-1", "prompt": prompt, "n": 1, "size": "1024x1024", "quality": "medium"},
+                json={"model": "gpt-image-2", "prompt": prompt, "n": 1, "size": "1024x1024", "quality": "medium"},
             )
 
         if resp.status_code == 429 and _retry > 0:
@@ -399,6 +430,45 @@ async def _generate_image_dalle3(prompt: str, image_id: str, reference_image: Op
         return f"data:image/png;base64,{item['b64_json']}"
 
 
+def _clean_hero_background(data_url: str, threshold: int = 20) -> str:
+    """
+    Force the hero image background to exact RGB(255,255,255).
+
+    Flood-fills from all 4 corners using a sentinel colour — safe for centred
+    product images because only pixels connected to the image edges are touched.
+    threshold: max per-channel deviation from 255 to be considered background.
+    Falls back to the original URL on any error.
+    """
+    if not data_url.startswith("data:image/"):
+        return data_url
+    try:
+        import io
+        import base64 as _b64
+        from PIL import Image, ImageDraw
+        import numpy as np
+
+        b64_part = data_url.split(",", 1)[1]
+        img = Image.open(io.BytesIO(_b64.b64decode(b64_part))).convert("RGB")
+        w, h = img.size
+
+        # Sentinel: an extreme colour that won't appear in product photos
+        SENTINEL = (0, 254, 1)
+        for cx, cy in [(0, 0), (w - 1, 0), (0, h - 1), (w - 1, h - 1)]:
+            r, g, b = img.getpixel((cx, cy))
+            if r >= 255 - threshold and g >= 255 - threshold and b >= 255 - threshold:
+                ImageDraw.floodfill(img, (cx, cy), SENTINEL, thresh=threshold)
+
+        arr = np.array(img)
+        bg = (arr[:, :, 0] == SENTINEL[0]) & (arr[:, :, 1] == SENTINEL[1]) & (arr[:, :, 2] == SENTINEL[2])
+        arr[bg] = [255, 255, 255]
+
+        buf = io.BytesIO()
+        Image.fromarray(arr, "RGB").save(buf, format="PNG")
+        return "data:image/png;base64," + _b64.b64encode(buf.getvalue()).decode()
+    except Exception:
+        return data_url
+
+
 async def generate_product_images(
     sku: str,
     product_name: str,
@@ -410,9 +480,10 @@ async def generate_product_images(
     selected_types: list = None,
     reference_image_url: str = None,
     reference_image_bytes: bytes = None,
+    marketplace: str = None,
 ) -> list[dict]:
     """
-    Pipeline complet : Claude → prompts → gpt-image-1 → images.
+    Pipeline complet : Claude → prompts → gpt-image-2 → images.
     Si reference_image_bytes fourni (photo déjà en mémoire via ZIP upload) ou
     reference_image_url (URL externe publique), utilise /images/edits pour que
     les visuels correspondent au vrai produit.
@@ -440,13 +511,13 @@ async def generate_product_images(
             pass
 
     # 3. Génération des prompts via Claude (avec description visuelle exacte si disponible)
-    prompts, tok_in, tok_out = await _generate_prompts_with_claude(product_info)
+    prompts, tok_in, tok_out = await _generate_prompts_with_claude(product_info, marketplace=marketplace)
 
     # 3. Types sélectionnés (par défaut : tous)
     types_to_generate = selected_types or [t["id"] for t in AMAZON_IMAGE_TYPES]
 
-    # 4. Génération des images (séquentielle pour respecter la limite OpenAI 5 img/min)
-    semaphore = asyncio.Semaphore(1)
+    # 4. Génération des images (5 en parallèle — gpt-image-2 supporte 10 img/min)
+    semaphore = asyncio.Semaphore(5)
     results = []
 
     async def _gen_one(image_type: dict):
@@ -459,6 +530,9 @@ async def generate_product_images(
             error = None
             try:
                 url = await _generate_image_dalle3(prompt, img_id, reference_image)
+                # Amazon requires strict RGB(255,255,255) on main image background
+                if img_id == "hero" and url:
+                    url = _clean_hero_background(url)
             except Exception as e:
                 error = str(e)
             results.append({

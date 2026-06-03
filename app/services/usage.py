@@ -2,9 +2,9 @@ from datetime import datetime
 from app.db import get_db
 
 PLAN_QUOTAS = {
-    "starter":  {"skus": 200,  "label": "Starter"},
-    "business": {"skus": 600,  "label": "Business"},
-    "scale":    {"skus": 1500, "label": "Scale"},
+    "starter":  {"skus": 200,  "images": 50,  "label": "Starter"},
+    "business": {"skus": 600,  "images": 200, "label": "Business"},
+    "scale":    {"skus": 1500, "images": 500, "label": "Scale"},
 }
 
 # Tarifs Claude Sonnet + gpt-image-1
@@ -62,6 +62,7 @@ def get_user_usage(user_email: str, month: str = None) -> dict:
         "skus_used": usage.get("sku_generated", 0),
         "skus_quota": quota["skus"],
         "images_used": images_used,
+        "images_quota": quota["images"],
         "tokens_in": tokens_in,
         "tokens_out": tokens_out,
         "tokens_total": tokens_in + tokens_out,

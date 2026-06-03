@@ -7,8 +7,68 @@ import os
 _PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DB_PATH = os.getenv("DB_PATH", os.path.join(_PROJECT_ROOT, "data", "users.db"))
 
+# ── PostgreSQL support ────────────────────────────────────────────────────────
+
+_pg_pool = None
+
+
+def _get_pg_pool():
+    """Lazy-initialize and return the module-level ThreadedConnectionPool."""
+    global _pg_pool
+    if _pg_pool is None:
+        import psycopg2.pool  # imported here to avoid ImportError when psycopg2 not installed
+        database_url = os.getenv("DATABASE_URL")
+        _pg_pool = psycopg2.pool.ThreadedConnectionPool(1, 10, dsn=database_url)
+    return _pg_pool
+
+
+class _PGConn:
+    """
+    Wraps a psycopg2 connection so it behaves like sqlite3.Connection.
+    All existing callers (get_db / conn.execute / conn.commit / conn.close)
+    work without modification.
+    """
+
+    def __init__(self, raw_conn, pool):
+        self._conn = raw_conn
+        self._pool = pool
+
+    # Make `conn.row_factory = sqlite3.Row` a harmless no-op
+    @property
+    def row_factory(self):
+        return None
+
+    @row_factory.setter
+    def row_factory(self, value):
+        pass  # psycopg2 RealDictCursor already returns dict-like rows
+
+    def execute(self, sql: str, params=()):
+        import psycopg2.extras
+        # Convert SQLite positional placeholders to psycopg2 style
+        pg_sql = sql.replace("?", "%s")
+        cur = self._conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cur.execute(pg_sql, params)
+        return cur
+
+    def commit(self):
+        self._conn.commit()
+
+    def close(self):
+        try:
+            self._conn.rollback()
+        except Exception:
+            pass
+        self._pool.putconn(self._conn)
+
+
+# ── Public API ────────────────────────────────────────────────────────────────
 
 def get_db():
+    database_url = os.getenv("DATABASE_URL")
+    if database_url:
+        pool = _get_pg_pool()
+        return _PGConn(pool.getconn(), pool)
+    # SQLite fallback for local development
     os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
@@ -16,6 +76,125 @@ def get_db():
 
 
 def init_db():
+    database_url = os.getenv("DATABASE_URL")
+    if database_url:
+        _init_db_pg()
+    else:
+        _init_db_sqlite()
+
+
+def _init_db_pg():
+    conn = get_db()
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS users (
+            id SERIAL PRIMARY KEY,
+            email TEXT UNIQUE NOT NULL,
+            password_hash TEXT NOT NULL,
+            name TEXT DEFAULT '',
+            is_active INTEGER DEFAULT 1,
+            is_admin INTEGER DEFAULT 0,
+            plan TEXT DEFAULT 'starter',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS is_admin INTEGER DEFAULT 0")
+    conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS plan TEXT DEFAULT 'starter'")
+
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS amazon_credentials (
+            id SERIAL PRIMARY KEY,
+            user_email TEXT UNIQUE NOT NULL,
+            seller_id TEXT DEFAULT '',
+            refresh_token TEXT NOT NULL,
+            marketplace_id TEXT DEFAULT 'A13V1IB3VIYZZH',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS amazon_oauth_states (
+            state TEXT PRIMARY KEY,
+            user_email TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS usage (
+            id SERIAL PRIMARY KEY,
+            user_email TEXT NOT NULL,
+            action TEXT NOT NULL,
+            count INTEGER DEFAULT 1,
+            month TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS invitation_tokens (
+            token TEXT PRIMARY KEY,
+            email TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            expires_at TIMESTAMP NOT NULL,
+            used INTEGER DEFAULT 0
+        )
+    """)
+
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS app_config (
+            key TEXT PRIMARY KEY,
+            value TEXT NOT NULL DEFAULT '',
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS chat_sessions (
+            id TEXT PRIMARY KEY,
+            user_email TEXT NOT NULL,
+            title TEXT DEFAULT 'Nouvelle conversation',
+            messages_json TEXT NOT NULL DEFAULT '[]',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS generation_history (
+            id TEXT PRIMARY KEY,
+            user_email TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            marketplace TEXT NOT NULL,
+            product_count INTEGER NOT NULL DEFAULT 0,
+            avg_seo_score INTEGER DEFAULT 0,
+            label TEXT DEFAULT '',
+            listings_json TEXT NOT NULL DEFAULT '[]',
+            images_json TEXT NOT NULL DEFAULT '{}'
+        )
+    """)
+    conn.execute("ALTER TABLE generation_history ADD COLUMN IF NOT EXISTS images_json TEXT NOT NULL DEFAULT '{}'")
+
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS jobs (
+            id TEXT PRIMARY KEY,
+            user_email TEXT,
+            type TEXT NOT NULL,
+            status TEXT NOT NULL DEFAULT 'pending',
+            progress INTEGER DEFAULT 0,
+            total INTEGER DEFAULT 0,
+            result_json TEXT,
+            error TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+
+    conn.commit()
+    conn.close()
+
+
+def _init_db_sqlite():
     conn = get_db()
     conn.execute("""
         CREATE TABLE IF NOT EXISTS users (
@@ -87,6 +266,32 @@ def init_db():
         )
     """)
 
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS chat_sessions (
+            id TEXT PRIMARY KEY,
+            user_email TEXT NOT NULL,
+            title TEXT DEFAULT 'Nouvelle conversation',
+            messages_json TEXT NOT NULL DEFAULT '[]',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS jobs (
+            id TEXT PRIMARY KEY,
+            user_email TEXT,
+            type TEXT NOT NULL,
+            status TEXT NOT NULL DEFAULT 'pending',
+            progress INTEGER DEFAULT 0,
+            total INTEGER DEFAULT 0,
+            result_json TEXT,
+            error TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+
     conn.commit()
     conn.close()
 
@@ -132,7 +337,8 @@ def _ensure_history_table(conn):
             images_json TEXT NOT NULL DEFAULT '{}'
         )
     """)
-    # Add images_json column if it doesn't exist (migration)
+    # Add images_json column if it doesn't exist (SQLite migration;
+    # PG uses ADD COLUMN IF NOT EXISTS in init_db)
     try:
         conn.execute("ALTER TABLE generation_history ADD COLUMN images_json TEXT NOT NULL DEFAULT '{}'")
     except Exception:
@@ -149,9 +355,16 @@ def save_generation(user_email: str, batch_id: str, marketplace: str,
     scores = [l.get("seo_score") or 0 for l in top if l.get("seo_score")]
     avg_seo = round(sum(scores) / len(scores)) if scores else 0
     conn.execute(
-        "INSERT OR REPLACE INTO generation_history "
+        "INSERT INTO generation_history "
         "(id, user_email, marketplace, product_count, avg_seo_score, label, listings_json) "
-        "VALUES (?, ?, ?, ?, ?, ?, ?)",
+        "VALUES (?, ?, ?, ?, ?, ?, ?) "
+        "ON CONFLICT(id) DO UPDATE SET "
+        "    user_email=EXCLUDED.user_email, "
+        "    marketplace=EXCLUDED.marketplace, "
+        "    product_count=EXCLUDED.product_count, "
+        "    avg_seo_score=EXCLUDED.avg_seo_score, "
+        "    label=EXCLUDED.label, "
+        "    listings_json=EXCLUDED.listings_json",
         (batch_id, user_email, marketplace, product_count, avg_seo, label,
          _json.dumps(listings, ensure_ascii=False, default=str)),
     )
@@ -257,3 +470,62 @@ def update_generation_label(batch_id: str, user_email: str, label: str) -> bool:
     conn.commit()
     conn.close()
     return cur.rowcount > 0
+
+
+# ── Job persistence ───────────────────────────────────────────────────────────
+
+def save_job(job_id: str, user_email: str, job_type: str, total: int) -> None:
+    """Persist a new job record on creation."""
+    conn = get_db()
+    conn.execute(
+        "INSERT INTO jobs (id, user_email, type, status, total) VALUES (?, ?, ?, 'pending', ?)",
+        (job_id, user_email or "", job_type, total),
+    )
+    conn.commit()
+    conn.close()
+
+
+def update_job_db(job_id: str, status: str = None, progress: int = None,
+                  result_json: str = None, error: str = None) -> None:
+    """Update a job's state in the DB."""
+    parts, vals = [], []
+    if status is not None:
+        parts.append("status = ?"); vals.append(status)
+    if progress is not None:
+        parts.append("progress = ?"); vals.append(progress)
+    if result_json is not None:
+        parts.append("result_json = ?"); vals.append(result_json)
+    if error is not None:
+        parts.append("error = ?"); vals.append(error)
+    if not parts:
+        return
+    parts.append("updated_at = CURRENT_TIMESTAMP")
+    vals.append(job_id)
+    conn = get_db()
+    conn.execute(f"UPDATE jobs SET {', '.join(parts)} WHERE id = ?", vals)
+    conn.commit()
+    conn.close()
+
+
+def load_recent_jobs(limit: int = 200) -> dict:
+    """Return dict keyed by job_id for the most recent jobs (startup restore)."""
+    import json as _json
+    conn = get_db()
+    try:
+        rows = conn.execute(
+            "SELECT * FROM jobs ORDER BY created_at DESC LIMIT ?", (limit,)
+        ).fetchall()
+    except Exception:
+        rows = []
+    conn.close()
+    result = {}
+    for row in rows:
+        d = dict(row)
+        raw = d.pop("result_json", None)
+        if raw:
+            try:
+                d["result"] = _json.loads(raw)
+            except Exception:
+                pass
+        result[d["id"]] = d
+    return result
