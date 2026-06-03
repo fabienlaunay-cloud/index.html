@@ -894,6 +894,9 @@
       <div id="healthBadge" class="flex items-center gap-2 bg-white/10 rounded-lg px-3 py-1.5 text-sm">
         <div class="w-2 h-2 rounded-full bg-gray-300 pulse"></div><span>...</span>
       </div>
+      <button onclick="_sessOpenPanel()" class="w-8 h-8 flex items-center justify-center bg-white/10 hover:bg-white/20 rounded-lg transition text-white flex-shrink-0" title="Sessions sauvegardées">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+      </button>
       <button onclick="openHistoryPanel()" class="w-8 h-8 flex items-center justify-center bg-white/10 hover:bg-white/20 rounded-lg transition text-white flex-shrink-0" title="Historique des générations">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
       </button>
@@ -3913,6 +3916,138 @@ const MKT_META_H = {
   amazon_uk:'🇬🇧', amazon_nl:'🇳🇱', amazon_se:'🇸🇪', amazon_pl:'🇵🇱', amazon_be:'🇧🇪',
 };
 
+// ── Saved sessions ────────────────────────────────────────────────────────────
+
+async function _sessOpenPanel() {
+  document.getElementById('sessPanel').classList.remove('translate-x-full');
+  await _sessLoadList();
+}
+
+function _sessClose() {
+  document.getElementById('sessPanel').classList.add('translate-x-full');
+}
+
+async function _sessLoadList() {
+  const list = document.getElementById('sessList');
+  list.innerHTML = '<p class="text-center text-gray-400 text-sm py-8">Chargement…</p>';
+  try {
+    const r = await authFetch('/api/sessions');
+    if (!r.ok) throw new Error();
+    const sessions = await r.json();
+    if (!sessions.length) {
+      list.innerHTML = '<p class="text-center text-gray-400 text-sm py-8">Aucune session sauvegardée</p>';
+      return;
+    }
+    list.innerHTML = sessions.map(s => {
+      const dt = new Date(s.created_at);
+      const label = dt.toLocaleDateString('fr-FR', {day:'2-digit', month:'short', year:'numeric'})
+                  + ' ' + dt.toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
+      return `<div class="border border-gray-100 rounded-xl p-3 flex items-center gap-3 hover:bg-gray-50">
+        <div class="flex-1 min-w-0">
+          <p class="font-semibold text-gray-800 text-sm truncate">${s.name}</p>
+          <p class="text-xs text-gray-400 mt-0.5">${label}</p>
+        </div>
+        <button onclick="_sessLoad('${s.id}')" class="flex-shrink-0 text-xs font-semibold text-purple-600 hover:text-purple-800 border border-purple-200 hover:bg-purple-50 rounded-lg px-3 py-1.5 transition">Charger</button>
+        <button onclick="_sessDelete('${s.id}',this)" class="flex-shrink-0 text-gray-300 hover:text-red-400 transition p-1" title="Supprimer">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>
+        </button>
+      </div>`;
+    }).join('');
+  } catch(e) {
+    list.innerHTML = '<p class="text-center text-red-400 text-sm py-8">Erreur de chargement</p>';
+  }
+}
+
+function _sessSave() {
+  let suggested = '';
+  if (_batches && _batches.length) {
+    const batch = _batches[_activeBatchIdx] || _batches[0];
+    suggested = batch.label || '';
+    if (!suggested && batch.listings && batch.listings.length) {
+      suggested = (batch.listings[0].title || '').substring(0, 40);
+    }
+  }
+  const now = new Date();
+  const dateStr = now.toLocaleDateString('fr-FR', {day:'2-digit', month:'short'});
+  document.getElementById('sessNameInput').value = suggested ? `${suggested} – ${dateStr}` : dateStr;
+  document.getElementById('sessSaveMsg').classList.add('hidden');
+  document.getElementById('sessSaveBtn').disabled = false;
+  document.getElementById('sessSaveBtn').textContent = 'Enregistrer';
+  document.getElementById('sessSaveModal').classList.remove('hidden');
+  setTimeout(() => { const inp = document.getElementById('sessNameInput'); inp.focus(); inp.select(); }, 60);
+}
+
+async function _sessDoSave() {
+  const name = document.getElementById('sessNameInput').value.trim();
+  if (!name) return;
+  const btn = document.getElementById('sessSaveBtn');
+  btn.disabled = true;
+  btn.textContent = 'Enregistrement…';
+  const data = {
+    batches: _batches || [],
+    activeBatch: _activeBatchIdx || 0,
+    marketplaces: selectedMarketplaces || [],
+    brandVoice: brandVoice || {},
+    segmentPresets: segmentPresets || {},
+    listingStatuses: listingStatuses || {},
+    publishedSkus: [...(publishedSkus || [])],
+  };
+  try {
+    const r = await authFetch('/api/sessions/save', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({name, data}),
+    });
+    if (!r.ok) throw new Error();
+    document.getElementById('sessSaveModal').classList.add('hidden');
+    showToast('', `Session "${name}" enregistrée`);
+    _sessLoadList();
+  } catch(e) {
+    const msg = document.getElementById('sessSaveMsg');
+    msg.textContent = 'Erreur lors de la sauvegarde — réessayez';
+    msg.classList.remove('hidden');
+    btn.disabled = false;
+    btn.textContent = 'Enregistrer';
+  }
+}
+
+async function _sessLoad(sessionId) {
+  if (!confirm('Charger cette session ? La session courante sera remplacée.')) return;
+  try {
+    const r = await authFetch(`/api/sessions/${sessionId}`);
+    if (!r.ok) throw new Error();
+    const sess = await r.json();
+    const d = sess.data || {};
+    if (d.batches)        localStorage.setItem('synqio_batches',          JSON.stringify(d.batches));
+    if (d.activeBatch !== undefined) localStorage.setItem('synqio_active_batch', String(d.activeBatch));
+    if (d.marketplaces)   localStorage.setItem('synqio_marketplaces',     JSON.stringify(d.marketplaces));
+    if (d.brandVoice)     localStorage.setItem('synqio_brand_voice',      JSON.stringify(d.brandVoice));
+    if (d.segmentPresets) localStorage.setItem('synqio_segment_presets',  JSON.stringify(d.segmentPresets));
+    if (d.listingStatuses) localStorage.setItem('synqio_listing_statuses', JSON.stringify(d.listingStatuses));
+    if (d.publishedSkus)  localStorage.setItem('synqio_published_skus',   JSON.stringify(d.publishedSkus));
+    _sessClose();
+    showToast('', `Session "${sess.name}" chargée — rechargement…`);
+    setTimeout(() => location.reload(), 900);
+  } catch(e) {
+    showToast('', 'Erreur lors du chargement', true);
+  }
+}
+
+async function _sessDelete(sessionId, btn) {
+  if (!confirm('Supprimer cette session ?')) return;
+  try {
+    const r = await authFetch(`/api/sessions/${sessionId}`, {method: 'DELETE'});
+    if (!r.ok) throw new Error();
+    btn.closest('div.border').remove();
+    const list = document.getElementById('sessList');
+    if (!list.querySelector('div.border')) {
+      list.innerHTML = '<p class="text-center text-gray-400 text-sm py-8">Aucune session sauvegardée</p>';
+    }
+  } catch(e) {
+    showToast('', 'Erreur lors de la suppression', true);
+  }
+}
+
 function openHistoryPanel() {
   document.getElementById('historyOverlay').classList.remove('hidden');
   const panel = document.getElementById('historyPanel');
@@ -5917,6 +6052,44 @@ renderSegmentPresets();
 
 <!-- ═══════════════════ HISTORY PANEL (slide-over) ═══════════════════ -->
 <div id="historyOverlay" class="hidden fixed inset-0 bg-black/40 z-[280]" onclick="closeHistoryPanel()"></div>
+<!-- ═══════════════════ SESSIONS PANEL ═══════════════════ -->
+<div id="sessPanel" class="fixed top-0 right-0 h-full w-full max-w-md bg-white shadow-2xl z-[291] flex flex-col translate-x-full transition-transform duration-300">
+  <div class="flex items-center justify-between px-5 py-4 border-b border-gray-100 flex-shrink-0">
+    <div>
+      <h2 class="font-semibold text-gray-800">Sessions sauvegardées</h2>
+      <p class="text-xs text-gray-400 mt-0.5">Accessibles depuis tous vos appareils</p>
+    </div>
+    <button onclick="_sessClose()" class="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500 transition">✕</button>
+  </div>
+  <div class="px-4 py-3 border-b border-gray-100 flex-shrink-0">
+    <button onclick="_sessSave()" class="w-full gradient-bg text-white rounded-xl py-2.5 text-sm font-semibold hover:opacity-90 transition flex items-center justify-center gap-2">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+      Enregistrer la session courante
+    </button>
+  </div>
+  <div id="sessList" class="flex-1 overflow-y-auto px-4 py-3 space-y-2">
+    <p class="text-center text-gray-400 text-sm py-8">Chargement…</p>
+  </div>
+</div>
+
+<!-- ═══════════════════ SESSION SAVE MODAL ═══════════════════ -->
+<div id="sessSaveModal" class="hidden fixed inset-0 bg-black/40 z-[300] flex items-center justify-center p-4">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 space-y-4">
+    <h3 class="font-bold text-gray-800 text-base">Enregistrer la session</h3>
+    <div>
+      <label class="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1 block">Nom de la session</label>
+      <input id="sessNameInput" type="text" placeholder="ex: Colliers chien – juin 2026"
+        class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-purple-400"
+        onkeydown="if(event.key==='Enter')_sessDoSave()">
+    </div>
+    <p id="sessSaveMsg" class="hidden text-sm font-medium text-red-500"></p>
+    <div class="flex gap-3 pt-1">
+      <button onclick="document.getElementById('sessSaveModal').classList.add('hidden')" class="flex-1 border border-gray-200 text-gray-600 rounded-xl py-2.5 text-sm font-semibold hover:bg-gray-50 transition">Annuler</button>
+      <button id="sessSaveBtn" onclick="_sessDoSave()" class="flex-1 gradient-bg text-white rounded-xl py-2.5 text-sm font-semibold hover:opacity-90 transition">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
 <div id="historyPanel" class="fixed top-0 right-0 h-full w-full max-w-md bg-white shadow-2xl z-[290] flex flex-col translate-x-full transition-transform duration-300">
   <div class="flex items-center justify-between px-5 py-4 border-b border-gray-100 flex-shrink-0">
     <div>

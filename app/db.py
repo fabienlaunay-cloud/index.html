@@ -235,6 +235,16 @@ def _init_db_pg():
         )
     """)
 
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS saved_sessions (
+            id TEXT PRIMARY KEY,
+            user_email TEXT NOT NULL,
+            name TEXT NOT NULL DEFAULT '',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            data_json TEXT NOT NULL DEFAULT '{}'
+        )
+    """)
+
     conn.commit()
     conn.close()
 
@@ -383,6 +393,16 @@ def _init_db_sqlite():
             keyword_rank INTEGER,
             notes TEXT DEFAULT '',
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS saved_sessions (
+            id TEXT PRIMARY KEY,
+            user_email TEXT NOT NULL,
+            name TEXT NOT NULL DEFAULT '',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            data_json TEXT NOT NULL DEFAULT '{}'
         )
     """)
 
@@ -813,3 +833,54 @@ def get_tracking_summary(user_email: str) -> dict:
         "avg_conversion_improvement": round(sum(improvements) / len(improvements), 1) if improvements else None,
         "listings_with_data": len(improvements),
     }
+
+
+# ── Saved sessions ────────────────────────────────────────────────────────────
+
+def save_session(session_id: str, user_email: str, name: str, data: dict) -> None:
+    import json as _json
+    conn = get_db()
+    conn.execute(
+        "INSERT INTO saved_sessions (id, user_email, name, data_json) VALUES (?, ?, ?, ?)",
+        (session_id, user_email, name, _json.dumps(data, ensure_ascii=False, default=str)),
+    )
+    conn.commit()
+    conn.close()
+
+
+def list_saved_sessions(user_email: str) -> list:
+    import json as _json
+    conn = get_db()
+    rows = conn.execute(
+        "SELECT id, name, created_at FROM saved_sessions WHERE user_email = ? ORDER BY created_at DESC",
+        (user_email,),
+    ).fetchall()
+    conn.close()
+    return [{"id": r["id"], "name": r["name"], "created_at": str(r["created_at"])} for r in rows]
+
+
+def get_saved_session(session_id: str, user_email: str) -> dict | None:
+    import json as _json
+    conn = get_db()
+    row = conn.execute(
+        "SELECT id, name, created_at, data_json FROM saved_sessions WHERE id = ? AND user_email = ?",
+        (session_id, user_email),
+    ).fetchone()
+    conn.close()
+    if not row:
+        return None
+    return {
+        "id": row["id"], "name": row["name"], "created_at": str(row["created_at"]),
+        "data": _json.loads(row["data_json"] or "{}"),
+    }
+
+
+def delete_saved_session(session_id: str, user_email: str) -> bool:
+    conn = get_db()
+    cur = conn.execute(
+        "DELETE FROM saved_sessions WHERE id = ? AND user_email = ?",
+        (session_id, user_email),
+    )
+    conn.commit()
+    conn.close()
+    return cur.rowcount > 0

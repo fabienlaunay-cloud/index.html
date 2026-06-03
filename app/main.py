@@ -52,7 +52,8 @@ from app.db import (init_db, save_generation, list_generations, get_generation,
                     delete_generation, update_generation_label, save_job, update_job_db,
                     load_recent_jobs, add_tracked_listing, list_tracked_listings,
                     delete_tracked_listing, add_snapshot, get_snapshots,
-                    delete_snapshot, get_tracking_summary)
+                    delete_snapshot, get_tracking_summary,
+                    save_session, list_saved_sessions, get_saved_session, delete_saved_session)
 from app.routes.auth import router as auth_router, admin_router
 from app.routes.amazon_oauth import router as amazon_router
 from app.routes.chat import router as chat_router
@@ -1681,3 +1682,37 @@ KEYWORDS : {req.backend_keywords or "(vide)"}"""
         return _json.loads(raw)
     except Exception:
         raise HTTPException(500, "Erreur d'amélioration — réessayez")
+
+# ── Saved sessions ────────────────────────────────────────────────────────────
+
+class SaveSessionRequest(BaseModel):
+    name: str
+    data: dict
+
+
+@app.post("/api/sessions/save")
+async def api_save_session(req: SaveSessionRequest, request: Request):
+    email = request.state.user_email
+    session_id = str(uuid.uuid4())
+    save_session(session_id, email, req.name.strip() or "Session sans nom", req.data)
+    return {"ok": True, "id": session_id}
+
+
+@app.get("/api/sessions")
+async def api_list_sessions(request: Request):
+    return list_saved_sessions(request.state.user_email)
+
+
+@app.get("/api/sessions/{session_id}")
+async def api_get_session(session_id: str, request: Request):
+    sess = get_saved_session(session_id, request.state.user_email)
+    if not sess:
+        raise HTTPException(404, "Session introuvable")
+    return sess
+
+
+@app.delete("/api/sessions/{session_id}")
+async def api_delete_session(session_id: str, request: Request):
+    if not delete_saved_session(session_id, request.state.user_email):
+        raise HTTPException(404, "Session introuvable")
+    return {"ok": True}
