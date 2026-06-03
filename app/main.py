@@ -1669,12 +1669,15 @@ KEYWORDS : {req.backend_keywords or "(vide)"}"""
 
     resp = await get_client().messages.create(
         model="claude-haiku-4-5-20251001",
-        max_tokens=700,
+        max_tokens=1200,
         system=_IMPROVE_SYSTEM,
         messages=[{"role": "user", "content": prompt}],
     )
     raw = resp.content[0].text.strip()
+    import re as _re_imp
+    raw = _re_imp.sub(r'^```(?:json)?\s*', '', raw, flags=_re_imp.MULTILINE)
+    raw = _re_imp.sub(r'\s*```$', '', raw, flags=_re_imp.MULTILINE).strip()
     try:
         return _json.loads(raw)
     except Exception:
-        raise HTTPException(500, "Erreur de génération")
+        raise HTTPException(500, "Erreur d'amélioration — réessayez")
