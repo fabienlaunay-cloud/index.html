@@ -54,7 +54,7 @@ from app.routes.amazon_oauth import router as amazon_router
 from app.routes.chat import router as chat_router
 
 # Routes sans authentification
-PUBLIC_PATHS = {"/", "/health", "/api/auth/login", "/api/auth/setup", "/api/auth/needs-setup", "/api/auth/reset-admin", "/api/amazon/debug-config", "/api/marketplaces", "/api/amazon/callback", "/api/template"}
+PUBLIC_PATHS = {"/", "/health", "/api/auth/login", "/api/auth/setup", "/api/auth/needs-setup", "/api/auth/reset-admin", "/api/auth/debug-admin", "/api/amazon/debug-config", "/api/marketplaces", "/api/amazon/callback", "/api/template"}
 # Invite paths are public (token-based auth)
 PUBLIC_PREFIX_PATHS = ("/api/auth/invite/", "/api/photos/")
 
@@ -197,7 +197,8 @@ async def health():
     try:
         from app.db import get_db
         conn = get_db()
-        user_count = conn.execute("SELECT COUNT(*) FROM users").fetchone()[0]
+        row = conn.execute("SELECT COUNT(*) AS cnt FROM users").fetchone()
+        user_count = row["cnt"] if row else 0
         conn.close()
     except Exception:
         pass
