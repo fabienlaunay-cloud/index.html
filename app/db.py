@@ -630,20 +630,16 @@ def load_recent_jobs(limit: int = 200) -> dict:
                 d["result"] = _json.loads(raw)
             except Exception:
                 pass
-        # Normalize PostgreSQL datetime → Unix timestamp float so _cleanup_jobs() can compare
-        ca = d.get("created_at")
-        if ca is not None and not isinstance(ca, (int, float)):
-            try:
-                d["created_at"] = ca.timestamp()
-            except Exception:
-                import time as _time
-                d["created_at"] = _time.time()
-        ua = d.get("updated_at")
-        if ua is not None and not isinstance(ua, (int, float)):
-            try:
-                d["updated_at"] = ua.timestamp()
-            except Exception:
-                import time as _time
-                d["updated_at"] = _time.time()
+        # Normalize PostgreSQL datetime/None → Unix timestamp float so _cleanup_jobs() can compare
+        import time as _time
+        for ts_key in ("created_at", "updated_at"):
+            val = d.get(ts_key)
+            if val is None:
+                d[ts_key] = _time.time()
+            elif not isinstance(val, (int, float)):
+                try:
+                    d[ts_key] = val.timestamp()
+                except Exception:
+                    d[ts_key] = _time.time()
         result[d["id"]] = d
     return result

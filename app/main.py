@@ -581,7 +581,7 @@ _jobs: dict = {}  # job_id → {status, progress, total, result, error, created_
 
 def _cleanup_jobs():
     cutoff = time.time() - 3600
-    for k in [k for k, v in _jobs.items() if v.get("created_at", 0) < cutoff]:
+    for k in [k for k, v in _jobs.items() if (v.get("created_at") or 0) < cutoff]:
         del _jobs[k]
 
 
