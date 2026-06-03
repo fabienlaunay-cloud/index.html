@@ -1187,6 +1187,7 @@
             </div>
           </div>
         </div>
+        <div id="batchSelector" class="hidden"></div>
         <div id="resultsChipsContainer" class="hidden"></div>
         <div id="listingsContainer" class="space-y-4"></div>
       </div>
@@ -1461,6 +1462,12 @@ publishedSkus.forEach(sku => { if (!listingStatuses[sku]) listingStatuses[sku] =
 let currentBatchId = localStorage.getItem('synqio_batch_id') || null;
 let _sessionFromHistory = false; // true when current listings came from history restore
 let currentDetailIdx = null;
+
+// ── Multi-batch store ─────────────────────────────────────────────────────────
+let _batches = [];       // [{id,label,source,date,listings,products,images}]
+let _activeBatchIdx = -1;
+let _genSource = 'upload'; // 'upload' | 'chat' | 'manual' | 'url' | 'history'
+let _genLabel  = '';       // human label for current generation
 
 // Column mapping state
 let _pendingFile = null;        // File object held while mapping modal is open
@@ -1858,20 +1865,149 @@ function showApp(email) {
 
 function _restoreSession() {
   try {
+    // Restore multi-batch state if available
+    const savedBatches = localStorage.getItem('synqio_batches');
+    if (savedBatches) {
+      const batches = JSON.parse(savedBatches);
+      if (batches && batches.length) {
+        _batches = batches;
+        const savedIdx = parseInt(localStorage.getItem('synqio_active_batch') || '0', 10);
+        _activeBatchIdx = Math.max(0, Math.min(savedIdx, _batches.length - 1));
+        const batch = _batches[_activeBatchIdx];
+        generatedListings = batch.listings;
+        parsedProducts    = batch.products || [];
+        currentBatchId    = batch.id;
+        Object.assign(imagesCache, batch.images || {});
+        const result = { listings: generatedListings, success_count: generatedListings.length, failed: [], total: generatedListings.length, marketplace: generatedListings[0]?.marketplace || 'amazon_fr' };
+        showResults(result);
+        setStep(3);
+        _renderBatchSelector();
+        const msg = _batches.length > 1 ? `${_batches.length} sessions restaurées` : `Session restaurée — ${generatedListings.length} fiche(s)`;
+        showToast('🔄', msg);
+        return;
+      }
+    }
+    // Legacy single-session restore + migrate into _batches
     const saved = localStorage.getItem('synqio_listings');
     if (!saved) return;
     const listings = JSON.parse(saved);
     if (!listings || !listings.length) return;
-    generatedListings = listings;
     try {
       const savedImages = localStorage.getItem('synqio_images');
       if (savedImages) Object.assign(imagesCache, JSON.parse(savedImages));
     } catch(e) {}
+    const batchId = localStorage.getItem('synqio_batch_id') || 'legacy';
+    _createBatch(listings, [], batchId, 'Session précédente', 'upload');
+    Object.assign(imagesCache, _batches[_activeBatchIdx]?.images || {});
     const result = { listings, success_count: listings.length, failed: [], total: listings.length, marketplace: listings[0]?.marketplace || 'amazon_fr' };
     showResults(result);
     setStep(3);
     showToast('🔄', `Session restaurée — ${listings.length} fiche(s) disponible(s)`);
   } catch(e) {}
+}
+
+// ── Batch helpers ─────────────────────────────────────────────────────────────
+
+function _syncActiveBatch() {
+  if (_activeBatchIdx < 0 || !_batches[_activeBatchIdx]) return;
+  const b = _batches[_activeBatchIdx];
+  b.listings = generatedListings;
+  b.products  = parsedProducts;
+  const skus = new Set(generatedListings.map(l => l.sku));
+  for (const [sku, imgs] of Object.entries(imagesCache)) {
+    if (skus.has(sku)) b.images[sku] = imgs;
+  }
+}
+
+function _createBatch(listings, products, batchId, label, source) {
+  _syncActiveBatch();
+  const batch = {
+    id: batchId,
+    label: label || `Génération ${_batches.length + 1}`,
+    source: source || 'upload',
+    date: new Date().toISOString(),
+    listings: listings,
+    products: products || [],
+    images: {},
+  };
+  _batches.push(batch);
+  _activeBatchIdx = _batches.length - 1;
+  generatedListings = batch.listings;
+  parsedProducts    = batch.products;
+  currentBatchId    = batch.id;
+  for (const k of Object.keys(imagesCache)) delete imagesCache[k];
+  _saveBatches();
+  _renderBatchSelector();
+}
+
+function _switchBatch(idx) {
+  if (idx < 0 || idx >= _batches.length || idx === _activeBatchIdx) return;
+  _syncActiveBatch();
+  _activeBatchIdx = idx;
+  const batch = _batches[idx];
+  generatedListings   = batch.listings;
+  parsedProducts      = batch.products || [];
+  currentBatchId      = batch.id;
+  _sessionFromHistory = false;
+  for (const k of Object.keys(imagesCache)) delete imagesCache[k];
+  Object.assign(imagesCache, batch.images || {});
+  _renderBatchSelector();
+  document.getElementById('emptyState').classList.add('hidden');
+  document.getElementById('resultsState').classList.remove('hidden');
+  const fakeResult = {
+    listings: generatedListings, failed: [], total: generatedListings.length,
+    success_count: generatedListings.length,
+    marketplace: generatedListings[0]?.marketplace || 'amazon_fr',
+  };
+  showResults(fakeResult);
+  setStep(3);
+  try { localStorage.setItem('synqio_batch_id', currentBatchId); } catch(e) {}
+  _saveBatches();
+}
+
+function _saveBatches() {
+  _syncActiveBatch();
+  try {
+    localStorage.setItem('synqio_batches', JSON.stringify(_batches));
+    localStorage.setItem('synqio_active_batch', String(_activeBatchIdx));
+    if (generatedListings.length) localStorage.setItem('synqio_listings', JSON.stringify(generatedListings));
+  } catch(e) {}
+}
+
+function _deleteBatch(idx) {
+  _batches.splice(idx, 1);
+  if (_batches.length === 0) {
+    _activeBatchIdx = -1;
+    generatedListings = []; parsedProducts = []; currentBatchId = null;
+    for (const k of Object.keys(imagesCache)) delete imagesCache[k];
+    _renderBatchSelector();
+    document.getElementById('resultsState').classList.add('hidden');
+    document.getElementById('emptyState').classList.remove('hidden');
+    _saveBatches(); setStep(1); return;
+  }
+  _activeBatchIdx = -1; // force switch to re-load
+  _switchBatch(Math.min(idx, _batches.length - 1));
+}
+
+function _renderBatchSelector() {
+  const el = document.getElementById('batchSelector');
+  if (!el) return;
+  if (_batches.length <= 1) { el.innerHTML = ''; el.classList.add('hidden'); return; }
+  el.classList.remove('hidden');
+  const srcIcon = {upload:'📄',chat:'💬',manual:'✏️',url:'🔗',history:'🕐'};
+  el.innerHTML = `<div class="flex gap-2 flex-wrap items-center py-2 border-b border-gray-100 mb-3">
+    <span class="text-xs text-gray-400 font-medium shrink-0 mr-1">Sessions :</span>
+    ${_batches.map((b, i) => {
+      const n = b.listings.filter(l => !l.parent_sku).length;
+      const active = i === _activeBatchIdx;
+      return `<button onclick="_switchBatch(${i})" class="group flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium border transition-all ${active ? 'bg-purple-600 text-white border-purple-600 shadow-sm' : 'bg-white text-gray-600 border-gray-200 hover:border-purple-300 hover:text-purple-700'}">
+        <span>${srcIcon[b.source]||'📄'}</span>
+        <span class="max-w-[110px] truncate">${b.label}</span>
+        <span class="${active?'opacity-70':'text-gray-400'}">${n} fiche${n>1?'s':''}</span>
+        <span onclick="event.stopPropagation();_deleteBatch(${i})" class="ml-0.5 ${active?'text-white/60 hover:text-white':'text-gray-300 hover:text-red-500'} font-bold cursor-pointer transition-colors" title="Fermer cette session">✕</span>
+      </button>`;
+    }).join('')}
+  </div>`;
 }
 
 function showMainApp() {
@@ -2458,6 +2594,8 @@ function _fileToB64(file) {
 }
 
 async function handleFile(file) {
+  _genSource = 'upload';
+  _genLabel  = file.name.replace(/\.[^.]+$/, '').slice(0, 40);
   const icons = { csv: '📊', xlsx: '📗', xls: '📗', json: '📋' };
   const ext = file.name.split('.').pop().toLowerCase();
   document.getElementById('fileIcon').textContent = icons[ext] || '📄';
@@ -2886,7 +3024,6 @@ function clearPhotos() {
 // ── Generation ────────────────────────────────────────────────────────────────
 async function generateListings() {
   if (!parsedProducts.length) return;
-  const _batchToReplace = (!_sessionFromHistory && currentBatchId) ? currentBatchId : null;
   try { localStorage.removeItem('synqio_listings'); localStorage.removeItem('synqio_images'); } catch(e) {}
   document.getElementById('emptyState').classList.add('hidden');
   document.getElementById('resultsState').classList.add('hidden');
@@ -2964,15 +3101,10 @@ async function generateListings() {
     }
 
     document.getElementById('progressBar').style.width = '100%';
-    generatedListings = result.listings;
-    // Delete previous batch if regenerating in the same session (not from history)
-    if (_batchToReplace && _batchToReplace !== job_id) {
-      authFetch(`/api/history/${_batchToReplace}`, { method: 'DELETE' }).catch(() => {});
-    }
-    currentBatchId = job_id;
     _sessionFromHistory = false;
-    try { localStorage.setItem('synqio_listings', JSON.stringify(generatedListings)); } catch(e) {}
-    try { localStorage.setItem('synqio_batch_id', job_id); } catch(e) {}
+    const _now = new Date().toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
+    const _label = _genLabel || `Génération ${_now}`;
+    _createBatch(result.listings, parsedProducts.slice(), job_id, _label, _genSource);
     showResults(result);
     setStep(3);
     showToast('✅', `${result.success_count} fiche(s) générée(s)`);
@@ -3275,6 +3407,7 @@ function submitManualForm(e) {
 
 function loadManualProducts(products) {
   if (!products.length) return;
+  _genSource = 'manual'; _genLabel = 'Saisie manuelle';
   parsedProducts = products;
   const genBtn = document.getElementById('generateBtn');
   if (genBtn) genBtn.disabled = false;
@@ -3363,16 +3496,13 @@ async function restoreBatch(batchId) {
     const listings = batch.listings || [];
     if (!listings.length) { showToast('⚠️', 'Lot vide', true); return; }
 
-    generatedListings = listings;
-    currentBatchId = batchId;
+    const batchLabel = batch.label || `Historique — ${new Date(batch.created_at || Date.now()).toLocaleDateString('fr-FR')}`;
+    _createBatch(listings, [], batchId, batchLabel, 'history');
     _sessionFromHistory = true;
-    try { localStorage.setItem('synqio_listings', JSON.stringify(generatedListings)); } catch(e) {}
-    try { localStorage.setItem('synqio_batch_id', batchId); } catch(e) {}
-
-    // Restore images from server history
+    // Restore images from server history into the new batch
     const savedImages = batch.images || {};
     Object.assign(imagesCache, savedImages);
-    try { localStorage.setItem('synqio_images', JSON.stringify(imagesCache)); } catch(e) {}
+    if (_batches[_activeBatchIdx]) Object.assign(_batches[_activeBatchIdx].images, savedImages);
 
     const parentOnly = listings.filter(l => !l.parent_sku);
     const fakeResult = {
@@ -3875,7 +4005,7 @@ function deleteListing(idx) {
   if (!confirm('Supprimer cette fiche ?')) return;
   const skuToRemove = listing.sku;
   generatedListings = generatedListings.filter(l => l.sku !== skuToRemove && l.parent_sku !== skuToRemove);
-  try { localStorage.setItem('synqio_listings', JSON.stringify(generatedListings)); } catch(e) {}
+  _saveBatches();
   if (generatedListings.length === 0) {
     document.getElementById('listingsContainer').innerHTML = '<p class="text-center text-gray-400 py-12 text-sm">Aucune fiche dans cette session.</p>';
     document.getElementById('statTotal').textContent = '0';
@@ -6031,6 +6161,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
 function triggerChatGeneration() {
   if (!_chatReadyProducts || !_chatReadyProducts.length) return;
+  _genSource = 'chat';
+  _genLabel  = 'Chat IA';
 
   // Normalise products to RawProduct shape
   const normalized = _chatReadyProducts.map(p => ({
