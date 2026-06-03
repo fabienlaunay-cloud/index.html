@@ -965,13 +965,13 @@
   <!-- ── Mode toggle ──────────────────────────────────────────────────────── -->
   <div class="flex mb-6 border-b border-gray-200">
     <button id="modeGenerateBtn" onclick="switchAppMode('generate')" class="flex items-center gap-2 px-5 py-2.5 text-sm font-semibold border-b-2 border-purple-600 text-purple-600 -mb-px transition">
-      ✨ Générer des fiches
+      Générer des fiches
     </button>
     <button id="modeAuditBtn" onclick="switchAppMode('audit')" class="flex items-center gap-2 px-5 py-2.5 text-sm font-semibold border-b-2 border-transparent text-gray-500 hover:text-gray-700 -mb-px transition">
-      🔍 Auditer une fiche
+      Auditer une fiche
     </button>
     <button id="modeTrackBtn" onclick="switchAppMode('track')" class="flex items-center gap-2 px-5 py-2.5 text-sm font-semibold border-b-2 border-transparent text-gray-500 hover:text-gray-700 -mb-px transition">
-      📊 Suivi performance
+      Suivi performance
     </button>
   </div>
 
@@ -1090,7 +1090,7 @@
             <!-- Image URLs for vision analysis -->
             <div class="bg-indigo-50 border border-indigo-100 rounded-xl p-3">
               <label class="text-xs font-semibold text-indigo-700 mb-1 block flex items-center gap-1">
-                🔬 Analyse visuelle IA (optionnel)
+                Analyse visuelle IA (optionnel)
               </label>
               <textarea id="auditImgUrls" rows="3" oninput="_auditImgUrlsChanged(this)"
                 class="w-full border border-indigo-200 bg-white rounded-lg px-2 py-1.5 text-xs resize-none focus:outline-none focus:border-indigo-400 font-mono"
@@ -1113,14 +1113,16 @@
 
         <!-- Empty state -->
         <div id="auditEmpty" class="bg-white rounded-2xl shadow-sm border border-gray-100 flex flex-col items-center justify-center text-center py-24">
-          <div class="text-5xl mb-4">🔍</div>
+          <div class="w-12 h-12 rounded-2xl bg-purple-50 flex items-center justify-center mb-4 mx-auto">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          </div>
           <p class="text-gray-700 font-semibold text-lg mb-1">Diagnostic de fiche Amazon</p>
           <p class="text-gray-400 text-sm max-w-xs">Renseignez les champs de votre fiche existante<br>et cliquez sur "Analyser la fiche"</p>
           <div class="mt-6 grid grid-cols-2 gap-3 text-xs text-gray-400 max-w-xs">
-            <div class="bg-gray-50 rounded-xl p-3"><div class="text-lg mb-1">📝</div>Titre &amp; bullets</div>
-            <div class="bg-gray-50 rounded-xl p-3"><div class="text-lg mb-1">🔑</div>Keywords backend</div>
-            <div class="bg-gray-50 rounded-xl p-3"><div class="text-lg mb-1">🖼️</div>Nombre d'images</div>
-            <div class="bg-gray-50 rounded-xl p-3"><div class="text-lg mb-1">⚡</div>Score 0–100 / champ</div>
+            <div class="bg-gray-50 rounded-xl p-3 text-left"><div class="text-xs font-semibold text-gray-500 mb-1">Titre &amp; bullets</div>Score sur 100</div>
+            <div class="bg-gray-50 rounded-xl p-3 text-left"><div class="text-xs font-semibold text-gray-500 mb-1">Keywords backend</div>Score sur 100</div>
+            <div class="bg-gray-50 rounded-xl p-3 text-left"><div class="text-xs font-semibold text-gray-500 mb-1">Images</div>Analyse visuelle</div>
+            <div class="bg-gray-50 rounded-xl p-3 text-left"><div class="text-xs font-semibold text-gray-500 mb-1">Score global</div>0 – 100</div>
           </div>
         </div>
 
@@ -1169,7 +1171,7 @@
         <div class="bg-white rounded-2xl shadow-sm p-4 border border-gray-100">
           <div class="flex items-center justify-between mb-3">
             <h2 class="font-semibold text-gray-800 text-sm flex items-center gap-2">
-              <span>📊</span> Fiches suivies
+              Fiches suivies
               <span id="trackCount" class="text-xs bg-purple-100 text-purple-700 font-bold px-1.5 py-0.5 rounded-full">0</span>
             </h2>
             <button onclick="openAddTrackModal()" class="gradient-bg text-white text-xs font-semibold px-3 py-1.5 rounded-lg hover:opacity-90 transition">+ Ajouter</button>
@@ -1616,7 +1618,7 @@
               <button onclick="triggerAmazonTemplateFill()" class="bg-orange-50 hover:bg-orange-100 text-orange-700 rounded-lg px-3 py-2 text-sm font-medium transition flex items-center gap-1.5" title="Uploader votre template Amazon pour le remplir automatiquement">🗂️ Remplir mon template</button>
               <input type="file" id="amazonTemplateInput" accept=".xlsm,.xlsx" class="hidden" onchange="fillAmazonTemplate(this)">
               <button onclick="downloadZipPack()" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg px-3 py-2 text-sm font-medium transition flex items-center gap-1.5">📦 Pack ZIP</button>
-              <button id="bulkGenImgBtn" onclick="generateAllImages()" class="bg-pink-50 hover:bg-pink-100 text-pink-700 rounded-lg px-3 py-2 text-sm font-medium transition flex items-center gap-1.5">🖼️ Générer toutes les photos</button>
+              <button id="bulkGenImgBtn" onclick="generateAllImages()" class="bg-pink-50 hover:bg-pink-100 text-pink-700 rounded-lg px-3 py-2 text-sm font-medium transition flex items-center gap-1.5">Générer toutes les photos</button>
               <button onclick="showPublishModal()" class="gradient-bg text-white rounded-lg px-4 py-2 text-sm font-semibold hover:opacity-90 transition">Publier</button>
             </div>
           </div>
@@ -4455,7 +4457,7 @@ async function generateAllImages() {
     }
   }
   _updateImgProgress();
-  if (btn) { btn.disabled = false; btn.innerHTML = '🖼️ Générer toutes les photos'; }
+  if (btn) { btn.disabled = false; btn.innerHTML = 'Générer toutes les photos'; }
   if (started > 0) showToast('🖼️', `${started} génération${started > 1 ? 's' : ''} lancée${started > 1 ? 's' : ''} en arrière-plan`, false);
 }
 
@@ -4488,7 +4490,7 @@ function renderImages(container, data) {
     ? `<div class="bg-green-50 border border-green-200 rounded-xl p-3 mb-4 text-xs text-green-800 flex items-center gap-2"><span>✅</span><span><strong>Photo de référence utilisée</strong> — les visuels sont basés sur votre photo produit réelle.</span></div>`
     : `<div class="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-4 text-xs text-amber-800 flex items-center gap-2"><span>⚠️</span><span><strong>Génération sans photo de référence</strong> — vérifiez que la colonne <code class="bg-amber-100 px-1 rounded">Image_URL</code> est remplie et que le lien Google Drive est <strong>public</strong>.</span></div>`)
     : '';
-  const notice = hasImages ? '' : `<div class="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-4 text-sm text-blue-800"><p class="font-semibold mb-1">💡 Prompts générés — Images non générées</p><p>Ajoutez <code class="bg-blue-100 px-1 rounded">OPENAI_API_KEY</code> dans Railway pour générer les images. En attendant, copiez les prompts dans Midjourney ou Canva IA.</p></div>`;
+  const notice = hasImages ? '' : `<div class="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-4 text-sm text-blue-800"><p class="font-semibold mb-1">Prompts générés — Images non générées</p><p>Ajoutez <code class="bg-blue-100 px-1 rounded">OPENAI_API_KEY</code> dans Railway pour générer les images. En attendant, copiez les prompts dans Midjourney ou Canva IA.</p></div>`;
   const cards = data.images.map(img => {
     const imgHtml = img.url
       ? `<div class="relative group cursor-zoom-in" onclick="openLightbox(this.querySelector('img').src)"><img src="${_esc(img.url)}" alt="${_esc(img.label)}" class="w-full h-48 object-cover"><div class="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition flex items-center justify-center"><span class="hidden group-hover:flex bg-white/90 rounded-lg px-3 py-1.5 text-xs font-medium gap-1 items-center shadow">🔍 Agrandir</span></div></div>`
@@ -6000,7 +6002,7 @@ renderSegmentPresets();
           <h3 class="font-bold text-gray-800 text-lg mb-2">Ton assistant Amazon</h3>
           <p class="text-gray-500 text-sm max-w-xs leading-relaxed">Décris tes produits en langage naturel, partage des images ou des PDF de catalogue. Je structure tout pour générer tes fiches optimisées.</p>
           <div class="mt-6 grid grid-cols-1 gap-2 w-full max-w-sm">
-            <button onclick="chatQuickStart('J\'ai un nouveau produit à lister sur Amazon. Il s\'agit de ')" class="text-left px-4 py-3 bg-purple-50 hover:bg-purple-100 border border-purple-100 rounded-xl text-sm text-purple-700 transition">💡 "J'ai un nouveau produit à lister…"</button>
+            <button onclick="chatQuickStart('J\'ai un nouveau produit à lister sur Amazon. Il s\'agit de ')" class="text-left px-4 py-3 bg-purple-50 hover:bg-purple-100 border border-purple-100 rounded-xl text-sm text-purple-700 transition">"J'ai un nouveau produit à lister…"</button>
             <button onclick="chatQuickStart('Voici mon catalogue produits : ')" class="text-left px-4 py-3 bg-purple-50 hover:bg-purple-100 border border-purple-100 rounded-xl text-sm text-purple-700 transition">📄 Partager un catalogue PDF</button>
             <button onclick="chatQuickStart('Je veux créer des fiches pour ma marque ')" class="text-left px-4 py-3 bg-purple-50 hover:bg-purple-100 border border-purple-100 rounded-xl text-sm text-purple-700 transition">🏷️ "Créer des fiches pour ma marque…"</button>
           </div>
@@ -6345,7 +6347,7 @@ function resetChatWelcome() {
       <h3 class="font-bold text-gray-800 text-lg mb-2">Ton assistant Amazon</h3>
       <p class="text-gray-500 text-sm max-w-xs leading-relaxed">Décris tes produits en langage naturel, partage des images ou des PDF de catalogue.</p>
       <div class="mt-6 grid grid-cols-1 gap-2 w-full max-w-sm">
-        <button onclick="chatQuickStart('J\\'ai un nouveau produit à lister sur Amazon. Il s\\'agit de ')" class="text-left px-4 py-3 bg-purple-50 hover:bg-purple-100 border border-purple-100 rounded-xl text-sm text-purple-700 transition">💡 "J'ai un nouveau produit à lister…"</button>
+        <button onclick="chatQuickStart('J\\'ai un nouveau produit à lister sur Amazon. Il s\\'agit de ')" class="text-left px-4 py-3 bg-purple-50 hover:bg-purple-100 border border-purple-100 rounded-xl text-sm text-purple-700 transition">"J'ai un nouveau produit à lister…"</button>
         <button onclick="chatQuickStart('Voici mon catalogue produits : ')" class="text-left px-4 py-3 bg-purple-50 hover:bg-purple-100 border border-purple-100 rounded-xl text-sm text-purple-700 transition">📄 Partager un catalogue PDF</button>
         <button onclick="chatQuickStart('Je veux créer des fiches pour ma marque ')" class="text-left px-4 py-3 bg-purple-50 hover:bg-purple-100 border border-purple-100 rounded-xl text-sm text-purple-700 transition">🏷️ "Créer des fiches pour ma marque…"</button>
       </div>
@@ -6708,7 +6710,6 @@ function escHtml(s) {
            border-radius:10px 0 0 10px;padding:14px 8px;cursor:pointer;
            display:flex;flex-direction:column;align-items:center;gap:6px;
            box-shadow:-2px 0 12px rgba(124,58,237,0.35);transition:padding 0.15s">
-    <span style="font-size:1rem">💡</span>
     <span style="writing-mode:vertical-rl;text-orientation:mixed;transform:rotate(180deg);font-size:0.7rem;font-weight:700;letter-spacing:0.05em;white-space:nowrap">Aide</span>
   </button>
 
@@ -6722,7 +6723,7 @@ function escHtml(s) {
     <!-- Header -->
     <div style="background:linear-gradient(135deg,#7c3aed,#6d28d9);padding:14px 16px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0">
       <div style="display:flex;align-items:center;gap:10px">
-        <div style="width:34px;height:34px;background:rgba(255,255,255,0.2);border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0">💡</div>
+        <div style="width:34px;height:34px;background:rgba(255,255,255,0.2);border-radius:9px;display:flex;align-items:center;justify-content:center;flex-shrink:0"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.9)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg></div>
         <div>
           <p style="color:#fff;font-weight:700;font-size:0.9rem;margin:0">Aide SynqIO</p>
           <p style="color:rgba(255,255,255,0.75);font-size:0.72rem;margin:0">Interface &amp; règles Amazon</p>
@@ -7436,10 +7437,10 @@ function _renderAuditResults(data, visionUsed) {
 
   // Dimension cards
   const dims = [
-    { key: 'title',    label: 'Titre',                                              icon: '📝' },
-    { key: 'bullets',  label: 'Bullet points',                                      icon: '•••' },
-    { key: 'keywords', label: 'Keywords backend',                                   icon: '🔑' },
-    { key: 'images',   label: visionUsed ? 'Images (analyse visuelle)' : 'Images', icon: visionUsed ? '🔬' : '🖼️' },
+    { key: 'title',    label: 'Titre' },
+    { key: 'bullets',  label: 'Bullet points' },
+    { key: 'keywords', label: 'Keywords backend' },
+    { key: 'images',   label: visionUsed ? 'Images (analyse visuelle)' : 'Images' },
   ];
   const container = document.getElementById('auditDimCards');
   container.innerHTML = dims.map(d => {
@@ -7452,7 +7453,6 @@ function _renderAuditResults(data, visionUsed) {
     return `<div class="bg-white rounded-2xl border ${c.border} p-4 audit-dim-card" id="auditCard-${d.key}">
       <div class="flex items-center justify-between mb-3">
         <div class="flex items-center gap-2">
-          <span class="text-base leading-none">${d.icon}</span>
           <span class="font-semibold text-gray-800 text-sm">${d.label}</span>
         </div>
         <div class="flex items-center gap-2">
@@ -7462,7 +7462,7 @@ function _renderAuditResults(data, visionUsed) {
       </div>
       ${issues ? `<ul class="text-xs text-gray-600 space-y-1 mb-2">${issues}</ul>` : ''}
       ${suggs ? `<ul class="text-xs text-gray-500 space-y-1 mb-3">${suggs}</ul>` : ''}
-      ${canImprove ? `<button onclick="auditImprove('${d.key}')" id="auditImproveBtn-${d.key}" class="w-full text-xs font-semibold text-purple-700 bg-purple-50 hover:bg-purple-100 border border-purple-200 rounded-lg py-1.5 transition">⚡ Améliorer avec l'IA</button>` : ''}
+      ${canImprove ? `<button onclick="auditImprove('${d.key}')" id="auditImproveBtn-${d.key}" class="w-full text-xs font-semibold text-purple-700 bg-purple-50 hover:bg-purple-100 border border-purple-200 rounded-lg py-1.5 transition">Améliorer avec l'IA</button>` : ''}
       <div id="auditImproveResult-${d.key}" class="hidden mt-3"></div>
     </div>`;
   }).join('');
@@ -7493,7 +7493,7 @@ async function auditImprove(field) {
     resEl.classList.remove('hidden');
     resEl.innerHTML = `
       <div class="bg-purple-50 border border-purple-200 rounded-xl p-3">
-        <p class="text-xs font-semibold text-purple-700 mb-2">✨ Version améliorée</p>
+        <p class="text-xs font-semibold text-purple-700 mb-2">Version améliorée</p>
         ${improved}
         ${data.explanation ? `<p class="text-xs text-gray-400 italic mt-2">${_esc(data.explanation)}</p>` : ''}
         <div class="flex gap-2 mt-3">
@@ -7504,7 +7504,7 @@ async function auditImprove(field) {
   } catch(e) {
     showToast('❌', e.message || 'Erreur', true);
   } finally {
-    if (btn) { btn.disabled = false; btn.innerHTML = '⚡ Améliorer avec l\'IA'; }
+    if (btn) { btn.disabled = false; btn.innerHTML = 'Améliorer avec l\'IA'; }
   }
 }
 
