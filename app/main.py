@@ -142,25 +142,27 @@ def _bootstrap_admin():
     email = os.getenv("ADMIN_EMAIL", "").strip().lower()
     password = os.getenv("ADMIN_PASSWORD", "").strip()
     if not email or not password:
+        print("[bootstrap_admin] ADMIN_EMAIL ou ADMIN_PASSWORD manquant — admin non créé", flush=True)
         return
     from app.db import get_db
     from app.services.auth import create_user, hash_password
-    conn = get_db()
-    exists = conn.execute("SELECT 1 FROM users WHERE email = ?", (email,)).fetchone()
-    if not exists:
-        conn.close()
-        try:
+    try:
+        conn = get_db()
+        exists = conn.execute("SELECT 1 FROM users WHERE email = ?", (email,)).fetchone()
+        if not exists:
+            conn.close()
             create_user(email, password, name="Admin", is_admin=True)
-        except Exception:
-            pass
-    else:
-        # Sync password + flags depuis les env vars Railway à chaque démarrage
-        conn.execute(
-            "UPDATE users SET is_admin=1, is_active=1, password_hash=? WHERE email=?",
-            (hash_password(password), email),
-        )
-        conn.commit()
-        conn.close()
+            print(f"[bootstrap_admin] Admin créé : {email}", flush=True)
+        else:
+            conn.execute(
+                "UPDATE users SET is_admin=1, is_active=1, password_hash=? WHERE email=?",
+                (hash_password(password), email),
+            )
+            conn.commit()
+            conn.close()
+            print(f"[bootstrap_admin] Admin mis à jour : {email}", flush=True)
+    except Exception as exc:
+        print(f"[bootstrap_admin] ERREUR : {exc}", flush=True)
 
 
 # ── Frontend ─────────────────────────────────────────────────────────────────

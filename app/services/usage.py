@@ -89,7 +89,6 @@ def get_user_usage(user_email: str, month: str = None) -> dict:
         "tokens_out": tokens_out,
         "tokens_total": tokens_in + tokens_out,
         "cost_usd": _compute_cost(tokens_in, tokens_out, images_used),
-        "features": PLAN_FEATURES.get(plan, PLAN_FEATURES["starter"]),
         "commitment_months": quota.get("commitment_months", 0),
     }
 

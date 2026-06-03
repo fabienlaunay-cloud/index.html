@@ -196,6 +196,10 @@ def _init_db_sqlite():
         conn.execute("ALTER TABLE users ADD COLUMN is_admin INTEGER DEFAULT 0")
     except Exception:
         pass
+    try:
+        conn.execute("ALTER TABLE users ADD COLUMN plan TEXT DEFAULT 'starter'")
+    except Exception:
+        pass
 
     conn.execute("""
         CREATE TABLE IF NOT EXISTS amazon_credentials (
