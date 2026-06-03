@@ -656,6 +656,142 @@
     </div>
   </section>
 
+  <!-- FAQ -->
+  <section class="land-section-alt py-20">
+    <div class="max-w-3xl mx-auto px-6">
+      <div class="text-center mb-14">
+        <span class="inline-block bg-purple-100 text-purple-700 text-xs font-bold px-4 py-1.5 rounded-full mb-4 tracking-wide uppercase">FAQ</span>
+        <h2 class="text-3xl md:text-4xl font-black text-gray-900 mb-3">Questions fréquentes</h2>
+        <p class="text-gray-500 text-lg">Tout ce que vous voulez savoir avant de démarrer.</p>
+      </div>
+
+      <div class="space-y-3" id="faqList">
+
+        <!-- Q1 -->
+        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+          <button onclick="toggleFaq(this)" class="w-full flex items-center justify-between px-6 py-5 text-left gap-4 hover:bg-gray-50 transition">
+            <span class="font-semibold text-gray-900 text-sm md:text-base">SynqIO génère-t-il vraiment des fiches complètes en quelques minutes ?</span>
+            <svg class="faq-chevron flex-shrink-0 w-5 h-5 text-purple-500 transition-transform duration-200" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="faq-body hidden px-6 pb-5">
+            <p class="text-gray-600 text-sm leading-relaxed">Oui. En important votre catalogue (fichier Excel, CSV ou PDF fournisseur), SynqIO génère automatiquement pour chaque SKU : titre optimisé, bullets, description, keywords backend et 7 visuels produit. La génération d'une fiche complète prend 30 à 90 secondes selon la complexité du produit. Pour 100 SKU, comptez environ 15 à 20 minutes.</p>
+          </div>
+        </div>
+
+        <!-- Q2 -->
+        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+          <button onclick="toggleFaq(this)" class="w-full flex items-center justify-between px-6 py-5 text-left gap-4 hover:bg-gray-50 transition">
+            <span class="font-semibold text-gray-900 text-sm md:text-base">Qui est propriétaire des images générées par l'IA ?</span>
+            <svg class="faq-chevron flex-shrink-0 w-5 h-5 text-purple-500 transition-transform duration-200" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="faq-body hidden px-6 pb-5">
+            <p class="text-gray-600 text-sm leading-relaxed mb-3"><strong class="text-gray-800">Les images générées vous appartiennent à 100 %.</strong> Dès que vous téléchargez ou publiez un visuel produit créé via SynqIO, vous en détenez tous les droits commerciaux et pouvez les utiliser librement sur Amazon, votre site e-commerce, vos réseaux sociaux ou tout autre canal de vente.</p>
+            <p class="text-gray-600 text-sm leading-relaxed mb-3">SynqIO ne conserve aucun droit de licence, de réutilisation ou de revente sur les images que vous générez. Vos visuels sont produits à partir de vos données produits (photos de référence, descriptions, caractéristiques) et sont uniques à votre catalogue.</p>
+            <p class="text-gray-600 text-sm leading-relaxed">Si vous fournissez une photo de référence pour guider la génération, cette photo reste votre propriété et n'est utilisée que pour produire vos visuels — elle n'est ni stockée à des fins commerciales ni partagée avec des tiers.</p>
+          </div>
+        </div>
+
+        <!-- Q3 -->
+        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+          <button onclick="toggleFaq(this)" class="w-full flex items-center justify-between px-6 py-5 text-left gap-4 hover:bg-gray-50 transition">
+            <span class="font-semibold text-gray-900 text-sm md:text-base">Les visuels générés sont-ils conformes aux règles Amazon ?</span>
+            <svg class="faq-chevron flex-shrink-0 w-5 h-5 text-purple-500 transition-transform duration-200" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="faq-body hidden px-6 pb-5">
+            <p class="text-gray-600 text-sm leading-relaxed">Nos prompts IA intègrent nativement les règles Amazon : fond blanc RGB(255,255,255) obligatoire pour la photo principale (slot MAIN), pas de texte ni logo sur l'image hero, produit occupant 85 %+ du cadre. Les 6 images secondaires (lifestyle, infographie, zoom matière, dimensions, packaging) sont conçues pour respecter les recommandations des slots PT01 à PT06. L'équipe SynqIO ajuste régulièrement les paramètres en fonction des évolutions des guidelines Amazon.</p>
+          </div>
+        </div>
+
+        <!-- Q4 -->
+        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+          <button onclick="toggleFaq(this)" class="w-full flex items-center justify-between px-6 py-5 text-left gap-4 hover:bg-gray-50 transition">
+            <span class="font-semibold text-gray-900 text-sm md:text-base">Mes données produits sont-elles confidentielles ?</span>
+            <svg class="faq-chevron flex-shrink-0 w-5 h-5 text-purple-500 transition-transform duration-200" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="faq-body hidden px-6 pb-5">
+            <p class="text-gray-600 text-sm leading-relaxed">Vos données produits (catalogues, EAN, prix, descriptions, photos) sont strictement confidentielles et liées à votre compte. Elles ne sont jamais partagées avec d'autres utilisateurs ni utilisées pour entraîner des modèles. Les transferts sont chiffrés (HTTPS/TLS). Vous pouvez supprimer vos données à tout moment depuis votre espace client.</p>
+          </div>
+        </div>
+
+        <!-- Q5 -->
+        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+          <button onclick="toggleFaq(this)" class="w-full flex items-center justify-between px-6 py-5 text-left gap-4 hover:bg-gray-50 transition">
+            <span class="font-semibold text-gray-900 text-sm md:text-base">Quels marketplaces sont supportés ?</span>
+            <svg class="faq-chevron flex-shrink-0 w-5 h-5 text-purple-500 transition-transform duration-200" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="faq-body hidden px-6 pb-5">
+            <p class="text-gray-600 text-sm leading-relaxed">SynqIO génère des fiches optimisées pour Amazon France, Allemagne, Italie, Espagne et Royaume-Uni. Pour chaque marketplace, les textes sont rédigés dans la langue locale (FR, DE, IT, ES, EN) avec une optimisation SEO adaptée aux habitudes de recherche du pays. La génération multi-pays en un seul import est disponible dès le plan Starter.</p>
+          </div>
+        </div>
+
+        <!-- Q6 -->
+        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+          <button onclick="toggleFaq(this)" class="w-full flex items-center justify-between px-6 py-5 text-left gap-4 hover:bg-gray-50 transition">
+            <span class="font-semibold text-gray-900 text-sm md:text-base">Comment se passe l'intégration avec mon compte Amazon ?</span>
+            <svg class="faq-chevron flex-shrink-0 w-5 h-5 text-purple-500 transition-transform duration-200" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="faq-body hidden px-6 pb-5">
+            <p class="text-gray-600 text-sm leading-relaxed">La connexion se fait via l'API officielle Amazon Selling Partner (SP-API). Lors du setup, vous autorisez SynqIO depuis votre Seller Central en quelques clics — aucune manipulation technique requise de votre côté. Une fois connecté, vous pouvez pousser vos fiches directement sur Amazon depuis l'interface SynqIO, sans copier-coller.</p>
+          </div>
+        </div>
+
+        <!-- Q7 -->
+        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+          <button onclick="toggleFaq(this)" class="w-full flex items-center justify-between px-6 py-5 text-left gap-4 hover:bg-gray-50 transition">
+            <span class="font-semibold text-gray-900 text-sm md:text-base">À quoi correspond le "Setup unique" dans la tarification ?</span>
+            <svg class="faq-chevron flex-shrink-0 w-5 h-5 text-purple-500 transition-transform duration-200" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="faq-body hidden px-6 pb-5">
+            <p class="text-gray-600 text-sm leading-relaxed">Le setup couvre : la configuration de votre compte SynqIO, la connexion SP-API à votre compte Amazon Seller, le calibrage de l'agent IA sur votre catalogue (persona de marque, ton, catégories prioritaires) et une session de prise en main de 30 à 60 min. C'est un investissement unique — vous ne le payez qu'à l'ouverture du compte.</p>
+          </div>
+        </div>
+
+        <!-- Q8 -->
+        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+          <button onclick="toggleFaq(this)" class="w-full flex items-center justify-between px-6 py-5 text-left gap-4 hover:bg-gray-50 transition">
+            <span class="font-semibold text-gray-900 text-sm md:text-base">Puis-je modifier les fiches générées avant publication ?</span>
+            <svg class="faq-chevron flex-shrink-0 w-5 h-5 text-purple-500 transition-transform duration-200" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="faq-body hidden px-6 pb-5">
+            <p class="text-gray-600 text-sm leading-relaxed">Absolument. Toutes les fiches sont éditables directement dans l'interface : titre, bullets, description, prix, EAN, et chaque image peut être régénérée individuellement. Vous gardez le contrôle total. La publication sur Amazon ne se fait qu'une fois que vous avez validé le contenu — SynqIO ne publie jamais automatiquement sans votre accord.</p>
+          </div>
+        </div>
+
+        <!-- Q9 -->
+        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+          <button onclick="toggleFaq(this)" class="w-full flex items-center justify-between px-6 py-5 text-left gap-4 hover:bg-gray-50 transition">
+            <span class="font-semibold text-gray-900 text-sm md:text-base">Quels résultats peut-on espérer sur le taux de conversion ?</span>
+            <svg class="faq-chevron flex-shrink-0 w-5 h-5 text-purple-500 transition-transform duration-200" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="faq-body hidden px-6 pb-5">
+            <p class="text-gray-600 text-sm leading-relaxed">Les résultats varient selon le secteur et l'état initial des fiches, mais nos clients observent en moyenne +18 à +35 % de taux de conversion sur les SKU traités dans les 60 premiers jours. L'impact est surtout visible sur les fiches qui partaient d'un contenu minimal (description absente, photo fournisseur basique) remplacées par des visuels studio et des textes SEO optimisés.</p>
+          </div>
+        </div>
+
+        <!-- Q10 -->
+        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+          <button onclick="toggleFaq(this)" class="w-full flex items-center justify-between px-6 py-5 text-left gap-4 hover:bg-gray-50 transition">
+            <span class="font-semibold text-gray-900 text-sm md:text-base">L'abonnement est-il sans engagement ?</span>
+            <svg class="faq-chevron flex-shrink-0 w-5 h-5 text-purple-500 transition-transform duration-200" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="faq-body hidden px-6 pb-5">
+            <p class="text-gray-600 text-sm leading-relaxed">Le plan Starter est sans engagement — résiliable à tout moment. Les plans Business (3 mois) et Scale (6 mois) offrent un tarif préférentiel en contrepartie d'un engagement minimal. Dans tous les cas, vous conservez l'accès à vos fiches et visuels générés même après résiliation.</p>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="mt-12 text-center">
+        <p class="text-gray-500 text-sm mb-4">Vous avez une autre question ?</p>
+        <a href="https://calendly.com/fl-synqio/30min" target="_blank"
+           class="inline-flex items-center gap-2 bg-white border-2 border-purple-200 hover:border-purple-400 text-purple-700 font-semibold px-6 py-3 rounded-2xl transition text-sm shadow-sm">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          Parler à un expert — 30 min offertes
+        </a>
+      </div>
+    </div>
+  </section>
+
   <!-- FOOTER -->
   <footer class="bg-gray-50 border-t border-gray-200 py-10">
     <div class="max-w-6xl mx-auto px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
@@ -666,6 +802,7 @@
         <span class="text-gray-400 text-sm">© 2025 SynqIO — MarketplaceAI</span>
       </div>
       <div class="flex flex-wrap gap-5 justify-center">
+        <a href="#faqList" onclick="document.getElementById('faqList').scrollIntoView({behavior:'smooth'});return false;" class="text-gray-400 hover:text-gray-700 text-sm transition">FAQ</a>
         <a href="/mentions-legales.html" class="text-gray-400 hover:text-gray-700 text-sm transition">Mentions légales</a>
         <a href="/politique-confidentialite.html" class="text-gray-400 hover:text-gray-700 text-sm transition">Confidentialité</a>
         <a href="/cgu.html" class="text-gray-400 hover:text-gray-700 text-sm transition">CGU</a>
@@ -4033,6 +4170,14 @@ function togglePwdSetup() {
 }
 
 // ── ROI Calculator ────────────────────────────────────────────────────────────
+function toggleFaq(btn) {
+  const body = btn.nextElementSibling;
+  const chevron = btn.querySelector('.faq-chevron');
+  const isOpen = !body.classList.contains('hidden');
+  body.classList.toggle('hidden', isOpen);
+  chevron.style.transform = isOpen ? '' : 'rotate(180deg)';
+}
+
 function calcROI() {
   const skus = parseInt(document.getElementById('roi-skus').value);
   const timePerSku = parseFloat(document.getElementById('roi-time').value);
