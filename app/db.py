@@ -189,6 +189,21 @@ def _init_db_pg():
         )
     """)
 
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS jobs (
+            id TEXT PRIMARY KEY,
+            user_email TEXT,
+            type TEXT NOT NULL,
+            status TEXT NOT NULL DEFAULT 'pending',
+            progress INTEGER DEFAULT 0,
+            total INTEGER DEFAULT 0,
+            result_json TEXT,
+            error TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+
     conn.commit()
     conn.close()
 
@@ -291,6 +306,21 @@ def _init_db_sqlite():
             title TEXT DEFAULT '',
             synced_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             UNIQUE(user_email, marketplace, sku)
+        )
+    """)
+
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS jobs (
+            id TEXT PRIMARY KEY,
+            user_email TEXT,
+            type TEXT NOT NULL,
+            status TEXT NOT NULL DEFAULT 'pending',
+            progress INTEGER DEFAULT 0,
+            total INTEGER DEFAULT 0,
+            result_json TEXT,
+            error TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
 
@@ -538,3 +568,62 @@ def get_catalog_summary(user_email: str) -> dict:
     ).fetchall()
     conn.close()
     return {r["marketplace"]: r["cnt"] for r in rows}
+
+
+# ── Job persistence ───────────────────────────────────────────────────────────
+
+def save_job(job_id: str, user_email: str, job_type: str, total: int) -> None:
+    """Persist a new job record on creation."""
+    conn = get_db()
+    conn.execute(
+        "INSERT INTO jobs (id, user_email, type, status, total) VALUES (?, ?, ?, 'pending', ?)",
+        (job_id, user_email or "", job_type, total),
+    )
+    conn.commit()
+    conn.close()
+
+
+def update_job_db(job_id: str, status: str = None, progress: int = None,
+                  result_json: str = None, error: str = None) -> None:
+    """Update a job's state in the DB."""
+    parts, vals = [], []
+    if status is not None:
+        parts.append("status = ?"); vals.append(status)
+    if progress is not None:
+        parts.append("progress = ?"); vals.append(progress)
+    if result_json is not None:
+        parts.append("result_json = ?"); vals.append(result_json)
+    if error is not None:
+        parts.append("error = ?"); vals.append(error)
+    if not parts:
+        return
+    parts.append("updated_at = CURRENT_TIMESTAMP")
+    vals.append(job_id)
+    conn = get_db()
+    conn.execute(f"UPDATE jobs SET {', '.join(parts)} WHERE id = ?", vals)
+    conn.commit()
+    conn.close()
+
+
+def load_recent_jobs(limit: int = 200) -> dict:
+    """Return dict keyed by job_id for the most recent jobs (startup restore)."""
+    import json as _json
+    conn = get_db()
+    try:
+        rows = conn.execute(
+            "SELECT * FROM jobs ORDER BY created_at DESC LIMIT ?", (limit,)
+        ).fetchall()
+    except Exception:
+        rows = []
+    conn.close()
+    result = {}
+    for row in rows:
+        d = dict(row)
+        raw = d.pop("result_json", None)
+        if raw:
+            try:
+                d["result"] = _json.loads(raw)
+            except Exception:
+                pass
+        result[d["id"]] = d
+    return result

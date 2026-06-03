@@ -3726,17 +3726,86 @@ function switchTab(idx, tab) {
   if (tab === 'images') _restoreImagesInCard(idx);
 }
 
-// ── Image generation ──────────────────────────────────────────────────────────
+// ── Image generation (non-blocking) ──────────────────────────────────────────
 const imagesCache = {};
+const _activeImgJobs = {}; // sku → job_id for in-progress polls
+let _imgJobTotal = 0;
+let _imgJobDone = 0;
+
+function _updateImgProgress() {
+  const bar = document.getElementById('imgProgressBar');
+  if (!bar) return;
+  if (_imgJobTotal === 0) { bar.style.display = 'none'; return; }
+  const remaining = _imgJobTotal - _imgJobDone;
+  if (remaining <= 0) {
+    bar.style.display = 'none';
+    _imgJobTotal = 0; _imgJobDone = 0;
+    showToast('✅', 'Toutes les photos générées');
+    return;
+  }
+  bar.style.display = 'flex';
+  bar.textContent = `🖼️ ${_imgJobDone} / ${_imgJobTotal} visuels générés`;
+}
+
+// Fire-and-forget background poller — never await this
+async function _bgPollImage(sku, idx, job_id) {
+  let missed = 0;
+  while (true) {
+    await new Promise(res => setTimeout(res, 2500));
+    const jr = await authFetch(`/api/jobs/${job_id}`).catch(() => null);
+    if (!jr || !jr.ok) {
+      if (++missed >= 4) {
+        delete _activeImgJobs[sku];
+        _imgJobDone++; _updateImgProgress();
+        const cont = document.getElementById(`images-container-${idx}`);
+        if (cont && cont.dataset.jobId === job_id) {
+          cont.innerHTML = `<p class="text-red-500 text-sm text-center py-4">Génération interrompue — relancez.</p>`;
+          delete cont.dataset.jobId;
+        }
+        return;
+      }
+      await new Promise(res => setTimeout(res, 3000));
+      continue;
+    }
+    missed = 0;
+    const job = await jr.json();
+    if (job.status === 'done') {
+      imagesCache[sku] = job.result;
+      try { localStorage.setItem('synqio_images', JSON.stringify(imagesCache)); } catch(e) {}
+      delete _activeImgJobs[sku];
+      _imgJobDone++; _updateImgProgress();
+      const cont = document.getElementById(`images-container-${idx}`);
+      if (cont && cont.dataset.jobId === job_id) { renderImages(cont, job.result); delete cont.dataset.jobId; }
+      return;
+    }
+    if (job.status === 'failed') {
+      delete _activeImgJobs[sku];
+      _imgJobDone++; _updateImgProgress();
+      const cont = document.getElementById(`images-container-${idx}`);
+      if (cont && cont.dataset.jobId === job_id) {
+        cont.innerHTML = `<p class="text-red-500 text-sm text-center py-4">Erreur : ${job.error || 'Génération échouée'}</p>`;
+        delete cont.dataset.jobId;
+      }
+      return;
+    }
+  }
+}
 
 async function generateImages(idx) {
   const listing = generatedListings[idx];
   if (!listing) return;
   const container = document.getElementById(`images-container-${idx}`);
   if (imagesCache[listing.sku]) { renderImages(container, imagesCache[listing.sku]); return; }
-  container.innerHTML = `<div class="flex flex-col items-center py-8 gap-3"><div class="spinner"></div><p class="text-gray-500 text-sm">Génération des prompts et visuels...</p><p class="text-gray-400 text-xs">7 visuels Amazon en cours de création</p></div>`;
+  // Already polling in background — just show waiting state
+  if (_activeImgJobs[listing.sku]) {
+    if (container) {
+      container.innerHTML = `<div class="flex flex-col items-center py-8 gap-3"><div class="spinner"></div><p class="text-gray-500 text-sm">Génération en cours...</p><p class="text-gray-400 text-xs">Les visuels arriveront automatiquement</p></div>`;
+      container.dataset.jobId = _activeImgJobs[listing.sku];
+    }
+    return;
+  }
+  if (container) container.innerHTML = `<div class="flex flex-col items-center py-8 gap-3"><div class="spinner"></div><p class="text-gray-500 text-sm">Démarrage...</p><p class="text-gray-400 text-xs">7 visuels Amazon en cours de création</p></div>`;
   try {
-    // Step 1: start background job
     const rawProduct = parsedProducts.find(p => p.sku === listing.sku);
     const referenceImageUrl = rawProduct?.images?.[0] || '';
     const r = await authFetch('/api/generate-images', {
@@ -3749,82 +3818,54 @@ async function generateImages(idx) {
       throw new Error(msg);
     }
     const { job_id } = await r.json();
-
-    // Step 2: poll until done
-    let dots = 0;
-    let _jobMissed2 = 0;
-    while (true) {
-      await new Promise(res => setTimeout(res, 2500));
-      const jr = await authFetch(`/api/jobs/${job_id}`).catch(() => null);
-      if (!jr || !jr.ok) {
-        if (++_jobMissed2 >= 4) throw new Error('Génération interrompue — le serveur a redémarré. Relancez la génération.');
-        await new Promise(res => setTimeout(res, 3000));
-        continue;
-      }
-      _jobMissed2 = 0;
-      const job = await jr.json();
-      dots = (dots + 1) % 4;
-      container.querySelector('p')?.setAttribute('data-dots', '.'.repeat(dots));
-      if (job.status === 'done') {
-        const data = job.result;
-        imagesCache[listing.sku] = data;
-        try { localStorage.setItem('synqio_images', JSON.stringify(imagesCache)); } catch(e) {}
-        renderImages(container, data);
-        return;
-      }
-      if (job.status === 'failed') throw new Error(job.error || 'Erreur de génération');
+    _activeImgJobs[listing.sku] = job_id;
+    _imgJobTotal++; _updateImgProgress();
+    if (container) {
+      container.innerHTML = `<div class="flex flex-col items-center py-8 gap-3"><div class="spinner"></div><p class="text-gray-500 text-sm">Génération en cours...</p><p class="text-gray-400 text-xs">Les visuels arriveront automatiquement</p></div>`;
+      container.dataset.jobId = job_id;
     }
-  } catch (e) { container.innerHTML = `<p class="text-red-500 text-sm text-center py-4">Erreur : ${e.message}</p>`; }
+    _bgPollImage(listing.sku, idx, job_id); // fire and forget — NOT awaited
+  } catch (e) {
+    if (container) container.innerHTML = `<p class="text-red-500 text-sm text-center py-4">Erreur : ${e.message}</p>`;
+  }
 }
 
 // ── Bulk image generation ─────────────────────────────────────────────────────
 async function generateAllImages() {
   const btn = document.getElementById('bulkGenImgBtn');
-  const topLevel = generatedListings.filter(l => !l.parent_sku);
-  const total = topLevel.length;
-  if (!total) { showToast('⚠️', 'Aucune fiche à traiter', true); return; }
-  if (btn) { btn.disabled = true; btn.textContent = `Génération photos : 0 / ${total}`; }
-  let done = 0;
-  for (const listing of topLevel) {
+  const topLevel = generatedListings.filter(l => !l.parent_sku && !l.is_variation);
+  const toGenerate = topLevel.filter(l => !imagesCache[l.sku] && !_activeImgJobs[l.sku]);
+  if (!topLevel.length) { showToast('⚠️', 'Aucune fiche à traiter', true); return; }
+  if (!toGenerate.length) { showToast('ℹ️', 'Toutes les photos sont déjà générées ou en cours', false); return; }
+  if (btn) { btn.disabled = true; btn.textContent = 'Lancement...'; }
+  let started = 0;
+  for (const listing of toGenerate) {
+    if (_activeImgJobs[listing.sku]) continue;
     const idx = generatedListings.indexOf(listing);
-    if (!imagesCache[listing.sku]) {
-      // Ensure the images tab container exists (card may not be rendered or tab not open)
-      // We generate silently in the background using the same API call as generateImages
-      try {
-        const rawProduct = parsedProducts.find(p => p.sku === listing.sku);
-        const referenceImageUrl = rawProduct?.images?.[0] || '';
-        const r = await authFetch('/api/generate-images', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ sku: listing.sku, product_name: listing.title, brand: listing.brand || '', category: listing.category || '', features: listing.bullet_points || [], color: rawProduct?.color || '', material: rawProduct?.material || '', reference_image_url: referenceImageUrl, batch_id: currentBatchId, marketplace: listing.marketplace || '' }),
-        });
-        if (!r.ok) { let msg = 'Erreur serveur'; try { const body = await r.text(); msg = JSON.parse(body).detail || body || msg; } catch {} throw new Error(msg); }
-        const { job_id } = await r.json();
-        let _missed = 0;
-        while (true) {
-          await new Promise(res => setTimeout(res, 2500));
-          const jr = await authFetch(`/api/jobs/${job_id}`).catch(() => null);
-          if (!jr || !jr.ok) { if (++_missed >= 4) throw new Error('Serveur indisponible'); await new Promise(res => setTimeout(res, 3000)); continue; }
-          _missed = 0;
-          const job = await jr.json();
-          if (job.status === 'done') {
-            imagesCache[listing.sku] = job.result;
-            try { localStorage.setItem('synqio_images', JSON.stringify(imagesCache)); } catch(e) {}
-            // If the card's images container is currently visible, refresh it
-            const imgContainer = document.getElementById(`images-container-${idx}`);
-            if (imgContainer) renderImages(imgContainer, job.result);
-            break;
-          }
-          if (job.status === 'failed') throw new Error(job.error || 'Erreur de génération');
-        }
-      } catch (e) {
-        showToast('❌', `Erreur ${listing.sku} : ${e.message}`, true);
+    try {
+      const rawProduct = parsedProducts.find(p => p.sku === listing.sku);
+      const referenceImageUrl = rawProduct?.images?.[0] || '';
+      const r = await authFetch('/api/generate-images', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sku: listing.sku, product_name: listing.title, brand: listing.brand || '', category: listing.category || '', features: listing.bullet_points || [], color: rawProduct?.color || '', material: rawProduct?.material || '', reference_image_url: referenceImageUrl, batch_id: currentBatchId, marketplace: listing.marketplace || '' }),
+      });
+      if (!r.ok) { let msg = 'Erreur'; try { const body = await r.text(); msg = JSON.parse(body).detail || body || msg; } catch {} showToast('❌', `${listing.sku}: ${msg}`, true); continue; }
+      const { job_id } = await r.json();
+      _activeImgJobs[listing.sku] = job_id;
+      _imgJobTotal++; started++;
+      const cont = document.getElementById(`images-container-${idx}`);
+      if (cont) {
+        cont.innerHTML = `<div class="flex flex-col items-center py-8 gap-3"><div class="spinner"></div><p class="text-gray-500 text-sm">Génération en cours...</p><p class="text-gray-400 text-xs">Les visuels arriveront automatiquement</p></div>`;
+        cont.dataset.jobId = job_id;
       }
+      _bgPollImage(listing.sku, idx, job_id); // fire and forget
+    } catch (e) {
+      showToast('❌', `Erreur ${listing.sku} : ${e.message}`, true);
     }
-    done++;
-    if (btn) btn.textContent = `Génération photos : ${done} / ${total}`;
   }
+  _updateImgProgress();
   if (btn) { btn.disabled = false; btn.innerHTML = '🖼️ Générer toutes les photos'; }
-  showToast('✅', 'Toutes les photos générées');
+  if (started > 0) showToast('🖼️', `${started} génération${started > 1 ? 's' : ''} lancée${started > 1 ? 's' : ''} en arrière-plan`, false);
 }
 
 // ── Per-listing delete ────────────────────────────────────────────────────────
@@ -3832,7 +3873,6 @@ function deleteListing(idx) {
   const listing = generatedListings[idx];
   if (!listing) return;
   if (!confirm('Supprimer cette fiche ?')) return;
-  // Remove parent + its children if applicable
   const skuToRemove = listing.sku;
   generatedListings = generatedListings.filter(l => l.sku !== skuToRemove && l.parent_sku !== skuToRemove);
   try { localStorage.setItem('synqio_listings', JSON.stringify(generatedListings)); } catch(e) {}
@@ -6057,6 +6097,9 @@ function escHtml(s) {
     .replace(/"/g,'&quot;');
 }
 </script>
+
+<!-- Floating image generation progress bar -->
+<div id="imgProgressBar" style="display:none;position:fixed;bottom:24px;right:24px;z-index:9999;background:#1f2937;color:#f9fafb;padding:10px 18px;border-radius:12px;font-size:0.85rem;font-weight:500;box-shadow:0 4px 16px rgba(0,0,0,0.25);align-items:center;gap:8px;pointer-events:none;"></div>
 
 </body>
 </html>

@@ -7,6 +7,7 @@ import base64
 import httpx
 from uuid import uuid4
 from dotenv import load_dotenv
+from app.logger import log
 load_dotenv(override=False)  # local dev only — Railway injects vars directly
 
 from collections import defaultdict
@@ -47,7 +48,7 @@ from app.services.usage import log_usage, get_user_usage, get_all_users_usage
 from app.services import storage
 from app.utils.export import to_csv_bytes, to_json_bytes, to_amazon_flat_file_bytes, to_listing_loader_bytes, to_amazon_flat_file_xlsx, to_listing_loader_xlsx, to_variation_flat_file_xlsx
 from app.utils.variation_handler import group_by_parent, build_parent_product, expand_to_variation_listings
-from app.db import init_db, save_generation, list_generations, get_generation, delete_generation, update_generation_label
+from app.db import init_db, save_generation, list_generations, get_generation, delete_generation, update_generation_label, save_job, update_job_db, load_recent_jobs
 from app.routes.auth import router as auth_router, admin_router
 from app.routes.amazon_oauth import router as amazon_router
 from app.routes.chat import router as chat_router
@@ -107,13 +108,31 @@ app.include_router(chat_router)
 @app.on_event("startup")
 async def startup():
     _check_secrets()
+    sentry_dsn = os.getenv("SENTRY_DSN")
+    if sentry_dsn:
+        import sentry_sdk
+        from sentry_sdk.integrations.fastapi import FastApiIntegration
+        from sentry_sdk.integrations.starlette import StarletteIntegration
+        sentry_sdk.init(
+            dsn=sentry_dsn,
+            integrations=[StarletteIntegration(transaction_style="endpoint"),
+                          FastApiIntegration()],
+            traces_sample_rate=0.05,
+            environment=os.getenv("RAILWAY_ENVIRONMENT", "development"),
+            release=os.getenv("RAILWAY_GIT_COMMIT_SHA", "unknown"),
+        )
+        log.info("Sentry initialised", extra={"endpoint": "startup"})
     from app.db import DB_PATH
     db_abs = os.path.abspath(DB_PATH)
-    print(f"[SynqIO] DB path: {db_abs}", flush=True)
-    print(f"[SynqIO] DB on volume: {db_abs.startswith('/app/data')}", flush=True)
-    print(f"[SynqIO] DB exists: {os.path.isfile(db_abs)}", flush=True)
+    log.info(f"[SynqIO] DB path: {db_abs}")
+    log.info(f"[SynqIO] DB on volume: {db_abs.startswith('/app/data')}")
+    log.info(f"[SynqIO] DB exists: {os.path.isfile(db_abs)}")
     init_db()
     _bootstrap_admin()
+    try:
+        _jobs.update(load_recent_jobs())
+    except Exception:
+        pass
 
 
 def _check_secrets():
@@ -121,16 +140,13 @@ def _check_secrets():
     jwt = os.getenv("JWT_SECRET", "")
     insecure_default = "change-me-use-a-long-random-string-in-production"
     if not jwt or jwt == insecure_default or len(jwt) < 32:
-        # Generate a suggestion and log a loud warning — don't crash so Railway
-        # cold-starts still work, but the problem is unmissable in logs.
         suggestion = _secrets.token_hex(32)
-        print(
+        log.warning(
             f"\n{'='*60}\n"
-            f"⚠️  SECURITY WARNING: JWT_SECRET is weak or missing.\n"
+            f"SECURITY WARNING: JWT_SECRET is weak or missing.\n"
             f"   Set this env var in Railway:\n"
             f"   JWT_SECRET={suggestion}\n"
-            f"{'='*60}\n",
-            flush=True,
+            f"{'='*60}\n"
         )
 
 
@@ -565,6 +581,7 @@ def _cleanup_jobs():
 
 async def _run_generation_job(job_id: str, request: GenerationRequest, email: str):
     _jobs[job_id]["status"] = "running"
+    log.info("job started", extra={"job_id": job_id})
     target_mkts = request.marketplaces or [request.marketplace]
 
     # Group products by parent_sku to detect variation groups
@@ -637,6 +654,12 @@ async def _run_generation_job(job_id: str, request: GenerationRequest, email: st
         result_dict = result.model_dump()
         _jobs[job_id].update({"status": "done", "progress": n_total,
                                "result": result_dict})
+        log.info("job done", extra={"job_id": job_id, "user": email})
+        try:
+            update_job_db(job_id, status="done", progress=n_total,
+                          result_json=json.dumps(result_dict, default=str))
+        except Exception:
+            pass
         if email:
             try:
                 save_generation(
@@ -649,6 +672,11 @@ async def _run_generation_job(job_id: str, request: GenerationRequest, email: st
                 pass
     except Exception as e:
         _jobs[job_id].update({"status": "failed", "error": str(e)})
+        log.error("job failed", extra={"job_id": job_id, "user": email})
+        try:
+            update_job_db(job_id, status="failed", error=str(e))
+        except Exception:
+            pass
 
 
 # ── Generation ────────────────────────────────────────────────────────────────
@@ -683,6 +711,10 @@ async def generate(request: GenerationRequest, req: Request):
     _jobs[job_id] = {"status": "pending", "progress": 0,
                      "total": n_total, "created_at": time.time()}
     _cleanup_jobs()
+    try:
+        save_job(job_id, email, "generation", n_total)
+    except Exception:
+        pass
     asyncio.create_task(_run_generation_job(job_id, request, email))
     return {"job_id": job_id, "total": n_total}
 
@@ -690,6 +722,12 @@ async def generate(request: GenerationRequest, req: Request):
 @app.get("/api/jobs/{job_id}")
 async def get_job(job_id: str):
     job = _jobs.get(job_id)
+    if not job:
+        try:
+            db_jobs = load_recent_jobs(limit=500)
+            job = db_jobs.get(job_id)
+        except Exception:
+            pass
     if not job:
         raise HTTPException(404, "Job introuvable ou expiré (1h max)")
     return job
@@ -822,6 +860,7 @@ async def _persist_images(sku: str, images: list) -> list:
 
 async def _run_image_job(job_id: str, req: ImageRequest, email: str):
     _jobs[job_id]["status"] = "running"
+    log.info("job started", extra={"job_id": job_id})
     try:
         # Résoudre la photo de référence :
         # - /api/photos/{nom} → bytes depuis _temp_photos (ZIP uploadé, zéro HTTP)
@@ -867,19 +906,27 @@ async def _run_image_job(job_id: str, req: ImageRequest, email: str):
                 pass
 
         openai_ok = bool(os.getenv("OPENAI_API_KEY"))
-        _jobs[job_id].update({
-            "status": "done",
-            "result": {
-                "sku": req.sku,
-                "images": images,
-                "images_generated": openai_ok,
-                "openai_configured": openai_ok,
-                "total": len(images),
-                "reference_image_used": img_tokens.get("reference_image_used", False),
-            },
-        })
+        result_img = {
+            "sku": req.sku,
+            "images": images,
+            "images_generated": openai_ok,
+            "openai_configured": openai_ok,
+            "total": len(images),
+            "reference_image_used": img_tokens.get("reference_image_used", False),
+        }
+        _jobs[job_id].update({"status": "done", "result": result_img})
+        log.info("job done", extra={"job_id": job_id, "user": email})
+        try:
+            update_job_db(job_id, status="done", result_json=json.dumps(result_img, default=str))
+        except Exception:
+            pass
     except Exception as e:
         _jobs[job_id].update({"status": "failed", "error": str(e)})
+        log.error("job failed", extra={"job_id": job_id, "user": email})
+        try:
+            update_job_db(job_id, status="failed", error=str(e))
+        except Exception:
+            pass
 
 
 @app.post("/api/generate-images")
@@ -892,13 +939,17 @@ async def generate_images(req: ImageRequest, request: Request):
         imgs_remaining = max(0, usage.get("images_quota", 200) - usage.get("images_used", 0))
         if imgs_remaining <= 0:
             raise HTTPException(429,
-                f"Quota d'images atteint (plan {usage['plan_label']}). "
+                f"Quota d'images atteint ce mois (plan {usage['plan_label']}). "
                 "Contactez-nous pour augmenter votre quota.")
         if not _rate_limit(f"{email}:images", limit=10, window=3600):
             raise HTTPException(429, "Trop de générations d'images — maximum 10/heure.")
     job_id = str(uuid4())
     _jobs[job_id] = {"status": "pending", "progress": 0, "total": 7, "created_at": time.time()}
     _cleanup_jobs()
+    try:
+        save_job(job_id, email, "images", 7)
+    except Exception:
+        pass
     asyncio.create_task(_run_image_job(job_id, req, email))
     return {"job_id": job_id}
 
@@ -911,6 +962,7 @@ class SingleImageRequest(BaseModel):
 
 async def _run_single_image_job(job_id: str, req: SingleImageRequest, email: str):
     _jobs[job_id]["status"] = "running"
+    log.info("job started", extra={"job_id": job_id})
     try:
         url = await _generate_image_dalle3(req.prompt, req.image_id)
         openai_ok = bool(os.getenv("OPENAI_API_KEY"))
@@ -920,18 +972,26 @@ async def _run_single_image_job(job_id: str, req: SingleImageRequest, email: str
         if url:
             persisted = await _persist_images(req.sku, [{"id": req.image_id, "url": url, "has_image": True}])
             url = persisted[0]["url"] if persisted else url
-        _jobs[job_id].update({
-            "status": "done",
-            "result": {
-                "sku": req.sku,
-                "image_id": req.image_id,
-                "url": url,
-                "prompt": req.prompt,
-                "openai_configured": openai_ok,
-            },
-        })
+        result_single = {
+            "sku": req.sku,
+            "image_id": req.image_id,
+            "url": url,
+            "prompt": req.prompt,
+            "openai_configured": openai_ok,
+        }
+        _jobs[job_id].update({"status": "done", "result": result_single})
+        log.info("job done", extra={"job_id": job_id, "user": email})
+        try:
+            update_job_db(job_id, status="done", result_json=json.dumps(result_single, default=str))
+        except Exception:
+            pass
     except Exception as e:
         _jobs[job_id].update({"status": "failed", "error": str(e)})
+        log.error("job failed", extra={"job_id": job_id, "user": email})
+        try:
+            update_job_db(job_id, status="failed", error=str(e))
+        except Exception:
+            pass
 
 
 @app.post("/api/generate-image-single")
@@ -944,6 +1004,10 @@ async def generate_image_single(req: SingleImageRequest, request: Request):
     job_id = str(uuid4())
     _jobs[job_id] = {"status": "pending", "progress": 0, "total": 1, "created_at": time.time()}
     _cleanup_jobs()
+    try:
+        save_job(job_id, email, "single_image", 1)
+    except Exception:
+        pass
     asyncio.create_task(_run_single_image_job(job_id, req, email))
     return {"job_id": job_id}
 

@@ -136,6 +136,7 @@ def create_user(email: str, password: str, name: str = "", is_admin: bool = Fals
     except sqlite3.IntegrityError:
         raise ValueError(f"L'email {email} existe déjà")
     except Exception as e:
+        # psycopg2 UniqueViolation or other DB error
         if "unique" in str(e).lower() or "duplicate" in str(e).lower():
             raise ValueError(f"L'email {email} existe déjà")
         raise
