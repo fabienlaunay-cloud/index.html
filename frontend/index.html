@@ -2336,6 +2336,7 @@ function doLogout() {
   localStorage.removeItem('synqio_token');
   token = '';
   document.getElementById('userDropdown').classList.add('hidden');
+  _hideBubble();
   showLoginScreen();
 }
 
@@ -6431,64 +6432,90 @@ function escHtml(s) {
 <div id="imgProgressBar" style="display:none;position:fixed;bottom:24px;right:24px;z-index:9999;background:#1f2937;color:#f9fafb;padding:10px 18px;border-radius:12px;font-size:0.85rem;font-weight:500;box-shadow:0 4px 16px rgba(0,0,0,0.25);align-items:center;gap:8px;pointer-events:none;"></div>
 
 <!-- ── Bulle d'aide SynqIO ──────────────────────────────────────────────────── -->
-<div id="helpBubble" class="hidden" style="position:fixed;bottom:80px;right:24px;z-index:9998">
+<div id="helpBubble" class="hidden" style="position:fixed;bottom:24px;right:24px;z-index:9998;display:flex;flex-direction:column;align-items:flex-end">
 
-  <!-- Fenêtre de chat -->
-  <div id="helpWindow" class="hidden" style="width:340px;max-height:520px;display:flex;flex-direction:column;background:#fff;border-radius:20px;box-shadow:0 8px 40px rgba(0,0,0,0.18);overflow:hidden;margin-bottom:12px">
-    <!-- Header -->
-    <div style="background:linear-gradient(135deg,#7c3aed,#6d28d9);padding:14px 16px;display:flex;align-items:center;justify-content:space-between">
+  <!-- Fenêtre de chat — 3 états : open / minimized / closed -->
+  <div id="helpWindow" style="width:340px;background:#fff;border-radius:20px;box-shadow:0 8px 40px rgba(0,0,0,0.18);overflow:hidden;margin-bottom:10px;display:none;flex-direction:column;transition:height 0.2s ease">
+    <!-- Header — cliquable pour réduire/ouvrir -->
+    <div onclick="_helpToggleMinimize()" style="background:linear-gradient(135deg,#7c3aed,#6d28d9);padding:12px 14px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;flex-shrink:0">
       <div style="display:flex;align-items:center;gap:10px">
-        <div style="width:34px;height:34px;background:rgba(255,255,255,0.2);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:16px">💡</div>
+        <div style="width:32px;height:32px;background:rgba(255,255,255,0.2);border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0">💡</div>
         <div>
-          <p style="color:#fff;font-weight:700;font-size:0.9rem;margin:0">Aide SynqIO</p>
-          <p style="color:rgba(255,255,255,0.75);font-size:0.72rem;margin:0">Interface &amp; règles Amazon</p>
+          <p style="color:#fff;font-weight:700;font-size:0.88rem;margin:0">Aide SynqIO</p>
+          <p style="color:rgba(255,255,255,0.75);font-size:0.7rem;margin:0">Interface &amp; règles Amazon</p>
         </div>
       </div>
-      <button onclick="toggleHelpWindow()" style="color:rgba(255,255,255,0.7);background:none;border:none;font-size:1.3rem;cursor:pointer;line-height:1;padding:2px 6px" title="Fermer">✕</button>
-    </div>
-    <!-- Messages -->
-    <div id="helpMessages" style="flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:10px;min-height:200px;max-height:320px">
-      <div class="help-msg-bot" style="background:#f3f0ff;color:#374151;padding:10px 13px;border-radius:14px 14px 14px 4px;font-size:0.82rem;line-height:1.5;max-width:90%">
-        Bonjour 👋 Je suis là pour vous aider à utiliser SynqIO et à respecter les règles Amazon. Posez-moi vos questions !
+      <div style="display:flex;gap:4px" onclick="event.stopPropagation()">
+        <button onclick="_helpToggleMinimize()" id="helpMinBtn" style="color:rgba(255,255,255,0.8);background:rgba(255,255,255,0.15);border:none;border-radius:6px;width:26px;height:26px;cursor:pointer;font-size:1rem;line-height:1;display:flex;align-items:center;justify-content:center" title="Réduire">−</button>
+        <button onclick="_helpClose()" style="color:rgba(255,255,255,0.8);background:rgba(255,255,255,0.15);border:none;border-radius:6px;width:26px;height:26px;cursor:pointer;font-size:0.85rem;line-height:1;display:flex;align-items:center;justify-content:center" title="Fermer">✕</button>
       </div>
     </div>
-    <!-- Input -->
-    <div style="padding:10px 12px;border-top:1px solid #f3f4f6;display:flex;gap:8px;align-items:flex-end">
-      <textarea id="helpInput" placeholder="Votre question…" rows="1" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendHelpMessage();}" oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,90)+'px'" style="flex:1;border:1.5px solid #e5e7eb;border-radius:12px;padding:8px 12px;font-size:0.82rem;resize:none;outline:none;font-family:inherit;line-height:1.4;color:#374151" onfocus="this.style.borderColor='#7c3aed'" onblur="this.style.borderColor='#e5e7eb'"></textarea>
-      <button onclick="sendHelpMessage()" style="background:#7c3aed;color:#fff;border:none;border-radius:12px;width:36px;height:36px;cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center;flex-shrink:0" title="Envoyer">➤</button>
+    <!-- Body (messages + input) — caché en mode minimized -->
+    <div id="helpBody" style="display:flex;flex-direction:column;flex:1;overflow:hidden">
+      <div id="helpMessages" style="overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:10px;min-height:180px;max-height:300px">
+        <div style="background:#f3f0ff;color:#374151;padding:10px 13px;border-radius:14px 14px 14px 4px;font-size:0.82rem;line-height:1.5;max-width:90%">
+          Bonjour 👋 Je suis là pour vous aider à utiliser SynqIO et à respecter les règles Amazon. Posez-moi vos questions !
+        </div>
+      </div>
+      <div style="padding:10px 12px;border-top:1px solid #f3f4f6;display:flex;gap:8px;align-items:flex-end">
+        <textarea id="helpInput" placeholder="Votre question…" rows="1" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendHelpMessage();}" oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,90)+'px'" style="flex:1;border:1.5px solid #e5e7eb;border-radius:12px;padding:8px 12px;font-size:0.82rem;resize:none;outline:none;font-family:inherit;line-height:1.4;color:#374151" onfocus="this.style.borderColor='#7c3aed'" onblur="this.style.borderColor='#e5e7eb'"></textarea>
+        <button onclick="sendHelpMessage()" style="background:#7c3aed;color:#fff;border:none;border-radius:12px;width:36px;height:36px;cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center;flex-shrink:0" title="Envoyer">➤</button>
+      </div>
     </div>
   </div>
 
-  <!-- Bouton flottant -->
-  <button onclick="toggleHelpWindow()" id="helpBtn" style="background:linear-gradient(135deg,#7c3aed,#6d28d9);color:#fff;border:none;border-radius:50px;padding:12px 20px;font-size:0.85rem;font-weight:600;cursor:pointer;box-shadow:0 4px 20px rgba(124,58,237,0.4);display:flex;align-items:center;gap:8px;white-space:nowrap;transition:transform 0.15s,box-shadow 0.15s" onmouseover="this.style.transform='scale(1.05)';this.style.boxShadow='0 6px 24px rgba(124,58,237,0.5)'" onmouseout="this.style.transform='scale(1)';this.style.boxShadow='0 4px 20px rgba(124,58,237,0.4)'">
-    <span style="font-size:1.05rem">💡</span> Aide &amp; règles Amazon
+  <!-- Bouton flottant (état fermé) -->
+  <button onclick="_helpOpen()" id="helpBtn" style="background:linear-gradient(135deg,#7c3aed,#6d28d9);color:#fff;border:none;border-radius:50px;padding:11px 18px;font-size:0.83rem;font-weight:600;cursor:pointer;box-shadow:0 4px 20px rgba(124,58,237,0.4);display:flex;align-items:center;gap:8px;white-space:nowrap;transition:transform 0.15s,box-shadow 0.15s" onmouseover="this.style.transform='scale(1.04)'" onmouseout="this.style.transform='scale(1)'">
+    <span style="font-size:1rem">💡</span> Aide &amp; règles Amazon
   </button>
 </div>
 
 <script>
 // ── Help chatbot ──────────────────────────────────────────────────────────────
 let _helpMessages = [];
-let _helpLoading = false;
+let _helpLoading  = false;
+let _helpState    = 'closed'; // 'closed' | 'minimized' | 'open'
 
-function toggleHelpWindow() {
-  const win = document.getElementById('helpWindow');
-  const isHidden = win.classList.contains('hidden') || win.style.display === 'none';
-  if (isHidden) {
-    win.classList.remove('hidden');
-    win.style.display = 'flex';
+function _helpOpen() {
+  _helpState = 'open';
+  const win  = document.getElementById('helpWindow');
+  const btn  = document.getElementById('helpBtn');
+  const body = document.getElementById('helpBody');
+  const minBtn = document.getElementById('helpMinBtn');
+  win.style.display  = 'flex';
+  body.style.display = 'flex';
+  btn.style.display  = 'none';
+  minBtn.textContent = '−';
+  minBtn.title = 'Réduire';
+  document.getElementById('helpInput').focus();
+}
+
+function _helpClose() {
+  _helpState = 'closed';
+  document.getElementById('helpWindow').style.display = 'none';
+  document.getElementById('helpBtn').style.display    = 'flex';
+}
+
+function _helpToggleMinimize() {
+  if (_helpState === 'open') {
+    _helpState = 'minimized';
+    document.getElementById('helpBody').style.display = 'none';
+    document.getElementById('helpMinBtn').textContent = '+';
+    document.getElementById('helpMinBtn').title = 'Agrandir';
+  } else if (_helpState === 'minimized') {
+    _helpState = 'open';
+    document.getElementById('helpBody').style.display = 'flex';
+    document.getElementById('helpMinBtn').textContent = '−';
+    document.getElementById('helpMinBtn').title = 'Réduire';
     document.getElementById('helpInput').focus();
-  } else {
-    win.classList.add('hidden');
-    win.style.display = 'none';
   }
 }
 
 function _helpRenderMsg(role, text) {
-  const el = document.getElementById('helpMessages');
+  const el  = document.getElementById('helpMessages');
   const div = document.createElement('div');
   const isBot = role === 'assistant';
   div.style.cssText = `background:${isBot?'#f3f0ff':'#7c3aed'};color:${isBot?'#374151':'#fff'};padding:10px 13px;border-radius:${isBot?'14px 14px 14px 4px':'14px 14px 4px 14px'};font-size:0.82rem;line-height:1.5;max-width:90%;${isBot?'':'align-self:flex-end'}`;
-  // Simple markdown: **bold**, bullet lines
   div.innerHTML = text
     .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
     .replace(/^- (.+)$/gm, '• $1')
@@ -6502,7 +6529,7 @@ function _helpSetLoading(on) {
   const btn = document.querySelector('#helpBubble button[onclick="sendHelpMessage()"]');
   if (btn) btn.disabled = on;
   if (on) {
-    const el = document.getElementById('helpMessages');
+    const el  = document.getElementById('helpMessages');
     const div = document.createElement('div');
     div.id = 'helpTyping';
     div.style.cssText = 'background:#f3f0ff;padding:10px 14px;border-radius:14px 14px 14px 4px;font-size:0.82rem;color:#9ca3af;max-width:60%';
@@ -6517,7 +6544,7 @@ function _helpSetLoading(on) {
 async function sendHelpMessage() {
   if (_helpLoading) return;
   const input = document.getElementById('helpInput');
-  const text = input.value.trim();
+  const text  = input.value.trim();
   if (!text) return;
   input.value = '';
   input.style.height = 'auto';
@@ -6541,10 +6568,15 @@ async function sendHelpMessage() {
   }
 }
 
-// Show bubble only when user is logged in
+// Appelé à la connexion uniquement
 function _initHelpBubble() {
-  const bubble = document.getElementById('helpBubble');
-  if (bubble) bubble.classList.remove('hidden');
+  document.getElementById('helpBubble').classList.remove('hidden');
+}
+
+// Appelé à la déconnexion
+function _hideBubble() {
+  _helpClose();
+  document.getElementById('helpBubble').classList.add('hidden');
 }
 </script>
 
