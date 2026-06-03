@@ -48,7 +48,11 @@ from app.services.usage import log_usage, get_user_usage, get_all_users_usage
 from app.services import storage
 from app.utils.export import to_csv_bytes, to_json_bytes, to_amazon_flat_file_bytes, to_listing_loader_bytes, to_amazon_flat_file_xlsx, to_listing_loader_xlsx, to_variation_flat_file_xlsx
 from app.utils.variation_handler import group_by_parent, build_parent_product, expand_to_variation_listings
-from app.db import init_db, save_generation, list_generations, get_generation, delete_generation, update_generation_label, save_job, update_job_db, load_recent_jobs
+from app.db import (init_db, save_generation, list_generations, get_generation,
+                    delete_generation, update_generation_label, save_job, update_job_db,
+                    load_recent_jobs, add_tracked_listing, list_tracked_listings,
+                    delete_tracked_listing, add_snapshot, get_snapshots,
+                    delete_snapshot, get_tracking_summary)
 from app.routes.auth import router as auth_router, admin_router
 from app.routes.amazon_oauth import router as amazon_router
 from app.routes.chat import router as chat_router
@@ -1411,6 +1415,135 @@ IMAGES : {effective_img_count} image(s)"""
         return result
     except Exception:
         raise HTTPException(500, "Erreur d'analyse — réessayez")
+
+
+# ── Performance tracking ──────────────────────────────────────────────────────
+
+class TrackedListingRequest(BaseModel):
+    sku: str = ""
+    asin: str = ""
+    title: str = ""
+    marketplace: str = "amazon_fr"
+    published_at: str = ""
+    seo_score: int = 0
+
+
+class SnapshotRequest(BaseModel):
+    snapshot_date: str
+    period_label: str = ""
+    sessions: int = 0
+    page_views: int = 0
+    units_ordered: int = 0
+    conversion_rate: float = 0.0
+    revenue: float = 0.0
+    keyword: str = ""
+    keyword_rank: Optional[int] = None
+    notes: str = ""
+
+
+@app.get("/api/tracking")
+async def tracking_list(request: Request):
+    return list_tracked_listings(request.state.user_email)
+
+
+@app.get("/api/tracking/summary")
+async def tracking_summary(request: Request):
+    return get_tracking_summary(request.state.user_email)
+
+
+@app.post("/api/tracking")
+async def tracking_add(req: TrackedListingRequest, request: Request):
+    if not req.asin and not req.sku:
+        raise HTTPException(400, "ASIN ou SKU requis")
+    return add_tracked_listing(
+        request.state.user_email, req.sku, req.asin, req.title,
+        req.marketplace, req.published_at, req.seo_score,
+    )
+
+
+@app.delete("/api/tracking/{listing_id}")
+async def tracking_delete(listing_id: str, request: Request):
+    if not delete_tracked_listing(listing_id, request.state.user_email):
+        raise HTTPException(404, "Fiche introuvable")
+    return {"ok": True}
+
+
+@app.get("/api/tracking/{listing_id}/snapshots")
+async def tracking_snapshots(listing_id: str, request: Request):
+    return get_snapshots(listing_id, request.state.user_email)
+
+
+@app.post("/api/tracking/{listing_id}/snapshots")
+async def tracking_add_snapshot(listing_id: str, req: SnapshotRequest, request: Request):
+    return add_snapshot(
+        listing_id, request.state.user_email, req.snapshot_date, req.period_label,
+        req.sessions, req.page_views, req.units_ordered, req.conversion_rate,
+        req.revenue, req.keyword, req.keyword_rank, req.notes,
+    )
+
+
+@app.delete("/api/tracking/{listing_id}/snapshots/{snap_id}")
+async def tracking_delete_snapshot(listing_id: str, snap_id: int, request: Request):
+    if not delete_snapshot(snap_id, request.state.user_email):
+        raise HTTPException(404, "Snapshot introuvable")
+    return {"ok": True}
+
+
+@app.post("/api/tracking/{listing_id}/import-csv")
+async def tracking_import_csv(listing_id: str, request: Request):
+    """Import Amazon Business Report CSV (Detail Page Sales and Traffic By Date)."""
+    import csv as _csv, io as _io
+    body = await request.json()
+    csv_text = body.get("csv_text", "")
+    if not csv_text:
+        raise HTTPException(400, "CSV vide")
+    email = request.state.user_email
+
+    reader = _csv.DictReader(_io.StringIO(csv_text))
+    # Normalise header names: lowercase + strip
+    def _norm(k): return k.lower().strip().replace("﻿", "")
+    rows = [{_norm(k): v.strip() for k, v in row.items()} for row in reader]
+
+    # Column name aliases
+    def _pick(row, *keys):
+        for k in keys:
+            v = row.get(k, "")
+            if v and v != "-": return v
+        return ""
+
+    imported = 0
+    for row in rows:
+        date_val = _pick(row, "date", "day", "jour")
+        if not date_val:
+            continue
+        try:
+            import datetime as _dt
+            # Try common date formats
+            for fmt in ("%m/%d/%Y", "%d/%m/%Y", "%Y-%m-%d"):
+                try:
+                    d = _dt.datetime.strptime(date_val, fmt).date()
+                    break
+                except ValueError:
+                    continue
+            else:
+                continue
+            snap_date = str(d)
+        except Exception:
+            continue
+
+        sessions   = int(float(_pick(row, "sessions") or 0))
+        page_views = int(float(_pick(row, "page views", "page_views", "vues de page") or 0))
+        units      = int(float(_pick(row, "units ordered", "units_ordered", "unités commandées") or 0))
+        conv_str   = _pick(row, "unit session percentage", "taux de conversion", "conversion rate") or "0"
+        conv       = float(conv_str.replace("%", "").replace(",", ".")) if conv_str else 0.0
+        rev_str    = _pick(row, "ordered product sales", "chiffre d'affaires", "revenue") or "0"
+        revenue    = float(rev_str.replace("€", "").replace("$", "").replace(",", ".").replace(" ", "")) if rev_str else 0.0
+
+        add_snapshot(listing_id, email, snap_date, "", sessions, page_views,
+                     units, conv, revenue, "", None, "Import CSV")
+        imported += 1
+
+    return {"imported": imported}
 
 
 @app.post("/api/audit/improve")

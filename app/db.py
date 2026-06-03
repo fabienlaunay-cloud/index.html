@@ -203,6 +203,37 @@ def _init_db_pg():
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS tracked_listings (
+            id TEXT PRIMARY KEY,
+            user_email TEXT NOT NULL,
+            sku TEXT DEFAULT '',
+            asin TEXT DEFAULT '',
+            title TEXT DEFAULT '',
+            marketplace TEXT DEFAULT 'amazon_fr',
+            published_at DATE,
+            seo_score INTEGER DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS performance_snapshots (
+            id SERIAL PRIMARY KEY,
+            listing_id TEXT NOT NULL,
+            user_email TEXT NOT NULL,
+            snapshot_date DATE NOT NULL,
+            period_label TEXT DEFAULT '',
+            sessions INTEGER DEFAULT 0,
+            page_views INTEGER DEFAULT 0,
+            units_ordered INTEGER DEFAULT 0,
+            conversion_rate REAL DEFAULT 0,
+            revenue REAL DEFAULT 0,
+            keyword TEXT DEFAULT '',
+            keyword_rank INTEGER,
+            notes TEXT DEFAULT '',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
 
     conn.commit()
     conn.close()
@@ -321,6 +352,37 @@ def _init_db_sqlite():
             error TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS tracked_listings (
+            id TEXT PRIMARY KEY,
+            user_email TEXT NOT NULL,
+            sku TEXT DEFAULT '',
+            asin TEXT DEFAULT '',
+            title TEXT DEFAULT '',
+            marketplace TEXT DEFAULT 'amazon_fr',
+            published_at DATE,
+            seo_score INTEGER DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS performance_snapshots (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            listing_id TEXT NOT NULL,
+            user_email TEXT NOT NULL,
+            snapshot_date DATE NOT NULL,
+            period_label TEXT DEFAULT '',
+            sessions INTEGER DEFAULT 0,
+            page_views INTEGER DEFAULT 0,
+            units_ordered INTEGER DEFAULT 0,
+            conversion_rate REAL DEFAULT 0,
+            revenue REAL DEFAULT 0,
+            keyword TEXT DEFAULT '',
+            keyword_rank INTEGER,
+            notes TEXT DEFAULT '',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
 
@@ -643,3 +705,111 @@ def load_recent_jobs(limit: int = 200) -> dict:
                     d[ts_key] = _time.time()
         result[d["id"]] = d
     return result
+
+
+# ── Performance tracking ──────────────────────────────────────────────────────
+
+def add_tracked_listing(user_email: str, sku: str, asin: str, title: str,
+                        marketplace: str, published_at: str, seo_score: int) -> dict:
+    import uuid as _uuid
+    lid = str(_uuid.uuid4())
+    conn = get_db()
+    conn.execute(
+        "INSERT INTO tracked_listings (id,user_email,sku,asin,title,marketplace,published_at,seo_score) "
+        "VALUES (?,?,?,?,?,?,?,?)",
+        (lid, user_email, sku, asin, title, marketplace, published_at or None, seo_score),
+    )
+    conn.commit()
+    conn.close()
+    return {"id": lid, "sku": sku, "asin": asin, "title": title,
+            "marketplace": marketplace, "published_at": published_at, "seo_score": seo_score}
+
+
+def list_tracked_listings(user_email: str) -> list:
+    conn = get_db()
+    rows = conn.execute(
+        "SELECT * FROM tracked_listings WHERE user_email=? ORDER BY created_at DESC", (user_email,)
+    ).fetchall()
+    conn.close()
+    result = []
+    for r in rows:
+        d = dict(r)
+        if d.get("published_at") and not isinstance(d["published_at"], str):
+            d["published_at"] = str(d["published_at"])
+        result.append(d)
+    return result
+
+
+def delete_tracked_listing(listing_id: str, user_email: str) -> bool:
+    conn = get_db()
+    r = conn.execute("DELETE FROM tracked_listings WHERE id=? AND user_email=?", (listing_id, user_email))
+    conn.execute("DELETE FROM performance_snapshots WHERE listing_id=? AND user_email=?", (listing_id, user_email))
+    conn.commit()
+    conn.close()
+    return r.rowcount > 0
+
+
+def add_snapshot(listing_id: str, user_email: str, snapshot_date: str, period_label: str,
+                 sessions: int, page_views: int, units_ordered: int, conversion_rate: float,
+                 revenue: float, keyword: str, keyword_rank, notes: str) -> dict:
+    conn = get_db()
+    conn.execute(
+        "INSERT INTO performance_snapshots "
+        "(listing_id,user_email,snapshot_date,period_label,sessions,page_views,"
+        "units_ordered,conversion_rate,revenue,keyword,keyword_rank,notes) "
+        "VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+        (listing_id, user_email, snapshot_date, period_label, sessions, page_views,
+         units_ordered, conversion_rate, revenue, keyword, keyword_rank, notes),
+    )
+    conn.commit()
+    conn.close()
+    return {"listing_id": listing_id, "snapshot_date": snapshot_date, "period_label": period_label,
+            "sessions": sessions, "conversion_rate": conversion_rate, "units_ordered": units_ordered}
+
+
+def get_snapshots(listing_id: str, user_email: str) -> list:
+    conn = get_db()
+    rows = conn.execute(
+        "SELECT * FROM performance_snapshots WHERE listing_id=? AND user_email=? ORDER BY snapshot_date ASC",
+        (listing_id, user_email),
+    ).fetchall()
+    conn.close()
+    result = []
+    for r in rows:
+        d = dict(r)
+        if d.get("snapshot_date") and not isinstance(d["snapshot_date"], str):
+            d["snapshot_date"] = str(d["snapshot_date"])
+        if d.get("created_at") and not isinstance(d["created_at"], str):
+            try: d["created_at"] = d["created_at"].isoformat()
+            except Exception: d["created_at"] = str(d["created_at"])
+        result.append(d)
+    return result
+
+
+def delete_snapshot(snapshot_id: int, user_email: str) -> bool:
+    conn = get_db()
+    r = conn.execute("DELETE FROM performance_snapshots WHERE id=? AND user_email=?", (snapshot_id, user_email))
+    conn.commit()
+    conn.close()
+    return r.rowcount > 0
+
+
+def get_tracking_summary(user_email: str) -> dict:
+    """Account-level proof loop: avg conversion improvement across tracked listings."""
+    conn = get_db()
+    listings = conn.execute(
+        "SELECT id FROM tracked_listings WHERE user_email=?", (user_email,)
+    ).fetchall()
+    conn.close()
+    improvements = []
+    for row in listings:
+        snaps = get_snapshots(row["id"], user_email)
+        conv_vals = [s["conversion_rate"] for s in snaps if (s.get("conversion_rate") or 0) > 0]
+        if len(conv_vals) >= 2:
+            pct = round((conv_vals[-1] - conv_vals[0]) / conv_vals[0] * 100, 1) if conv_vals[0] else 0
+            improvements.append(pct)
+    return {
+        "tracked_count": len(listings),
+        "avg_conversion_improvement": round(sum(improvements) / len(improvements), 1) if improvements else None,
+        "listings_with_data": len(improvements),
+    }

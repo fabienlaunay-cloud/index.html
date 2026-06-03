@@ -963,12 +963,15 @@
 <main class="max-w-7xl mx-auto px-6 py-8">
 
   <!-- ── Mode toggle ──────────────────────────────────────────────────────── -->
-  <div class="flex gap-2 mb-6">
+  <div class="flex gap-2 mb-6 flex-wrap">
     <button id="modeGenerateBtn" onclick="switchAppMode('generate')" class="flex items-center gap-2 px-5 py-2 rounded-full text-sm font-semibold bg-purple-600 text-white shadow-sm transition">
       ✨ Générer des fiches
     </button>
     <button id="modeAuditBtn" onclick="switchAppMode('audit')" class="flex items-center gap-2 px-5 py-2 rounded-full text-sm font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200 transition">
       🔍 Auditer une fiche
+    </button>
+    <button id="modeTrackBtn" onclick="switchAppMode('track')" class="flex items-center gap-2 px-5 py-2 rounded-full text-sm font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200 transition">
+      📊 Suivi performance
     </button>
   </div>
 
@@ -1138,6 +1141,251 @@
           <div id="auditDimCards" class="grid grid-cols-1 sm:grid-cols-2 gap-4"></div>
 
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Tracking section ─────────────────────────────────────────────────── -->
+  <div id="trackSection" class="hidden">
+    <div class="grid grid-cols-12 gap-6">
+
+      <!-- Left: tracked listings list -->
+      <div class="col-span-12 lg:col-span-4 space-y-3">
+        <div class="bg-white rounded-2xl shadow-sm p-4 border border-gray-100">
+          <div class="flex items-center justify-between mb-3">
+            <h2 class="font-semibold text-gray-800 text-sm flex items-center gap-2">
+              <span>📊</span> Fiches suivies
+              <span id="trackCount" class="text-xs bg-purple-100 text-purple-700 font-bold px-1.5 py-0.5 rounded-full">0</span>
+            </h2>
+            <button onclick="openAddTrackModal()" class="gradient-bg text-white text-xs font-semibold px-3 py-1.5 rounded-lg hover:opacity-90 transition">+ Ajouter</button>
+          </div>
+          <div id="trackListings" class="space-y-2">
+            <p class="text-center text-gray-400 text-sm py-6">Aucune fiche suivie.<br>Cliquez sur "+ Ajouter" pour commencer.</p>
+          </div>
+        </div>
+
+        <!-- Proof loop summary -->
+        <div id="proofLoopCard" class="hidden bg-gradient-to-br from-purple-600 to-indigo-700 rounded-2xl p-4 text-white shadow-sm">
+          <p class="text-xs font-semibold text-purple-200 mb-1 uppercase tracking-wide">Boucle de preuve</p>
+          <p id="proofLoopStat" class="text-2xl font-bold mb-1">—</p>
+          <p id="proofLoopDesc" class="text-sm text-purple-200"></p>
+        </div>
+      </div>
+
+      <!-- Right: selected listing detail -->
+      <div class="col-span-12 lg:col-span-8">
+
+        <!-- Empty state -->
+        <div id="trackEmpty" class="bg-white rounded-2xl shadow-sm border border-gray-100 flex flex-col items-center justify-center text-center py-24">
+          <div class="text-5xl mb-4">📈</div>
+          <p class="text-gray-700 font-semibold text-lg mb-1">Suivi post-publication</p>
+          <p class="text-gray-400 text-sm max-w-xs">Ajoutez une fiche publiée et saisissez vos métriques<br>Seller Central pour construire votre boucle de preuve.</p>
+          <div class="mt-6 grid grid-cols-3 gap-3 text-xs text-gray-400 max-w-sm">
+            <div class="bg-gray-50 rounded-xl p-3"><div class="text-lg mb-1">📅</div>J0 · J30 · J60 · J90</div>
+            <div class="bg-gray-50 rounded-xl p-3"><div class="text-lg mb-1">📈</div>Sessions & conversion</div>
+            <div class="bg-gray-50 rounded-xl p-3"><div class="text-lg mb-1">🔑</div>Rang keyword</div>
+          </div>
+        </div>
+
+        <!-- Listing detail -->
+        <div id="trackDetail" class="hidden space-y-4">
+
+          <!-- Header card -->
+          <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+            <div class="flex items-start justify-between gap-3">
+              <div class="min-w-0">
+                <h3 id="tdTitle" class="font-bold text-gray-800 text-base truncate"></h3>
+                <div class="flex items-center gap-3 mt-1 text-xs text-gray-500 flex-wrap">
+                  <span id="tdAsin" class="font-mono bg-gray-100 px-2 py-0.5 rounded"></span>
+                  <span id="tdMkt"></span>
+                  <span id="tdPublished"></span>
+                </div>
+              </div>
+              <span id="tdSeoScore" class="flex-shrink-0 text-xs font-bold px-3 py-1.5 rounded-full bg-purple-100 text-purple-700 whitespace-nowrap"></span>
+            </div>
+            <!-- KPI row -->
+            <div class="grid grid-cols-4 gap-3 mt-4">
+              <div class="bg-gray-50 rounded-xl p-3 text-center">
+                <p id="kpiSessions" class="text-lg font-bold text-gray-800">—</p>
+                <p class="text-xs text-gray-500 mt-0.5">Sessions</p>
+                <p id="kpiSessionsDelta" class="text-xs font-semibold text-green-600 mt-0.5"></p>
+              </div>
+              <div class="bg-purple-50 rounded-xl p-3 text-center">
+                <p id="kpiConv" class="text-lg font-bold text-purple-700">—</p>
+                <p class="text-xs text-gray-500 mt-0.5">Conversion</p>
+                <p id="kpiConvDelta" class="text-xs font-semibold text-green-600 mt-0.5"></p>
+              </div>
+              <div class="bg-indigo-50 rounded-xl p-3 text-center">
+                <p id="kpiRank" class="text-lg font-bold text-indigo-700">—</p>
+                <p class="text-xs text-gray-500 mt-0.5">Rang keyword</p>
+                <p id="kpiRankDelta" class="text-xs font-semibold text-green-600 mt-0.5"></p>
+              </div>
+              <div class="bg-green-50 rounded-xl p-3 text-center">
+                <p id="kpiRevenue" class="text-lg font-bold text-green-700">—</p>
+                <p class="text-xs text-gray-500 mt-0.5">Revenus</p>
+                <p id="kpiRevenueDelta" class="text-xs font-semibold text-green-600 mt-0.5"></p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Chart card -->
+          <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+            <div class="flex items-center justify-between mb-4">
+              <h4 class="font-semibold text-gray-700 text-sm">Évolution dans le temps</h4>
+              <div class="flex gap-1">
+                <button onclick="_trackChartMetric('conversion_rate')" id="chartBtnConv" class="text-xs px-2.5 py-1 rounded-lg bg-purple-600 text-white font-semibold transition">Conversion</button>
+                <button onclick="_trackChartMetric('sessions')" id="chartBtnSess" class="text-xs px-2.5 py-1 rounded-lg bg-gray-100 text-gray-600 font-semibold transition">Sessions</button>
+                <button onclick="_trackChartMetric('keyword_rank')" id="chartBtnRank" class="text-xs px-2.5 py-1 rounded-lg bg-gray-100 text-gray-600 font-semibold transition">Rang</button>
+                <button onclick="_trackChartMetric('revenue')" id="chartBtnRev" class="text-xs px-2.5 py-1 rounded-lg bg-gray-100 text-gray-600 font-semibold transition">Revenus</button>
+              </div>
+            </div>
+            <div id="trackChartContainer" class="w-full" style="min-height:160px"></div>
+          </div>
+
+          <!-- Data entry + table card -->
+          <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+            <div class="flex items-center justify-between mb-4">
+              <h4 class="font-semibold text-gray-700 text-sm">Données de performance</h4>
+              <div class="flex gap-2">
+                <button onclick="openCsvImportModal()" class="text-xs px-3 py-1.5 bg-gray-50 border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-100 transition font-medium">📤 Import CSV Amazon</button>
+                <button onclick="openAddSnapModal()" class="gradient-bg text-white text-xs font-semibold px-3 py-1.5 rounded-lg hover:opacity-90 transition">+ Saisie manuelle</button>
+              </div>
+            </div>
+
+            <!-- Snapshots table -->
+            <div id="snapshotsTable" class="overflow-x-auto">
+              <p class="text-center text-gray-400 text-sm py-4">Aucune donnée. Ajoutez une saisie manuelle ou importez un CSV.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Modals ─────────────────────────────────────────────────────────────── -->
+
+  <!-- Add tracked listing modal -->
+  <div id="addTrackModal" class="hidden fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 space-y-4">
+      <h3 class="font-bold text-gray-800 text-base">Ajouter une fiche à suivre</h3>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1 block">ASIN</label>
+          <input id="atAsin" type="text" placeholder="B0XXXXXXXXX" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-purple-400">
+        </div>
+        <div>
+          <label class="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1 block">SKU</label>
+          <input id="atSku" type="text" placeholder="MON-SKU-001" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-purple-400">
+        </div>
+      </div>
+      <div>
+        <label class="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1 block">Titre du produit</label>
+        <input id="atTitle" type="text" placeholder="Nom du produit…" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-purple-400">
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1 block">Date de publication</label>
+          <input id="atPublished" type="date" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-purple-400">
+        </div>
+        <div>
+          <label class="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1 block">Score SynqIO</label>
+          <input id="atScore" type="number" min="0" max="100" placeholder="0-100" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-purple-400">
+        </div>
+      </div>
+      <div>
+        <label class="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1 block">Marketplace</label>
+        <select id="atMkt" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-purple-400">
+          <option value="amazon_fr">🇫🇷 Amazon France</option>
+          <option value="amazon_de">🇩🇪 Amazon Allemagne</option>
+          <option value="amazon_uk">🇬🇧 Amazon UK</option>
+          <option value="amazon_it">🇮🇹 Amazon Italie</option>
+          <option value="amazon_es">🇪🇸 Amazon Espagne</option>
+        </select>
+      </div>
+      <div class="flex gap-3 pt-2">
+        <button onclick="document.getElementById('addTrackModal').classList.add('hidden')" class="flex-1 border border-gray-200 text-gray-600 rounded-xl py-2.5 text-sm font-semibold hover:bg-gray-50 transition">Annuler</button>
+        <button onclick="submitAddTrack()" class="flex-1 gradient-bg text-white rounded-xl py-2.5 text-sm font-semibold hover:opacity-90 transition">Ajouter</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add snapshot modal -->
+  <div id="addSnapModal" class="hidden fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 space-y-4">
+      <h3 class="font-bold text-gray-800 text-base">Saisie manuelle</h3>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1 block">Date</label>
+          <input id="snDate" type="date" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-purple-400">
+        </div>
+        <div>
+          <label class="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1 block">Période</label>
+          <select id="snPeriod" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-purple-400">
+            <option value="Lancement">Lancement (J0)</option>
+            <option value="J30">J+30</option>
+            <option value="J60">J+60</option>
+            <option value="J90">J+90</option>
+            <option value="J180">J+180</option>
+            <option value="">Personnalisé</option>
+          </select>
+        </div>
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1 block">Sessions</label>
+          <input id="snSessions" type="number" min="0" placeholder="0" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-purple-400">
+        </div>
+        <div>
+          <label class="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1 block">Conversion (%)</label>
+          <input id="snConv" type="number" min="0" max="100" step="0.1" placeholder="0.0" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-purple-400">
+        </div>
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1 block">Unités commandées</label>
+          <input id="snUnits" type="number" min="0" placeholder="0" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-purple-400">
+        </div>
+        <div>
+          <label class="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1 block">Revenus (€)</label>
+          <input id="snRevenue" type="number" min="0" step="0.01" placeholder="0.00" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-purple-400">
+        </div>
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1 block">Keyword suivi</label>
+          <input id="snKeyword" type="text" placeholder="ex: café bio grain" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-purple-400">
+        </div>
+        <div>
+          <label class="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1 block">Rang keyword</label>
+          <input id="snRank" type="number" min="1" placeholder="ex: 12" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-purple-400">
+        </div>
+      </div>
+      <div>
+        <label class="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1 block">Notes</label>
+        <input id="snNotes" type="text" placeholder="Optionnel…" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-purple-400">
+      </div>
+      <div class="flex gap-3 pt-2">
+        <button onclick="document.getElementById('addSnapModal').classList.add('hidden')" class="flex-1 border border-gray-200 text-gray-600 rounded-xl py-2.5 text-sm font-semibold hover:bg-gray-50 transition">Annuler</button>
+        <button onclick="submitAddSnap()" class="flex-1 gradient-bg text-white rounded-xl py-2.5 text-sm font-semibold hover:opacity-90 transition">Enregistrer</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- CSV import modal -->
+  <div id="csvImportModal" class="hidden fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-6 space-y-4">
+      <h3 class="font-bold text-gray-800 text-base">Importer un CSV Amazon</h3>
+      <div class="bg-blue-50 border border-blue-200 rounded-xl p-3 text-xs text-blue-700">
+        <strong>Comment obtenir le CSV :</strong> Seller Central → Rapports → Rapports sur les ventes → <em>Ventes et trafic par ASIN par date</em> → Exporter
+      </div>
+      <div>
+        <label class="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1 block">Coller le contenu CSV ici</label>
+        <textarea id="csvText" rows="8" placeholder="Date,ASIN,Sessions,Unit Session Percentage,Units Ordered,Ordered Product Sales…" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-xs resize-none focus:outline-none focus:border-purple-400 font-mono"></textarea>
+      </div>
+      <p id="csvImportMsg" class="hidden text-sm font-medium"></p>
+      <div class="flex gap-3 pt-1">
+        <button onclick="document.getElementById('csvImportModal').classList.add('hidden')" class="flex-1 border border-gray-200 text-gray-600 rounded-xl py-2.5 text-sm font-semibold hover:bg-gray-50 transition">Annuler</button>
+        <button onclick="submitCsvImport()" class="flex-1 gradient-bg text-white rounded-xl py-2.5 text-sm font-semibold hover:opacity-90 transition">Importer</button>
       </div>
     </div>
   </div>
@@ -6581,6 +6829,386 @@ function _hideBubble() {
 </script>
 
 <script>
+// ── Tracking tool ─────────────────────────────────────────────────────────────
+
+let _trackListings   = [];
+let _trackActiveId   = null;
+let _trackSnapshots  = [];
+let _trackChartKey   = 'conversion_rate';
+
+// ── Mode switch (extend existing switchAppMode) ────────────────────────────
+
+const _origSwitchAppMode = switchAppMode;
+switchAppMode = function(mode) {
+  // hide tracking section if switching away
+  document.getElementById('trackSection').classList.add('hidden');
+  document.getElementById('modeTrackBtn').className =
+    'flex items-center gap-2 px-5 py-2 rounded-full text-sm font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200 transition';
+  if (mode === 'track') {
+    document.getElementById('auditSection').classList.add('hidden');
+    document.getElementById('generatorSection').classList.add('hidden');
+    document.getElementById('stepBar').classList.add('hidden');
+    document.getElementById('trackSection').classList.remove('hidden');
+    document.getElementById('modeAuditBtn').className =
+      'flex items-center gap-2 px-5 py-2 rounded-full text-sm font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200 transition';
+    document.getElementById('modeGenerateBtn').className =
+      'flex items-center gap-2 px-5 py-2 rounded-full text-sm font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200 transition';
+    document.getElementById('modeTrackBtn').className =
+      'flex items-center gap-2 px-5 py-2 rounded-full text-sm font-semibold bg-purple-600 text-white shadow-sm transition';
+    loadTrackListings();
+  } else {
+    _origSwitchAppMode(mode);
+  }
+};
+
+// ── Data loading ───────────────────────────────────────────────────────────
+
+async function loadTrackListings() {
+  try {
+    const [rList, rSum] = await Promise.all([
+      authFetch('/api/tracking'),
+      authFetch('/api/tracking/summary'),
+    ]);
+    _trackListings = rList.ok ? await rList.json() : [];
+    const sum = rSum.ok ? await rSum.json() : null;
+    _renderTrackList();
+    _renderProofLoop(sum);
+  } catch(e) { /* silent */ }
+}
+
+function _renderTrackList() {
+  const el = document.getElementById('trackListings');
+  document.getElementById('trackCount').textContent = _trackListings.length;
+  if (!_trackListings.length) {
+    el.innerHTML = '<p class="text-center text-gray-400 text-sm py-6">Aucune fiche suivie.<br>Cliquez sur "+ Ajouter" pour commencer.</p>';
+    document.getElementById('trackEmpty').classList.remove('hidden');
+    document.getElementById('trackDetail').classList.add('hidden');
+    return;
+  }
+  const MKT = {amazon_fr:'🇫🇷',amazon_de:'🇩🇪',amazon_uk:'🇬🇧',amazon_it:'🇮🇹',amazon_es:'🇪🇸'};
+  el.innerHTML = _trackListings.map(l => {
+    const active = l.id === _trackActiveId;
+    return `<div onclick="selectTrackedListing('${l.id}')" class="cursor-pointer rounded-xl p-3 border transition ${active ? 'border-purple-400 bg-purple-50' : 'border-gray-100 bg-white hover:border-purple-200'}">
+      <div class="flex items-start justify-between gap-2">
+        <div class="min-w-0">
+          <p class="text-sm font-semibold text-gray-800 truncate">${_esc(l.title || l.sku || l.asin)}</p>
+          <p class="text-xs text-gray-400 mt-0.5">${MKT[l.marketplace]||'🌐'} ${l.asin ? `ASIN: ${l.asin}` : `SKU: ${l.sku}`}</p>
+          ${l.published_at ? `<p class="text-xs text-gray-400">Publié: ${new Date(l.published_at).toLocaleDateString('fr-FR')}</p>` : ''}
+        </div>
+        <div class="flex items-center gap-1 flex-shrink-0">
+          ${l.seo_score ? `<span class="text-xs bg-purple-100 text-purple-700 font-bold px-1.5 py-0.5 rounded">SEO ${l.seo_score}</span>` : ''}
+          <button onclick="event.stopPropagation();deleteTrackedListing('${l.id}')" class="text-gray-300 hover:text-red-400 text-lg leading-none transition ml-1" title="Supprimer">✕</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function _renderProofLoop(sum) {
+  const card = document.getElementById('proofLoopCard');
+  if (!sum || sum.listings_with_data < 1) { card.classList.add('hidden'); return; }
+  card.classList.remove('hidden');
+  const pct = sum.avg_conversion_improvement;
+  document.getElementById('proofLoopStat').textContent = pct !== null ? `+${pct}% conversion` : '—';
+  document.getElementById('proofLoopDesc').textContent =
+    `Moyenne sur ${sum.listings_with_data} fiche${sum.listings_with_data>1?'s':''} suivie${sum.listings_with_data>1?'s':''}`;
+}
+
+// ── Listing selection ──────────────────────────────────────────────────────
+
+async function selectTrackedListing(id) {
+  _trackActiveId = id;
+  _renderTrackList();
+  const listing = _trackListings.find(l => l.id === id);
+  if (!listing) return;
+  document.getElementById('trackEmpty').classList.add('hidden');
+  document.getElementById('trackDetail').classList.remove('hidden');
+
+  const MKT = {amazon_fr:'🇫🇷 Amazon France',amazon_de:'🇩🇪 Amazon Allemagne',amazon_uk:'🇬🇧 Amazon UK',amazon_it:'🇮🇹 Amazon Italie',amazon_es:'🇪🇸 Amazon Espagne'};
+  document.getElementById('tdTitle').textContent = listing.title || listing.sku || listing.asin;
+  document.getElementById('tdAsin').textContent = listing.asin || listing.sku;
+  document.getElementById('tdMkt').textContent = MKT[listing.marketplace] || listing.marketplace;
+  document.getElementById('tdPublished').textContent = listing.published_at ? '📅 ' + new Date(listing.published_at).toLocaleDateString('fr-FR', {day:'2-digit',month:'short',year:'numeric'}) : '';
+  const sc = listing.seo_score;
+  document.getElementById('tdSeoScore').textContent = sc ? `Score SynqIO : ${sc}/100` : '';
+
+  // Load snapshots
+  try {
+    const r = await authFetch(`/api/tracking/${id}/snapshots`);
+    _trackSnapshots = r.ok ? await r.json() : [];
+  } catch(e) { _trackSnapshots = []; }
+  _renderKpis();
+  _renderChart();
+  _renderSnapshotsTable();
+}
+
+function _renderKpis() {
+  const snaps = _trackSnapshots.filter(s => (s.sessions||s.conversion_rate||s.units_ordered||s.revenue));
+  const first = snaps[0];
+  const last  = snaps[snaps.length - 1];
+
+  function _delta(v0, v1, fmt) {
+    if (!v0 || !v1 || v0 === v1) return '';
+    const pct = Math.round((v1 - v0) / v0 * 100);
+    return (pct > 0 ? '+' : '') + pct + '%';
+  }
+  function _fmt(v, suffix) { return v ? (v >= 1000 ? Math.round(v/100)/10+'k' : v) + (suffix||'') : '—'; }
+
+  document.getElementById('kpiSessions').textContent     = last ? _fmt(last.sessions) : '—';
+  document.getElementById('kpiSessionsDelta').textContent = first && last ? _delta(first.sessions, last.sessions) : '';
+  document.getElementById('kpiConv').textContent          = last && last.conversion_rate ? last.conversion_rate.toFixed(1)+'%' : '—';
+  document.getElementById('kpiConvDelta').textContent     = first && last ? _delta(first.conversion_rate, last.conversion_rate) : '';
+  const lastRank = [..._trackSnapshots].reverse().find(s => s.keyword_rank);
+  const firstRank = _trackSnapshots.find(s => s.keyword_rank);
+  document.getElementById('kpiRank').textContent          = lastRank ? '#'+lastRank.keyword_rank : '—';
+  document.getElementById('kpiRankDelta').textContent     = (firstRank && lastRank && firstRank.id !== lastRank.id) ? (lastRank.keyword_rank < firstRank.keyword_rank ? '↑ +' + (firstRank.keyword_rank - lastRank.keyword_rank) + ' places' : '') : '';
+  const totalRev = _trackSnapshots.reduce((a, s) => a + (s.revenue||0), 0);
+  document.getElementById('kpiRevenue').textContent       = totalRev ? '€' + Math.round(totalRev).toLocaleString('fr-FR') : '—';
+  document.getElementById('kpiRevenueDelta').textContent  = '';
+}
+
+// ── SVG Chart ──────────────────────────────────────────────────────────────
+
+let _chartMetricLabels = {
+  conversion_rate: {label:'Conversion (%)', color:'#7c3aed', fmt: v => v ? v.toFixed(1)+'%' : null},
+  sessions:        {label:'Sessions',        color:'#0891b2', fmt: v => v || null},
+  keyword_rank:    {label:'Rang keyword',    color:'#059669', fmt: v => v ? '#'+v : null, invert: true},
+  revenue:         {label:'Revenus (€)',     color:'#d97706', fmt: v => v ? '€'+Math.round(v) : null},
+};
+
+function _trackChartMetric(key) {
+  _trackChartKey = key;
+  ['Conv','Sess','Rank','Rev'].forEach((s,i) => {
+    const keys = ['conversion_rate','sessions','keyword_rank','revenue'];
+    const btn = document.getElementById('chartBtn'+s);
+    if (btn) btn.className = 'text-xs px-2.5 py-1 rounded-lg font-semibold transition ' +
+      (keys[i] === key ? 'bg-purple-600 text-white' : 'bg-gray-100 text-gray-600');
+  });
+  _renderChart();
+}
+
+function _renderChart() {
+  const container = document.getElementById('trackChartContainer');
+  const snaps = _trackSnapshots.filter(s => s[_trackChartKey] != null && s[_trackChartKey] !== 0);
+  const meta = _chartMetricLabels[_trackChartKey];
+
+  if (!snaps.length) {
+    container.innerHTML = '<p class="text-center text-gray-300 py-10 text-sm">Aucune donnée pour cette métrique</p>';
+    return;
+  }
+
+  const W = 520, H = 160, PL = 48, PR = 16, PT = 16, PB = 32;
+  const vals = snaps.map(s => s[_trackChartKey]);
+  const invert = !!meta.invert; // for rank: lower = better
+  let minV = Math.min(...vals), maxV = Math.max(...vals);
+  if (minV === maxV) { minV = Math.max(0, minV - 1); maxV = maxV + 1; }
+  const range = maxV - minV;
+  const xStep = (W - PL - PR) / Math.max(snaps.length - 1, 1);
+
+  function xPos(i)  { return PL + i * xStep; }
+  function yPos(v)  {
+    const norm = (v - minV) / range;
+    return PT + (H - PT - PB) * (invert ? norm : 1 - norm);
+  }
+
+  // Path
+  const points = snaps.map((s, i) => `${xPos(i).toFixed(1)},${yPos(s[_trackChartKey]).toFixed(1)}`);
+  const linePath = 'M' + points.join('L');
+  // Area fill
+  const areaPath = linePath + `L${xPos(snaps.length-1).toFixed(1)},${(H-PB).toFixed(1)}L${xPos(0).toFixed(1)},${(H-PB).toFixed(1)}Z`;
+
+  // Grid lines (3)
+  let gridLines = '';
+  for (let g = 0; g <= 2; g++) {
+    const yG = PT + (H - PT - PB) * g / 2;
+    const vG = invert ? maxV - range * g / 2 : minV + range * (1 - g/2);
+    const label = meta.fmt(parseFloat(vG.toFixed(1))) || '';
+    gridLines += `<line x1="${PL}" y1="${yG.toFixed(1)}" x2="${W-PR}" y2="${yG.toFixed(1)}" stroke="#f3f4f6" stroke-width="1"/>`;
+    gridLines += `<text x="${PL-4}" y="${(yG+4).toFixed(1)}" text-anchor="end" fill="#9ca3af" font-size="9">${_esc(label)}</text>`;
+  }
+
+  // X labels
+  let xLabels = '';
+  snaps.forEach((s, i) => {
+    const lbl = s.period_label || s.snapshot_date;
+    xLabels += `<text x="${xPos(i).toFixed(1)}" y="${(H-PB+14).toFixed(1)}" text-anchor="middle" fill="#9ca3af" font-size="9">${_esc(lbl)}</text>`;
+  });
+
+  // Dots + value labels
+  let dots = '';
+  snaps.forEach((s, i) => {
+    const cx = xPos(i).toFixed(1), cy = yPos(s[_trackChartKey]).toFixed(1);
+    const vLabel = meta.fmt(s[_trackChartKey]) || '';
+    dots += `<circle cx="${cx}" cy="${cy}" r="4" fill="${meta.color}" stroke="#fff" stroke-width="2"/>`;
+    if (snaps.length <= 8)
+      dots += `<text x="${cx}" y="${(parseFloat(cy)-8).toFixed(1)}" text-anchor="middle" fill="${meta.color}" font-size="10" font-weight="600">${_esc(vLabel)}</text>`;
+  });
+
+  const gradId = 'tg_' + _trackChartKey;
+  container.innerHTML = `<svg viewBox="0 0 ${W} ${H}" width="100%" height="${H}" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <linearGradient id="${gradId}" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="${meta.color}" stop-opacity="0.15"/>
+        <stop offset="100%" stop-color="${meta.color}" stop-opacity="0"/>
+      </linearGradient>
+    </defs>
+    ${gridLines}
+    <path d="${areaPath}" fill="url(#${gradId})"/>
+    <path d="${linePath}" fill="none" stroke="${meta.color}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+    ${dots}
+    ${xLabels}
+  </svg>`;
+}
+
+// ── Snapshots table ────────────────────────────────────────────────────────
+
+function _renderSnapshotsTable() {
+  const el = document.getElementById('snapshotsTable');
+  if (!_trackSnapshots.length) {
+    el.innerHTML = '<p class="text-center text-gray-400 text-sm py-4">Aucune donnée. Ajoutez une saisie manuelle ou importez un CSV.</p>';
+    return;
+  }
+  el.innerHTML = `<table class="w-full text-xs">
+    <thead><tr class="border-b border-gray-100">
+      <th class="text-left py-2 pr-3 font-semibold text-gray-500">Période</th>
+      <th class="text-left py-2 pr-3 font-semibold text-gray-500">Date</th>
+      <th class="text-right py-2 pr-3 font-semibold text-gray-500">Sessions</th>
+      <th class="text-right py-2 pr-3 font-semibold text-gray-500">Conv.</th>
+      <th class="text-right py-2 pr-3 font-semibold text-gray-500">Unités</th>
+      <th class="text-right py-2 pr-3 font-semibold text-gray-500">Revenus</th>
+      <th class="text-right py-2 pr-3 font-semibold text-gray-500">Rang</th>
+      <th class="py-2 w-6"></th>
+    </tr></thead>
+    <tbody>
+      ${_trackSnapshots.map(s => `<tr class="border-b border-gray-50 hover:bg-gray-50">
+        <td class="py-1.5 pr-3 font-medium text-gray-700">${_esc(s.period_label||'—')}</td>
+        <td class="py-1.5 pr-3 text-gray-500">${s.snapshot_date ? new Date(s.snapshot_date).toLocaleDateString('fr-FR',{day:'2-digit',month:'short'}) : '—'}</td>
+        <td class="py-1.5 pr-3 text-right text-gray-700">${s.sessions ? s.sessions.toLocaleString('fr-FR') : '—'}</td>
+        <td class="py-1.5 pr-3 text-right font-semibold text-purple-700">${s.conversion_rate ? s.conversion_rate.toFixed(1)+'%' : '—'}</td>
+        <td class="py-1.5 pr-3 text-right text-gray-700">${s.units_ordered||'—'}</td>
+        <td class="py-1.5 pr-3 text-right text-gray-700">${s.revenue ? '€'+s.revenue.toFixed(2) : '—'}</td>
+        <td class="py-1.5 pr-3 text-right text-indigo-600">${s.keyword_rank ? '#'+s.keyword_rank+(s.keyword?' ('+_esc(s.keyword)+')':'') : '—'}</td>
+        <td class="py-1.5 text-right"><button onclick="deleteSnap(${s.id})" class="text-gray-300 hover:text-red-400 transition text-base leading-none" title="Supprimer">✕</button></td>
+      </tr>`).join('')}
+    </tbody>
+  </table>`;
+}
+
+// ── Actions ────────────────────────────────────────────────────────────────
+
+function openAddTrackModal() {
+  document.getElementById('atAsin').value = '';
+  document.getElementById('atSku').value = '';
+  document.getElementById('atTitle').value = '';
+  document.getElementById('atScore').value = '';
+  document.getElementById('atPublished').value = new Date().toISOString().slice(0,10);
+  document.getElementById('addTrackModal').classList.remove('hidden');
+}
+
+async function submitAddTrack() {
+  const body = {
+    asin: document.getElementById('atAsin').value.trim(),
+    sku:  document.getElementById('atSku').value.trim(),
+    title: document.getElementById('atTitle').value.trim(),
+    marketplace: document.getElementById('atMkt').value,
+    published_at: document.getElementById('atPublished').value,
+    seo_score: parseInt(document.getElementById('atScore').value||'0', 10),
+  };
+  if (!body.asin && !body.sku) { showToast('⚠️', 'ASIN ou SKU requis', true); return; }
+  try {
+    const r = await authFetch('/api/tracking', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+    if (!r.ok) throw new Error((await r.json()).detail || 'Erreur');
+    document.getElementById('addTrackModal').classList.add('hidden');
+    await loadTrackListings();
+    const added = _trackListings[0];
+    if (added) selectTrackedListing(added.id);
+    showToast('✅', 'Fiche ajoutée au suivi');
+  } catch(e) { showToast('❌', e.message, true); }
+}
+
+async function deleteTrackedListing(id) {
+  if (!confirm('Supprimer cette fiche et toutes ses données ?')) return;
+  await authFetch('/api/tracking/'+id, {method:'DELETE'});
+  if (_trackActiveId === id) {
+    _trackActiveId = null;
+    document.getElementById('trackEmpty').classList.remove('hidden');
+    document.getElementById('trackDetail').classList.add('hidden');
+  }
+  await loadTrackListings();
+}
+
+function openAddSnapModal() {
+  ['snDate','snSessions','snConv','snUnits','snRevenue','snKeyword','snRank','snNotes'].forEach(id => {
+    document.getElementById(id).value = '';
+  });
+  document.getElementById('snDate').value = new Date().toISOString().slice(0,10);
+  document.getElementById('addSnapModal').classList.remove('hidden');
+}
+
+async function submitAddSnap() {
+  if (!_trackActiveId) return;
+  const body = {
+    snapshot_date:   document.getElementById('snDate').value,
+    period_label:    document.getElementById('snPeriod').value,
+    sessions:        parseInt(document.getElementById('snSessions').value||'0',10),
+    conversion_rate: parseFloat(document.getElementById('snConv').value||'0'),
+    units_ordered:   parseInt(document.getElementById('snUnits').value||'0',10),
+    revenue:         parseFloat(document.getElementById('snRevenue').value||'0'),
+    keyword:         document.getElementById('snKeyword').value.trim(),
+    keyword_rank:    document.getElementById('snRank').value ? parseInt(document.getElementById('snRank').value,10) : null,
+    notes:           document.getElementById('snNotes').value.trim(),
+  };
+  if (!body.snapshot_date) { showToast('⚠️', 'Date requise', true); return; }
+  try {
+    const r = await authFetch(`/api/tracking/${_trackActiveId}/snapshots`, {
+      method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body),
+    });
+    if (!r.ok) throw new Error((await r.json()).detail || 'Erreur');
+    document.getElementById('addSnapModal').classList.add('hidden');
+    await selectTrackedListing(_trackActiveId);
+    loadTrackListings();
+    showToast('✅', 'Donnée enregistrée');
+  } catch(e) { showToast('❌', e.message, true); }
+}
+
+async function deleteSnap(snapId) {
+  if (!_trackActiveId) return;
+  await authFetch(`/api/tracking/${_trackActiveId}/snapshots/${snapId}`, {method:'DELETE'});
+  await selectTrackedListing(_trackActiveId);
+  loadTrackListings();
+}
+
+function openCsvImportModal() {
+  document.getElementById('csvText').value = '';
+  const msg = document.getElementById('csvImportMsg');
+  msg.classList.add('hidden');
+  document.getElementById('csvImportModal').classList.remove('hidden');
+}
+
+async function submitCsvImport() {
+  if (!_trackActiveId) return;
+  const csv_text = document.getElementById('csvText').value.trim();
+  if (!csv_text) { showToast('⚠️', 'CSV vide', true); return; }
+  const msg = document.getElementById('csvImportMsg');
+  msg.className = 'text-sm font-medium text-gray-500';
+  msg.textContent = 'Import en cours…';
+  msg.classList.remove('hidden');
+  try {
+    const r = await authFetch(`/api/tracking/${_trackActiveId}/import-csv`, {
+      method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({csv_text}),
+    });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.detail || 'Erreur');
+    msg.className = 'text-sm font-medium text-green-600';
+    msg.textContent = `✅ ${data.imported} ligne${data.imported>1?'s':''} importée${data.imported>1?'s':''}`;
+    await selectTrackedListing(_trackActiveId);
+    loadTrackListings();
+  } catch(e) {
+    msg.className = 'text-sm font-medium text-red-600';
+    msg.textContent = '❌ ' + e.message;
+  }
+}
+
 // ── Audit tool ─────────────────────────────────────────────────────────────────
 
 function switchAppMode(mode) {
