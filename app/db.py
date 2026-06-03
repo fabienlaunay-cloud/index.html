@@ -369,12 +369,17 @@ def _ensure_history_table(conn):
             images_json TEXT NOT NULL DEFAULT '{}'
         )
     """)
-    # Add images_json column if it doesn't exist (SQLite migration;
-    # PG uses ADD COLUMN IF NOT EXISTS in init_db)
-    try:
-        conn.execute("ALTER TABLE generation_history ADD COLUMN images_json TEXT NOT NULL DEFAULT '{}'")
-    except Exception:
-        pass
+    # PostgreSQL: ADD COLUMN IF NOT EXISTS avoids aborting the transaction when
+    # the column already exists (unlike bare ALTER TABLE which throws and leaves
+    # psycopg2 in an aborted-transaction state for subsequent queries).
+    # SQLite: falls back to try/except because it doesn't support IF NOT EXISTS.
+    if os.getenv("DATABASE_URL"):
+        conn.execute("ALTER TABLE generation_history ADD COLUMN IF NOT EXISTS images_json TEXT NOT NULL DEFAULT '{}'")
+    else:
+        try:
+            conn.execute("ALTER TABLE generation_history ADD COLUMN images_json TEXT NOT NULL DEFAULT '{}'")
+        except Exception:
+            pass
 
 
 def save_generation(user_email: str, batch_id: str, marketplace: str,
