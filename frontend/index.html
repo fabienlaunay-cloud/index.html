@@ -963,14 +963,14 @@
 <main class="max-w-7xl mx-auto px-6 py-8">
 
   <!-- ── Mode toggle ──────────────────────────────────────────────────────── -->
-  <div class="flex gap-2 mb-6 flex-wrap">
-    <button id="modeGenerateBtn" onclick="switchAppMode('generate')" class="flex items-center gap-2 px-5 py-2 rounded-full text-sm font-semibold bg-purple-600 text-white shadow-sm transition">
+  <div class="flex mb-6 border-b border-gray-200">
+    <button id="modeGenerateBtn" onclick="switchAppMode('generate')" class="flex items-center gap-2 px-5 py-2.5 text-sm font-semibold border-b-2 border-purple-600 text-purple-600 -mb-px transition">
       ✨ Générer des fiches
     </button>
-    <button id="modeAuditBtn" onclick="switchAppMode('audit')" class="flex items-center gap-2 px-5 py-2 rounded-full text-sm font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200 transition">
+    <button id="modeAuditBtn" onclick="switchAppMode('audit')" class="flex items-center gap-2 px-5 py-2.5 text-sm font-semibold border-b-2 border-transparent text-gray-500 hover:text-gray-700 -mb-px transition">
       🔍 Auditer une fiche
     </button>
-    <button id="modeTrackBtn" onclick="switchAppMode('track')" class="flex items-center gap-2 px-5 py-2 rounded-full text-sm font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200 transition">
+    <button id="modeTrackBtn" onclick="switchAppMode('track')" class="flex items-center gap-2 px-5 py-2.5 text-sm font-semibold border-b-2 border-transparent text-gray-500 hover:text-gray-700 -mb-px transition">
       📊 Suivi performance
     </button>
   </div>
@@ -999,8 +999,8 @@
           </h2>
 
           <!-- Amazon URL import -->
-          <div class="bg-purple-50 border border-purple-200 rounded-xl p-3">
-            <label class="text-xs font-semibold text-purple-700 mb-1.5 block flex items-center gap-1">
+          <div class="bg-purple-50 border border-purple-200 rounded-xl p-3 space-y-2">
+            <label class="text-xs font-semibold text-purple-700 flex items-center gap-1">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
               Importer depuis Amazon (optionnel)
             </label>
@@ -1013,7 +1013,22 @@
                 Importer
               </button>
             </div>
-            <p id="auditPrefillMsg" class="text-xs text-gray-400 mt-1 hidden"></p>
+            <p id="auditPrefillMsg" class="text-xs mt-0.5 hidden"></p>
+
+            <!-- Fallback: paste HTML source (shown when URL scraping fails) -->
+            <div id="auditHtmlFallback" class="hidden pt-1 border-t border-purple-200 space-y-1.5">
+              <p class="text-xs font-semibold text-amber-700">⚠️ Amazon bloque l'import automatique</p>
+              <p class="text-xs text-gray-500 leading-relaxed">
+                Solution : sur la page Amazon, faites <kbd class="bg-white border border-gray-200 rounded px-1 py-0.5 font-mono text-xs">Ctrl+U</kbd> (ou clic droit → Afficher le source), sélectionnez tout (<kbd class="bg-white border border-gray-200 rounded px-1 py-0.5 font-mono text-xs">Ctrl+A</kbd>), copiez (<kbd class="bg-white border border-gray-200 rounded px-1 py-0.5 font-mono text-xs">Ctrl+C</kbd>), puis collez ici :
+              </p>
+              <textarea id="auditHtmlSource" rows="3"
+                class="w-full border border-amber-200 bg-white rounded-lg px-2 py-1.5 text-xs resize-none focus:outline-none focus:border-purple-400 font-mono"
+                placeholder="Coller le code source HTML ici…"></textarea>
+              <button onclick="auditPrefillFromHtml()"
+                class="w-full bg-amber-500 text-white rounded-lg py-1.5 text-xs font-semibold hover:opacity-90 transition">
+                Extraire depuis le code source
+              </button>
+            </div>
           </div>
 
           <!-- Marketplace -->
@@ -6844,22 +6859,20 @@ let _trackChartKey   = 'conversion_rate';
 // ── Mode switch (extend existing switchAppMode) ────────────────────────────
 
 const _origSwitchAppMode = switchAppMode;
+const _TAB_ACTIVE   = 'flex items-center gap-2 px-5 py-2.5 text-sm font-semibold border-b-2 border-purple-600 text-purple-600 -mb-px transition';
+const _TAB_INACTIVE = 'flex items-center gap-2 px-5 py-2.5 text-sm font-semibold border-b-2 border-transparent text-gray-500 hover:text-gray-700 -mb-px transition';
+
 switchAppMode = function(mode) {
-  // hide tracking section if switching away
   document.getElementById('trackSection').classList.add('hidden');
-  document.getElementById('modeTrackBtn').className =
-    'flex items-center gap-2 px-5 py-2 rounded-full text-sm font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200 transition';
+  document.getElementById('modeTrackBtn').className = _TAB_INACTIVE;
   if (mode === 'track') {
     document.getElementById('auditSection').classList.add('hidden');
     document.getElementById('generatorSection').classList.add('hidden');
     document.getElementById('stepBar').classList.add('hidden');
     document.getElementById('trackSection').classList.remove('hidden');
-    document.getElementById('modeAuditBtn').className =
-      'flex items-center gap-2 px-5 py-2 rounded-full text-sm font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200 transition';
-    document.getElementById('modeGenerateBtn').className =
-      'flex items-center gap-2 px-5 py-2 rounded-full text-sm font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200 transition';
-    document.getElementById('modeTrackBtn').className =
-      'flex items-center gap-2 px-5 py-2 rounded-full text-sm font-semibold bg-purple-600 text-white shadow-sm transition';
+    document.getElementById('modeAuditBtn').className    = _TAB_INACTIVE;
+    document.getElementById('modeGenerateBtn').className = _TAB_INACTIVE;
+    document.getElementById('modeTrackBtn').className    = _TAB_ACTIVE;
     loadTrackListings();
   } else {
     _origSwitchAppMode(mode);
@@ -7221,12 +7234,8 @@ function switchAppMode(mode) {
   document.getElementById('auditSection').classList.toggle('hidden', !isAudit);
   document.getElementById('generatorSection').classList.toggle('hidden', isAudit);
   document.getElementById('stepBar').classList.toggle('hidden', isAudit);
-  document.getElementById('modeAuditBtn').className = isAudit
-    ? 'flex items-center gap-2 px-5 py-2 rounded-full text-sm font-semibold bg-purple-600 text-white shadow-sm transition'
-    : 'flex items-center gap-2 px-5 py-2 rounded-full text-sm font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200 transition';
-  document.getElementById('modeGenerateBtn').className = isAudit
-    ? 'flex items-center gap-2 px-5 py-2 rounded-full text-sm font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200 transition'
-    : 'flex items-center gap-2 px-5 py-2 rounded-full text-sm font-semibold bg-purple-600 text-white shadow-sm transition';
+  document.getElementById('modeAuditBtn').className    = isAudit ? _TAB_ACTIVE : _TAB_INACTIVE;
+  document.getElementById('modeGenerateBtn').className = isAudit ? _TAB_INACTIVE : _TAB_ACTIVE;
 }
 
 function _auditKwCount(el) {
@@ -7253,15 +7262,39 @@ function _auditSyncImgUrls() {
   }
 }
 
+function _auditApplyPrefillData(data, url) {
+  if (data.title) {
+    document.getElementById('auditTitle').value = data.title;
+    document.getElementById('auditTitleLen').textContent = data.title.length + '/200';
+  }
+  (data.bullets || []).forEach((b, i) => { if (i < 5) document.getElementById('auditB'+i).value = b; });
+  if ((data.image_urls || []).length > 0) {
+    document.getElementById('auditImgUrls').value = data.image_urls.join('\n');
+    _auditImgUrlsChanged(document.getElementById('auditImgUrls'));
+  }
+  if (url) {
+    const mktMap = {'.amazon.de/':'amazon_de', '.amazon.co.uk/':'amazon_uk', '.amazon.it/':'amazon_it', '.amazon.es/':'amazon_es'};
+    for (const [p, m] of Object.entries(mktMap)) { if (url.includes(p)) { document.getElementById('auditMkt').value = m; break; } }
+  }
+  const parts = [];
+  if (data.title) parts.push('titre');
+  if ((data.bullets||[]).length) parts.push(`${data.bullets.length} bullet${data.bullets.length>1?'s':''}`);
+  if ((data.image_urls||[]).length) parts.push(`${data.image_urls.length} image${data.image_urls.length>1?'s':''}`);
+  return parts.join(', ') || 'données partielles';
+}
+
 async function auditPrefill() {
   const url = document.getElementById('auditAmazonUrl').value.trim();
   if (!url.startsWith('http')) { showToast('⚠️', 'Collez une URL Amazon valide', true); return; }
 
   const btn = document.getElementById('auditPrefillBtn');
   const msg = document.getElementById('auditPrefillMsg');
+  const fallback = document.getElementById('auditHtmlFallback');
   btn.disabled = true; btn.textContent = '…';
-  msg.textContent = 'Récupération en cours…'; msg.className = 'text-xs text-indigo-500 mt-1';
+  msg.textContent = 'Récupération en cours…';
+  msg.className = 'text-xs text-indigo-500';
   msg.classList.remove('hidden');
+  fallback.classList.add('hidden');
 
   try {
     const r = await authFetch('/api/audit/prefill', {
@@ -7270,36 +7303,51 @@ async function auditPrefill() {
       body: JSON.stringify({ url }),
     });
     const data = await r.json();
-    if (!r.ok) { msg.textContent = data.detail || 'Erreur'; msg.className = 'text-xs text-red-500 mt-1'; return; }
 
-    // Fill title
-    if (data.title) {
-      document.getElementById('auditTitle').value = data.title;
-      document.getElementById('auditTitleLen').textContent = data.title.length + '/200';
+    if (!r.ok) {
+      // Show fallback panel for blocked requests
+      if (r.status === 403 || (data.detail||'').includes('BLOCKED') || r.status === 422) {
+        msg.textContent = '⚠️ Amazon bloque l\'import automatique — utilisez la méthode manuelle ci-dessous.';
+        msg.className = 'text-xs text-amber-600';
+        fallback.classList.remove('hidden');
+      } else {
+        msg.textContent = data.detail || 'Erreur';
+        msg.className = 'text-xs text-red-500';
+      }
+      return;
     }
-    // Fill bullets
-    (data.bullets || []).forEach((b, i) => { if (i < 5) document.getElementById('auditB'+i).value = b; });
-    // Fill image URLs + sync slider
-    if ((data.image_urls || []).length > 0) {
-      document.getElementById('auditImgUrls').value = data.image_urls.join('\n');
-      _auditImgUrlsChanged(document.getElementById('auditImgUrls'));
-    }
-    const parts = [];
-    if (data.title) parts.push('titre');
-    if ((data.bullets||[]).length) parts.push(`${data.bullets.length} bullet${data.bullets.length>1?'s':''}`);
-    if ((data.image_urls||[]).length) parts.push(`${data.image_urls.length} image${data.image_urls.length>1?'s':''}`);
-    msg.textContent = '✅ Importé : ' + (parts.join(', ') || 'données partielles') + '. Vérifiez et complétez si besoin.';
-    msg.className = 'text-xs text-green-600 mt-1';
 
-    // Detect marketplace from URL
-    const mktMap = { '/amazon.de/': 'amazon_de', '/amazon.co.uk/': 'amazon_uk', '/amazon.it/': 'amazon_it', '/amazon.es/': 'amazon_es', '/amazon.com.be/': 'amazon_be' };
-    for (const [pattern, mkt] of Object.entries(mktMap)) {
-      if (url.includes(pattern)) { document.getElementById('auditMkt').value = mkt; break; }
-    }
+    const imported = _auditApplyPrefillData(data, url);
+    msg.textContent = '✅ Importé : ' + imported + '. Vérifiez et complétez si besoin.';
+    msg.className = 'text-xs text-green-600';
+    fallback.classList.add('hidden');
   } catch(e) {
-    msg.textContent = 'Erreur réseau'; msg.className = 'text-xs text-red-500 mt-1';
+    msg.textContent = 'Erreur réseau'; msg.className = 'text-xs text-red-500';
   } finally {
     btn.disabled = false; btn.textContent = 'Importer';
+  }
+}
+
+async function auditPrefillFromHtml() {
+  const html_content = document.getElementById('auditHtmlSource').value.trim();
+  if (!html_content) { showToast('⚠️', 'Collez d\'abord le code source', true); return; }
+  const msg = document.getElementById('auditPrefillMsg');
+  msg.textContent = 'Extraction en cours…'; msg.className = 'text-xs text-indigo-500'; msg.classList.remove('hidden');
+  try {
+    const r = await authFetch('/api/audit/prefill', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ html_content }),
+    });
+    const data = await r.json();
+    if (!r.ok) { msg.textContent = data.detail || 'Extraction impossible'; msg.className = 'text-xs text-red-500'; return; }
+    const imported = _auditApplyPrefillData(data, null);
+    msg.textContent = '✅ Extrait : ' + imported + '. Vérifiez et complétez si besoin.';
+    msg.className = 'text-xs text-green-600';
+    document.getElementById('auditHtmlFallback').classList.add('hidden');
+    document.getElementById('auditHtmlSource').value = '';
+  } catch(e) {
+    msg.textContent = 'Erreur'; msg.className = 'text-xs text-red-500';
   }
 }
 

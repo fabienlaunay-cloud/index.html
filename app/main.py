@@ -1324,43 +1324,96 @@ class AuditImproveRequest(BaseModel):
     marketplace: str = "amazon_fr"
 
 
+_AMAZON_HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/124.0.0.0 Safari/537.36"
+    ),
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+    "Accept-Language": "fr-FR,fr;q=0.9,en-US;q=0.8,en;q=0.7",
+    "Accept-Encoding": "gzip, deflate, br",
+    "Cache-Control": "no-cache",
+    "Pragma": "no-cache",
+    "Sec-Fetch-Dest": "document",
+    "Sec-Fetch-Mode": "navigate",
+    "Sec-Fetch-Site": "none",
+    "Upgrade-Insecure-Requests": "1",
+}
+
+
 @app.post("/api/audit/prefill")
 async def audit_prefill(request: Request):
-    """Scrape an Amazon product URL and return pre-filled audit fields."""
+    """Scrape an Amazon product URL, OR parse raw HTML if html_content is provided."""
     body = await request.json()
+    html_content = (body.get("html_content") or "").strip()
+
+    # Mode 2: user pasted raw HTML — parse directly, no HTTP fetch
+    if html_content:
+        data = _scrape_amazon_for_audit(html_content)
+        if not data["title"] and not data["bullets"] and not data["image_urls"]:
+            raise HTTPException(422, "Aucune donnée trouvée dans ce HTML. Vérifiez que vous avez bien copié le code source complet (Ctrl+U).")
+        return {**data, "source": "html_paste"}
+
+    # Mode 1: fetch from URL
     url = (body.get("url") or "").strip()
     if not url.startswith("http"):
         raise HTTPException(400, "URL invalide")
-    try:
-        async with httpx.AsyncClient(
-            follow_redirects=True, timeout=15.0,
-            headers={
-                "User-Agent": (
-                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                    "AppleWebKit/537.36 (KHTML, like Gecko) "
-                    "Chrome/124.0.0.0 Safari/537.36"
-                ),
-                "Accept-Language": "fr-FR,fr;q=0.9,en;q=0.8",
-            },
-        ) as client:
-            resp = await client.get(url)
-            resp.raise_for_status()
-    except httpx.TimeoutException:
-        raise HTTPException(504, "Délai dépassé — Amazon met trop de temps à répondre")
-    except httpx.HTTPStatusError as e:
-        raise HTTPException(502, f"Amazon a renvoyé une erreur {e.response.status_code}")
-    except Exception as e:
-        raise HTTPException(502, f"Impossible d'accéder à cette URL : {e}")
 
-    html_text = resp.text
-    # Detect CAPTCHA / bot-detection page
-    if "api.security-challenge.aws.com" in html_text or "Enter the characters you see below" in html_text:
-        raise HTTPException(403, "Amazon a bloqué la requête (protection anti-bot). Renseignez les champs manuellement.")
+    html_text = None
+    last_err = ""
+    # Try main URL then mobile variant
+    candidates = [url]
+    if "amazon." in url:
+        mob = url.replace("www.amazon.", "www.amazon.").replace("//amazon.", "//www.amazon.")
+        # Try with /dp/ short form if it's a long URL
+        import re as _re2
+        dp_m = _re2.search(r'/dp/([A-Z0-9]{10})', url)
+        if dp_m:
+            base = _re2.match(r'(https?://[^/]+)', url)
+            if base:
+                candidates.insert(0, f"{base.group(1)}/dp/{dp_m.group(1)}")
+
+    for candidate_url in candidates:
+        try:
+            async with httpx.AsyncClient(
+                follow_redirects=True, timeout=12.0, headers=_AMAZON_HEADERS,
+            ) as client:
+                resp = await client.get(candidate_url)
+                resp.raise_for_status()
+                html_text = resp.text
+                break
+        except httpx.TimeoutException:
+            last_err = "Délai dépassé"
+        except httpx.HTTPStatusError as e:
+            last_err = f"Erreur HTTP {e.response.status_code}"
+        except Exception as e:
+            last_err = str(e)
+
+    if not html_text:
+        raise HTTPException(502, f"Impossible d'accéder à l'URL ({last_err}). Utilisez le fallback 'Coller le source HTML'.")
+
+    # Detect bot-detection / CAPTCHA
+    bot_signals = [
+        "api.security-challenge.aws.com",
+        "Enter the characters you see below",
+        "robot or an automated system",
+        "captcha",
+        "px-captcha",
+    ]
+    if any(s.lower() in html_text.lower() for s in bot_signals):
+        raise HTTPException(
+            403,
+            "BLOCKED",  # frontend detects this code to show the fallback UI
+        )
 
     data = _scrape_amazon_for_audit(html_text)
     if not data["title"] and not data["bullets"]:
-        raise HTTPException(422, "Impossible d'extraire les données. La page Amazon est peut-être vide ou rendue côté client.")
-    return data
+        raise HTTPException(
+            422,
+            "BLOCKED",  # same fallback — page likely JS-rendered
+        )
+    return {**data, "source": "url_scrape"}
 
 
 @app.post("/api/audit")
