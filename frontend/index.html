@@ -2329,6 +2329,7 @@ function renderUsers(users) {
         <option value="starter" ${plan === 'starter' ? 'selected' : ''}>Starter</option>
         <option value="business" ${plan === 'business' ? 'selected' : ''}>Business</option>
         <option value="scale" ${plan === 'scale' ? 'selected' : ''}>Scale</option>
+        <option value="maintenance" ${plan === 'maintenance' ? 'selected' : ''}>Pro / Maintenance</option>
       </select>
       <button onclick="toggleUser('${u.email}', ${u.is_active ? 0 : 1})" class="text-xs px-3 py-1.5 rounded-lg border font-medium transition shrink-0 ${activeClass}">
         ${u.is_active ? '✓ Actif' : '✗ Inactif'}

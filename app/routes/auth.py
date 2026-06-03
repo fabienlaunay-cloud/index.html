@@ -161,9 +161,13 @@ async def get_invite(token: str):
         "SELECT email, expires_at, used FROM invitation_tokens WHERE token = ?", (token,)
     ).fetchone()
     conn.close()
-    if not row or row["used"]:
+    if not row or int(row["used"] or 0):
         raise HTTPException(404, "Lien invalide ou déjà utilisé")
-    if datetime.datetime.utcnow() > datetime.datetime.fromisoformat(row["expires_at"]):
+    try:
+        expires = datetime.datetime.fromisoformat(str(row["expires_at"]))
+    except Exception:
+        raise HTTPException(404, "Lien invalide ou déjà utilisé")
+    if datetime.datetime.utcnow() > expires:
         raise HTTPException(410, "Lien expiré (72h max) — demandez un nouvel accès")
     return {"email": row["email"], "valid": True}
 
@@ -175,10 +179,15 @@ async def accept_invite(token: str, req: AcceptInviteRequest):
     row = conn.execute(
         "SELECT email, expires_at, used FROM invitation_tokens WHERE token = ?", (token,)
     ).fetchone()
-    if not row or row["used"]:
+    if not row or int(row["used"] or 0):
         conn.close()
         raise HTTPException(404, "Lien invalide ou déjà utilisé")
-    if datetime.datetime.utcnow() > datetime.datetime.fromisoformat(row["expires_at"]):
+    try:
+        expires = datetime.datetime.fromisoformat(str(row["expires_at"]))
+    except Exception:
+        conn.close()
+        raise HTTPException(404, "Lien invalide ou déjà utilisé")
+    if datetime.datetime.utcnow() > expires:
         conn.close()
         raise HTTPException(410, "Lien expiré")
     email = row["email"]
