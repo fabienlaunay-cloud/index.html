@@ -25,6 +25,8 @@
   @keyframes marquee { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
   .animate-marquee { animation: marquee 40s linear infinite; }
   .animate-marquee:hover { animation-play-state: paused; }
+  .banner-scroll { display: inline-block; animation: marquee 32s linear infinite; }
+  .banner-scroll:hover { animation-play-state: paused; }
   /* Landing — thème blanc */
   #login-screen { background: #ffffff; }
   .login-card { background: #1e1b4b; border: 1px solid rgba(255,255,255,0.1); }
@@ -655,7 +657,7 @@
             <h3 class="text-gray-900 font-black text-xl">Pro / Maintenance</h3>
             <span class="bg-gray-200 text-gray-600 text-xs font-semibold px-3 py-1 rounded-full">Engagement annuel</span>
           </div>
-          <p class="text-gray-400 text-sm mb-4">Marque établie · catalogue stable · sans setup</p>
+          <p class="text-gray-400 text-sm mb-4">Marque établie · catalogue stable · sans setup — ou <span class="text-gray-500 font-medium">petit catalogue en démarrage (≤ 300 SKU/an)</span></p>
           <div class="flex items-baseline gap-2 mb-1">
             <span class="text-gray-900 font-black text-3xl">99 €</span>
             <span class="text-gray-400">/mois</span>
@@ -857,6 +859,22 @@
 
 <!-- ═══════════════════ APP PRINCIPAL ═══════════════════ -->
 <div id="app" class="hidden">
+
+<!-- ── Bandeau info API Amazon ──────────────────────────────────────────────── -->
+<div id="amazonApiBanner" class="bg-amber-50 border-b border-amber-200 overflow-hidden" style="height:36px">
+  <div class="flex items-center h-full px-4 gap-3">
+    <span class="text-amber-600 shrink-0 text-sm">⚠️</span>
+    <div class="overflow-hidden flex-1">
+      <div class="banner-scroll whitespace-nowrap text-amber-800 text-xs font-medium">
+        Connexion API Amazon Seller Central temporairement indisponible — règlement Amazon en cours, rétablissement sous quelques semaines.&nbsp;&nbsp;&nbsp;
+        En attendant : générez vos fiches, <strong>téléchargez le fichier Excel</strong> (bouton Exporter), puis déposez-le directement dans Seller Central via <strong>Catalogue → Ajouter des produits via importation</strong>.&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        Connexion API Amazon Seller Central temporairement indisponible — règlement Amazon en cours, rétablissement sous quelques semaines.&nbsp;&nbsp;&nbsp;
+        En attendant : générez vos fiches, <strong>téléchargez le fichier Excel</strong> (bouton Exporter), puis déposez-le directement dans Seller Central via <strong>Catalogue → Ajouter des produits via importation</strong>.&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+      </div>
+    </div>
+    <button onclick="document.getElementById('amazonApiBanner').remove()" class="text-amber-400 hover:text-amber-700 shrink-0 text-lg leading-none ml-2" title="Fermer">✕</button>
+  </div>
+</div>
 
 <header class="gradient-bg text-white shadow-lg">
   <div class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
