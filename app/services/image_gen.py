@@ -430,6 +430,45 @@ async def _generate_image_dalle3(prompt: str, image_id: str, reference_image: Op
         return f"data:image/png;base64,{item['b64_json']}"
 
 
+def _clean_hero_background(data_url: str, threshold: int = 20) -> str:
+    """
+    Force the hero image background to exact RGB(255,255,255).
+
+    Flood-fills from all 4 corners using a sentinel colour — safe for centred
+    product images because only pixels connected to the image edges are touched.
+    threshold: max per-channel deviation from 255 to be considered background.
+    Falls back to the original URL on any error.
+    """
+    if not data_url.startswith("data:image/"):
+        return data_url
+    try:
+        import io
+        import base64 as _b64
+        from PIL import Image, ImageDraw
+        import numpy as np
+
+        b64_part = data_url.split(",", 1)[1]
+        img = Image.open(io.BytesIO(_b64.b64decode(b64_part))).convert("RGB")
+        w, h = img.size
+
+        # Sentinel: an extreme colour that won't appear in product photos
+        SENTINEL = (0, 254, 1)
+        for cx, cy in [(0, 0), (w - 1, 0), (0, h - 1), (w - 1, h - 1)]:
+            r, g, b = img.getpixel((cx, cy))
+            if r >= 255 - threshold and g >= 255 - threshold and b >= 255 - threshold:
+                ImageDraw.floodfill(img, (cx, cy), SENTINEL, thresh=threshold)
+
+        arr = np.array(img)
+        bg = (arr[:, :, 0] == SENTINEL[0]) & (arr[:, :, 1] == SENTINEL[1]) & (arr[:, :, 2] == SENTINEL[2])
+        arr[bg] = [255, 255, 255]
+
+        buf = io.BytesIO()
+        Image.fromarray(arr, "RGB").save(buf, format="PNG")
+        return "data:image/png;base64," + _b64.b64encode(buf.getvalue()).decode()
+    except Exception:
+        return data_url
+
+
 async def generate_product_images(
     sku: str,
     product_name: str,
@@ -491,6 +530,9 @@ async def generate_product_images(
             error = None
             try:
                 url = await _generate_image_dalle3(prompt, img_id, reference_image)
+                # Amazon requires strict RGB(255,255,255) on main image background
+                if img_id == "hero" and url:
+                    url = _clean_hero_background(url)
             except Exception as e:
                 error = str(e)
             results.append({
