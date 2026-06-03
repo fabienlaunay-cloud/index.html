@@ -1614,33 +1614,50 @@ async def tracking_import_csv(listing_id: str, request: Request):
             if v and v != "-": return v
         return ""
 
+    import datetime as _dt
+
     imported = 0
     for row in rows:
-        date_val = _pick(row, "date", "day", "jour")
-        if not date_val:
-            continue
-        try:
-            import datetime as _dt
-            # Try common date formats
-            for fmt in ("%m/%d/%Y", "%d/%m/%Y", "%Y-%m-%d"):
+        # Date column: present in "by date" reports, absent in "by ASIN" reports
+        date_val = _pick(row, "date", "day", "jour", "période", "period")
+        if date_val:
+            snap_date = None
+            for fmt in ("%m/%d/%Y", "%d/%m/%Y", "%Y-%m-%d", "%d-%m-%Y"):
                 try:
-                    d = _dt.datetime.strptime(date_val, fmt).date()
+                    snap_date = str(_dt.datetime.strptime(date_val, fmt).date())
                     break
                 except ValueError:
                     continue
-            else:
+            if not snap_date:
                 continue
-            snap_date = str(d)
-        except Exception:
-            continue
+        else:
+            # ASIN-level report: no date column — use today as snapshot date
+            snap_date = str(_dt.date.today())
 
-        sessions   = int(float(_pick(row, "sessions") or 0))
-        page_views = int(float(_pick(row, "page views", "page_views", "vues de page") or 0))
-        units      = int(float(_pick(row, "units ordered", "units_ordered", "unités commandées") or 0))
-        conv_str   = _pick(row, "unit session percentage", "taux de conversion", "conversion rate") or "0"
-        conv       = float(conv_str.replace("%", "").replace(",", ".")) if conv_str else 0.0
-        rev_str    = _pick(row, "ordered product sales", "chiffre d'affaires", "revenue") or "0"
-        revenue    = float(rev_str.replace("€", "").replace("$", "").replace(",", ".").replace(" ", "")) if rev_str else 0.0
+        sessions   = int(float(_pick(row,
+            "sessions", "sessions - total", "sessions – total") or 0))
+        page_views = int(float(_pick(row,
+            "page views", "page_views",
+            "vues de la page - total", "vues de la page – total",
+            "vues de page") or 0))
+        units      = int(float(_pick(row,
+            "units ordered", "units_ordered",
+            "unités commandées", "unités commandées - total", "unités commandées – total") or 0))
+        conv_str   = _pick(row,
+            "unit session percentage", "taux de conversion", "conversion rate",
+            "pourcentage de sessions d'unités - total", "pourcentage de sessions d'unités – total",
+            "pourcentage de sessions d'unités") or "0"
+        conv       = float(conv_str.replace("%", "").replace(",", ".").strip()) if conv_str else 0.0
+        rev_str    = _pick(row,
+            "ordered product sales", "chiffre d'affaires", "revenue",
+            "chiffre d'affaires des produits commandés",
+            "chiffre d'affaires des produits commandés - total",
+            "chiffre d'affaires des produits commandés – total") or "0"
+        revenue    = float(rev_str.replace("€", "").replace("$", "").replace(",", ".").replace("\xa0", "").replace(" ", "").strip()) if rev_str else 0.0
+
+        # Skip rows with no meaningful data
+        if sessions == 0 and units == 0 and page_views == 0:
+            continue
 
         add_snapshot(listing_id, email, snap_date, "", sessions, page_views,
                      units, conv, revenue, "", None, "Import CSV")
