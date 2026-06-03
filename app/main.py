@@ -1247,11 +1247,68 @@ Règles :
 - Keywords : ≤249 bytes UTF-8, pas de doublons avec le titre, pluriels/synonymes/longue traîne"""
 
 
+def _scrape_amazon_for_audit(html_text: str) -> dict:
+    """Extract title, bullets and image URLs from Amazon product page static HTML."""
+    import re as _re, html as _html
+    def _clean(t): return _re.sub(r'<[^>]+>', '', _html.unescape(t or '')).strip()
+
+    result: dict = {"title": "", "bullets": [], "image_urls": []}
+
+    # Title — id="productTitle"
+    m = _re.search(r'<span[^>]+id=["\']productTitle["\'][^>]*>(.*?)</span>', html_text, _re.DOTALL | _re.IGNORECASE)
+    if m:
+        result["title"] = _clean(m.group(1))
+
+    # Fallback: og:title
+    if not result["title"]:
+        m = _re.search(r'<meta[^>]+property=["\']og:title["\'][^>]+content=["\']([^"\']+)', html_text, _re.IGNORECASE)
+        if m:
+            result["title"] = _html.unescape(m.group(1).strip())
+
+    # Bullets — feature-bullets ul li a-list-item
+    bullet_matches = _re.findall(
+        r'<span[^>]+class=["\'][^"\']*a-list-item[^"\']*["\'][^>]*>(.*?)</span>',
+        html_text, _re.DOTALL | _re.IGNORECASE,
+    )
+    seen_b: set = set()
+    for raw in bullet_matches:
+        b = _clean(raw)
+        if len(b) > 15 and b not in seen_b:
+            seen_b.add(b)
+            result["bullets"].append(b)
+        if len(result["bullets"]) >= 5:
+            break
+
+    # Images — colorImages JS object (hiRes > large)
+    for key in ("hiRes", "large", "main"):
+        img_urls = _re.findall(rf'"{key}"\s*:\s*"(https://[^"]+\.jpg[^"]*)"', html_text)
+        if img_urls:
+            seen_u: set = set()
+            for u in img_urls:
+                # Normalise to largest variant: strip ._SX/SY/AC_ suffix
+                base = _re.sub(r'\._[A-Z0-9_,]+_\.', '.', u)
+                if base not in seen_u:
+                    seen_u.add(base)
+                    result["image_urls"].append(base)
+                if len(result["image_urls"]) >= 9:
+                    break
+            break
+
+    # Fallback: data-old-hires or landingImage src
+    if not result["image_urls"]:
+        m = _re.search(r'data-old-hires=["\']([^"\']+)["\']', html_text)
+        if m:
+            result["image_urls"] = [m.group(1)]
+
+    return result
+
+
 class AuditRequest(BaseModel):
     title: str = ""
     bullets: list[str] = []
     backend_keywords: str = ""
     image_count: int = 0
+    image_urls: list[str] = []
     marketplace: str = "amazon_fr"
 
 
@@ -1263,16 +1320,59 @@ class AuditImproveRequest(BaseModel):
     marketplace: str = "amazon_fr"
 
 
+@app.post("/api/audit/prefill")
+async def audit_prefill(request: Request):
+    """Scrape an Amazon product URL and return pre-filled audit fields."""
+    body = await request.json()
+    url = (body.get("url") or "").strip()
+    if not url.startswith("http"):
+        raise HTTPException(400, "URL invalide")
+    try:
+        async with httpx.AsyncClient(
+            follow_redirects=True, timeout=15.0,
+            headers={
+                "User-Agent": (
+                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                    "AppleWebKit/537.36 (KHTML, like Gecko) "
+                    "Chrome/124.0.0.0 Safari/537.36"
+                ),
+                "Accept-Language": "fr-FR,fr;q=0.9,en;q=0.8",
+            },
+        ) as client:
+            resp = await client.get(url)
+            resp.raise_for_status()
+    except httpx.TimeoutException:
+        raise HTTPException(504, "Délai dépassé — Amazon met trop de temps à répondre")
+    except httpx.HTTPStatusError as e:
+        raise HTTPException(502, f"Amazon a renvoyé une erreur {e.response.status_code}")
+    except Exception as e:
+        raise HTTPException(502, f"Impossible d'accéder à cette URL : {e}")
+
+    html_text = resp.text
+    # Detect CAPTCHA / bot-detection page
+    if "api.security-challenge.aws.com" in html_text or "Enter the characters you see below" in html_text:
+        raise HTTPException(403, "Amazon a bloqué la requête (protection anti-bot). Renseignez les champs manuellement.")
+
+    data = _scrape_amazon_for_audit(html_text)
+    if not data["title"] and not data["bullets"]:
+        raise HTTPException(422, "Impossible d'extraire les données. La page Amazon est peut-être vide ou rendue côté client.")
+    return data
+
+
 @app.post("/api/audit")
 async def audit_listing(req: AuditRequest, request: Request):
     if not os.getenv("ANTHROPIC_API_KEY"):
         raise HTTPException(503, "Service indisponible")
     from app.services.ai_agent import get_client
     import json as _json
+
     lang = "français" if "fr" in req.marketplace else ("anglais" if "uk" in req.marketplace else "langue locale du marché")
     bullets_text = "\n".join(f"• {b}" for b in req.bullets if b.strip()) or "(aucun bullet)"
     kw_bytes = len(req.backend_keywords.encode("utf-8"))
-    prompt = f"""Marketplace : {req.marketplace} (langue fiches : {lang})
+    # Effective image count: prefer URL list length, fallback to slider
+    effective_img_count = len(req.image_urls) if req.image_urls else req.image_count
+
+    text_prompt = f"""Marketplace : {req.marketplace} (langue fiches : {lang})
 
 TITRE ({len(req.title)} chars) :
 {req.title or "(vide)"}
@@ -1283,17 +1383,32 @@ BULLETS ({len([b for b in req.bullets if b.strip()])}/5) :
 KEYWORDS BACKEND ({kw_bytes}/249 bytes) :
 {req.backend_keywords or "(vide)"}
 
-IMAGES : {req.image_count} image(s)"""
+IMAGES : {effective_img_count} image(s)"""
+
+    # Build message content — add images for vision analysis (max 4)
+    urls_to_analyze = [u for u in req.image_urls if u.startswith("http")][:4]
+    if urls_to_analyze:
+        content: list = []
+        for img_url in urls_to_analyze:
+            content.append({"type": "image", "source": {"type": "url", "url": img_url}})
+        content.append({
+            "type": "text",
+            "text": text_prompt + "\n\nNOTE : Les images ci-dessus sont les vraies images produit Amazon. Analyse-les visuellement pour scorer la dimension IMAGES : fond blanc (image 1), produit bien visible, visuels lifestyle, infographie, angles multiples. Ajuste le score et les issues/suggestions en conséquence.",
+        })
+    else:
+        content = text_prompt
 
     resp = await get_client().messages.create(
-        model="claude-haiku-4-5-20251001",
+        model="claude-haiku-4-5-20251001" if not urls_to_analyze else "claude-sonnet-4-6",
         max_tokens=900,
         system=_AUDIT_SYSTEM,
-        messages=[{"role": "user", "content": prompt}],
+        messages=[{"role": "user", "content": content}],
     )
     raw = resp.content[0].text.strip()
     try:
-        return _json.loads(raw)
+        result = _json.loads(raw)
+        result["vision_used"] = bool(urls_to_analyze)
+        return result
     except Exception:
         raise HTTPException(500, "Erreur d'analyse — réessayez")
 
