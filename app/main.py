@@ -189,6 +189,12 @@ async def root():
         return HTMLResponse(content=f.read())
 
 
+@app.get("/sitemap.xml", include_in_schema=False)
+async def sitemap():
+    with open("frontend/sitemap.xml", "r", encoding="utf-8") as f:
+        return Response(content=f.read(), media_type="application/xml")
+
+
 # ── Health ────────────────────────────────────────────────────────────────────
 
 @app.get("/health")
