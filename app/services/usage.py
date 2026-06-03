@@ -6,7 +6,7 @@ PLAN_QUOTAS = {
     "starter":     {"skus": 200,  "images": 50,  "label": "Starter",          "commitment_months": 0,  "price_monthly": 390,  "price_setup": 490,  "annual_pool": False},
     "business":    {"skus": 600,  "images": 200, "label": "Business",         "commitment_months": 3,  "price_monthly": 790,  "price_setup": 990,  "annual_pool": False},
     "scale":       {"skus": 1500, "images": 500, "label": "Scale",            "commitment_months": 6,  "price_monthly": 1490, "price_setup": 1990, "annual_pool": False},
-    "maintenance": {"skus": 300,  "images": 100, "label": "Pro / Maintenance","commitment_months": 12, "price_monthly": 90,   "price_setup": 0,    "annual_pool": True},
+    "maintenance": {"skus": 300,  "images": 100, "label": "Pro / Maintenance","commitment_months": 12, "price_monthly": 99,   "price_setup": 0,    "annual_pool": True},
 }
 
 # Tarifs Claude Sonnet + gpt-image-1
