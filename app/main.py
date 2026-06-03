@@ -1645,17 +1645,25 @@ async def tracking_import_csv(listing_id: str, request: Request):
             "unités commandées", "unités commandées - total", "unités commandées – total") or 0))
         conv_str   = _pick(row,
             "unit session percentage", "taux de conversion", "conversion rate",
-            "taux d'acquisition des commandes - total", "taux d'acquisition des commandes – total",
-            "taux d'acquisition des commandes",
-            "pourcentage de sessions d'unités - total", "pourcentage de sessions d'unités – total",
-            "pourcentage de sessions d'unités") or "0"
+            "pourcentage de session d'unité",
+            "pourcentage par session d'unités",
+            "taux d'acquisition des commandes - total",
+            "pourcentage de sessions d'unités - total") or "0"
         conv       = float(conv_str.replace("%", "").replace(",", ".").strip()) if conv_str else 0.0
         rev_str    = _pick(row,
-            "ordered product sales", "chiffre d'affaires", "revenue",
+            "ordered product sales", "revenue",
+            "ventes de produits commandés",
             "chiffre d'affaires des produits commandés - total",
-            "chiffre d'affaires des produits commandés – total",
             "chiffre d'affaires des produits commandés") or "0"
-        revenue    = float(rev_str.replace("€", "").replace("$", "").replace(",", ".").replace("\xa0", "").replace(" ", "").replace(" ", "").strip()) if rev_str else 0.0
+        def _parse_eur(s):
+            s = s.replace("€","").replace("$","").replace("\xa0","").replace(" ","").replace("\u00a0","").replace(" ","").strip()
+            if "," in s and "." in s:
+                s = s.replace(".", "").replace(",", ".")
+            else:
+                s = s.replace(",", ".")
+            try: return float(s)
+            except: return 0.0
+        revenue = _parse_eur(rev_str)
 
         # Skip rows with no meaningful data
         if sessions == 0 and units == 0 and page_views == 0:
