@@ -961,37 +961,57 @@
 </div>
 
 <header class="gradient-bg text-white shadow-lg">
-  <div class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-    <div class="flex items-center gap-3">
-      <div class="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
-        <svg viewBox="0 0 24 24" fill="none" width="20" height="20"><path d="M12 2L2 7l10 5 10-5-10-5z" stroke="white" stroke-width="2" stroke-linejoin="round"/><path d="M2 17l10 5 10-5M2 12l10 5 10-5" stroke="white" stroke-width="2" stroke-linejoin="round"/></svg>
+  <div class="max-w-7xl mx-auto px-4 h-14 flex items-center justify-between gap-2">
+
+    <!-- Logo -->
+    <div class="flex items-center gap-2.5 flex-shrink-0">
+      <div class="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center">
+        <svg viewBox="0 0 24 24" fill="none" width="17" height="17"><path d="M12 2L2 7l10 5 10-5-10-5z" stroke="white" stroke-width="2" stroke-linejoin="round"/><path d="M2 17l10 5 10-5M2 12l10 5 10-5" stroke="white" stroke-width="2" stroke-linejoin="round"/></svg>
       </div>
-      <div>
-        <h1 class="text-xl font-bold">SynqIO</h1>
-        <p class="text-purple-200 text-xs">MarketplaceAI</p>
+      <div class="leading-tight">
+        <h1 class="text-sm font-bold tracking-tight">SynqIO</h1>
+        <p class="text-purple-200 text-[10px]">MarketplaceAI</p>
       </div>
     </div>
-    <div class="flex items-center gap-3">
-      <div id="healthBadge" class="flex items-center gap-2 bg-white/10 rounded-lg px-3 py-1.5 text-sm">
-        <div class="w-2 h-2 rounded-full bg-gray-300 pulse"></div><span>...</span>
+
+    <!-- Right actions -->
+    <div class="flex items-center gap-1.5">
+
+      <!-- Health status -->
+      <div id="healthBadge" class="hidden sm:flex items-center gap-1.5 text-xs text-white/60 px-2 py-1 rounded-lg">
+        <div class="w-1.5 h-1.5 rounded-full bg-gray-400 pulse flex-shrink-0"></div><span>...</span>
       </div>
-      <button onclick="_sessOpenPanel()" class="w-8 h-8 flex items-center justify-center bg-white/10 hover:bg-white/20 rounded-lg transition text-white flex-shrink-0" title="Sessions sauvegardées">
+
+      <!-- Divider -->
+      <div class="hidden sm:block w-px h-5 bg-white/15 mx-1"></div>
+
+      <!-- Icon actions -->
+      <button onclick="_sessOpenPanel()" title="Sessions sauvegardées"
+        class="w-8 h-8 flex items-center justify-center rounded-lg text-white/60 hover:text-white hover:bg-white/15 transition flex-shrink-0">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
       </button>
-      <button onclick="openHistoryPanel()" class="w-8 h-8 flex items-center justify-center bg-white/10 hover:bg-white/20 rounded-lg transition text-white flex-shrink-0" title="Historique des générations">
+      <button onclick="openHistoryPanel()" title="Historique des générations"
+        class="w-8 h-8 flex items-center justify-center rounded-lg text-white/60 hover:text-white hover:bg-white/15 transition flex-shrink-0">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
       </button>
-      <button onclick="showChatView()" class="flex items-center gap-2 bg-white/15 hover:bg-white/25 border border-white/20 rounded-lg px-3 py-1.5 text-sm text-white transition flex-shrink-0" title="Parler à votre agent IA">
+
+      <!-- Divider -->
+      <div class="w-px h-5 bg-white/15 mx-1"></div>
+
+      <!-- Agent IA button -->
+      <button onclick="showChatView()"
+        class="flex items-center gap-2 bg-white/15 hover:bg-white/25 border border-white/25 rounded-xl px-3 h-8 text-sm font-medium text-white transition flex-shrink-0">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-        <span class="hidden sm:inline">
-          <span class="font-medium">Parler à votre agent IA</span>
-          <span class="block text-purple-200 text-xs leading-tight" style="font-size:10px">Plus vous me parlez, plus je m'améliore</span>
-        </span>
+        <span class="hidden sm:inline">Agent IA</span>
       </button>
+
+      <!-- Marketplace selector -->
       <div class="relative" id="mktSelectorWrapper">
-        <button type="button" onclick="toggleMktDropdown(event)" class="flex items-center gap-2 bg-white/10 border border-white/20 text-white rounded-lg px-3 py-1.5 text-sm min-w-[170px] justify-between hover:bg-white/20 transition">
-          <span id="mktSelectorLabel">Amazon France</span>
-          <span class="text-white/60 text-xs ml-1">▾</span>
+        <button type="button" onclick="toggleMktDropdown(event)"
+          class="flex items-center gap-1.5 bg-white/10 hover:bg-white/20 border border-white/20 text-white rounded-xl px-3 h-8 text-sm transition flex-shrink-0">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+          <span id="mktSelectorLabel" class="hidden sm:inline">Amazon France</span>
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>
         </button>
         <div id="mktSelectorList" class="hidden absolute right-0 top-10 bg-indigo-950 border border-white/20 rounded-xl shadow-2xl py-2 z-50 min-w-[220px]">
           <p class="text-white/40 text-xs px-4 pb-1.5">Sélectionnez un ou plusieurs marchés</p>
@@ -1007,12 +1027,17 @@
           <div onclick="toggleMkt('amazon_be')" class="mkt-item flex items-center gap-3 px-4 py-2 text-sm text-white hover:bg-white/10 cursor-pointer rounded-lg mx-1" data-mkt="amazon_be"><span class="w-4 h-4 rounded border border-white/40 flex items-center justify-center flex-shrink-0 mkt-check" id="mkt-check-amazon_be"></span>🇧🇪 Belgique</div>
         </div>
       </div>
+
+      <!-- User menu -->
       <div class="relative">
-        <button onclick="toggleUserMenu()" class="flex items-center gap-2 bg-white/10 hover:bg-white/20 rounded-lg px-3 py-1.5 text-sm transition">
-          <div id="userAvatar" class="w-6 h-6 bg-white/30 rounded-full flex items-center justify-center text-xs font-bold">?</div>
-          <span id="userEmailHeader" class="max-w-32 truncate text-xs">...</span>
-          <span id="usageBadge" class="hidden text-xs bg-white/20 rounded px-1.5 py-0.5 font-mono">—</span>
-          <span class="text-white/50 text-xs">▾</span>
+        <button onclick="toggleUserMenu()"
+          class="flex items-center gap-2 bg-white/10 hover:bg-white/20 rounded-xl pl-2 pr-2.5 h-8 transition flex-shrink-0">
+          <div id="userAvatar" class="w-6 h-6 bg-purple-400/80 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0">?</div>
+          <div class="hidden sm:flex flex-col items-start leading-none">
+            <span id="userEmailHeader" class="text-xs font-medium max-w-[110px] truncate text-white">...</span>
+            <span id="usageBadge" class="text-[10px] text-white/50 font-mono mt-0.5">—</span>
+          </div>
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" class="text-white/50"><polyline points="6 9 12 15 18 9"/></svg>
         </button>
         <div id="userDropdown" class="hidden absolute right-0 top-10 bg-white rounded-xl shadow-2xl border border-gray-100 py-2 w-52 z-40">
           <div class="px-4 py-2 border-b border-gray-100">
@@ -3300,8 +3325,7 @@ async function loadUsage() {
     const pct = Math.round((u.skus_used / u.skus_quota) * 100);
     const badge = document.getElementById('usageBadge');
     badge.textContent = `${u.skus_used}/${u.skus_quota} SKU`;
-    badge.classList.remove('hidden');
-    badge.className = `text-xs rounded px-1.5 py-0.5 font-mono ${pct >= 90 ? 'bg-red-400/80' : pct >= 70 ? 'bg-amber-400/80' : 'bg-white/20'}`;
+    badge.className = `text-[10px] font-mono mt-0.5 ${pct >= 90 ? 'text-red-300' : pct >= 70 ? 'text-amber-300' : 'text-white/50'}`;
     document.getElementById('usageDetail').textContent = `${u.plan_label} · ${u.skus_used}/${u.skus_quota} SKUs · ${u.images_used} images`;
     updateQuotaBanner(u, pct);
   } catch {}
