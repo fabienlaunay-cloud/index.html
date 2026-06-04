@@ -1494,10 +1494,16 @@
           <div>
             <div class="flex items-center justify-between mb-1.5">
               <label class="text-sm font-medium text-gray-700">Mots-clés prioritaires</label>
-              <a href="https://sellercentral.amazon.fr/analytics#/searchQueryPerformance" target="_blank" rel="noopener" class="flex items-center gap-1 text-xs text-purple-600 hover:text-purple-800 hover:underline transition">
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-                Source : Search Query Performance
-              </a>
+              <div class="flex items-center gap-3">
+                <a href="https://sellercentral.amazon.fr/analytics#/searchQueryPerformance" target="_blank" rel="noopener" class="flex items-center gap-1 text-xs text-purple-600 hover:text-purple-800 hover:underline transition">
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+                  Search Query Performance
+                </a>
+                <button onclick="_kwSuggest('focusKeywords', selectedMarketplaces[0] || 'amazon_fr', this)" class="flex items-center gap-1 text-xs text-purple-600 hover:text-purple-800 font-medium transition">
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a10 10 0 1 0 10 10"/><path d="M12 6v6l4 2"/><path d="M22 2 12 12"/></svg>
+                  Suggestions IA
+                </button>
+              </div>
             </div>
             <input id="focusKeywords" type="text" placeholder="coller les requêtes depuis Search Query Performance..." class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-purple-300 outline-none">
             <p class="text-xs text-gray-400 mt-1.5">Seller Central → Marque → Analytique → Search Query Performance</p>
@@ -1736,7 +1742,13 @@
           </select>
         </div>
         <div>
-          <label class="block text-xs font-semibold text-gray-500 mb-1.5 uppercase tracking-wide">Mots-cles focus (optionnel)</label>
+          <div class="flex items-center justify-between mb-1.5">
+            <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wide">Mots-cles focus (optionnel)</label>
+            <button onclick="_kwSuggest('abKeywords', document.getElementById('abMarketplace').value, this)" class="flex items-center gap-1 text-xs text-purple-600 hover:text-purple-800 font-medium transition">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+              Suggestions Amazon
+            </button>
+          </div>
           <input id="abKeywords" type="text" placeholder="collier chien, laisse, accessoire..." class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-purple-300 outline-none">
         </div>
         <div class="flex items-end">
@@ -2152,6 +2164,20 @@
 
     <button onclick="closePublishModal()" class="w-full mt-3 text-sm text-gray-400 hover:text-gray-600 py-1">Annuler</button>
   </div>
+</div>
+
+<!-- Keyword suggestion panel (reusable floating panel) -->
+<div id="kwSuggestPanel" class="hidden fixed z-[200] bg-white border border-gray-200 rounded-2xl shadow-2xl p-4 w-80" style="max-height:340px">
+  <div class="flex items-center justify-between mb-3">
+    <div class="flex items-center gap-2">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      <span class="text-xs font-bold text-gray-700">Suggestions Amazon</span>
+    </div>
+    <button onclick="document.getElementById('kwSuggestPanel').classList.add('hidden')" class="text-gray-400 hover:text-gray-600 text-lg leading-none">×</button>
+  </div>
+  <div id="kwSuggestLoading" class="hidden text-center py-4 text-xs text-gray-400">Chargement…</div>
+  <div id="kwSuggestList" class="overflow-y-auto space-y-1" style="max-height:240px"></div>
+  <p class="text-xs text-gray-400 mt-3 border-t border-gray-100 pt-2">Source : Amazon Autocomplete · Cliquez pour ajouter</p>
 </div>
 
 <!-- Toast -->
@@ -8418,6 +8444,85 @@ async function _abDeleteExperiment(expId) {
     if (r.ok) { showToast('', 'Experience supprimee'); _abLoadExperiments(); }
   } catch(e) {}
 }
+
+// ── Keyword suggestions ───────────────────────────────────────────────────────
+
+let _kwSuggestTargetId = null;
+
+async function _kwSuggest(inputId, marketplace, triggerBtn) {
+  const input = document.getElementById(inputId);
+  if (!input) return;
+
+  // Get query from current input value or the product name if empty
+  let query = input.value.trim().split(',')[0].trim();
+  if (!query) {
+    // Try to infer from context
+    const listing = typeof _abCurrentVariants !== 'undefined' && _abCurrentVariants
+      ? (_abCurrentVariants.sku || '')
+      : (typeof parsedProducts !== 'undefined' && parsedProducts[0]
+          ? (parsedProducts[0].name || parsedProducts[0].sku || '')
+          : '');
+    query = listing;
+  }
+  if (!query) { showToast('', 'Saisissez d\'abord un mot-clé ou un nom de produit'); return; }
+
+  _kwSuggestTargetId = inputId;
+  const panel = document.getElementById('kwSuggestPanel');
+  const list  = document.getElementById('kwSuggestList');
+  const loader = document.getElementById('kwSuggestLoading');
+
+  // Position panel below trigger button
+  const rect = triggerBtn.getBoundingClientRect();
+  panel.style.top  = (rect.bottom + window.scrollY + 8) + 'px';
+  panel.style.left = Math.min(rect.left + window.scrollX, window.innerWidth - 336) + 'px';
+  panel.classList.remove('hidden');
+  list.innerHTML = '';
+  loader.classList.remove('hidden');
+
+  try {
+    const r = await authFetch(`/api/keywords/suggest?query=${encodeURIComponent(query)}&marketplace=${encodeURIComponent(marketplace)}`);
+    loader.classList.add('hidden');
+    if (!r.ok) throw new Error();
+    const { keywords } = await r.json();
+    if (!keywords || !keywords.length) {
+      list.innerHTML = '<p class="text-xs text-gray-400 text-center py-3">Aucune suggestion trouvée</p>';
+      return;
+    }
+    list.innerHTML = keywords.map(kw => `
+      <button onclick="_kwAddKeyword('${kw.replace(/'/g, "\\'")}')"
+        class="w-full text-left px-3 py-1.5 text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-700 rounded-lg transition truncate">
+        ${kw}
+      </button>`).join('');
+  } catch(e) {
+    loader.classList.add('hidden');
+    list.innerHTML = '<p class="text-xs text-red-400 text-center py-3">Erreur — réessayez</p>';
+  }
+}
+
+function _kwAddKeyword(kw) {
+  const input = document.getElementById(_kwSuggestTargetId);
+  if (!input) return;
+  const existing = input.value.trim();
+  const parts = existing ? existing.split(',').map(k => k.trim()).filter(Boolean) : [];
+  if (!parts.includes(kw)) {
+    input.value = [...parts, kw].join(', ');
+  }
+  // Highlight the added keyword in the list
+  document.querySelectorAll('#kwSuggestList button').forEach(btn => {
+    if (btn.textContent.trim() === kw) {
+      btn.classList.add('bg-purple-100', 'text-purple-700', 'font-medium');
+      btn.classList.remove('hover:bg-purple-50');
+    }
+  });
+}
+
+// Close panel on outside click
+document.addEventListener('click', e => {
+  const panel = document.getElementById('kwSuggestPanel');
+  if (panel && !panel.contains(e.target) && !e.target.closest('[onclick*="_kwSuggest"]')) {
+    panel.classList.add('hidden');
+  }
+});
 </script>
 
 </body>

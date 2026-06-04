@@ -588,6 +588,11 @@ async def ingest_file(payload: FileIngestRequest):
 
 _jobs: dict = {}  # job_id → {status, progress, total, result, error, created_at}
 
+# ── Keyword suggestion cache ──────────────────────────────────────────────────
+
+_kw_cache: dict = {}  # "query:marketplace" → {ts, keywords}
+_KW_CACHE_TTL = 1800  # 30 min
+
 
 def _cleanup_jobs():
     cutoff = time.time() - 3600
@@ -1767,6 +1772,61 @@ async def api_delete_session(session_id: str, request: Request):
     if not delete_saved_session(session_id, request.state.user_email):
         raise HTTPException(404, "Session introuvable")
     return {"ok": True}
+
+
+# ── Keyword suggestions (Amazon autocomplete proxy) ──────────────────────────
+
+_KW_DOMAINS = {
+    "amazon_fr": ("amazon.fr",     "A13V1IB3VIYZZH"),
+    "amazon_de": ("amazon.de",     "A1PA6795UKMFR9"),
+    "amazon_uk": ("amazon.co.uk",  "A1F83G8C2ARO7P"),
+    "amazon_it": ("amazon.it",     "APJ6JRA9NG5V4"),
+    "amazon_es": ("amazon.es",     "A1RKKUPIHCS9HS"),
+    "amazon_com":("amazon.com",    "ATVPDKIKX0DER"),
+}
+
+@app.get("/api/keywords/suggest")
+async def keywords_suggest(query: str, marketplace: str = "amazon_fr"):
+    q = query.strip()
+    if not q or len(q) < 2:
+        return {"keywords": []}
+
+    cache_key = f"{q.lower()}:{marketplace}"
+    cached = _kw_cache.get(cache_key)
+    if cached and (time.time() - cached["ts"]) < _KW_CACHE_TTL:
+        return {"keywords": cached["keywords"]}
+
+    domain, mid = _KW_DOMAINS.get(marketplace, ("amazon.fr", "A13V1IB3VIYZZH"))
+    # Call autocomplete with base query + letter suffixes for more variety
+    prefixes = [q] + [f"{q} {c}" for c in "abcdefghijklmnopqrstuvwxyz"[:8]]
+    seen: set = set()
+    keywords: list = []
+
+    async with httpx.AsyncClient(timeout=6) as client:
+        for prefix in prefixes:
+            try:
+                resp = await client.get(
+                    f"https://completion.{domain}/api/2017/suggestions",
+                    params={"mid": mid, "alias": "aps", "prefix": prefix, "limit": 11},
+                    headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"},
+                )
+                if resp.is_success:
+                    for s in resp.json().get("suggestions", []):
+                        val = s.get("value", "").strip()
+                        if val and val.lower() not in seen:
+                            seen.add(val.lower())
+                            keywords.append(val)
+            except Exception:
+                continue
+
+    keywords = keywords[:30]
+    # Prune old cache entries
+    cutoff = time.time() - _KW_CACHE_TTL * 2
+    for k in [k for k, v in _kw_cache.items() if v["ts"] < cutoff]:
+        del _kw_cache[k]
+    _kw_cache[cache_key] = {"ts": time.time(), "keywords": keywords}
+
+    return {"keywords": keywords}
 
 
 # ── A/B Testing ───────────────────────────────────────────────────────────────
