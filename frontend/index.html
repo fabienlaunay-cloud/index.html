@@ -3283,9 +3283,10 @@ function showMainApp() {
 
 const PLAN_UPGRADES = {
   // Liens = mensualité seule (setup déjà payé par le client existant)
-  starter:  { nextName: 'Business', skus: 600,  monthly: 790,  link: '' },  // TODO: lien Stripe mensualité Business
-  business: { nextName: 'Scale',    skus: 1500, monthly: 1490, link: '' },  // TODO: lien Stripe mensualité Scale
-  scale:    null,
+  starter:     { nextName: 'Business', skus: 600,  monthly: 790,  link: 'https://buy.stripe.com/dRm5kD01ufWye0Fb6t7Vm0f' },
+  business:    { nextName: 'Scale',    skus: 1500, monthly: 1490, link: 'https://buy.stripe.com/8x2aEXg0seSu5u91vT7Vm0g' },
+  maintenance: { nextName: 'Starter',  skus: 200,  monthly: 390,  link: 'https://buy.stripe.com/aFa7sL01u11EbSx5M97Vm0h' },
+  scale:       null,
 };
 
 let _currentUsage = null;
