@@ -426,3 +426,42 @@ async def set_app_config(req: ConfigRequest, authorization: str = Header(None)):
         raise HTTPException(400, f"Clé non autorisée : {req.key}")
     set_config(req.key, req.value.strip())
     return {"status": "ok", "key": req.key}
+
+
+class TestEmailRequest(BaseModel):
+    to: str
+
+
+@admin_router.post("/test-email")
+async def test_email(req: TestEmailRequest, authorization: str = Header(None)):
+    """Teste l'envoi d'email et retourne l'erreur réelle si échec."""
+    _require_admin(authorization)
+    import smtplib, os as _os
+    host = _os.getenv("SMTP_HOST", "")
+    port = int(_os.getenv("SMTP_PORT", "587"))
+    user = _os.getenv("SMTP_USER", "")
+    pw   = _os.getenv("SMTP_PASS", "")
+    frm  = _os.getenv("SMTP_FROM", "")
+    config = {
+        "SMTP_HOST": host or "❌ vide",
+        "SMTP_PORT": port,
+        "SMTP_USER": user or "❌ vide",
+        "SMTP_PASS": ("✅ " + pw[:4] + "…") if pw else "❌ vide",
+        "SMTP_FROM": frm or "❌ vide",
+    }
+    if not (host and user and pw):
+        return {"status": "error", "reason": "Variables SMTP manquantes", "config": config}
+    try:
+        from email.mime.text import MIMEText
+        msg = MIMEText("Test email SynqIO", "plain", "utf-8")
+        msg["Subject"] = "Test SynqIO SMTP"
+        msg["From"] = frm
+        msg["To"] = req.to
+        with smtplib.SMTP(host, port, timeout=10) as srv:
+            srv.ehlo()
+            srv.starttls()
+            srv.login(user, pw)
+            srv.sendmail(frm, [req.to], msg.as_string())
+        return {"status": "ok", "message": f"Email envoyé à {req.to}", "config": config}
+    except Exception as e:
+        return {"status": "error", "reason": str(e), "config": config}
