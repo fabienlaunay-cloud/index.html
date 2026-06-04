@@ -71,9 +71,10 @@ from app.services.ab_testing import (generate_ab_variants, create_amazon_experim
 from app.routes.auth import router as auth_router, admin_router
 from app.routes.amazon_oauth import router as amazon_router
 from app.routes.chat import router as chat_router
+from app.routes.stripe_webhook import router as stripe_router
 
 # Routes sans authentification
-PUBLIC_PATHS = {"/", "/health", "/api/auth/login", "/api/auth/setup", "/api/auth/needs-setup", "/api/auth/reset-admin", "/api/auth/debug-admin", "/api/amazon/debug-config", "/api/marketplaces", "/api/amazon/callback", "/api/template", "/api/auth/unsubscribe", "/api/auth/forgot-password", "/api/auth/reset-password"}
+PUBLIC_PATHS = {"/", "/health", "/api/auth/login", "/api/auth/setup", "/api/auth/needs-setup", "/api/auth/reset-admin", "/api/auth/debug-admin", "/api/amazon/debug-config", "/api/marketplaces", "/api/amazon/callback", "/api/template", "/api/auth/unsubscribe", "/api/auth/forgot-password", "/api/auth/reset-password", "/api/stripe/webhook"}
 # Invite paths are public (token-based auth)
 PUBLIC_PREFIX_PATHS = ("/api/auth/invite/", "/api/photos/", "/api/auth/reset-password/")
 
@@ -122,6 +123,7 @@ app.include_router(auth_router)
 app.include_router(admin_router)
 app.include_router(amazon_router)
 app.include_router(chat_router)
+app.include_router(stripe_router)
 
 
 @app.on_event("startup")
