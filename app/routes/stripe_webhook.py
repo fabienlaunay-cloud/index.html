@@ -6,12 +6,19 @@ from app.logger import log
 
 router = APIRouter(prefix="/api/stripe", tags=["stripe"])
 
-# Monthly price (cents) → plan slug
+# Amount in cents → plan slug
+# Covers both monthly-only links and setup+first-month links
 _AMOUNT_TO_PLAN: dict[int, str] = {
+    # Monthly recurring links (mensualité seule)
     9900:   "maintenance",
     39000:  "starter",
     79000:  "business",
     149000: "scale",
+    # Setup + first month links (premier paiement)
+    88000:  "starter",    # 490 setup + 390
+    178000: "business",   # 990 setup + 790
+    348000: "scale",      # 1990 setup + 1490
+    118800: "maintenance", # 12 × 99 annuel
 }
 
 
@@ -47,10 +54,6 @@ async def stripe_webhook(request: Request):
 
     if event["type"] == "checkout.session.completed":
         session = event["data"]["object"]
-
-        # Only handle subscription checkouts
-        if session.get("mode") != "subscription":
-            return {"status": "ignored", "reason": "not a subscription"}
 
         email = (
             session.get("customer_email")
