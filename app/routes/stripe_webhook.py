@@ -78,6 +78,16 @@ async def stripe_webhook(request: Request):
         else:
             log.warning(f"[stripe] user not found in DB: {email}")
 
+        try:
+            import asyncio
+            from app.services.email import send_admin_new_payment
+            amount_eur = (session.get("amount_total", 0) or 0) // 100
+            asyncio.get_event_loop().run_in_executor(
+                None, send_admin_new_payment, email, plan, amount_eur, updated
+            )
+        except Exception:
+            pass
+
         return {"status": "ok", "email": email, "plan": plan}
 
     return {"status": "ignored", "event": event["type"]}

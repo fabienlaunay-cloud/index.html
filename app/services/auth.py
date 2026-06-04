@@ -20,11 +20,21 @@ if SECRET_KEY == _JWT_SECRET_DEFAULT:
 ALGORITHM = "HS256"
 TOKEN_EXPIRE_HOURS = int(os.getenv("TOKEN_EXPIRE_HOURS", "24"))
 
-# ── Rate limiting login ───────────────────────────────────────────────────────
+# ── Rate limiting ────────────────────────────────────────────────────────────
 _RATE_LIMIT_WINDOW = 300   # 5 minutes
 _RATE_LIMIT_MAX = 5        # 5 tentatives max
 
 _login_attempts: dict = defaultdict(list)
+
+# ── Token invalidation after password change ─────────────────────────────────
+# Maps email → timestamp of last password change. Tokens issued before that
+# timestamp are rejected. Resets on server restart (24h token expiry is fallback).
+_pw_changed_at: dict[str, float] = {}
+
+
+def invalidate_tokens_for(email: str):
+    """Invalidate all existing tokens for this email (call after password change)."""
+    _pw_changed_at[email.lower()] = time.time()
 
 
 def check_rate_limit(ip: str) -> bool:
@@ -75,8 +85,9 @@ def _b64url_decode(s: str) -> bytes:
 
 def create_token(email: str, is_admin: bool = False) -> str:
     header = _b64url_encode(json.dumps({"alg": "HS256", "typ": "JWT"}).encode())
-    exp = int((datetime.datetime.utcnow() + datetime.timedelta(hours=TOKEN_EXPIRE_HOURS)).timestamp())
-    claims: dict = {"sub": email, "exp": exp}
+    now = int(datetime.datetime.utcnow().timestamp())
+    exp = now + TOKEN_EXPIRE_HOURS * 3600
+    claims: dict = {"sub": email, "exp": exp, "iat": now}
     if is_admin:
         claims["adm"] = 1
     payload = _b64url_encode(json.dumps(claims).encode())
@@ -108,7 +119,14 @@ def _decode_token_data(token: str) -> dict | None:
 
 def verify_token(token: str):
     data = _decode_token_data(token)
-    return data.get("sub") if data else None
+    if not data:
+        return None
+    email = data.get("sub", "").lower()
+    iat = data.get("iat", 0)
+    changed_at = _pw_changed_at.get(email, 0)
+    if changed_at and iat < changed_at:
+        return None
+    return email or None
 
 
 def authenticate_user(email: str, password: str):

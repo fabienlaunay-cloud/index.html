@@ -315,3 +315,41 @@ Accédez à votre espace : {APP_URL}
   {_unsubscribe_footer_html(to_email)}
 </body></html>"""
     _send(to_email, subject, text, html)
+
+
+def send_admin_new_payment(client_email: str, plan: str, amount_eur: int, found_in_db: bool):
+    """Notify admin when a Stripe payment is received."""
+    admin_email = os.getenv("ADMIN_EMAIL", "")
+    if not admin_email:
+        return
+    status = "✅ Plan mis à jour" if found_in_db else "⚠️ Utilisateur introuvable en DB — action manuelle requise"
+    subject = f"{'✅' if found_in_db else '⚠️'} SynqIO — Nouveau paiement : {client_email}"
+    text = f"""Nouveau paiement reçu sur SynqIO.
+
+Client : {client_email}
+Plan   : {plan}
+Montant: {amount_eur} €
+Statut : {status}
+
+Accédez à l'admin : {APP_URL}
+"""
+    html = f"""<!DOCTYPE html>
+<html><head><meta charset="utf-8"></head>
+<body style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:24px;color:#1f2937">
+  <div style="background:{'linear-gradient(135deg,#059669,#10b981)' if found_in_db else 'linear-gradient(135deg,#d97706,#f59e0b)'};border-radius:16px;padding:24px;text-align:center;margin-bottom:24px">
+    <p style="color:white;font-size:18px;font-weight:700;margin:0">{'✅ Nouveau paiement' if found_in_db else '⚠️ Paiement — action requise'}</p>
+  </div>
+  <table style="width:100%;border-collapse:collapse;font-size:14px">
+    <tr><td style="padding:8px 0;color:#6b7280">Client</td><td style="padding:8px 0;font-weight:600">{client_email}</td></tr>
+    <tr><td style="padding:8px 0;color:#6b7280">Plan</td><td style="padding:8px 0;font-weight:600">{plan}</td></tr>
+    <tr><td style="padding:8px 0;color:#6b7280">Montant</td><td style="padding:8px 0;font-weight:600">{amount_eur} €</td></tr>
+    <tr><td style="padding:8px 0;color:#6b7280">Statut</td><td style="padding:8px 0;font-weight:600">{status}</td></tr>
+  </table>
+  {'<div style="background:#fef9c3;border:1px solid #fde047;border-radius:10px;padding:14px;margin-top:16px"><p style="font-size:13px;color:#713f12;margin:0">L\'utilisateur n\'existe pas encore en DB. Envoyez-lui une invitation depuis le panel admin.</p></div>' if not found_in_db else ''}
+  <div style="text-align:center;margin-top:24px">
+    <a href="{APP_URL}" style="display:inline-block;background:linear-gradient(135deg,#7c3aed,#4f46e5);color:white;padding:12px 28px;border-radius:12px;font-weight:700;text-decoration:none;font-size:14px">
+      Ouvrir l'admin →
+    </a>
+  </div>
+</body></html>"""
+    _send(admin_email, subject, text, html)

@@ -9,7 +9,7 @@ from app.services.auth import (
     authenticate_user, create_token, verify_token, _decode_token_data,
     create_user, list_users, delete_user, toggle_user, is_admin,
     check_rate_limit, record_failed_attempt, clear_attempts, get_retry_after,
-    hash_password,
+    hash_password, invalidate_tokens_for,
 )
 from app.db import get_db, get_config, set_config
 
@@ -334,14 +334,17 @@ class ChangePasswordRequest(BaseModel):
 
 
 @router.post("/change-password")
-async def change_password(req: ChangePasswordRequest, authorization: str = Header(None)):
+async def change_password(req: ChangePasswordRequest, request: Request, authorization: str = Header(None)):
+    ip = _get_ip(request)
+    if not check_rate_limit(ip):
+        retry = get_retry_after(ip)
+        raise HTTPException(429, f"Trop de tentatives. Réessayez dans {retry // 60}m{retry % 60:02d}s.", headers={"Retry-After": str(retry)})
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(401, "Token manquant")
     token_str = authorization.split(" ", 1)[1]
     email = verify_token(token_str)
     if not email:
         raise HTTPException(401, "Token invalide ou expiré")
-    # Validate current password
     from app.services.auth import verify_password
     conn = get_db()
     row = conn.execute("SELECT password_hash FROM users WHERE email = ? AND is_active = 1", (email,)).fetchone()
@@ -349,14 +352,16 @@ async def change_password(req: ChangePasswordRequest, authorization: str = Heade
     if not row:
         raise HTTPException(404, "Utilisateur introuvable")
     if not verify_password(req.current_password, row["password_hash"]):
+        record_failed_attempt(ip)
         raise HTTPException(400, "Mot de passe actuel incorrect")
-    # Validate and update new password
+    clear_attempts(ip)
     _validate_password(req.new_password)
     new_hash = hash_password(req.new_password)
     conn = get_db()
     conn.execute("UPDATE users SET password_hash = ? WHERE email = ?", (new_hash, email))
     conn.commit()
     conn.close()
+    invalidate_tokens_for(email)
     try:
         import asyncio
         from app.services.email import send_password_changed
