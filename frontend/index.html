@@ -2023,36 +2023,75 @@
       </div>
       <div id="resultsState" class="hidden space-y-4">
         <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
-          <div class="flex items-center justify-between mb-4">
+          <!-- Row 1: title + primary CTA -->
+          <div class="flex items-center justify-between mb-3">
             <div><h2 class="font-semibold text-gray-800">Fiches générées</h2><p id="statsText" class="text-sm text-gray-400 mt-0.5"></p></div>
-            <div class="flex gap-2 flex-wrap justify-end">
-              <button onclick="applySegmentsToListings()" class="bg-purple-50 hover:bg-purple-100 text-purple-700 rounded-lg px-3 py-2 text-sm font-medium transition flex items-center gap-1.5" title="Réinjecter les mots-clés segments dans les fiches sans régénérer">
+            <button onclick="showPublishModal()" class="gradient-bg text-white rounded-lg px-4 py-2 text-sm font-semibold hover:opacity-90 transition flex items-center gap-1.5">↗ Exporter vers Seller Central</button>
+          </div>
+          <!-- Row 2: IA actions (left) | export dropdowns (right) -->
+          <div class="flex items-center justify-between mb-4 gap-2">
+            <!-- IA actions -->
+            <div class="flex gap-2">
+              <button onclick="applySegmentsToListings()" class="bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-100 rounded-lg px-3 py-1.5 text-sm font-medium transition flex items-center gap-1.5" title="Réinjecter les mots-clés segments dans les fiches sans régénérer">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
-                Appliquer segments
+                Réappliquer les segments
               </button>
-              <button onclick="exportResults('csv')" class="bg-green-50 hover:bg-green-100 text-green-700 rounded-lg px-3 py-2 text-sm font-medium transition">CSV</button>
-              <div class="relative" id="scExportMenu">                <button onclick="toggleScMenu()" class="bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg px-3 py-2 text-sm font-medium transition flex items-center gap-1">Seller Central <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button>
-                <div id="scExportDropdown" class="hidden absolute right-0 top-full mt-1 bg-white rounded-xl shadow-lg border border-gray-100 z-50 min-w-[240px] py-1">
+              <button id="bulkGenImgBtn" onclick="generateAllImages()" class="bg-pink-50 hover:bg-pink-100 text-pink-700 border border-pink-100 rounded-lg px-3 py-1.5 text-sm font-medium transition flex items-center gap-1.5">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                Générer les visuels IA
+              </button>
+            </div>
+            <!-- Export dropdowns -->
+            <div class="flex gap-2 items-center">
+              <!-- Flat File Amazon dropdown -->
+              <div class="relative" id="scExportMenu">
+                <button onclick="toggleScMenu()" class="bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-100 rounded-lg px-3 py-1.5 text-sm font-medium transition flex items-center gap-1.5">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                  Flat File Amazon
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                </button>
+                <div id="scExportDropdown" class="hidden absolute right-0 top-full mt-1 bg-white rounded-xl shadow-lg border border-gray-100 z-50 min-w-[260px] py-1">
                   <button onclick="exportResults('flat');toggleScMenu()" class="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 transition">
-                    <div class="font-medium text-gray-800">➕ Nouveaux produits</div>
-                    <div class="text-xs text-gray-400 mt-0.5">Fichier Excel .xlsx — à uploader dans Seller Central</div>
+                    <div class="font-medium text-gray-800">Nouveaux produits</div>
+                    <div class="text-xs text-gray-400 mt-0.5">Fichier .xlsx — catalogue vide</div>
                   </button>
                   <button onclick="exportResults('listing-loader');toggleScMenu()" class="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 transition border-t border-gray-50">
-                    <div class="font-medium text-gray-800">📋 Produits existants</div>
-                    <div class="text-xs text-gray-400 mt-0.5">Fichier Excel .xlsx — produit déjà dans le catalogue</div>
+                    <div class="font-medium text-gray-800">Produits existants</div>
+                    <div class="text-xs text-gray-400 mt-0.5">Fichier .xlsx — mise à jour catalogue</div>
                   </button>
                   <button onclick="exportResults('variation-flat-file');toggleScMenu()" class="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 transition border-t border-gray-50">
-                    <div class="font-medium text-gray-800">🔗 Variations parent-enfant</div>
-                    <div class="text-xs text-gray-400 mt-0.5">Flat file avec lignes parent + enfants — déclinaisons couleur/taille</div>
+                    <div class="font-medium text-gray-800">Variations parent-enfant</div>
+                    <div class="text-xs text-gray-400 mt-0.5">Flat file déclinaisons couleur / taille</div>
                   </button>
                 </div>
               </div>
-              <button onclick="exportResults('json')" class="bg-gray-50 hover:bg-gray-100 text-gray-700 rounded-lg px-3 py-2 text-sm font-medium transition">{ } JSON</button>
-              <button onclick="triggerAmazonTemplateFill()" class="bg-orange-50 hover:bg-orange-100 text-orange-700 rounded-lg px-3 py-2 text-sm font-medium transition flex items-center gap-1.5" title="Uploader votre template Amazon pour le remplir automatiquement">🗂️ Remplir mon template</button>
+              <!-- Downloads dropdown -->
+              <div class="relative" id="dlExportMenu">
+                <button onclick="toggleDlMenu()" class="bg-gray-50 hover:bg-gray-100 text-gray-700 border border-gray-200 rounded-lg px-3 py-1.5 text-sm font-medium transition flex items-center gap-1.5">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                  Télécharger
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                </button>
+                <div id="dlExportDropdown" class="hidden absolute right-0 top-full mt-1 bg-white rounded-xl shadow-lg border border-gray-100 z-50 min-w-[240px] py-1">
+                  <button onclick="exportResults('csv');toggleDlMenu()" class="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 transition">
+                    <div class="font-medium text-gray-800">Export CSV</div>
+                    <div class="text-xs text-gray-400 mt-0.5">Toutes les fiches en .csv</div>
+                  </button>
+                  <button onclick="exportResults('json');toggleDlMenu()" class="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 transition border-t border-gray-50">
+                    <div class="font-medium text-gray-800">Export JSON</div>
+                    <div class="text-xs text-gray-400 mt-0.5">Format brut pour intégration</div>
+                  </button>
+                  <button onclick="triggerAmazonTemplateFill();toggleDlMenu()" class="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 transition border-t border-gray-50">
+                    <div class="font-medium text-gray-800">Remplir mon template Excel</div>
+                    <div class="text-xs text-gray-400 mt-0.5">Uploader votre template Amazon .xlsm</div>
+                  </button>
+                  <button onclick="downloadZipPack();toggleDlMenu()" class="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 transition border-t border-gray-50">
+                    <div class="font-medium text-gray-800">Tout télécharger</div>
+                    <div class="text-xs text-gray-400 mt-0.5">Fiches + images dans un fichier .zip</div>
+                  </button>
+                </div>
+              </div>
               <input type="file" id="amazonTemplateInput" accept=".xlsm,.xlsx" class="hidden" onchange="fillAmazonTemplate(this)">
-              <button onclick="downloadZipPack()" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg px-3 py-2 text-sm font-medium transition flex items-center gap-1.5">📦 Pack ZIP</button>
-              <button id="bulkGenImgBtn" onclick="generateAllImages()" class="bg-pink-50 hover:bg-pink-100 text-pink-700 rounded-lg px-3 py-2 text-sm font-medium transition flex items-center gap-1.5">Générer toutes les photos</button>
-              <button onclick="showPublishModal()" class="gradient-bg text-white rounded-lg px-4 py-2 text-sm font-semibold hover:opacity-90 transition flex items-center gap-1.5">↗ Exporter vers Seller Central</button>
             </div>
           </div>
           <div class="grid grid-cols-4 gap-3">
@@ -5542,7 +5581,7 @@ async function generateAllImages() {
     }
   }
   _updateImgProgress();
-  if (btn) { btn.disabled = false; btn.innerHTML = 'Générer toutes les photos'; }
+  if (btn) { btn.disabled = false; btn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg> Générer les visuels IA'; }
   if (started > 0) showToast('🖼️', `${started} génération${started > 1 ? 's' : ''} lancée${started > 1 ? 's' : ''} en arrière-plan`, false);
 }
 
@@ -5689,10 +5728,17 @@ function copyListing(idx) { navigator.clipboard.writeText(JSON.stringify(generat
 
 function toggleScMenu() {
   document.getElementById('scExportDropdown').classList.toggle('hidden');
+  document.getElementById('dlExportDropdown')?.classList.add('hidden');
+}
+function toggleDlMenu() {
+  document.getElementById('dlExportDropdown').classList.toggle('hidden');
+  document.getElementById('scExportDropdown')?.classList.add('hidden');
 }
 document.addEventListener('click', e => {
-  const menu = document.getElementById('scExportMenu');
-  if (menu && !menu.contains(e.target)) document.getElementById('scExportDropdown')?.classList.add('hidden');
+  if (!document.getElementById('scExportMenu')?.contains(e.target))
+    document.getElementById('scExportDropdown')?.classList.add('hidden');
+  if (!document.getElementById('dlExportMenu')?.contains(e.target))
+    document.getElementById('dlExportDropdown')?.classList.add('hidden');
 });
 
 async function exportResults(format) {
