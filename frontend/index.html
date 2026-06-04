@@ -1040,7 +1040,7 @@
           <!-- Marketplace -->
           <div>
             <label class="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1 block">Marketplace</label>
-            <select id="auditMkt" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-purple-400">
+            <select id="auditMkt" class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-purple-300 outline-none bg-white">
               <option value="amazon_fr">Amazon France</option>
               <option value="amazon_de">Amazon Allemagne</option>
               <option value="amazon_uk">Amazon UK</option>
@@ -2173,6 +2173,9 @@ let selectedMarketplaces = JSON.parse(localStorage.getItem('synqio_marketplaces'
 let activeMarketplaceFilter = null;
 let resultsViewMode = localStorage.getItem('synqio_view_mode') || 'list';
 let publishedSkus = new Set(JSON.parse(localStorage.getItem('synqio_published_skus') || '[]'));
+// ── Business config — changer ici pour toute l'appli ────────
+const SYNQIO_DEMO_URL   = 'https://calendly.com/fl-synqio/30min';
+const SYNQIO_CONTACT_EMAIL = 'hello@solutionstmf.com';
 // Manual status overrides: { [sku]: 'todo' | 'ready' | 'published' }
 let listingStatuses = JSON.parse(localStorage.getItem('synqio_listing_statuses') || '{}');
 // Migrate legacy publishedSkus into listingStatuses
@@ -2579,6 +2582,15 @@ function showApp(email) {
       const active = btn.dataset.tone === (bv.tone || 'professionnel');
       btn.className = `bv-tone-btn text-xs px-2.5 py-1 rounded-full border font-medium transition ${active ? 'bg-purple-600 text-white border-purple-600' : 'bg-white text-gray-500 border-gray-200 hover:border-purple-300'}`;
     });
+    // Sync marketplace dropdowns to user's current selection
+    const _mkt0 = selectedMarketplaces[0] || 'amazon_fr';
+    ['auditMkt', 'abMarketplace'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.value = _mkt0;
+    });
+    // Sync all business links from constants (single source of truth)
+    document.querySelectorAll('a[href*="calendly.com"]').forEach(a => { a.href = SYNQIO_DEMO_URL; });
+    document.querySelectorAll('a[href*="solutionstmf.com"]').forEach(a => { a.href = 'mailto:' + SYNQIO_CONTACT_EMAIL; });
   }
 }
 
@@ -2811,7 +2823,7 @@ function showUpgradeModal(planOverride) {
     btn.classList.remove('opacity-50', 'pointer-events-none');
     btn.textContent = `Passer au plan ${upgrade.nextName} →`;
   } else {
-    btn.href = 'https://calendly.com/fl-synqio/30min';
+    btn.href = SYNQIO_DEMO_URL;
     btn.textContent = `Prendre rendez-vous pour upgrader →`;
   }
 
@@ -4228,6 +4240,7 @@ async function _sessDoSave() {
     segmentPresets: segmentPresets || {},
     listingStatuses: listingStatuses || {},
     publishedSkus: [...(publishedSkus || [])],
+    abVariants: JSON.parse(localStorage.getItem('synqio_ab_variants') || 'null'),
   };
   let bodyStr;
   try {
@@ -4276,6 +4289,8 @@ async function _sessLoad(sessionId) {
     if (d.segmentPresets) localStorage.setItem('synqio_segment_presets',  JSON.stringify(d.segmentPresets));
     if (d.listingStatuses) localStorage.setItem('synqio_listing_statuses', JSON.stringify(d.listingStatuses));
     if (d.publishedSkus)  localStorage.setItem('synqio_published_skus',   JSON.stringify(d.publishedSkus));
+    if (d.abVariants)     localStorage.setItem('synqio_ab_variants',       JSON.stringify(d.abVariants));
+    else                  localStorage.removeItem('synqio_ab_variants');
     _sessClose();
     showToast('', `Session "${sess.name}" chargée — rechargement…`);
     setTimeout(() => location.reload(), 900);
@@ -8074,6 +8089,21 @@ switchAppMode = function(mode) {
 async function _abInit() {
   _abSourceChange();
   _abLoadExperiments();
+  // Restore last generated variants from localStorage (persists across page loads and sessions)
+  if (!_abCurrentVariants) {
+    const saved = localStorage.getItem('synqio_ab_variants');
+    if (saved) {
+      try { _abCurrentVariants = JSON.parse(saved); } catch(e) {}
+    }
+  }
+  if (_abCurrentVariants) {
+    _abRenderComparison(_abCurrentVariants);
+    document.getElementById('abComparison').classList.remove('hidden');
+    const sku = _abCurrentVariants.sku || '';
+    const today = new Date().toLocaleDateString('fr-FR');
+    const nameInput = document.getElementById('abExpName');
+    if (nameInput && !nameInput.value) nameInput.value = 'Test A/B ' + (sku ? sku + ' ' : '') + today;
+  }
   try {
     const r = await authFetch('/api/amazon/status');
     if (r.ok) {
@@ -8192,6 +8222,7 @@ async function _abGenerate() {
     if (!data) throw new Error('Timeout — la generation a pris trop de temps');
     _abCurrentVariants = data;
     _abCurrentExpId = null;
+    try { localStorage.setItem('synqio_ab_variants', JSON.stringify(data)); } catch(e) {}
     _abRenderComparison(data);
     document.getElementById('abComparison').classList.remove('hidden');
     const sku = data.sku || '';
