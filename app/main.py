@@ -1784,13 +1784,8 @@ class ABTestExperimentCreate(BaseModel):
     duration_days: int = 30
 
 
-@app.post("/api/ab-test/generate")
-async def ab_test_generate(req: ABTestGenerateRequest, request: Request):
-    if not os.getenv("ANTHROPIC_API_KEY"):
-        raise HTTPException(503, "ANTHROPIC_API_KEY manquante")
-    email = getattr(request.state, "user_email", None)
-    if email and not _rate_limit(f"{email}:ab_test", limit=10, window=3600):
-        raise HTTPException(429, "Maximum 10 générations A/B par heure")
+async def _run_ab_job(job_id: str, req: ABTestGenerateRequest, email: str):
+    _jobs[job_id]["status"] = "running"
     try:
         result = await generate_ab_variants(
             listing_data=req.listing,
@@ -1798,18 +1793,30 @@ async def ab_test_generate(req: ABTestGenerateRequest, request: Request):
             focus_keywords=req.focus_keywords or [],
             style_tone=req.style_tone,
         )
-    except ValueError as e:
-        raise HTTPException(422, str(e))
-    except BaseException as e:
-        log.error("ab_test_generate failed", extra={"error": str(e), "type": type(e).__name__})
-        raise HTTPException(500, f"{type(e).__name__}: {str(e)[:400]}")
-    if email:
-        tokens = result.get("tokens", {})
-        if tokens.get("input_tokens"):
-            log_usage(email, "tokens_in", tokens["input_tokens"])
-        if tokens.get("output_tokens"):
-            log_usage(email, "tokens_out", tokens["output_tokens"])
-    return result
+        _jobs[job_id].update({"status": "done", "result": result})
+        if email:
+            tokens = result.get("tokens", {})
+            if tokens.get("input_tokens"):
+                log_usage(email, "tokens_in", tokens["input_tokens"])
+            if tokens.get("output_tokens"):
+                log_usage(email, "tokens_out", tokens["output_tokens"])
+    except Exception as e:
+        log.error("ab_job failed", extra={"job_id": job_id, "error": str(e), "type": type(e).__name__})
+        _jobs[job_id].update({"status": "failed", "error": f"{type(e).__name__}: {str(e)[:300]}"})
+
+
+@app.post("/api/ab-test/generate")
+async def ab_test_generate(req: ABTestGenerateRequest, request: Request):
+    if not os.getenv("ANTHROPIC_API_KEY"):
+        raise HTTPException(503, "ANTHROPIC_API_KEY manquante")
+    email = getattr(request.state, "user_email", None)
+    if email and not _rate_limit(f"{email}:ab_test", limit=10, window=3600):
+        raise HTTPException(429, "Maximum 10 générations A/B par heure")
+    job_id = str(uuid4())
+    _jobs[job_id] = {"status": "pending", "progress": 0, "total": 2, "created_at": time.time()}
+    _cleanup_jobs()
+    asyncio.create_task(_run_ab_job(job_id, req, email or ""))
+    return {"job_id": job_id}
 
 
 @app.post("/api/ab-test/experiments")

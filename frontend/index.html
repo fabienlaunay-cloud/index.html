@@ -8172,7 +8172,18 @@ async function _abGenerate() {
       } catch(_) {}
       throw new Error(errMsg);
     }
-    const data = await r.json();
+    const { job_id } = await r.json();
+    // Poll job until done
+    let data = null;
+    for (let i = 0; i < 60; i++) {
+      await new Promise(res => setTimeout(res, 3000));
+      const jr = await authFetch(`/api/jobs/${job_id}`);
+      if (!jr.ok) throw new Error(`Erreur polling HTTP ${jr.status}`);
+      const job = await jr.json();
+      if (job.status === 'done') { data = job.result; break; }
+      if (job.status === 'failed') throw new Error(job.error || 'Generation echouee');
+    }
+    if (!data) throw new Error('Timeout — la generation a pris trop de temps');
     _abCurrentVariants = data;
     _abCurrentExpId = null;
     _abRenderComparison(data);
