@@ -1376,6 +1376,91 @@
       </div>
     </div>
 
+    <!-- ── Audit boutique entière — CSV fiches existantes ───────────────────── -->
+    <div class="mt-6">
+      <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+        <div class="flex items-center gap-3 mb-5">
+          <div class="w-9 h-9 rounded-xl bg-indigo-50 flex items-center justify-center flex-shrink-0">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#4f46e5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+          </div>
+          <div>
+            <h2 class="font-semibold text-gray-800 text-base">Audit boutique entière — fiches existantes</h2>
+            <p class="text-xs text-gray-500">Importez vos fiches via le rapport Seller Central ou le template SynqIO pour un score SEO sur toute votre boutique</p>
+          </div>
+        </div>
+        <!-- Instructions deux formats -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
+          <div class="bg-indigo-50 border border-indigo-200 rounded-xl p-4">
+            <p class="text-xs font-semibold text-indigo-800 mb-1.5">Option A — Rapport Seller Central</p>
+            <ol class="text-xs text-indigo-700 space-y-1 list-decimal list-inside leading-relaxed">
+              <li>Seller Central → <strong>Rapports</strong> → <strong>Gestion des stocks</strong></li>
+              <li>Téléchargez <strong>Rapport sur toutes les inscriptions</strong></li>
+              <li>Importez le <code class="bg-indigo-100 rounded px-1">.csv</code> ici</li>
+            </ol>
+            <p class="text-xs text-indigo-400 mt-2">⚠ Audit partiel : titre + description uniquement (bullets manquants dans ce rapport)</p>
+          </div>
+          <div class="bg-violet-50 border border-violet-200 rounded-xl p-4">
+            <p class="text-xs font-semibold text-violet-800 mb-1.5">Option B — Template SynqIO (audit complet)</p>
+            <p class="text-xs text-violet-700 leading-relaxed mb-2">Téléchargez le template, remplissez titre + 5 bullets + mots-clés backend + description, puis importez.</p>
+            <button onclick="_laDownloadTemplate()"
+              class="text-xs bg-violet-600 hover:bg-violet-700 text-white rounded-lg px-3 py-1.5 font-semibold transition flex items-center gap-1.5">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              Télécharger le template CSV
+            </button>
+          </div>
+        </div>
+        <!-- Drop zone -->
+        <div id="laDropzone"
+          ondragover="event.preventDefault(); this.classList.add('border-indigo-400','bg-indigo-50')"
+          ondragleave="this.classList.remove('border-indigo-400','bg-indigo-50')"
+          ondrop="_laOnDrop(event)"
+          onclick="document.getElementById('laCsvFileInput').click()"
+          class="border-2 border-dashed border-gray-200 rounded-xl p-8 text-center cursor-pointer hover:border-indigo-300 hover:bg-indigo-50 transition mb-4">
+          <input type="file" id="laCsvFileInput" accept=".csv,.txt,.tsv" class="hidden" onchange="_laOnFileChange(this)">
+          <svg class="mx-auto mb-2" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          <p class="text-sm text-gray-500">Déposez votre CSV ici ou <span class="text-indigo-600 font-medium underline">cliquez pour parcourir</span></p>
+          <p class="text-xs text-gray-400 mt-1" id="laDropzoneName">Fichiers .csv acceptés</p>
+        </div>
+        <!-- Listing list (after parse) -->
+        <div id="laListingsPanel" class="hidden">
+          <div class="flex items-center justify-between mb-3 flex-wrap gap-2">
+            <div>
+              <p class="text-sm font-semibold text-gray-700" id="laListingsSummary"></p>
+              <p id="laFormatNote" class="text-xs text-amber-600 hidden"></p>
+            </div>
+            <button onclick="_laAuditAll()" id="laAuditAllBtn"
+              class="gradient-bg text-white rounded-lg px-4 py-2 text-xs font-semibold hover:opacity-90 transition flex items-center gap-1.5">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              Auditer toute la boutique
+            </button>
+          </div>
+          <div id="laListingList" class="space-y-2 max-h-72 overflow-y-auto pr-1"></div>
+        </div>
+        <!-- Batch progress -->
+        <div id="laBatchProgress" class="hidden mt-4 space-y-2">
+          <div class="flex items-center gap-3">
+            <div class="w-4 h-4 border-2 border-indigo-200 border-t-indigo-600 rounded-full animate-spin flex-shrink-0"></div>
+            <p class="text-sm text-gray-600">Audit en cours : <span id="laProgressLabel" class="font-medium text-gray-800"></span></p>
+          </div>
+          <div class="w-full bg-gray-100 rounded-full h-2">
+            <div id="laProgressBar" class="gradient-bg h-2 rounded-full transition-all duration-300" style="width:0%"></div>
+          </div>
+        </div>
+        <!-- Batch results -->
+        <div id="laBatchResultsPanel" class="hidden mt-4 space-y-3">
+          <div class="flex items-center justify-between flex-wrap gap-2">
+            <p class="text-sm font-semibold text-gray-700" id="laBatchSummaryLabel"></p>
+            <button onclick="_laExportBatchCsv()"
+              class="bg-white border border-gray-200 text-gray-600 rounded-lg px-3 py-1.5 text-xs font-medium hover:bg-gray-50 transition flex items-center gap-1.5">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              Exporter rapport CSV boutique
+            </button>
+          </div>
+          <div id="laBatchCards" class="space-y-2"></div>
+        </div>
+      </div>
+    </div>
+
   </div>
 
   <!-- ── Tracking section ─────────────────────────────────────────────────── -->
@@ -9408,6 +9493,312 @@ function _scExportBatchCsv() {
   _downloadCsv(
     `synqio_boutique_avis_${new Date().toISOString().slice(0, 10)}.csv`,
     ['ASIN', 'Produit', 'Nb avis négatifs', 'Résumé', 'Urgence', 'Champ', 'Thème', 'Suggestion', 'Verbatim client'],
+    rows
+  );
+}
+
+// ── Audit boutique entière — fiches existantes CSV ───────────────────────────
+let _laListings     = [];  // [{sku, asin, name, title, bullets:[], backend_keywords, description, marketplace, _partial}]
+let _laBatchResults = [];  // [{listing, result, ok, error}]
+
+const _LA_TEMPLATE_HEADERS = ['sku','asin','marketplace','titre','bullet_1','bullet_2','bullet_3','bullet_4','bullet_5','mots_cles_backend','description'];
+
+function _laDownloadTemplate() {
+  const example = [
+    ['MON-SKU-001','B0XXXXXXXXX','amazon_fr','Mon super produit — titre complet 150 caractères max',
+     'Bullet point 1 : avantage principal','Bullet point 2','Bullet point 3','Bullet point 4','Bullet point 5',
+     'mot-clé1 mot-clé2 mot-clé3 (249 caractères max)',
+     'Description longue du produit…'],
+  ];
+  _downloadCsv('synqio_template_audit_fiches.csv', _LA_TEMPLATE_HEADERS, example);
+  showToast('✅', 'Template téléchargé — remplissez-le et réimportez-le ici');
+}
+
+function _laSplitLine(line, sep) {
+  const out = []; let cur = '', inQ = false;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (c === '"') { if (inQ && line[i+1] === '"') { cur += '"'; i++; } else inQ = !inQ; }
+    else if (c === sep && !inQ) { out.push(cur); cur = ''; }
+    else cur += c;
+  }
+  out.push(cur);
+  return out;
+}
+
+function _laParseCsv(raw) {
+  if (raw.charCodeAt(0) === 0xFEFF) raw = raw.slice(1);
+  const lines = raw.split(/\r?\n/).filter(l => l.trim());
+  if (lines.length < 2) throw new Error('Fichier vide ou trop court');
+  const sep = lines[0].includes('\t') ? '\t' : ',';
+  const header = _laSplitLine(lines[0], sep).map(h =>
+    h.toLowerCase().trim().replace(/^"|"$/g, '').replace(/[-_\s]/g, '')
+  );
+
+  const col = (...names) => names.reduce(
+    (f, n) => f !== -1 ? f : header.indexOf(n.replace(/[-_\s]/g, '')), -1
+  );
+
+  // Detect format: SynqIO template vs Amazon All Listings Report
+  const isSynqio = col('titre', 'title') !== -1 && col('bullet1', 'bullet_1') !== -1;
+  const isAmazon = col('itemname', 'item-name') !== -1;
+  if (!isSynqio && !isAmazon) throw new Error(
+    "Format non reconnu. Utilisez le template SynqIO ou le rapport 'Toutes les inscriptions' de Seller Central."
+  );
+
+  const partial = !isSynqio; // Amazon report = audit partiel (no bullets/keywords)
+
+  // Column mapping
+  const skuCol   = col('sku', 'sellersku', 'seller-sku');
+  const asinCol  = col('asin', 'asin1');
+  const nameCol  = col('titre', 'title', 'itemname', 'item-name', 'productname', 'name');
+  const descCol  = col('description', 'itemdescription', 'item-description', 'productdescription');
+  const mktCol   = col('marketplace');
+  const kwCol    = col('motsclesbackend', 'mots_cles_backend', 'searchterms', 'search-terms', 'genericKeywords', 'keywords', 'backendkeywords');
+  const b1Col    = col('bullet1', 'bullet_1', 'keyfeature1', 'key-feature-1', 'bulletpoint1');
+  const b2Col    = col('bullet2', 'bullet_2', 'keyfeature2', 'key-feature-2', 'bulletpoint2');
+  const b3Col    = col('bullet3', 'bullet_3', 'keyfeature3', 'key-feature-3', 'bulletpoint3');
+  const b4Col    = col('bullet4', 'bullet_4', 'keyfeature4', 'key-feature-4', 'bulletpoint4');
+  const b5Col    = col('bullet5', 'bullet_5', 'keyfeature5', 'key-feature-5', 'bulletpoint5');
+
+  const get = (cols, row) => {
+    const v = cols !== -1 ? (row[cols] || '') : '';
+    return v.replace(/^"|"$/g, '').trim();
+  };
+
+  const listings = [];
+  for (let i = 1; i < lines.length; i++) {
+    const row = _laSplitLine(lines[i], sep);
+    const title = get(nameCol, row);
+    if (!title || title.length < 3) continue;
+    const bullets = [b1Col, b2Col, b3Col, b4Col, b5Col].map(c => get(c, row)).filter(Boolean);
+    listings.push({
+      sku:              get(skuCol, row) || `ligne-${i}`,
+      asin:             get(asinCol, row),
+      name:             title,
+      title,
+      bullets,
+      backend_keywords: get(kwCol, row),
+      description:      get(descCol, row),
+      marketplace:      get(mktCol, row) || document.getElementById('auditMkt')?.value || 'amazon_fr',
+      _partial:         partial,
+    });
+  }
+  if (!listings.length) throw new Error('Aucune fiche trouvée dans ce fichier.');
+  return { listings, partial };
+}
+
+function _laOnDrop(e) {
+  e.preventDefault();
+  document.getElementById('laDropzone').classList.remove('border-indigo-400', 'bg-indigo-50');
+  const file = e.dataTransfer?.files?.[0];
+  if (file) _laReadFile(file);
+}
+
+function _laOnFileChange(input) {
+  if (input.files[0]) _laReadFile(input.files[0]);
+}
+
+function _laReadFile(file) {
+  document.getElementById('laDropzoneName').textContent = file.name;
+  ['laListingsPanel', 'laBatchProgress', 'laBatchResultsPanel'].forEach(id =>
+    document.getElementById(id).classList.add('hidden')
+  );
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const { listings, partial } = _laParseCsv(e.target.result);
+      _laShowListingList(listings, partial);
+    } catch(err) {
+      showToast('❌', err.message || 'Impossible de lire ce fichier CSV');
+    }
+  };
+  reader.readAsText(file, 'UTF-8');
+}
+
+function _laShowListingList(listings, partial) {
+  _laListings = listings;
+  document.getElementById('laListingsSummary').textContent =
+    `${listings.length} fiche(s) détectée(s)`;
+  const note = document.getElementById('laFormatNote');
+  if (partial) {
+    note.textContent = '⚠ Rapport Amazon détecté — audit partiel : titre et description uniquement. Utilisez le template SynqIO pour un audit complet.';
+    note.classList.remove('hidden');
+  } else {
+    note.classList.add('hidden');
+  }
+  document.getElementById('laListingList').innerHTML = listings.map((l, i) => `
+    <div class="flex items-center gap-3 p-3 rounded-xl border border-gray-100 hover:border-indigo-200 transition bg-gray-50">
+      <div class="flex-1 min-w-0">
+        <p class="text-sm font-medium text-gray-800 truncate">${l.title}</p>
+        <p class="text-xs text-gray-400">${l.sku}${l.asin ? ' · ' + l.asin : ''}${l._partial ? ' · audit partiel' : ' · ' + (l.bullets.length) + ' bullets'}</p>
+      </div>
+      <button onclick="_laAuditOne(${i})"
+        class="text-xs bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-lg px-3 py-1.5 font-semibold hover:bg-indigo-100 transition flex-shrink-0">
+        Auditer
+      </button>
+    </div>`).join('');
+  document.getElementById('laListingsPanel').classList.remove('hidden');
+}
+
+function _laAuditOne(idx) {
+  const l = _laListings[idx];
+  const set = (id, v) => { const el = document.getElementById(id); if (el) el.value = v || ''; };
+  set('auditTitle', l.title);
+  set('auditKw', l.backend_keywords);
+  ['auditB0','auditB1','auditB2','auditB3','auditB4'].forEach((id, j) => set(id, l.bullets[j] || ''));
+  const mktEl = document.getElementById('auditMkt');
+  if (mktEl && l.marketplace) mktEl.value = l.marketplace;
+  document.getElementById('auditSection')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+async function _laRunAuditJob(listing) {
+  const payload = {
+    title: listing.title,
+    bullets: listing.bullets.length ? listing.bullets : [''],
+    backend_keywords: listing.backend_keywords || '',
+    description: listing.description || '',
+    image_count: 1,
+    image_urls: [],
+    marketplace: listing.marketplace || 'amazon_fr',
+  };
+  const r = await authFetch('/api/audit', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.detail || `Erreur ${r.status}`); }
+  return await r.json();
+}
+
+async function _laAuditAll() {
+  if (!_laListings.length) return;
+  const btn = document.getElementById('laAuditAllBtn');
+  btn.disabled = true;
+  _laBatchResults = [];
+  document.getElementById('laBatchProgress').classList.remove('hidden');
+  document.getElementById('laBatchResultsPanel').classList.add('hidden');
+  const total = _laListings.length;
+  for (let i = 0; i < total; i++) {
+    const l = _laListings[i];
+    document.getElementById('laProgressLabel').textContent = `${i + 1}/${total} — ${l.title.slice(0, 50)}`;
+    document.getElementById('laProgressBar').style.width = `${Math.round((i / total) * 100)}%`;
+    try {
+      const result = await _laRunAuditJob(l);
+      _laBatchResults.push({ listing: l, result, ok: true });
+    } catch(e) {
+      _laBatchResults.push({ listing: l, error: e.message, ok: false });
+    }
+  }
+  document.getElementById('laProgressBar').style.width = '100%';
+  document.getElementById('laProgressLabel').textContent = `${total}/${total} — Terminé !`;
+  setTimeout(() => { document.getElementById('laBatchProgress').classList.add('hidden'); _laRenderBatchResults(); }, 800);
+  btn.disabled = false;
+}
+
+function _laToggleBatchCard(i) {
+  const card = document.getElementById(`laCard_${i}`);
+  const arrow = document.getElementById(`laArrow_${i}`);
+  if (!card) return;
+  const isHidden = card.classList.toggle('hidden');
+  if (arrow) arrow.style.transform = isHidden ? '' : 'rotate(180deg)';
+}
+
+function _laSendBatchToGenerator(i) {
+  const { listing, result } = _laBatchResults[i];
+  const dimMap = [
+    { key: 'title',    label: 'Titre' },
+    { key: 'bullets',  label: 'Bullets' },
+    { key: 'keywords', label: 'Mots-clés backend' },
+  ];
+  const improvement_notes = dimMap
+    .filter(d => (result[d.key]?.score ?? 100) < 70)
+    .flatMap(d => (result[d.key]?.issues || []).slice(0, 2).map(iss => `[${d.label}] ${iss}`));
+  parsedProducts = [{
+    sku: listing.sku, name: listing.title, description: listing.description || '',
+    features: listing.bullets, focus_keywords: [], images: [], extra: {},
+    improvement_notes,
+  }];
+  switchAppMode('generate');
+  setStep(2);
+  showToast('', `${improvement_notes.length} axe(s) d'amélioration injecté(s) dans le générateur`);
+}
+
+const _LA_DIMS = [
+  { key: 'title',    label: 'Titre' },
+  { key: 'bullets',  label: 'Bullets' },
+  { key: 'keywords', label: 'Keywords' },
+  { key: 'images',   label: 'Images' },
+];
+
+function _laRenderBatchResults() {
+  const ok  = _laBatchResults.filter(r => r.ok);
+  const bad = _laBatchResults.filter(r => !r.ok);
+  const avgScore = ok.length
+    ? Math.round(ok.reduce((s, r) => s + (r.result.global_score || 0), 0) / ok.length) : 0;
+  const scoreColor = avgScore >= 75 ? 'text-green-600' : avgScore >= 50 ? 'text-amber-600' : 'text-red-500';
+  document.getElementById('laBatchSummaryLabel').innerHTML =
+    `${ok.length} fiche(s) auditée(s)${bad.length ? ` · ${bad.length} erreur(s)` : ''} · Score moyen boutique : <span class="font-bold ${scoreColor}">${avgScore}/100</span>`;
+
+  document.getElementById('laBatchCards').innerHTML = _laBatchResults.map((r, i) => {
+    if (!r.ok) return `<div class="p-3 rounded-xl border border-red-100 bg-red-50 text-xs text-red-700">
+      <span class="font-semibold">${r.listing.title.slice(0, 60)}</span> — Erreur : ${r.error}</div>`;
+    const gs = r.result.global_score || 0;
+    const gc = _auditScoreColor(gs);
+    const weakDims = _LA_DIMS.map(d => ({ ...d, dim: r.result[d.key] || {} }))
+      .filter(d => (d.dim.score ?? 0) < 70);
+    return `<div class="border border-gray-100 rounded-xl overflow-hidden">
+      <button onclick="_laToggleBatchCard(${i})" class="w-full flex items-center gap-3 p-3 hover:bg-gray-50 transition text-left">
+        <div class="flex items-center justify-center w-9 h-9 rounded-xl ${gc.bg} flex-shrink-0">
+          <span class="text-sm font-bold ${gc.text}">${gs}</span>
+        </div>
+        <div class="flex-1 min-w-0">
+          <p class="text-sm font-semibold text-gray-800 truncate">${r.listing.title.slice(0, 70)}</p>
+          <p class="text-xs text-gray-400">${r.listing.sku}${r.listing.asin ? ' · ' + r.listing.asin : ''} · ${weakDims.length} point(s) à améliorer</p>
+        </div>
+        <span id="laArrow_${i}" class="text-gray-300 text-sm transition-transform duration-200">▾</span>
+      </button>
+      <div id="laCard_${i}" class="hidden px-4 pb-4 border-t border-gray-100 space-y-2 pt-3">
+        ${weakDims.map(d => `
+          <div class="flex items-start gap-2 bg-gray-50 rounded-lg px-3 py-2 border border-gray-100">
+            <span class="text-xs px-2 py-0.5 rounded-full border font-medium bg-amber-100 text-amber-700 border-amber-200 flex-shrink-0 mt-0.5">${d.dim.score ?? 0}/100</span>
+            <div><p class="text-xs font-semibold text-gray-700">${d.label}</p>
+            <p class="text-xs text-gray-500 leading-relaxed">${(d.dim.issues || []).slice(0, 2).join(' · ')}</p></div>
+          </div>`).join('')}
+        ${r.listing._partial ? '<p class="text-xs text-amber-600 mt-1">⚠ Audit partiel — bullets et mots-clés backend non inclus dans ce rapport</p>' : ''}
+        <button onclick="_laSendBatchToGenerator(${i})"
+          class="mt-1 text-xs gradient-bg text-white rounded-lg px-3 py-1.5 font-semibold hover:opacity-90 transition flex items-center gap-1.5">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+          Régénérer cette fiche
+        </button>
+      </div>
+    </div>`;
+  }).join('');
+  document.getElementById('laBatchResultsPanel').classList.remove('hidden');
+}
+
+function _laExportBatchCsv() {
+  if (!_laBatchResults.length) return;
+  const rows = [];
+  for (const r of _laBatchResults) {
+    if (!r.ok) {
+      rows.push([r.listing.sku, r.listing.asin || '', r.listing.title.slice(0, 100), '', '', '', '', '', 'Erreur: ' + (r.error || ''), r.listing._partial ? 'Partiel' : 'Complet']);
+      continue;
+    }
+    const sc  = (key) => r.result[key]?.score ?? '';
+    const iss = (key) => (r.result[key]?.issues || []).join(' | ');
+    const allIssues = _LA_DIMS.flatMap(d => (r.result[d.key]?.issues || []).map(i => `[${d.label}] ${i}`)).join(' | ');
+    rows.push([
+      r.listing.sku, r.listing.asin || '', r.listing.title.slice(0, 100),
+      r.result.global_score ?? '',
+      sc('title'), sc('bullets'), sc('keywords'), sc('images'),
+      allIssues.slice(0, 500),
+      r.listing._partial ? 'Partiel' : 'Complet',
+    ]);
+  }
+  _downloadCsv(
+    `synqio_audit_boutique_${new Date().toISOString().slice(0, 10)}.csv`,
+    ['SKU', 'ASIN', 'Titre', 'Score global', 'Score titre', 'Score bullets', 'Score keywords', 'Score images', 'Problèmes détectés', 'Type audit'],
     rows
   );
 }
