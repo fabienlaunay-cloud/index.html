@@ -1197,17 +1197,40 @@
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
           <!-- Left: input form -->
           <div class="space-y-3">
+            <!-- URL import -->
+            <div class="bg-purple-50 border border-purple-200 rounded-xl p-3 space-y-2">
+              <label class="text-xs font-semibold text-purple-700 flex items-center gap-1">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                Importer depuis Amazon
+              </label>
+              <div class="flex gap-2">
+                <input id="revAmazonUrl" type="url" placeholder="https://www.amazon.fr/dp/B0XXXXXXXX"
+                  class="flex-1 border border-purple-200 bg-white rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-purple-400 min-w-0"
+                  onkeydown="if(event.key==='Enter') _revFetchFromUrl()">
+                <button id="revFetchBtn" onclick="_revFetchFromUrl()"
+                  class="flex-shrink-0 bg-purple-600 text-white rounded-lg px-3 py-2 text-xs font-semibold hover:opacity-90 transition whitespace-nowrap">
+                  Importer
+                </button>
+              </div>
+              <p id="revFetchMsg" class="text-xs hidden"></p>
+            </div>
+
+            <div class="flex items-center gap-2 text-xs text-gray-400">
+              <div class="flex-1 h-px bg-gray-200"></div>
+              <span>ou collez manuellement</span>
+              <div class="flex-1 h-px bg-gray-200"></div>
+            </div>
+
             <div>
               <label class="text-xs font-semibold text-gray-600 mb-1 block">Nom du produit (optionnel)</label>
               <input id="revProductName" type="text" placeholder="ex : Sac à dos 30L waterproof"
                 class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-300 bg-white">
             </div>
             <div>
-              <label class="text-xs font-semibold text-gray-600 mb-1 block">Avis négatifs (1 ★ / 2 ★) — collez-les directement</label>
-              <textarea id="revReviews" rows="8"
+              <label class="text-xs font-semibold text-gray-600 mb-1 block">Avis négatifs (1 ★ / 2 ★)</label>
+              <textarea id="revReviews" rows="6"
                 placeholder="Collez ici les avis négatifs...&#10;&#10;Ex : &quot;Vraiment déçu, la taille est beaucoup plus petite que prévu&quot;&#10;&quot;La notice est illisible, aucune indication en français&quot;&#10;..."
                 class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-300 resize-y bg-white"></textarea>
-              <p class="text-xs text-gray-400 mt-1">Copiez-collez depuis Amazon ou tout autre source.</p>
             </div>
             <button id="revAnalyzeBtn" onclick="_reviewsAnalyze()"
               class="w-full gradient-bg text-white rounded-xl py-3 font-semibold text-sm hover:opacity-90 transition flex items-center justify-center gap-2">
@@ -8685,6 +8708,47 @@ document.addEventListener('keydown', e => {
 });
 
 // ── Review monitoring ─────────────────────────────────────────────────────────
+
+async function _revFetchFromUrl() {
+  const url = document.getElementById('revAmazonUrl').value.trim();
+  const msg = document.getElementById('revFetchMsg');
+  msg.classList.add('hidden');
+
+  // Extract ASIN from URL (B + 9 alphanumeric chars, standard Amazon format)
+  const m = url.match(/\/(?:dp|product-reviews|gp\/product)\/([A-Z0-9]{10})/i)
+           || url.match(/(?:^|[^A-Z0-9])(B[A-Z0-9]{9})(?:[^A-Z0-9]|$)/i);
+  if (!m) {
+    msg.textContent = 'URL invalide — collez une URL Amazon (ex: amazon.fr/dp/B0XXXXXXXX)';
+    msg.className = 'text-xs text-red-600';
+    msg.classList.remove('hidden');
+    return;
+  }
+  const asin = m[1].toUpperCase();
+  const marketplace = document.getElementById('auditMkt')?.value || 'amazon_fr';
+  const btn = document.getElementById('revFetchBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<div class="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin inline-block mr-1"></div>Chargement…';
+
+  try {
+    const r = await authFetch(`/api/reviews/fetch?asin=${encodeURIComponent(asin)}&marketplace=${encodeURIComponent(marketplace)}`);
+    if (!r.ok) {
+      const err = await r.json().catch(() => ({}));
+      throw new Error(err.detail || `Erreur HTTP ${r.status}`);
+    }
+    const { reviews, count } = await r.json();
+    document.getElementById('revReviews').value = reviews.join('\n\n---\n\n');
+    msg.textContent = `${count} avis importés (1★ et 2★) — ASIN ${asin}`;
+    msg.className = 'text-xs text-green-600';
+    msg.classList.remove('hidden');
+  } catch(e) {
+    msg.textContent = e.message || "Impossible d'importer les avis";
+    msg.className = 'text-xs text-red-600';
+    msg.classList.remove('hidden');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Importer';
+  }
+}
 
 async function _reviewsAnalyze() {
   const reviews = document.getElementById('revReviews').value.trim();

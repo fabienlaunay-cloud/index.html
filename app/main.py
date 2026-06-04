@@ -2064,3 +2064,84 @@ async def reviews_analyze(req: ReviewsAnalyzeRequest, request: Request):
     _cleanup_jobs()
     asyncio.create_task(_run_reviews_job(job_id, req, email or ""))
     return {"job_id": job_id}
+
+
+@app.get("/api/reviews/fetch")
+async def reviews_fetch(asin: str, marketplace: str = "amazon_fr"):
+    """Scrape negative Amazon reviews (1★ + 2★) for a given ASIN."""
+    import re as _re_rv
+    asin = asin.strip().upper()
+    if not asin or not _re_rv.match(r'^[A-Z0-9]{10}$', asin):
+        raise HTTPException(400, "ASIN invalide (format attendu : B0XXXXXXXXX, 10 caractères)")
+
+    domain = _KW_DOMAINS.get(marketplace, ("amazon.fr", "A13V1IB3VIYZZH"))[0]
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+        "Accept-Language": "fr-FR,fr;q=0.9,en-US;q=0.7,en;q=0.5",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept-Encoding": "gzip, deflate, br",
+        "Connection": "keep-alive",
+        "Upgrade-Insecure-Requests": "1",
+    }
+
+    reviews: list[str] = []
+    blocked = False
+
+    async with httpx.AsyncClient(timeout=20, headers=headers, follow_redirects=True) as client:
+        for star_filter in ("one_star", "two_star"):
+            for page in range(1, 4):
+                url = (
+                    f"https://www.{domain}/product-reviews/{asin}"
+                    f"?filterByStar={star_filter}&pageNumber={page}&sortBy=recent"
+                )
+                try:
+                    resp = await client.get(url)
+                    if resp.status_code in (403, 503):
+                        blocked = True
+                        break
+                    if not resp.is_success:
+                        break
+                    html = resp.text
+
+                    # Detect anti-bot page
+                    if any(kw in html.lower() for kw in ("captcha", "robot check", "automated access", "verify you're human")):
+                        blocked = True
+                        break
+
+                    # Extract review body text
+                    # Amazon wraps each review in: data-hook="review-body"...<span>text</span>
+                    chunks = _re_rv.findall(
+                        r'data-hook=["\']review-body["\'][^>]*>.*?<span[^>]*>(.*?)</span>',
+                        html, _re_rv.DOTALL
+                    )
+                    page_reviews = []
+                    for chunk in chunks:
+                        text = _re_rv.sub(r'<[^>]+>', ' ', chunk)
+                        text = _re_rv.sub(r'\s+', ' ', text).strip()
+                        if text and len(text) > 15:
+                            page_reviews.append(text)
+
+                    if not page_reviews:
+                        break  # No more reviews on this filter
+                    reviews.extend(page_reviews)
+                    if len(reviews) >= 60:
+                        break
+                except Exception:
+                    break
+
+            if blocked or len(reviews) >= 60:
+                break
+
+    if blocked:
+        raise HTTPException(
+            503,
+            "Amazon bloque les requêtes automatisées depuis ce serveur. "
+            "Copiez-collez les avis directement depuis la page produit."
+        )
+    if not reviews:
+        raise HTTPException(
+            404,
+            "Aucun avis négatif trouvé — le produit n'existe peut-être pas ou n'a pas encore d'avis 1★/2★."
+        )
+
+    return {"reviews": reviews, "count": len(reviews), "asin": asin}
