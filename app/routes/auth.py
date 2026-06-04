@@ -336,7 +336,7 @@ async def update_admin_role(email: str, req: UpdateAdminRequest, authorization: 
 @admin_router.patch("/users/{email}/plan")
 async def update_plan(email: str, req: UpdatePlanRequest, authorization: str = Header(None)):
     _require_admin(authorization)
-    if req.plan not in ("starter", "business", "scale"):
+    if req.plan not in ("starter", "business", "scale", "maintenance"):
         raise HTTPException(400, "Plan invalide")
     conn = get_db()
     conn.execute("UPDATE users SET plan = ? WHERE email = ?", (req.plan, email.lower()))

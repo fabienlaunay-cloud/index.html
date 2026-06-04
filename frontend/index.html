@@ -3302,12 +3302,19 @@ function renderUsers(users) {
 }
 
 async function changePlan(email, plan) {
-  await authFetch(`/api/admin/users/${encodeURIComponent(email)}/plan`, {
+  const r = await authFetch(`/api/admin/users/${encodeURIComponent(email)}/plan`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ plan }),
   });
-  showToast('✅', `Plan ${plan} assigné à ${email}`);
+  if (!r.ok) {
+    const err = await r.json().catch(() => ({}));
+    showToast('', err.detail || `Erreur lors du changement de plan`);
+    loadUsers();
+    return;
+  }
+  showToast('', `Plan ${plan} assigné à ${email}`);
+  loadUsers();
   loadAdminUsage();
 }
 
