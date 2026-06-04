@@ -1305,6 +1305,77 @@
       </div>
     </div>
 
+    <!-- ── Analyse boutique entière — CSV Seller Central ───────────────────── -->
+    <div class="mt-6">
+      <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+        <div class="flex items-center gap-3 mb-5">
+          <div class="w-9 h-9 rounded-xl bg-blue-50 flex items-center justify-center flex-shrink-0">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18"/></svg>
+          </div>
+          <div>
+            <h2 class="font-semibold text-gray-800 text-base">Analyse boutique entière</h2>
+            <p class="text-xs text-gray-500">Importez le rapport <strong class="text-gray-700">Customer Reviews</strong> de Seller Central pour analyser tous vos produits d'un coup</p>
+          </div>
+        </div>
+        <!-- Instructions -->
+        <div class="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-4">
+          <p class="text-xs font-semibold text-blue-800 mb-2">Comment obtenir le rapport depuis Seller Central :</p>
+          <ol class="text-xs text-blue-700 space-y-1 list-decimal list-inside leading-relaxed">
+            <li>Dans Seller Central → <strong>Rapports</strong> → <strong>Commentaires clients</strong></li>
+            <li>Choisissez la période souhaitée, cliquez sur <strong>Demander le rapport</strong></li>
+            <li>Téléchargez le fichier <code class="bg-blue-100 rounded px-1">.csv</code> et importez-le ici</li>
+          </ol>
+          <p class="text-xs text-blue-400 mt-2">SynqIO filtre automatiquement les avis 1★ et 2★ et les regroupe par produit.</p>
+        </div>
+        <!-- Drop zone -->
+        <div id="scDropzone"
+          ondragover="event.preventDefault(); this.classList.add('border-blue-400','bg-blue-50')"
+          ondragleave="this.classList.remove('border-blue-400','bg-blue-50')"
+          ondrop="_scOnDrop(event)"
+          onclick="document.getElementById('scCsvFileInput').click()"
+          class="border-2 border-dashed border-gray-200 rounded-xl p-8 text-center cursor-pointer hover:border-blue-300 hover:bg-blue-50 transition mb-4">
+          <input type="file" id="scCsvFileInput" accept=".csv,.txt,.tsv" class="hidden" onchange="_scOnFileChange(this)">
+          <svg class="mx-auto mb-2" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          <p class="text-sm text-gray-500">Déposez votre CSV ici ou <span class="text-blue-600 font-medium underline">cliquez pour parcourir</span></p>
+          <p class="text-xs text-gray-400 mt-1" id="scDropzoneName">Fichiers .csv acceptés</p>
+        </div>
+        <!-- Product list (after parse) -->
+        <div id="scProductsPanel" class="hidden">
+          <div class="flex items-center justify-between mb-3 flex-wrap gap-2">
+            <p class="text-sm font-semibold text-gray-700" id="scProductsSummary"></p>
+            <button onclick="_scAnalyzeAll()" id="scAnalyzeAllBtn"
+              class="gradient-bg text-white rounded-lg px-4 py-2 text-xs font-semibold hover:opacity-90 transition flex items-center gap-1.5">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              Analyser toute la boutique
+            </button>
+          </div>
+          <div id="scProductList" class="space-y-2 max-h-72 overflow-y-auto pr-1"></div>
+        </div>
+        <!-- Batch progress -->
+        <div id="scBatchProgress" class="hidden mt-4 space-y-2">
+          <div class="flex items-center gap-3">
+            <div class="w-4 h-4 border-2 border-blue-200 border-t-blue-600 rounded-full animate-spin flex-shrink-0"></div>
+            <p class="text-sm text-gray-600">Analyse en cours : <span id="scProgressLabel" class="font-medium text-gray-800"></span></p>
+          </div>
+          <div class="w-full bg-gray-100 rounded-full h-2">
+            <div id="scProgressBar" class="gradient-bg h-2 rounded-full transition-all duration-300" style="width:0%"></div>
+          </div>
+        </div>
+        <!-- Batch results -->
+        <div id="scBatchResultsPanel" class="hidden mt-4 space-y-3">
+          <div class="flex items-center justify-between flex-wrap gap-2">
+            <p class="text-sm font-semibold text-gray-700" id="scBatchSummaryLabel"></p>
+            <button onclick="_scExportBatchCsv()"
+              class="bg-white border border-gray-200 text-gray-600 rounded-lg px-3 py-1.5 text-xs font-medium hover:bg-gray-50 transition flex items-center gap-1.5">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              Exporter CSV boutique
+            </button>
+          </div>
+          <div id="scBatchCards" class="space-y-2"></div>
+        </div>
+      </div>
+    </div>
+
   </div>
 
   <!-- ── Tracking section ─────────────────────────────────────────────────── -->
@@ -9093,6 +9164,252 @@ function _revRenderResults(data) {
   el.innerHTML = html;
   el.classList.remove('hidden');
   document.getElementById('revEmpty').classList.add('hidden');
+}
+
+// ── Analyse boutique entière — CSV Seller Central ────────────────────────────
+let _scProducts     = [];
+let _scBatchResults = [];
+
+function _scSplitCsvLine(line, sep) {
+  const out = []; let cur = '', inQ = false;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (c === '"') {
+      if (inQ && line[i + 1] === '"') { cur += '"'; i++; } else inQ = !inQ;
+    } else if (c === sep && !inQ) { out.push(cur); cur = ''; }
+    else cur += c;
+  }
+  out.push(cur);
+  return out;
+}
+
+function _scParseCsv(raw) {
+  if (raw.charCodeAt(0) === 0xFEFF) raw = raw.slice(1);
+  const lines = raw.split(/\r?\n/).filter(l => l.trim());
+  if (lines.length < 2) throw new Error('Fichier vide ou trop court');
+  const sep = lines[0].includes('\t') ? '\t' : ',';
+  const header = _scSplitCsvLine(lines[0], sep).map(h =>
+    h.toLowerCase().trim().replace(/^"|"$/g, '').replace(/[-_\s]/g, '')
+  );
+  const colIdx = (...candidates) => candidates.reduce(
+    (f, n) => f !== -1 ? f : header.indexOf(n.toLowerCase().replace(/[-_\s]/g, '')), -1
+  );
+  const asinCol   = colIdx('asin');
+  const nameCol   = colIdx('productname', 'title', 'product', 'name', 'productdescription', 'description', 'producttitle');
+  const ratingCol = colIdx('starrating', 'rating', 'stars', 'note', 'starvalue', 'reviewrating', 'overallrating');
+  const bodyCol   = colIdx('reviewbody', 'reviewtext', 'body', 'review', 'text', 'comment', 'comments', 'content', 'reviewcontent');
+  if (asinCol === -1)   throw new Error("Colonne ASIN introuvable — vérifiez qu'il s'agit du rapport Customer Reviews Seller Central.");
+  if (ratingCol === -1) throw new Error("Colonne note (star-rating) introuvable.");
+  if (bodyCol === -1)   throw new Error("Colonne texte d'avis (review-body) introuvable.");
+  const byAsin = {};
+  for (let i = 1; i < lines.length; i++) {
+    const cols = _scSplitCsvLine(lines[i], sep).map(v => v.replace(/^"|"$/g, '').trim());
+    const rating = parseInt(cols[ratingCol] || '5', 10);
+    if (isNaN(rating) || rating > 2) continue;
+    const asin = (cols[asinCol] || '').toUpperCase().trim();
+    if (!asin || asin.length < 5) continue;
+    const body = (cols[bodyCol] || '').trim();
+    if (!body || body.length < 10) continue;
+    if (!byAsin[asin]) {
+      const name = nameCol !== -1 ? (cols[nameCol] || '').trim() : '';
+      byAsin[asin] = { asin, name: name || asin, reviews: [] };
+    }
+    byAsin[asin].reviews.push(body);
+  }
+  const products = Object.values(byAsin).sort((a, b) => b.reviews.length - a.reviews.length);
+  if (!products.length) throw new Error('Aucun avis 1★ ou 2★ trouvé dans ce fichier.');
+  return products;
+}
+
+function _scOnDrop(e) {
+  e.preventDefault();
+  document.getElementById('scDropzone').classList.remove('border-blue-400', 'bg-blue-50');
+  const file = e.dataTransfer?.files?.[0];
+  if (file) _scReadFile(file);
+}
+
+function _scOnFileChange(input) {
+  const file = input.files[0];
+  if (file) _scReadFile(file);
+}
+
+function _scReadFile(file) {
+  document.getElementById('scDropzoneName').textContent = file.name;
+  ['scProductsPanel', 'scBatchProgress', 'scBatchResultsPanel'].forEach(id =>
+    document.getElementById(id).classList.add('hidden')
+  );
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      _scShowProductList(_scParseCsv(e.target.result));
+    } catch(err) {
+      showToast('❌', err.message || 'Impossible de lire ce fichier CSV');
+    }
+  };
+  reader.readAsText(file, 'UTF-8');
+}
+
+function _scShowProductList(products) {
+  _scProducts = products;
+  const total = products.reduce((s, p) => s + p.reviews.length, 0);
+  document.getElementById('scProductsSummary').textContent =
+    `${products.length} produit(s) avec avis négatifs · ${total} avis 1★/2★`;
+  document.getElementById('scProductList').innerHTML = products.map((p, i) => `
+    <div class="flex items-center gap-3 p-3 rounded-xl border border-gray-100 hover:border-blue-200 transition bg-gray-50">
+      <div class="flex-1 min-w-0">
+        <p class="text-sm font-medium text-gray-800 truncate">${p.name}</p>
+        <p class="text-xs text-gray-400">${p.asin} · ${p.reviews.length} avis négatif${p.reviews.length > 1 ? 's' : ''}</p>
+      </div>
+      <button onclick="_scAnalyzeOne(${i})"
+        class="text-xs bg-blue-50 text-blue-700 border border-blue-200 rounded-lg px-3 py-1.5 font-semibold hover:bg-blue-100 transition flex-shrink-0">
+        Analyser
+      </button>
+    </div>`).join('');
+  document.getElementById('scProductsPanel').classList.remove('hidden');
+}
+
+async function _scRunJob(reviews, asin, name) {
+  const marketplace = document.getElementById('auditMkt')?.value || 'amazon_fr';
+  const r = await authFetch('/api/reviews/analyze', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ reviews: reviews.join('\n\n'), product_name: name, asin, marketplace }),
+  });
+  if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.detail || `Erreur ${r.status}`); }
+  const { job_id } = await r.json();
+  for (let i = 0; i < 40; i++) {
+    await new Promise(res => setTimeout(res, 3000));
+    const jr = await authFetch(`/api/jobs/${job_id}`).catch(() => null);
+    if (!jr || !jr.ok) continue;
+    const job = await jr.json();
+    if (job.status === 'done') return job.result;
+    if (job.status === 'failed') throw new Error(job.error || 'Analyse échouée');
+  }
+  throw new Error('Timeout — réessayez');
+}
+
+function _scAnalyzeOne(idx) {
+  const p = _scProducts[idx];
+  document.getElementById('revProductName').value = p.name || p.asin;
+  document.getElementById('revReviews').value = p.reviews.join('\n\n');
+  document.getElementById('revAnalyzeBtn').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  setTimeout(() => _reviewsAnalyze(), 400);
+}
+
+async function _scAnalyzeAll() {
+  if (!_scProducts.length) return;
+  const btn = document.getElementById('scAnalyzeAllBtn');
+  btn.disabled = true;
+  _scBatchResults = [];
+  document.getElementById('scBatchProgress').classList.remove('hidden');
+  document.getElementById('scBatchResultsPanel').classList.add('hidden');
+  const total = _scProducts.length;
+  for (let i = 0; i < total; i++) {
+    const p = _scProducts[i];
+    document.getElementById('scProgressLabel').textContent = `${i + 1}/${total} — ${p.name}`;
+    document.getElementById('scProgressBar').style.width = `${Math.round((i / total) * 100)}%`;
+    try {
+      const result = await _scRunJob(p.reviews, p.asin, p.name);
+      _scBatchResults.push({ product: p, result, ok: true });
+    } catch(e) {
+      _scBatchResults.push({ product: p, error: e.message, ok: false });
+    }
+  }
+  document.getElementById('scProgressBar').style.width = '100%';
+  document.getElementById('scProgressLabel').textContent = `${total}/${total} — Terminé !`;
+  setTimeout(() => { document.getElementById('scBatchProgress').classList.add('hidden'); _scRenderBatchResults(); }, 800);
+  btn.disabled = false;
+}
+
+function _scToggleBatchCard(i) {
+  const card = document.getElementById(`scCard_${i}`);
+  const arrow = document.getElementById(`scArrow_${i}`);
+  if (!card) return;
+  const isHidden = card.classList.toggle('hidden');
+  if (arrow) arrow.style.transform = isHidden ? '' : 'rotate(180deg)';
+}
+
+function _scSendBatchToGenerator(i) {
+  const { product, result } = _scBatchResults[i];
+  const fieldLabels = { title: 'Titre', bullets: 'Points clés', description: 'Description', keywords: 'Mots-clés', images: 'Images' };
+  const improvement_notes = (result.issues || [])
+    .filter(iss => iss.urgency !== 'minor')
+    .map(iss => `[${fieldLabels[iss.field] || iss.field}] ${iss.suggestion}`);
+  parsedProducts = [{ sku: product.asin, name: product.name, improvement_notes, focus_keywords: [], features: [], images: [], extra: {} }];
+  switchAppMode('generate');
+  setStep(2);
+  showToast('', `${improvement_notes.length} correctif(s) injecté(s) dans le générateur`);
+}
+
+function _scRenderBatchResults() {
+  const ok = _scBatchResults.filter(r => r.ok);
+  const bad = _scBatchResults.filter(r => !r.ok);
+  document.getElementById('scBatchSummaryLabel').textContent =
+    `${ok.length} produit(s) analysé(s)${bad.length ? ` · ${bad.length} erreur(s)` : ''}`;
+  const urgencyConfig = {
+    critical: { badge: 'bg-red-100 text-red-700 border-red-200', label: 'Critique' },
+    important:{ badge: 'bg-amber-100 text-amber-700 border-amber-200', label: 'Important' },
+    minor:    { badge: 'bg-gray-100 text-gray-600 border-gray-200', label: 'Mineur' },
+  };
+  document.getElementById('scBatchCards').innerHTML = _scBatchResults.map((r, i) => {
+    if (!r.ok) return `<div class="p-3 rounded-xl border border-red-100 bg-red-50 text-xs text-red-700">
+      <span class="font-semibold">${r.product.name}</span> — Erreur : ${r.error}</div>`;
+    const { summary, issues = [] } = r.result;
+    const urgCount = issues.filter(iss => iss.urgency !== 'minor').length;
+    return `<div class="border border-gray-100 rounded-xl overflow-hidden">
+      <button onclick="_scToggleBatchCard(${i})" class="w-full flex items-center gap-3 p-3 hover:bg-gray-50 transition text-left">
+        <div class="flex-1 min-w-0">
+          <p class="text-sm font-semibold text-gray-800 truncate">${r.product.name}</p>
+          <p class="text-xs text-gray-400">${r.product.asin} · ${r.product.reviews.length} avis · ${issues.length} problème(s)${urgCount ? ` · <span class="text-red-500 font-semibold">${urgCount} urgent(s)</span>` : ''}</p>
+        </div>
+        <span id="scArrow_${i}" class="text-gray-300 text-sm transition-transform duration-200">▾</span>
+      </button>
+      <div id="scCard_${i}" class="hidden px-4 pb-4 border-t border-gray-100 space-y-2 pt-3">
+        ${summary ? `<p class="text-xs text-gray-600 italic mb-1">${summary}</p>` : ''}
+        ${issues.slice(0, 3).map(iss => {
+          const uc = urgencyConfig[iss.urgency] || urgencyConfig.minor;
+          return `<div class="flex items-start gap-2 bg-gray-50 rounded-lg px-3 py-2 border border-gray-100">
+            <span class="text-xs px-2 py-0.5 rounded-full border font-medium ${uc.badge} flex-shrink-0 mt-0.5">${uc.label}</span>
+            <p class="text-xs text-gray-700 leading-relaxed">${iss.suggestion}</p>
+          </div>`;
+        }).join('')}
+        ${issues.length > 3 ? `<p class="text-xs text-gray-400">+ ${issues.length - 3} problème(s) supplémentaire(s)</p>` : ''}
+        <button onclick="_scSendBatchToGenerator(${i})"
+          class="mt-1 text-xs gradient-bg text-white rounded-lg px-3 py-1.5 font-semibold hover:opacity-90 transition flex items-center gap-1.5">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+          Régénérer cette fiche
+        </button>
+      </div>
+    </div>`;
+  }).join('');
+  document.getElementById('scBatchResultsPanel').classList.remove('hidden');
+}
+
+function _scExportBatchCsv() {
+  if (!_scBatchResults.length) return;
+  const fieldLabels = { title: 'Titre', bullets: 'Points clés', description: 'Description', keywords: 'Mots-clés', images: 'Images' };
+  const rows = [];
+  for (const r of _scBatchResults) {
+    if (!r.ok) { rows.push([r.product.asin, r.product.name, r.product.reviews.length, '', 'Erreur', '', '', r.error || '', '']); continue; }
+    const { summary, issues = [] } = r.result;
+    if (!issues.length) { rows.push([r.product.asin, r.product.name, r.product.reviews.length, summary, '', '', '', '', '']); continue; }
+    issues.forEach((iss, j) => rows.push([
+      j === 0 ? r.product.asin : '',
+      j === 0 ? r.product.name : '',
+      j === 0 ? r.product.reviews.length : '',
+      j === 0 ? (summary || '') : '',
+      iss.urgency,
+      fieldLabels[iss.field] || iss.field,
+      iss.theme || '',
+      iss.suggestion || '',
+      iss.customer_words || '',
+    ]));
+  }
+  _downloadCsv(
+    `synqio_boutique_avis_${new Date().toISOString().slice(0, 10)}.csv`,
+    ['ASIN', 'Produit', 'Nb avis négatifs', 'Résumé', 'Urgence', 'Champ', 'Thème', 'Suggestion', 'Verbatim client'],
+    rows
+  );
 }
 </script>
 
