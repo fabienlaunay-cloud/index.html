@@ -1171,12 +1171,19 @@
           <!-- Dimension cards -->
           <div id="auditDimCards" class="grid grid-cols-1 sm:grid-cols-2 gap-4"></div>
 
-          <!-- Bridge: send to generator -->
-          <button id="auditSendToGenBtn" onclick="_auditSendToGen()"
-            class="hidden w-full gradient-bg text-white rounded-xl py-3 font-semibold text-sm hover:opacity-90 transition flex items-center justify-center gap-2">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
-            Générer une version améliorée de cette fiche
-          </button>
+          <!-- Bridge: send to generator + export -->
+          <div id="auditActionBtns" class="hidden space-y-2">
+            <button id="auditSendToGenBtn" onclick="_auditSendToGen()"
+              class="w-full gradient-bg text-white rounded-xl py-3 font-semibold text-sm hover:opacity-90 transition flex items-center justify-center gap-2">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+              Générer une version améliorée de cette fiche
+            </button>
+            <button onclick="_auditExportCsv()"
+              class="w-full bg-white border border-gray-200 text-gray-600 rounded-xl py-2.5 font-medium text-sm hover:bg-gray-50 transition flex items-center justify-center gap-2">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              Télécharger le rapport CSV
+            </button>
+          </div>
 
         </div>
       </div>
@@ -8093,9 +8100,10 @@ async function runAudit() {
 }
 
 function _renderAuditResults(data, visionUsed) {
+  _auditCurrentData = data;
   document.getElementById('auditEmpty').classList.add('hidden');
   document.getElementById('auditResults').classList.remove('hidden');
-  document.getElementById('auditSendToGenBtn').classList.remove('hidden');
+  document.getElementById('auditActionBtns').classList.remove('hidden');
 
   // Global score
   const gs = data.global_score ?? 0;
@@ -8871,7 +8879,89 @@ async function _reviewsAnalyze() {
   }
 }
 
+let _revCurrentResults = null;
+let _auditCurrentData  = null;
+
+// ── CSV utility ───────────────────────────────────────────────────────────────
+function _downloadCsv(filename, headers, rows) {
+  const esc = v => '"' + String(v ?? '').replace(/"/g, '""') + '"';
+  const csv = '﻿' + [headers, ...rows].map(r => r.map(esc).join(',')).join('\n');
+  const a = Object.assign(document.createElement('a'), {
+    href: URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' })),
+    download: filename,
+  });
+  a.click(); URL.revokeObjectURL(a.href);
+}
+
+function _auditExportCsv() {
+  if (!_auditCurrentData) return;
+  const d = _auditCurrentData;
+  const dims = ['title','bullets','keywords','images'];
+  const dimLabels = { title:'Titre', bullets:'Points clés', keywords:'Mots-clés backend', images:'Images' };
+  const rows = dims.map(k => [
+    dimLabels[k] || k,
+    d[k]?.score ?? '',
+    (d[k]?.issues || []).join(' | '),
+    (d[k]?.suggestions || []).join(' | '),
+  ]);
+  rows.unshift(['Global', d.global_score ?? '', d.summary ?? '', '']);
+  _downloadCsv('audit-synqio.csv',
+    ['Dimension','Score /100','Problèmes identifiés','Suggestions'], rows);
+}
+
+function _revExportCsv() {
+  if (!_revCurrentResults) return;
+  const { summary, issues = [] } = _revCurrentResults;
+  const urgLabels = { critical:'Critique', important:'Important', minor:'Mineur' };
+  const fieldLabels = { title:'Titre', bullets:'Points clés', description:'Description', keywords:'Mots-clés', images:'Images' };
+  const freqLabels = { frequent:'Fréquent', occasional:'Occasionnel', rare:'Rare' };
+  const rows = issues.map(i => [
+    i.theme, urgLabels[i.urgency] || i.urgency,
+    fieldLabels[i.field] || i.field, i.impact,
+    freqLabels[i.frequency] || i.frequency,
+    i.customer_words || '', i.suggestion,
+  ]);
+  if (summary) rows.unshift(['SYNTHÈSE', '', '', '', '', '', summary]);
+  _downloadCsv('analyse-avis-synqio.csv',
+    ['Thème','Urgence','Champ à corriger','Impact','Fréquence','Verbatim client','Suggestion'], rows);
+}
+
+function _revSendToGenerator() {
+  if (!_revCurrentResults) return;
+  const title   = document.getElementById('auditTitle')?.value.trim() || '';
+  const bullets = [0,1,2,3,4].map(i => document.getElementById('auditB'+i)?.value.trim()).filter(Boolean);
+  const kw      = document.getElementById('auditKw')?.value.trim() || '';
+  const mkt     = document.getElementById('auditMkt')?.value || 'amazon_fr';
+
+  if (!title && !bullets.length) {
+    showToast('', 'Renseignez d\'abord la fiche dans le panneau Audit (titre + bullets) puis relancez');
+    return;
+  }
+  const fieldLabels = { title:'Titre', bullets:'Points clés', description:'Description', keywords:'Mots-clés', images:'Images' };
+  const improvement_notes = (_revCurrentResults.issues || [])
+    .filter(i => i.urgency !== 'minor')
+    .map(i => `[${fieldLabels[i.field] || i.field}] ${i.suggestion}`);
+
+  const product = {
+    sku: 'AUDIT-' + Date.now(),
+    name: title || 'Produit issu de l\'audit',
+    brand: '', category: '',
+    description: bullets.join(' '),
+    features: bullets,
+    focus_keywords: kw ? kw.split(/[\s,]+/).filter(Boolean) : [],
+    improvement_notes,
+    images: [], extra: {},
+  };
+  parsedProducts = [product];
+  showProductsList(parsedProducts);
+  document.getElementById('generateBtn').disabled = false;
+  switchAppMode('generate');
+  setStep(2);
+  showToast('', `${improvement_notes.length} correctif(s) injecté(s) — complétez marque/catégorie puis générez`);
+}
+
 function _revRenderResults(data) {
+  _revCurrentResults = data;
   const { summary, issues = [] } = data;
   const el = document.getElementById('revResults');
   const urgencyConfig = {
@@ -8915,6 +9005,20 @@ function _revRenderResults(data) {
   if (!issues.length) {
     html += '<p class="text-sm text-gray-500 text-center py-6">Aucun problème détecté dans les avis analysés.</p>';
   }
+  // Action buttons
+  const criticalCount = issues.filter(i => i.urgency !== 'minor').length;
+  html += `<div class="flex gap-2 pt-1 flex-wrap">
+    <button onclick="_revSendToGenerator()"
+      class="flex-1 gradient-bg text-white rounded-xl py-2.5 font-semibold text-xs hover:opacity-90 transition flex items-center justify-center gap-1.5 min-w-[120px]">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+      Régénérer la fiche${criticalCount ? ' (' + criticalCount + ' correctifs)' : ''}
+    </button>
+    <button onclick="_revExportCsv()"
+      class="flex-shrink-0 bg-white border border-gray-200 text-gray-600 rounded-xl px-3 py-2.5 text-xs font-medium hover:bg-gray-50 transition flex items-center gap-1.5">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      CSV
+    </button>
+  </div>`;
   el.innerHTML = html;
   el.classList.remove('hidden');
   document.getElementById('revEmpty').classList.add('hidden');

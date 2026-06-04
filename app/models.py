@@ -31,6 +31,7 @@ class RawProduct(BaseModel):
     features: Optional[List[str]] = []
     images: Optional[List[str]] = []
     focus_keywords: Optional[List[str]] = []   # mots-clés spécifiques à ce produit
+    improvement_notes: Optional[List[str]] = []  # correctifs issus des avis clients
     extra: Optional[dict] = {}
     # Variation fields
     parent_sku: Optional[str] = None           # SKU du parent pour les déclinaisons

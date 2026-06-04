@@ -225,11 +225,21 @@ Règle absolue : utilise EXCLUSIVEMENT ces mots-clés. Ne pas en inventer d'autr
 
     bv_section = _build_brand_voice_section(brand_voice)
 
+    improvement_section = ""
+    if product.improvement_notes:
+        notes = "\n".join(f"  • {n}" for n in product.improvement_notes)
+        improvement_section = f"""
+
+⚠️ CORRECTIFS PRIORITAIRES issus des avis clients négatifs — intégrer OBLIGATOIREMENT :
+{notes}
+
+Ces correctifs sont non-négociables et priment sur tout autre choix de rédaction."""
+
     return f"""CONTEXTE PRODUIT :
 {json.dumps(product_data, ensure_ascii=False, indent=2)}
 
 Ton de rédaction : {_TONE_DESCRIPTIONS.get(style_tone, style_tone)}
-Plateforme cible : {constraints['platform']}{bv_section}
+Plateforme cible : {constraints['platform']}{bv_section}{improvement_section}
 {image_note}{kw_instruction}
 
 CHECKLIST AVANT DE GÉNÉRER :
