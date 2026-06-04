@@ -1,4 +1,5 @@
 import os
+import hashlib
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
@@ -13,6 +14,31 @@ APP_URL   = os.getenv("APP_URL", "https://synqio.com")
 
 def _can_send() -> bool:
     return bool(SMTP_HOST and SMTP_USER and SMTP_PASS)
+
+
+def _unsubscribe_url(email: str) -> str:
+    """Generate a GDPR unsubscribe URL for the given email address.
+    Uses the same token logic as _unsubscribe_token() in app/routes/auth.py."""
+    import urllib.parse
+    secret = os.getenv("SMTP_PASS", os.getenv("JWT_SECRET", ""))
+    token = hashlib.sha256(f"{email}{secret}".encode("utf-8")).hexdigest()[:16]
+    return f"{APP_URL}/?unsubscribe={token}&email={urllib.parse.quote(email)}"
+
+
+def _is_unsubscribed(to_email: str) -> bool:
+    """Check whether the user has unsubscribed from marketing emails."""
+    try:
+        from app.db import get_db
+        conn = get_db()
+        row = conn.execute(
+            "SELECT email_unsubscribed FROM users WHERE email = ?", (to_email.lower(),)
+        ).fetchone()
+        conn.close()
+        if row and int(row["email_unsubscribed"] or 0):
+            return True
+    except Exception:
+        pass
+    return False
 
 
 def _send(to: str, subject: str, text: str, html: str):
@@ -34,7 +60,23 @@ def _send(to: str, subject: str, text: str, html: str):
         pass  # never block user flow due to email failure
 
 
+def _unsubscribe_footer_html(email: str) -> str:
+    url = _unsubscribe_url(email)
+    return (
+        f'<p style="color:#d1d5db;font-size:11px;margin-top:20px;text-align:center">'
+        f'<a href="{url}" style="color:#d1d5db;text-decoration:underline">Se désinscrire des emails</a>'
+        f'</p>'
+    )
+
+
+def _unsubscribe_footer_text(email: str) -> str:
+    url = _unsubscribe_url(email)
+    return f"\n\nPour vous désinscrire : {url}"
+
+
 def send_invite(to_email: str, invite_url: str, name: str = ""):
+    if _is_unsubscribed(to_email):
+        return
     greeting = f"Bonjour {name}," if name else "Bonjour,"
     subject = "Votre accès SynqIO — activez votre compte"
     text = f"""{greeting}
@@ -47,7 +89,7 @@ Activez votre compte en cliquant sur ce lien (valable 72h) :
 Ce lien est personnel et à usage unique.
 
 — L'équipe SynqIO
-"""
+{_unsubscribe_footer_text(to_email)}"""
     html = f"""<!DOCTYPE html>
 <html><head><meta charset="utf-8"></head>
 <body style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:24px;color:#1f2937">
@@ -72,11 +114,14 @@ Ce lien est personnel et à usage unique.
   <p style="color:#9ca3af;font-size:13px;margin-top:32px;text-align:center">
     Besoin d'aide ? Répondez à cet email.<br>— L'équipe SynqIO
   </p>
+  {_unsubscribe_footer_html(to_email)}
 </body></html>"""
     _send(to_email, subject, text, html)
 
 
 def send_welcome(to_email: str):
+    if _is_unsubscribed(to_email):
+        return
     subject = "🎉 Bienvenue sur SynqIO — vos accès sont prêts"
     text = f"""Bonjour,
 
@@ -91,7 +136,7 @@ Accédez à votre espace : {APP_URL}
 Besoin d'aide ? Répondez directement à cet email.
 
 — L'équipe SynqIO
-"""
+{_unsubscribe_footer_text(to_email)}"""
     html = f"""<!DOCTYPE html>
 <html><head><meta charset="utf-8"></head>
 <body style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:24px;color:#1f2937">
@@ -122,11 +167,13 @@ Besoin d'aide ? Répondez directement à cet email.
   <p style="color:#9ca3af;font-size:13px;margin-top:32px;text-align:center">
     Besoin d'aide ? Répondez à cet email.<br>— L'équipe SynqIO
   </p>
+  {_unsubscribe_footer_html(to_email)}
 </body></html>"""
     _send(to_email, subject, text, html)
 
 
 def send_password_reset(to_email: str, reset_url: str):
+    # Transactional email — no unsubscribe check, no unsubscribe footer
     subject = "Réinitialisation de votre mot de passe SynqIO"
     text = f"""Bonjour,
 
@@ -160,6 +207,8 @@ Si vous n'avez pas fait cette demande, ignorez cet email — votre mot de passe 
 
 
 def send_batch_complete(to_email: str, count: int, plan_label: str):
+    if _is_unsubscribed(to_email):
+        return
     subject = f"✅ SynqIO — {count} fiche(s) générée(s)"
     text = f"""Bonjour,
 
@@ -169,7 +218,7 @@ Plan : {plan_label}
 Accédez à vos fiches : {APP_URL}
 
 — L'équipe SynqIO
-"""
+{_unsubscribe_footer_text(to_email)}"""
     html = f"""<!DOCTYPE html>
 <html><head><meta charset="utf-8"></head>
 <body style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:24px;color:#1f2937">
@@ -183,5 +232,53 @@ Accédez à vos fiches : {APP_URL}
     </a>
   </div>
   <p style="color:#9ca3af;font-size:13px;margin-top:28px;text-align:center">— L'équipe SynqIO</p>
+  {_unsubscribe_footer_html(to_email)}
+</body></html>"""
+    _send(to_email, subject, text, html)
+
+
+def send_quota_alert(to_email: str, used: int, total: int, plan_label: str):
+    """Send a warning email when a user has consumed 80% of their monthly quota."""
+    if _is_unsubscribed(to_email):
+        return
+    subject = "⚠️ SynqIO — vous avez utilisé 80% de votre quota"
+    text = f"""Bonjour,
+
+Vous avez utilisé {used} SKU sur {total} ce mois-ci ({round(used/total*100) if total else 0}%) sur votre plan {plan_label}.
+
+Il vous reste environ {total - used} SKU disponibles ce mois.
+Si vous pensez dépasser votre quota, pensez à passer à l'offre supérieure.
+
+Accédez à votre espace : {APP_URL}
+
+— L'équipe SynqIO
+{_unsubscribe_footer_text(to_email)}"""
+    pct = round(used / total * 100) if total else 0
+    remaining = total - used
+    html = f"""<!DOCTYPE html>
+<html><head><meta charset="utf-8"></head>
+<body style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:24px;color:#1f2937">
+  <div style="background:linear-gradient(135deg,#7c3aed,#4f46e5);border-radius:16px;padding:32px;text-align:center;margin-bottom:28px">
+    <h1 style="color:white;margin:0;font-size:26px;font-weight:800">SynqIO</h1>
+    <p style="color:rgba(255,255,255,0.85);margin-top:8px;font-size:16px">⚠️ Alerte quota</p>
+  </div>
+  <p style="font-size:15px;margin-bottom:16px">Bonjour,</p>
+  <p style="font-size:15px;color:#374151;margin-bottom:24px">
+    Vous avez utilisé <strong>{used} SKU sur {total}</strong> ce mois-ci ({pct}%) sur votre plan <strong>{plan_label}</strong>.
+    Il vous reste environ <strong>{remaining} SKU</strong> disponibles ce mois.
+  </p>
+  <div style="background:#fef9c3;border:1px solid #fde047;border-radius:12px;padding:16px;margin-bottom:24px">
+    <p style="font-size:14px;color:#713f12;margin:0">
+      Si vous pensez dépasser votre quota avant la fin du mois,
+      pensez à passer à l'offre supérieure pour ne pas être bloqué.
+    </p>
+  </div>
+  <div style="text-align:center;margin-top:24px">
+    <a href="{APP_URL}" style="display:inline-block;background:linear-gradient(135deg,#7c3aed,#4f46e5);color:white;padding:14px 32px;border-radius:12px;font-weight:700;text-decoration:none;font-size:15px">
+      Voir mon espace →
+    </a>
+  </div>
+  <p style="color:#9ca3af;font-size:13px;margin-top:32px;text-align:center">— L'équipe SynqIO</p>
+  {_unsubscribe_footer_html(to_email)}
 </body></html>"""
     _send(to_email, subject, text, html)

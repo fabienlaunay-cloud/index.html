@@ -1,7 +1,9 @@
 import os
 import secrets
+import hashlib
 import datetime
 from fastapi import APIRouter, HTTPException, Header, Request
+from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 from app.services.auth import (
     authenticate_user, create_token, verify_token, _decode_token_data,
@@ -345,6 +347,38 @@ async def reset_password(req: ResetPasswordRequest):
     return {"token": token, "email": email}
 
 
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str
+
+
+@router.post("/change-password")
+async def change_password(req: ChangePasswordRequest, authorization: str = Header(None)):
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(401, "Token manquant")
+    token_str = authorization.split(" ", 1)[1]
+    email = verify_token(token_str)
+    if not email:
+        raise HTTPException(401, "Token invalide ou expiré")
+    # Validate current password
+    from app.services.auth import verify_password
+    conn = get_db()
+    row = conn.execute("SELECT password_hash FROM users WHERE email = ? AND is_active = 1", (email,)).fetchone()
+    conn.close()
+    if not row:
+        raise HTTPException(404, "Utilisateur introuvable")
+    if not verify_password(req.current_password, row["password_hash"]):
+        raise HTTPException(400, "Mot de passe actuel incorrect")
+    # Validate and update new password
+    _validate_password(req.new_password)
+    new_hash = hash_password(req.new_password)
+    conn = get_db()
+    conn.execute("UPDATE users SET password_hash = ? WHERE email = ?", (new_hash, email))
+    conn.commit()
+    conn.close()
+    return {"status": "ok"}
+
+
 @router.get("/me")
 async def me(authorization: str = Header(None)):
     if not authorization or not authorization.startswith("Bearer "):
@@ -527,3 +561,66 @@ async def set_app_config(req: ConfigRequest, authorization: str = Header(None)):
     return {"status": "ok", "key": req.key}
 
 
+# ── GDPR Unsubscribe ──────────────────────────────────────────────────────────
+
+def _unsubscribe_token(email: str) -> str:
+    """Generate the 16-char verification token for unsubscribe links."""
+    secret = os.getenv("SMTP_PASS", os.getenv("JWT_SECRET", ""))
+    raw = hashlib.sha256(f"{email}{secret}".encode()).hexdigest()
+    return raw[:16]
+
+
+class UnsubscribeRequest(BaseModel):
+    email: str
+    token: str
+
+
+@router.post("/unsubscribe")
+async def unsubscribe(req: UnsubscribeRequest):
+    email = req.email.lower().strip()
+    expected = _unsubscribe_token(email)
+    if req.token != expected:
+        raise HTTPException(400, "Token invalide")
+    conn = get_db()
+    conn.execute("UPDATE users SET email_unsubscribed = 1 WHERE email = ?", (email,))
+    conn.commit()
+    conn.close()
+    return {"status": "ok"}
+
+
+@router.get("/unsubscribe", response_class=HTMLResponse)
+async def unsubscribe_page(email: str = "", token: str = ""):
+    app_url = os.getenv("APP_URL", "https://synqio.com").rstrip("/")
+    if email and token:
+        # Process the unsubscribe automatically if params are provided
+        email_lower = email.lower().strip()
+        expected = _unsubscribe_token(email_lower)
+        if token == expected:
+            conn = get_db()
+            conn.execute("UPDATE users SET email_unsubscribed = 1 WHERE email = ?", (email_lower,))
+            conn.commit()
+            conn.close()
+            message = "Vous avez bien été désinscrit(e) de nos emails."
+            success = True
+        else:
+            message = "Lien invalide. Veuillez réessayer."
+            success = False
+    else:
+        message = "Paramètres manquants."
+        success = False
+
+    color = "#16a34a" if success else "#dc2626"
+    return HTMLResponse(content=f"""<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>Désinscription SynqIO</title></head>
+<body style="font-family:sans-serif;max-width:480px;margin:60px auto;padding:24px;color:#1f2937;text-align:center">
+  <div style="background:linear-gradient(135deg,#7c3aed,#4f46e5);border-radius:16px;padding:28px;margin-bottom:28px">
+    <h1 style="color:white;margin:0;font-size:24px;font-weight:800">SynqIO</h1>
+  </div>
+  <p style="font-size:16px;color:{color};font-weight:600">{message}</p>
+  <p style="font-size:14px;color:#6b7280;margin-top:16px">
+    Vous pouvez vous réinscrire à tout moment depuis votre espace.
+  </p>
+  <a href="{app_url}" style="display:inline-block;margin-top:24px;background:linear-gradient(135deg,#7c3aed,#4f46e5);color:white;padding:12px 28px;border-radius:10px;font-weight:700;text-decoration:none">
+    Retour à SynqIO
+  </a>
+</body></html>""")

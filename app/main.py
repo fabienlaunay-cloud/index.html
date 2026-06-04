@@ -73,9 +73,9 @@ from app.routes.amazon_oauth import router as amazon_router
 from app.routes.chat import router as chat_router
 
 # Routes sans authentification
-PUBLIC_PATHS = {"/", "/health", "/api/auth/login", "/api/auth/setup", "/api/auth/needs-setup", "/api/auth/reset-admin", "/api/auth/debug-admin", "/api/amazon/debug-config", "/api/marketplaces", "/api/amazon/callback", "/api/template"}
+PUBLIC_PATHS = {"/", "/health", "/api/auth/login", "/api/auth/setup", "/api/auth/needs-setup", "/api/auth/reset-admin", "/api/auth/debug-admin", "/api/amazon/debug-config", "/api/marketplaces", "/api/amazon/callback", "/api/template", "/api/auth/unsubscribe", "/api/auth/forgot-password", "/api/auth/reset-password"}
 # Invite paths are public (token-based auth)
-PUBLIC_PREFIX_PATHS = ("/api/auth/invite/", "/api/photos/")
+PUBLIC_PREFIX_PATHS = ("/api/auth/invite/", "/api/photos/", "/api/auth/reset-password/")
 
 
 class AuthMiddleware(BaseHTTPMiddleware):
@@ -676,6 +676,35 @@ async def _run_generation_job(job_id: str, request: GenerationRequest, email: st
         if email:
             if total_in:  log_usage(email, "tokens_in",  total_in)
             if total_out: log_usage(email, "tokens_out", total_out)
+
+        # Quota 80% alert: check after logging usage
+        if email and sku_count:
+            try:
+                from app.db import get_db as _get_db
+                usage_data = get_user_usage(email)
+                skus_used = usage_data.get("skus_used", 0)
+                skus_quota = usage_data.get("skus_quota", 0)
+                if skus_quota and skus_used >= skus_quota * 0.8:
+                    _conn = _get_db()
+                    _row = _conn.execute(
+                        "SELECT quota_alert_sent FROM users WHERE email = ?", (email,)
+                    ).fetchone()
+                    alert_sent = int((_row["quota_alert_sent"] if _row else None) or 0)
+                    _conn.close()
+                    if not alert_sent:
+                        from app.services.email import send_quota_alert
+                        plan_label = usage_data.get("plan_label", "")
+                        asyncio.get_event_loop().run_in_executor(
+                            None, send_quota_alert, email, skus_used, skus_quota, plan_label
+                        )
+                        _conn2 = _get_db()
+                        _conn2.execute(
+                            "UPDATE users SET quota_alert_sent = 1 WHERE email = ?", (email,)
+                        )
+                        _conn2.commit()
+                        _conn2.close()
+            except Exception:
+                pass
 
         result = GenerationResult(
             listings=all_listings, failed=all_failed,
