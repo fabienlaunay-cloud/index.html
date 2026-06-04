@@ -76,18 +76,32 @@ async def generate_ab_variants(
                     messages=[{"role": "user", "content": user_prompt}],
                 )
                 raw = resp.content[0].text.strip()
+                # Strip markdown code fences if present
                 if raw.startswith("```"):
-                    raw = raw.split("\n", 1)[1].rsplit("```", 1)[0]
+                    lines = raw.split("\n")
+                    raw = "\n".join(lines[1:])
+                    if raw.endswith("```"):
+                        raw = raw[:-3].rstrip()
+                # Extract JSON object if wrapped in extra text
+                if not raw.startswith("{"):
+                    start = raw.find("{")
+                    end = raw.rfind("}") + 1
+                    if start >= 0 and end > start:
+                        raw = raw[start:end]
                 data = json.loads(raw)
+                data.setdefault("title", "")
+                data.setdefault("bullet_points", [])
+                data.setdefault("description", "")
+                data.setdefault("backend_keywords", "")
                 data["seo_score"] = _compute_seo_score(data, constraints)
-                data["title"] = data["title"][: constraints["title_max"]]
-                data["bullet_points"] = data["bullet_points"][: constraints["bullets"]]
+                data["title"] = str(data["title"])[: constraints["title_max"]]
+                data["bullet_points"] = list(data["bullet_points"])[: constraints["bullets"]]
                 if constraints["keywords_max"] > 0:
-                    data["backend_keywords"] = data["backend_keywords"][: constraints["keywords_max"]]
+                    data["backend_keywords"] = str(data.get("backend_keywords", ""))[: constraints["keywords_max"]]
                 return data, resp.usage.input_tokens, resp.usage.output_tokens
             except Exception as e:
                 if attempt == 2:
-                    raise ValueError(f"Génération variante échouée ({variant_type}): {e}")
+                    raise ValueError(f"Variante {variant_type} échouée après 3 essais: {type(e).__name__}: {e}")
                 await asyncio.sleep(1 + attempt)
 
     (var_a, in_a, out_a), (var_b, in_b, out_b) = await asyncio.gather(

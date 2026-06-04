@@ -1800,8 +1800,9 @@ async def ab_test_generate(req: ABTestGenerateRequest, request: Request):
         )
     except ValueError as e:
         raise HTTPException(422, str(e))
-    except Exception as e:
-        raise HTTPException(500, f"Erreur de génération: {e}")
+    except BaseException as e:
+        log.error("ab_test_generate failed", extra={"error": str(e), "type": type(e).__name__})
+        raise HTTPException(500, f"{type(e).__name__}: {str(e)[:400]}")
     if email:
         tokens = result.get("tokens", {})
         if tokens.get("input_tokens"):

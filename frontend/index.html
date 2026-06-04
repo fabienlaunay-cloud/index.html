@@ -8164,8 +8164,13 @@ async function _abGenerate() {
       body: JSON.stringify({ listing, marketplace, focus_keywords: keywords }),
     });
     if (!r.ok) {
-      const err = await r.json().catch(() => ({}));
-      throw new Error(err.detail || 'Erreur de generation');
+      let errMsg = `Erreur HTTP ${r.status}`;
+      try {
+        const errData = await r.json();
+        if (typeof errData.detail === 'string') errMsg = errData.detail;
+        else if (Array.isArray(errData.detail) && errData.detail.length) errMsg = errData.detail.map(e => e.msg || JSON.stringify(e)).join('; ');
+      } catch(_) {}
+      throw new Error(errMsg);
     }
     const data = await r.json();
     _abCurrentVariants = data;
