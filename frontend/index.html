@@ -4223,19 +4223,33 @@ async function _sessDoSave() {
     listingStatuses: listingStatuses || {},
     publishedSkus: [...(publishedSkus || [])],
   };
+  let bodyStr;
+  try {
+    bodyStr = JSON.stringify({name, data});
+  } catch(jsonErr) {
+    const msg = document.getElementById('sessSaveMsg');
+    msg.textContent = 'Erreur sérialisation : ' + jsonErr.message;
+    msg.classList.remove('hidden');
+    btn.disabled = false;
+    btn.textContent = 'Enregistrer';
+    return;
+  }
   try {
     const r = await authFetch('/api/sessions/save', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({name, data}),
+      body: bodyStr,
     });
-    if (!r.ok) throw new Error();
+    if (!r.ok) {
+      const errData = await r.json().catch(() => ({}));
+      throw new Error(errData.detail || `HTTP ${r.status}`);
+    }
     document.getElementById('sessSaveModal').classList.add('hidden');
     showToast('', `Session "${name}" enregistrée`);
     _sessLoadList();
   } catch(e) {
     const msg = document.getElementById('sessSaveMsg');
-    msg.textContent = 'Erreur lors de la sauvegarde — réessayez';
+    msg.textContent = 'Erreur : ' + (e.message || 'réessayez');
     msg.classList.remove('hidden');
     btn.disabled = false;
     btn.textContent = 'Enregistrer';

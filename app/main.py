@@ -1740,7 +1740,11 @@ class SaveSessionRequest(BaseModel):
 async def api_save_session(req: SaveSessionRequest, request: Request):
     email = request.state.user_email
     session_id = str(uuid.uuid4())
-    save_session(session_id, email, req.name.strip() or "Session sans nom", req.data)
+    try:
+        save_session(session_id, email, req.name.strip() or "Session sans nom", req.data)
+    except Exception as e:
+        log.error("save_session failed", extra={"error": str(e), "email": email, "type": type(e).__name__})
+        raise HTTPException(500, f"{type(e).__name__}: {str(e)[:300]}")
     return {"ok": True, "id": session_id}
 
 
