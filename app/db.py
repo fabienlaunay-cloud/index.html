@@ -245,6 +245,24 @@ def _init_db_pg():
         )
     """)
 
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS ab_experiments (
+            id TEXT PRIMARY KEY,
+            user_email TEXT NOT NULL,
+            sku TEXT NOT NULL DEFAULT '',
+            asin TEXT NOT NULL DEFAULT '',
+            marketplace TEXT NOT NULL DEFAULT 'amazon_fr',
+            name TEXT NOT NULL DEFAULT '',
+            variant_a_json TEXT NOT NULL DEFAULT '{}',
+            variant_b_json TEXT NOT NULL DEFAULT '{}',
+            amazon_experiment_id TEXT DEFAULT '',
+            amazon_status TEXT DEFAULT 'draft',
+            winner TEXT DEFAULT '',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+
     conn.commit()
     conn.close()
 
@@ -403,6 +421,24 @@ def _init_db_sqlite():
             name TEXT NOT NULL DEFAULT '',
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             data_json TEXT NOT NULL DEFAULT '{}'
+        )
+    """)
+
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS ab_experiments (
+            id TEXT PRIMARY KEY,
+            user_email TEXT NOT NULL,
+            sku TEXT NOT NULL DEFAULT '',
+            asin TEXT NOT NULL DEFAULT '',
+            marketplace TEXT NOT NULL DEFAULT 'amazon_fr',
+            name TEXT NOT NULL DEFAULT '',
+            variant_a_json TEXT NOT NULL DEFAULT '{}',
+            variant_b_json TEXT NOT NULL DEFAULT '{}',
+            amazon_experiment_id TEXT DEFAULT '',
+            amazon_status TEXT DEFAULT 'draft',
+            winner TEXT DEFAULT '',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
 
@@ -880,6 +916,82 @@ def delete_saved_session(session_id: str, user_email: str) -> bool:
     cur = conn.execute(
         "DELETE FROM saved_sessions WHERE id = ? AND user_email = ?",
         (session_id, user_email),
+    )
+    conn.commit()
+    conn.close()
+    return cur.rowcount > 0
+
+
+# ── A/B Experiments ───────────────────────────────────────────────────────────
+
+def save_ab_experiment(exp_id: str, user_email: str, sku: str, asin: str,
+                       marketplace: str, name: str, variant_a: dict, variant_b: dict) -> None:
+    import json as _json
+    conn = get_db()
+    conn.execute(
+        "INSERT INTO ab_experiments (id, user_email, sku, asin, marketplace, name, variant_a_json, variant_b_json) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        (exp_id, user_email, sku, asin, marketplace, name,
+         _json.dumps(variant_a, ensure_ascii=False, default=str),
+         _json.dumps(variant_b, ensure_ascii=False, default=str)),
+    )
+    conn.commit()
+    conn.close()
+
+
+def list_ab_experiments(user_email: str) -> list:
+    import json as _json
+    conn = get_db()
+    rows = conn.execute(
+        "SELECT id, sku, asin, marketplace, name, amazon_experiment_id, amazon_status, winner, created_at "
+        "FROM ab_experiments WHERE user_email = ? ORDER BY created_at DESC",
+        (user_email,),
+    ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def get_ab_experiment(exp_id: str, user_email: str) -> dict | None:
+    import json as _json
+    conn = get_db()
+    row = conn.execute(
+        "SELECT * FROM ab_experiments WHERE id = ? AND user_email = ?",
+        (exp_id, user_email),
+    ).fetchone()
+    conn.close()
+    if not row:
+        return None
+    d = dict(row)
+    d["variant_a"] = _json.loads(d.pop("variant_a_json", "{}") or "{}")
+    d["variant_b"] = _json.loads(d.pop("variant_b_json", "{}") or "{}")
+    return d
+
+
+def update_ab_experiment(exp_id: str, user_email: str, **kwargs) -> bool:
+    """Update fields: amazon_experiment_id, amazon_status, winner, asin."""
+    allowed = {"amazon_experiment_id", "amazon_status", "winner", "asin", "name"}
+    parts, vals = [], []
+    for k, v in kwargs.items():
+        if k in allowed:
+            parts.append(f"{k} = ?")
+            vals.append(v)
+    if not parts:
+        return False
+    parts.append("updated_at = CURRENT_TIMESTAMP")
+    vals.extend([exp_id, user_email])
+    conn = get_db()
+    cur = conn.execute(
+        f"UPDATE ab_experiments SET {', '.join(parts)} WHERE id = ? AND user_email = ?", vals
+    )
+    conn.commit()
+    conn.close()
+    return cur.rowcount > 0
+
+
+def delete_ab_experiment(exp_id: str, user_email: str) -> bool:
+    conn = get_db()
+    cur = conn.execute(
+        "DELETE FROM ab_experiments WHERE id = ? AND user_email = ?", (exp_id, user_email)
     )
     conn.commit()
     conn.close()

@@ -53,7 +53,11 @@ from app.db import (init_db, save_generation, list_generations, get_generation,
                     load_recent_jobs, add_tracked_listing, list_tracked_listings,
                     delete_tracked_listing, add_snapshot, get_snapshots,
                     delete_snapshot, get_tracking_summary,
-                    save_session, list_saved_sessions, get_saved_session, delete_saved_session)
+                    save_session, list_saved_sessions, get_saved_session, delete_saved_session,
+                    save_ab_experiment, list_ab_experiments, get_ab_experiment,
+                    update_ab_experiment, delete_ab_experiment)
+from app.services.ab_testing import (generate_ab_variants, create_amazon_experiment,
+                                      get_amazon_experiment_status, cancel_amazon_experiment)
 from app.routes.auth import router as auth_router, admin_router
 from app.routes.amazon_oauth import router as amazon_router
 from app.routes.chat import router as chat_router
@@ -1742,4 +1746,142 @@ async def api_get_session(session_id: str, request: Request):
 async def api_delete_session(session_id: str, request: Request):
     if not delete_saved_session(session_id, request.state.user_email):
         raise HTTPException(404, "Session introuvable")
+    return {"ok": True}
+
+
+# ── A/B Testing ───────────────────────────────────────────────────────────────
+
+class ABTestGenerateRequest(BaseModel):
+    listing: dict
+    marketplace: str = "amazon_fr"
+    focus_keywords: Optional[List[str]] = None
+    style_tone: str = "professionnel"
+
+
+class ABTestExperimentCreate(BaseModel):
+    exp_id: str
+    asin: str = ""
+    experiment_name: str = ""
+    duration_days: int = 30
+
+
+@app.post("/api/ab-test/generate")
+async def ab_test_generate(req: ABTestGenerateRequest, request: Request):
+    if not os.getenv("ANTHROPIC_API_KEY"):
+        raise HTTPException(503, "ANTHROPIC_API_KEY manquante")
+    email = getattr(request.state, "user_email", None)
+    if email and not _rate_limit(f"{email}:ab_test", limit=10, window=3600):
+        raise HTTPException(429, "Maximum 10 générations A/B par heure")
+    try:
+        result = await generate_ab_variants(
+            listing_data=req.listing,
+            marketplace_str=req.marketplace,
+            focus_keywords=req.focus_keywords or [],
+            style_tone=req.style_tone,
+        )
+    except ValueError as e:
+        raise HTTPException(422, str(e))
+    except Exception as e:
+        raise HTTPException(500, f"Erreur de génération: {e}")
+    if email:
+        tokens = result.get("tokens", {})
+        if tokens.get("input_tokens"):
+            log_usage(email, "tokens_in", tokens["input_tokens"])
+        if tokens.get("output_tokens"):
+            log_usage(email, "tokens_out", tokens["output_tokens"])
+    return result
+
+
+@app.post("/api/ab-test/experiments")
+async def ab_test_save_experiment(body: dict, request: Request):
+    """Save a generated pair (variant A + B) and optionally push to Amazon MYE."""
+    import uuid as _uuid
+    email = request.state.user_email
+    exp_id = str(_uuid.uuid4())
+    sku = body.get("sku", "")
+    marketplace = body.get("marketplace", "amazon_fr")
+    name = (body.get("name") or f"Test A/B — {sku or 'SKU'}").strip()[:200]
+    variant_a = body.get("variant_a", {})
+    variant_b = body.get("variant_b", {})
+    asin = (body.get("asin") or "").strip().upper()
+
+    save_ab_experiment(exp_id, email, sku, asin, marketplace, name, variant_a, variant_b)
+
+    amazon_result = None
+    if asin and body.get("push_to_amazon"):
+        try:
+            amazon_result = await create_amazon_experiment(
+                user_email=email,
+                asin=asin,
+                marketplace_str=marketplace,
+                experiment_name=name,
+                control_title=variant_a.get("title", ""),
+                treatment_title=variant_b.get("title", ""),
+                duration_days=int(body.get("duration_days", 30)),
+            )
+            update_ab_experiment(
+                exp_id, email,
+                amazon_experiment_id=amazon_result["experiment_id"],
+                amazon_status=amazon_result["amazon_status"],
+                asin=asin,
+            )
+        except ValueError as e:
+            return {"ok": True, "id": exp_id, "amazon_error": str(e)}
+        except Exception as e:
+            return {"ok": True, "id": exp_id, "amazon_error": f"Erreur: {e}"}
+
+    return {"ok": True, "id": exp_id, "amazon": amazon_result}
+
+
+@app.get("/api/ab-test/experiments")
+async def ab_test_list_experiments(request: Request):
+    return list_ab_experiments(request.state.user_email)
+
+
+@app.get("/api/ab-test/experiments/{exp_id}")
+async def ab_test_get_experiment(exp_id: str, request: Request):
+    email = request.state.user_email
+    exp = get_ab_experiment(exp_id, email)
+    if not exp:
+        raise HTTPException(404, "Expérience introuvable")
+
+    amazon_id = exp.get("amazon_experiment_id", "")
+    if amazon_id:
+        status_data = await get_amazon_experiment_status(email, amazon_id, exp.get("marketplace", "amazon_fr"))
+        new_status = status_data.get("status") or status_data.get("amazon_status", "")
+        if new_status and new_status != exp.get("amazon_status"):
+            update_ab_experiment(exp_id, email, amazon_status=new_status)
+            exp["amazon_status"] = new_status
+        exp["amazon_data"] = status_data
+
+    return exp
+
+
+@app.delete("/api/ab-test/experiments/{exp_id}")
+async def ab_test_delete_experiment(exp_id: str, request: Request):
+    email = request.state.user_email
+    exp = get_ab_experiment(exp_id, email)
+    if not exp:
+        raise HTTPException(404, "Expérience introuvable")
+
+    amazon_id = exp.get("amazon_experiment_id", "")
+    if amazon_id and exp.get("amazon_status") == "RUNNING":
+        try:
+            await cancel_amazon_experiment(email, amazon_id)
+        except Exception:
+            pass
+
+    if not delete_ab_experiment(exp_id, email):
+        raise HTTPException(404, "Expérience introuvable")
+    return {"ok": True}
+
+
+@app.patch("/api/ab-test/experiments/{exp_id}/winner")
+async def ab_test_set_winner(exp_id: str, body: dict, request: Request):
+    email = request.state.user_email
+    winner = body.get("winner", "")
+    if winner not in ("A", "B", ""):
+        raise HTTPException(400, "winner doit être 'A', 'B' ou ''")
+    if not update_ab_experiment(exp_id, email, winner=winner):
+        raise HTTPException(404, "Expérience introuvable")
     return {"ok": True}

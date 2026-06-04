@@ -976,6 +976,10 @@
     <button id="modeTrackBtn" onclick="switchAppMode('track')" class="flex items-center gap-2 px-5 py-2.5 text-sm font-semibold border-b-2 border-transparent text-gray-500 hover:text-gray-700 -mb-px transition">
       Suivi performance
     </button>
+    <button id="modeAbBtn" onclick="switchAppMode('ab')" class="flex items-center gap-2 px-5 py-2.5 text-sm font-semibold border-b-2 border-transparent text-gray-500 hover:text-gray-700 -mb-px transition">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3H5a2 2 0 0 0-2 2v4m6-6h10a2 2 0 0 1 2 2v4M9 3v18m0 0h10a2 2 0 0 0 2-2V9M9 21H5a2 2 0 0 1-2-2V9m0 0h18"/></svg>
+      A/B Test
+    </button>
   </div>
 
   <!-- ── Step indicator (generate mode only) ─────────────────────────────── -->
@@ -1675,6 +1679,223 @@
     </div>
   </div>
   </div><!-- /generatorSection -->
+
+  <!-- ── A/B Test section ──────────────────────────────────────────────────── -->
+  <div id="abSection" class="hidden">
+
+    <!-- Source + Config Panel -->
+    <div class="bg-white rounded-2xl shadow-sm p-6 border border-gray-100 mb-6">
+      <div class="flex items-center justify-between mb-5">
+        <h2 class="font-semibold text-gray-800 flex items-center gap-2 text-base">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3H5a2 2 0 0 0-2 2v4m6-6h10a2 2 0 0 1 2 2v4M9 3v18m0 0h10a2 2 0 0 0 2-2V9M9 21H5a2 2 0 0 1-2-2V9m0 0h18"/></svg>
+          Generateur de variantes A/B
+        </h2>
+        <span class="text-xs text-gray-400 bg-gray-50 px-3 py-1.5 rounded-full">Claude genere 2 angles strategiques en parallele</span>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div>
+          <label class="block text-xs font-semibold text-gray-500 mb-1.5 uppercase tracking-wide">Source du listing</label>
+          <select id="abSourceType" onchange="_abSourceChange()" class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-purple-300 outline-none bg-white">
+            <option value="current">Listings generes (session actuelle)</option>
+            <option value="history">Historique de generations</option>
+            <option value="manual">Saisie manuelle (titre)</option>
+          </select>
+        </div>
+        <div id="abListingSelectorWrap">
+          <label class="block text-xs font-semibold text-gray-500 mb-1.5 uppercase tracking-wide">Produit</label>
+          <select id="abListingSelect" class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-purple-300 outline-none bg-white">
+            <option value="">-- Selectionnez un produit --</option>
+          </select>
+        </div>
+        <div id="abManualWrap" class="hidden">
+          <label class="block text-xs font-semibold text-gray-500 mb-1.5 uppercase tracking-wide">Titre de base</label>
+          <input id="abManualTitle" type="text" placeholder="Ex: Collier chien Bande de Canailles taille M" class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-purple-300 outline-none">
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+        <div>
+          <label class="block text-xs font-semibold text-gray-500 mb-1.5 uppercase tracking-wide">Marketplace</label>
+          <select id="abMarketplace" class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-purple-300 outline-none bg-white">
+            <option value="amazon_fr">Amazon France</option>
+            <option value="amazon_de">Amazon Allemagne</option>
+            <option value="amazon_uk">Amazon UK</option>
+            <option value="amazon_it">Amazon Italie</option>
+            <option value="amazon_es">Amazon Espagne</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-gray-500 mb-1.5 uppercase tracking-wide">Mots-cles focus (optionnel)</label>
+          <input id="abKeywords" type="text" placeholder="collier chien, laisse, accessoire..." class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-purple-300 outline-none">
+        </div>
+        <div class="flex items-end">
+          <button onclick="_abGenerate()" id="abGenerateBtn" class="w-full gradient-bg text-white rounded-xl py-2.5 px-4 text-sm font-semibold hover:opacity-90 transition flex items-center justify-center gap-2">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+            Generer les 2 variantes
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Loading state -->
+    <div id="abLoading" class="hidden bg-white rounded-2xl border border-gray-100 shadow-sm p-12 text-center mb-6">
+      <div class="flex justify-center mb-4">
+        <div class="w-12 h-12 rounded-full border-4 border-purple-200 border-t-purple-600 animate-spin"></div>
+      </div>
+      <p class="text-gray-700 font-semibold">Generation des variantes A/B en cours...</p>
+      <p class="text-sm text-gray-400 mt-1">Claude genere 2 angles strategiques differents en parallele (~10s)</p>
+    </div>
+
+    <!-- Comparison grid -->
+    <div id="abComparison" class="hidden mb-6">
+      <div class="flex items-center gap-3 mb-4 flex-wrap">
+        <h3 class="font-semibold text-gray-800">Comparaison des variantes</h3>
+        <span id="abSkuBadge" class="text-xs bg-purple-100 text-purple-700 font-mono px-2 py-0.5 rounded-full"></span>
+        <div class="ml-auto flex items-center gap-2">
+          <button onclick="_abSaveExperiment()" id="abSaveBtn" class="text-xs border border-gray-200 hover:border-purple-400 hover:text-purple-600 text-gray-500 rounded-lg px-3 py-1.5 transition flex items-center gap-1.5">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13"/><polyline points="7 3 7 8 15 8"/></svg>
+            Sauvegarder
+          </button>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 gap-5">
+        <!-- Variant A -->
+        <div class="bg-white rounded-2xl border-2 border-amber-200 shadow-sm overflow-hidden">
+          <div class="bg-amber-50 px-5 py-3 flex items-center justify-between border-b border-amber-100">
+            <div class="flex items-center gap-2">
+              <span class="w-6 h-6 rounded-full bg-amber-400 text-white text-xs font-bold flex items-center justify-center">A</span>
+              <span class="font-semibold text-amber-800 text-sm">Variante Benefice</span>
+            </div>
+            <span id="abScoreA" class="text-xs font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700"></span>
+          </div>
+          <div class="p-5 space-y-4">
+            <div>
+              <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1.5">Titre</p>
+              <p id="abTitleA" class="text-sm text-gray-800 font-medium leading-snug"></p>
+              <div class="flex items-center gap-2 mt-1.5">
+                <span id="abTitleLenA" class="text-xs text-gray-400"></span>
+                <button onclick="_abCopy('abTitleA')" class="text-xs text-purple-500 hover:text-purple-700 transition">Copier</button>
+              </div>
+            </div>
+            <div>
+              <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1.5">Bullet points</p>
+              <ul id="abBulletsA" class="space-y-1.5 text-xs text-gray-700"></ul>
+            </div>
+            <div>
+              <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1.5">Keywords backend</p>
+              <p id="abKwA" class="text-xs text-gray-500 font-mono break-all"></p>
+            </div>
+            <div class="flex gap-2 pt-1">
+              <button onclick="_abPickVariant('A')" class="flex-1 bg-amber-500 hover:bg-amber-600 text-white rounded-xl py-2.5 text-sm font-semibold transition">
+                Utiliser A
+              </button>
+              <button onclick="_abCopyAll('A')" title="Copier titre + bullets + keywords" class="px-3.5 bg-amber-50 hover:bg-amber-100 text-amber-700 rounded-xl py-2.5 text-sm transition">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Variant B -->
+        <div class="bg-white rounded-2xl border-2 border-blue-200 shadow-sm overflow-hidden">
+          <div class="bg-blue-50 px-5 py-3 flex items-center justify-between border-b border-blue-100">
+            <div class="flex items-center gap-2">
+              <span class="w-6 h-6 rounded-full bg-blue-500 text-white text-xs font-bold flex items-center justify-center">B</span>
+              <span class="font-semibold text-blue-800 text-sm">Variante Precision</span>
+            </div>
+            <span id="abScoreB" class="text-xs font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700"></span>
+          </div>
+          <div class="p-5 space-y-4">
+            <div>
+              <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1.5">Titre</p>
+              <p id="abTitleB" class="text-sm text-gray-800 font-medium leading-snug"></p>
+              <div class="flex items-center gap-2 mt-1.5">
+                <span id="abTitleLenB" class="text-xs text-gray-400"></span>
+                <button onclick="_abCopy('abTitleB')" class="text-xs text-purple-500 hover:text-purple-700 transition">Copier</button>
+              </div>
+            </div>
+            <div>
+              <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1.5">Bullet points</p>
+              <ul id="abBulletsB" class="space-y-1.5 text-xs text-gray-700"></ul>
+            </div>
+            <div>
+              <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1.5">Keywords backend</p>
+              <p id="abKwB" class="text-xs text-gray-500 font-mono break-all"></p>
+            </div>
+            <div class="flex gap-2 pt-1">
+              <button onclick="_abPickVariant('B')" class="flex-1 bg-blue-500 hover:bg-blue-600 text-white rounded-xl py-2.5 text-sm font-semibold transition">
+                Utiliser B
+              </button>
+              <button onclick="_abCopyAll('B')" title="Copier titre + bullets + keywords" class="px-3.5 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-xl py-2.5 text-sm transition">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Amazon Experiment Push (Phase 2) -->
+      <div id="abAmazonSection" class="mt-5 bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+        <div class="flex items-center gap-2 mb-4">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+          <h4 class="font-semibold text-gray-800 text-sm">Lancer sur Amazon Manage Your Experiments</h4>
+          <span class="ml-auto text-xs text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full font-medium">Brand Registry requis</span>
+        </div>
+        <div id="abAmazonNotConnected" class="text-sm text-amber-700 bg-amber-50 rounded-xl p-3 mb-3">
+          Connectez votre Seller Central pour lancer des experiences Amazon en direct.
+        </div>
+        <div id="abAmazonForm">
+          <div class="grid grid-cols-3 gap-3 mb-3">
+            <div>
+              <label class="block text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wide">ASIN du produit</label>
+              <input id="abAsin" type="text" placeholder="B0XXXXXXXXX" maxlength="12" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm font-mono focus:ring-2 focus:ring-amber-300 outline-none uppercase">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wide">Nom de l'experience</label>
+              <input id="abExpName" type="text" placeholder="Test titre Q3 2025" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-amber-300 outline-none">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wide">Duree</label>
+              <select id="abDuration" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-amber-300 outline-none bg-white">
+                <option value="30">30 jours</option>
+                <option value="45">45 jours</option>
+                <option value="60">60 jours</option>
+                <option value="90">90 jours</option>
+              </select>
+            </div>
+          </div>
+          <div class="flex items-center gap-3">
+            <button onclick="_abPushToAmazon()" id="abPushBtn" class="bg-amber-500 hover:bg-amber-600 text-white rounded-xl px-5 py-2.5 text-sm font-semibold transition flex items-center gap-2">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+              Lancer sur Amazon
+            </button>
+            <p class="text-xs text-gray-400">Amazon sert aleatoirement les 2 variantes de titre a vos acheteurs et mesure la conversion</p>
+          </div>
+          <div id="abPushResult" class="hidden mt-3"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Experiments history -->
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="font-semibold text-gray-800 text-sm flex items-center gap-2">
+          Mes experiences A/B
+          <span id="abExpCount" class="text-xs bg-purple-100 text-purple-700 font-bold px-1.5 py-0.5 rounded-full">0</span>
+        </h3>
+        <button onclick="_abLoadExperiments()" class="text-xs text-gray-400 hover:text-purple-600 transition" title="Rafraichir">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+        </button>
+      </div>
+      <div id="abExperimentsList">
+        <p class="text-sm text-gray-400 text-center py-6">Aucune experience sauvegardee.</p>
+      </div>
+    </div>
+
+  </div>
+
 </main>
 </div><!-- /app -->
 
@@ -7782,6 +8003,333 @@ function _auditSendToGen() {
   switchAppMode('generate');
   setStep(2);
   showToast('✅', 'Fiche chargée dans le générateur — complétez marque/catégorie puis lancez');
+}
+
+// ── A/B Testing ──────────────────────────────────────────────────────────────
+
+let _abCurrentVariants = null;
+let _abCurrentExpId = null;
+
+const _origSwitchAppModeAB = switchAppMode;
+switchAppMode = function(mode) {
+  document.getElementById('abSection').classList.add('hidden');
+  if (typeof _TAB_INACTIVE !== 'undefined') {
+    document.getElementById('modeAbBtn').className = _TAB_INACTIVE;
+  }
+  if (mode === 'ab') {
+    ['auditSection','generatorSection','stepBar','trackSection'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.classList.add('hidden');
+    });
+    document.getElementById('abSection').classList.remove('hidden');
+    document.getElementById('modeGenerateBtn').className = _TAB_INACTIVE;
+    document.getElementById('modeAuditBtn').className    = _TAB_INACTIVE;
+    document.getElementById('modeTrackBtn').className    = _TAB_INACTIVE;
+    document.getElementById('modeAbBtn').className       = _TAB_ACTIVE;
+    _abInit();
+  } else {
+    _origSwitchAppModeAB(mode);
+  }
+};
+
+async function _abInit() {
+  _abSourceChange();
+  _abLoadExperiments();
+  try {
+    const r = await authFetch('/api/amazon/status');
+    if (r.ok) {
+      const data = await r.json();
+      const notConn = document.getElementById('abAmazonNotConnected');
+      const form = document.getElementById('abAmazonForm');
+      if (notConn) notConn.classList.toggle('hidden', data.connected);
+      if (form) form.classList.toggle('hidden', !data.connected);
+    }
+  } catch(e) {}
+}
+
+function _abSourceChange() {
+  const type = document.getElementById('abSourceType').value;
+  const sWrap = document.getElementById('abListingSelectorWrap');
+  const mWrap = document.getElementById('abManualWrap');
+  if (type === 'manual') {
+    sWrap.classList.add('hidden');
+    mWrap.classList.remove('hidden');
+  } else {
+    sWrap.classList.remove('hidden');
+    mWrap.classList.add('hidden');
+    _abPopulateListings(type);
+  }
+}
+
+function _abPopulateListings(type) {
+  const sel = document.getElementById('abListingSelect');
+  sel.innerHTML = '<option value="">-- Selectionnez un produit --</option>';
+  if (type === 'current') {
+    const listings = (typeof generatedListings !== 'undefined' ? generatedListings : []) || [];
+    listings.forEach((l, i) => {
+      const opt = document.createElement('option');
+      opt.value = i;
+      opt.textContent = (l.sku || ('Produit ' + (i+1))) + ' — ' + (l.title || '').substring(0, 60);
+      opt.dataset.listing = JSON.stringify(l);
+      sel.appendChild(opt);
+    });
+    if (!listings.length) sel.innerHTML = '<option value="">Aucun listing en session — generez d'abord des fiches</option>';
+  } else if (type === 'history') {
+    authFetch('/api/history').then(r => r.json()).then(items => {
+      (items || []).forEach(b => {
+        const opt = document.createElement('option');
+        opt.value = b.id;
+        const d = new Date(b.created_at).toLocaleDateString('fr-FR');
+        opt.textContent = (b.label || d) + ' · ' + b.product_count + ' produit(s)';
+        opt.dataset.batchId = b.id;
+        sel.appendChild(opt);
+      });
+      if (!items.length) sel.innerHTML = '<option value="">Aucune generation dans l'historique</option>';
+    }).catch(() => {});
+  }
+}
+
+async function _abGetSelectedListing() {
+  const type = document.getElementById('abSourceType').value;
+  if (type === 'manual') {
+    const title = document.getElementById('abManualTitle').value.trim();
+    if (!title) { showToast('', 'Saisissez un titre de base'); return null; }
+    return { sku: 'test', title, name: title, brand: '', category: '' };
+  }
+  const sel = document.getElementById('abListingSelect');
+  const val = sel.value;
+  if (!val) { showToast('', 'Selectionnez un produit'); return null; }
+  if (type === 'current') {
+    try { return JSON.parse(sel.options[sel.selectedIndex].dataset.listing || 'null'); } catch(e) { return null; }
+  }
+  if (type === 'history') {
+    try {
+      const r = await authFetch('/api/history/' + val);
+      const batch = await r.json();
+      const listings = batch.listings || [];
+      if (!listings.length) { showToast('', 'Aucune fiche dans ce lot'); return null; }
+      return listings[0];
+    } catch(e) { return null; }
+  }
+  return null;
+}
+
+async function _abGenerate() {
+  const listing = await _abGetSelectedListing();
+  if (!listing) return;
+  const marketplace = document.getElementById('abMarketplace').value;
+  const kwRaw = document.getElementById('abKeywords').value.trim();
+  const keywords = kwRaw ? kwRaw.split(',').map(k => k.trim()).filter(Boolean) : [];
+  document.getElementById('abLoading').classList.remove('hidden');
+  document.getElementById('abComparison').classList.add('hidden');
+  document.getElementById('abGenerateBtn').disabled = true;
+  document.getElementById('abGenerateBtn').textContent = 'Generation...';
+  try {
+    const r = await authFetch('/api/ab-test/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ listing, marketplace, focus_keywords: keywords }),
+    });
+    if (!r.ok) {
+      const err = await r.json().catch(() => ({}));
+      throw new Error(err.detail || 'Erreur de generation');
+    }
+    const data = await r.json();
+    _abCurrentVariants = data;
+    _abCurrentExpId = null;
+    _abRenderComparison(data);
+    document.getElementById('abComparison').classList.remove('hidden');
+    const sku = data.sku || '';
+    const today = new Date().toLocaleDateString('fr-FR');
+    document.getElementById('abExpName').value = 'Test A/B ' + (sku ? sku + ' ' : '') + today;
+    window.scrollTo({ top: document.getElementById('abComparison').offsetTop - 80, behavior: 'smooth' });
+  } catch(e) {
+    showToast('', e.message || 'Erreur de generation');
+  } finally {
+    document.getElementById('abLoading').classList.add('hidden');
+    document.getElementById('abGenerateBtn').disabled = false;
+    document.getElementById('abGenerateBtn').innerHTML = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg> Generer les 2 variantes';
+  }
+}
+
+function _abRenderComparison(data) {
+  const { variant_a: va, variant_b: vb, sku } = data;
+  document.getElementById('abSkuBadge').textContent = sku || '';
+  const titleA = va.title || '';
+  document.getElementById('abTitleA').textContent = titleA;
+  document.getElementById('abTitleLenA').textContent = titleA.length + '/200 chars';
+  document.getElementById('abBulletsA').innerHTML = (va.bullet_points || []).map(b =>
+    '<li class="flex gap-1.5"><span class="text-amber-400 flex-shrink-0 mt-0.5">&#x2022;</span><span>' + b + '</span></li>'
+  ).join('');
+  document.getElementById('abKwA').textContent = va.backend_keywords || '';
+  const sA = va.seo_score || 0;
+  document.getElementById('abScoreA').textContent = 'Score ' + sA + '/100';
+  const titleB = vb.title || '';
+  document.getElementById('abTitleB').textContent = titleB;
+  document.getElementById('abTitleLenB').textContent = titleB.length + '/200 chars';
+  document.getElementById('abBulletsB').innerHTML = (vb.bullet_points || []).map(b =>
+    '<li class="flex gap-1.5"><span class="text-blue-400 flex-shrink-0 mt-0.5">&#x2022;</span><span>' + b + '</span></li>'
+  ).join('');
+  document.getElementById('abKwB').textContent = vb.backend_keywords || '';
+  const sB = vb.seo_score || 0;
+  document.getElementById('abScoreB').textContent = 'Score ' + sB + '/100';
+}
+
+function _abCopy(elementId) {
+  const el = document.getElementById(elementId);
+  navigator.clipboard.writeText(el.textContent || '').then(() => showToast('', 'Copie !'));
+}
+
+function _abCopyAll(variant) {
+  if (!_abCurrentVariants) return;
+  const v = variant === 'A' ? _abCurrentVariants.variant_a : _abCurrentVariants.variant_b;
+  const lines = ['TITRE: ' + (v.title || ''), '', 'BULLETS:'];
+  (v.bullet_points || []).forEach((b, i) => lines.push((i+1) + '. ' + b));
+  lines.push('', 'KEYWORDS BACKEND: ' + (v.backend_keywords || ''));
+  navigator.clipboard.writeText(lines.join('\n')).then(() => showToast('', 'Variante ' + variant + ' copiee !'));
+}
+
+function _abPickVariant(variant) {
+  if (!_abCurrentVariants) return;
+  const v = variant === 'A' ? _abCurrentVariants.variant_a : _abCurrentVariants.variant_b;
+  const label = variant === 'A' ? 'Benefice' : 'Precision';
+  window._abPickedVariant = { variant, listing: v, sku: _abCurrentVariants.sku };
+  showToast('', 'Variante ' + variant + ' (' + label + ') selectionnee');
+}
+
+async function _abSaveExperiment() {
+  if (!_abCurrentVariants) return;
+  const btn = document.getElementById('abSaveBtn');
+  btn.disabled = true;
+  try {
+    const r = await authFetch('/api/ab-test/experiments', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sku: _abCurrentVariants.sku,
+        marketplace: _abCurrentVariants.marketplace,
+        name: document.getElementById('abExpName').value || ('Test A/B ' + _abCurrentVariants.sku),
+        variant_a: _abCurrentVariants.variant_a,
+        variant_b: _abCurrentVariants.variant_b,
+      }),
+    });
+    if (!r.ok) throw new Error('Erreur sauvegarde');
+    const data = await r.json();
+    _abCurrentExpId = data.id;
+    showToast('', 'Experience sauvegardee');
+    _abLoadExperiments();
+  } catch(e) {
+    showToast('', 'Erreur de sauvegarde');
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+async function _abPushToAmazon() {
+  if (!_abCurrentVariants) { showToast('', 'Generez d'abord les variantes'); return; }
+  const asin = document.getElementById('abAsin').value.trim().toUpperCase();
+  if (!asin || asin.length < 10) { showToast('', 'ASIN invalide (format B0XXXXXXXXX)'); return; }
+  const btn = document.getElementById('abPushBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<div class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div> Envoi...';
+  try {
+    const r = await authFetch('/api/ab-test/experiments', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sku: _abCurrentVariants.sku,
+        asin,
+        marketplace: _abCurrentVariants.marketplace,
+        name: document.getElementById('abExpName').value || ('Test A/B ' + asin),
+        variant_a: _abCurrentVariants.variant_a,
+        variant_b: _abCurrentVariants.variant_b,
+        push_to_amazon: true,
+        duration_days: parseInt(document.getElementById('abDuration').value, 10),
+      }),
+    });
+    const data = await r.json();
+    const resultEl = document.getElementById('abPushResult');
+    resultEl.classList.remove('hidden');
+    if (data.amazon_error) {
+      resultEl.innerHTML = '<div class="bg-red-50 border border-red-200 rounded-xl p-3 text-sm text-red-700">Erreur Amazon : ' + data.amazon_error + '</div>';
+    } else if (data.amazon) {
+      const expId = data.amazon.experiment_id || 'en cours';
+      resultEl.innerHTML = '<div class="bg-green-50 border border-green-200 rounded-xl p-3 text-sm text-green-700">Experience lancee sur Amazon (ID: ' + expId + ') — verifiez dans Seller Central > Manage Your Experiments</div>';
+    }
+    _abCurrentExpId = data.id;
+    _abLoadExperiments();
+  } catch(e) {
+    showToast('', 'Erreur: ' + (e.message || ''));
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg> Lancer sur Amazon';
+  }
+}
+
+async function _abLoadExperiments() {
+  try {
+    const r = await authFetch('/api/ab-test/experiments');
+    if (!r.ok) return;
+    const experiments = await r.json();
+    const cnt = document.getElementById('abExpCount');
+    if (cnt) cnt.textContent = experiments.length;
+    _abRenderExperiments(experiments);
+  } catch(e) {}
+}
+
+function _abRenderExperiments(experiments) {
+  const el = document.getElementById('abExperimentsList');
+  if (!experiments || !experiments.length) {
+    el.innerHTML = '<p class="text-sm text-gray-400 text-center py-6">Aucune experience sauvegardee.</p>';
+    return;
+  }
+  const STATUS_COLORS = { RUNNING:'bg-green-100 text-green-700', COMPLETED:'bg-blue-100 text-blue-700', CANCELLED:'bg-gray-100 text-gray-500', PAUSED:'bg-amber-100 text-amber-700', draft:'bg-gray-100 text-gray-500' };
+  const MKT = { amazon_fr:'FR', amazon_de:'DE', amazon_uk:'UK', amazon_it:'IT', amazon_es:'ES', amazon_nl:'NL' };
+  el.innerHTML = experiments.map(e => {
+    const d = new Date(e.created_at).toLocaleDateString('fr-FR');
+    const status = e.amazon_status || 'draft';
+    const statusCls = STATUS_COLORS[status] || 'bg-gray-100 text-gray-500';
+    const statusLabel = status === 'draft' ? 'Brouillon' : status;
+    const winner = e.winner ? '<span class="ml-1 text-xs bg-purple-100 text-purple-700 font-bold px-1.5 py-0.5 rounded-full">Gagnant: ' + e.winner + '</span>' : '';
+    const mkt = MKT[e.marketplace] || e.marketplace || '';
+    const meta = [e.sku ? 'SKU: ' + e.sku : '', e.asin ? 'ASIN: ' + e.asin : '', mkt, d].filter(Boolean).join(' · ');
+    return '<div class="flex items-center gap-3 py-3 border-b border-gray-50 last:border-0">' +
+      '<div class="flex-1 min-w-0">' +
+        '<div class="flex items-center gap-1.5 flex-wrap">' +
+          '<span class="text-sm font-medium text-gray-800 truncate">' + (e.name || 'Sans nom') + '</span>' + winner +
+        '</div>' +
+        '<div class="text-xs text-gray-400 mt-0.5">' + meta + '</div>' +
+      '</div>' +
+      '<span class="text-xs font-semibold px-2 py-0.5 rounded-full flex-shrink-0 ' + statusCls + '">' + statusLabel + '</span>' +
+      '<div class="flex gap-1 flex-shrink-0">' +
+        '<button onclick="_abViewExperiment('' + e.id + '')" class="text-xs bg-purple-50 hover:bg-purple-100 text-purple-600 px-2.5 py-1.5 rounded-lg transition">Voir</button>' +
+        '<button onclick="_abDeleteExperiment('' + e.id + '')" class="text-xs bg-red-50 hover:bg-red-100 text-red-500 px-2.5 py-1.5 rounded-lg transition">Suppr.</button>' +
+      '</div></div>';
+  }).join('');
+}
+
+async function _abViewExperiment(expId) {
+  try {
+    const r = await authFetch('/api/ab-test/experiments/' + expId);
+    if (!r.ok) return;
+    const exp = await r.json();
+    _abCurrentVariants = { variant_a: exp.variant_a, variant_b: exp.variant_b, sku: exp.sku, marketplace: exp.marketplace };
+    _abCurrentExpId = expId;
+    _abRenderComparison(_abCurrentVariants);
+    document.getElementById('abComparison').classList.remove('hidden');
+    document.getElementById('abAsin').value = exp.asin || '';
+    document.getElementById('abExpName').value = exp.name || '';
+    document.getElementById('abSkuBadge').textContent = exp.sku || '';
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  } catch(e) {}
+}
+
+async function _abDeleteExperiment(expId) {
+  if (!confirm('Supprimer cette experience ?')) return;
+  try {
+    const r = await authFetch('/api/ab-test/experiments/' + expId, { method: 'DELETE' });
+    if (r.ok) { showToast('', 'Experience supprimee'); _abLoadExperiments(); }
+  } catch(e) {}
 }
 </script>
 
