@@ -10,6 +10,16 @@ from dotenv import load_dotenv
 from app.logger import log
 load_dotenv(override=False)  # local dev only — Railway injects vars directly
 
+if os.getenv("SENTRY_DSN"):
+    import sentry_sdk
+    from sentry_sdk.integrations.fastapi import FastApiIntegration
+    sentry_sdk.init(
+        dsn=os.getenv("SENTRY_DSN"),
+        integrations=[FastApiIntegration()],
+        traces_sample_rate=0.1,
+        send_default_pii=False,
+    )
+
 from collections import defaultdict
 from threading import Lock as _Lock
 from typing import List, Optional

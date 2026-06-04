@@ -126,6 +126,39 @@ Besoin d'aide ? Répondez directement à cet email.
     _send(to_email, subject, text, html)
 
 
+def send_password_reset(to_email: str, reset_url: str):
+    subject = "Réinitialisation de votre mot de passe SynqIO"
+    text = f"""Bonjour,
+
+Vous avez demandé la réinitialisation de votre mot de passe SynqIO.
+
+Cliquez sur ce lien (valable 1 heure) :
+{reset_url}
+
+Si vous n'avez pas fait cette demande, ignorez cet email — votre mot de passe reste inchangé.
+
+— L'équipe SynqIO
+"""
+    html = f"""<!DOCTYPE html>
+<html><head><meta charset="utf-8"></head>
+<body style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:24px;color:#1f2937">
+  <div style="background:linear-gradient(135deg,#7c3aed,#4f46e5);border-radius:16px;padding:32px;text-align:center;margin-bottom:28px">
+    <h1 style="color:white;margin:0;font-size:26px;font-weight:800">SynqIO</h1>
+    <p style="color:rgba(255,255,255,0.85);margin-top:8px;font-size:16px">Réinitialisation du mot de passe</p>
+  </div>
+  <p style="font-size:15px;margin-bottom:20px">Vous avez demandé la réinitialisation de votre mot de passe.</p>
+  <div style="background:#f5f3ff;border-radius:12px;padding:20px;margin-bottom:24px;text-align:center">
+    <p style="font-size:13px;color:#6b7280;margin:0 0 12px">Ce lien est valable <strong>1 heure</strong>.</p>
+    <a href="{reset_url}" style="display:inline-block;background:linear-gradient(135deg,#7c3aed,#4f46e5);color:white;padding:14px 32px;border-radius:12px;font-weight:700;text-decoration:none;font-size:15px">
+      Réinitialiser mon mot de passe →
+    </a>
+  </div>
+  <p style="font-size:13px;color:#9ca3af;text-align:center">Si vous n'avez pas fait cette demande, ignorez cet email.</p>
+  <p style="color:#9ca3af;font-size:13px;margin-top:24px;text-align:center">— L'équipe SynqIO</p>
+</body></html>"""
+    _send(to_email, subject, text, html)
+
+
 def send_batch_complete(to_email: str, count: int, plan_label: str):
     subject = f"✅ SynqIO — {count} fiche(s) générée(s)"
     text = f"""Bonjour,

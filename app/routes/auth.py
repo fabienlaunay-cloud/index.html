@@ -258,6 +258,90 @@ async def reset_admin_password(req: ResetAdminRequest):
     return {"status": "ok", "message": f"Mot de passe réinitialisé pour {req.email}"}
 
 
+class ForgotPasswordRequest(BaseModel):
+    email: str
+
+
+class ResetPasswordRequest(BaseModel):
+    token: str
+    new_password: str
+
+
+@router.post("/forgot-password")
+async def forgot_password(req: ForgotPasswordRequest):
+    """Génère un token de reset et envoie l'email — silencieux si l'email n'existe pas."""
+    email = req.email.lower().strip()
+    conn = get_db()
+    user = conn.execute("SELECT 1 FROM users WHERE email = ? AND is_active = 1", (email,)).fetchone()
+    if user:
+        token = secrets.token_urlsafe(32)
+        expires = (datetime.datetime.utcnow() + datetime.timedelta(hours=1)).isoformat()
+        conn.execute("UPDATE password_reset_tokens SET used = 1 WHERE email = ? AND used = 0", (email,))
+        conn.execute(
+            "INSERT INTO password_reset_tokens (token, email, expires_at) VALUES (?, ?, ?)",
+            (token, email, expires),
+        )
+        conn.commit()
+        conn.close()
+        try:
+            from app.services.email import send_password_reset
+            import asyncio
+            app_url = os.getenv("APP_URL", "https://synqio.com").rstrip("/")
+            reset_url = f"{app_url}/?reset={token}"
+            asyncio.get_event_loop().run_in_executor(None, send_password_reset, email, reset_url)
+        except Exception:
+            pass
+    else:
+        conn.close()
+    return {"status": "ok", "message": "Si cet email existe, un lien de réinitialisation a été envoyé."}
+
+
+@router.get("/reset-password/{token}")
+async def validate_reset_token(token: str):
+    conn = get_db()
+    row = conn.execute(
+        "SELECT email, expires_at, used FROM password_reset_tokens WHERE token = ?", (token,)
+    ).fetchone()
+    conn.close()
+    if not row or int(row["used"] or 0):
+        raise HTTPException(404, "Lien invalide ou déjà utilisé")
+    try:
+        expires = datetime.datetime.fromisoformat(str(row["expires_at"]))
+    except Exception:
+        raise HTTPException(404, "Lien invalide")
+    if datetime.datetime.utcnow() > expires:
+        raise HTTPException(410, "Lien expiré (1h max)")
+    return {"email": row["email"], "valid": True}
+
+
+@router.post("/reset-password")
+async def reset_password(req: ResetPasswordRequest):
+    _validate_password(req.new_password)
+    conn = get_db()
+    row = conn.execute(
+        "SELECT email, expires_at, used FROM password_reset_tokens WHERE token = ?", (req.token,)
+    ).fetchone()
+    if not row or int(row["used"] or 0):
+        conn.close()
+        raise HTTPException(404, "Lien invalide ou déjà utilisé")
+    try:
+        expires = datetime.datetime.fromisoformat(str(row["expires_at"]))
+    except Exception:
+        conn.close()
+        raise HTTPException(404, "Lien invalide")
+    if datetime.datetime.utcnow() > expires:
+        conn.close()
+        raise HTTPException(410, "Lien expiré")
+    email = row["email"]
+    new_hash = hash_password(req.new_password)
+    conn.execute("UPDATE users SET password_hash = ? WHERE email = ?", (new_hash, email))
+    conn.execute("UPDATE password_reset_tokens SET used = 1 WHERE token = ?", (req.token,))
+    conn.commit()
+    conn.close()
+    token = create_token(email)
+    return {"token": token, "email": email}
+
+
 @router.get("/me")
 async def me(authorization: str = Header(None)):
     if not authorization or not authorization.startswith("Bearer "):
