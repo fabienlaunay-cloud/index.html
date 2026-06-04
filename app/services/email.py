@@ -34,7 +34,49 @@ def _send(to: str, subject: str, text: str, html: str):
         pass  # never block user flow due to email failure
 
 
-def send_welcome(to_email: str):
+def send_invite(to_email: str, invite_url: str, name: str = ""):
+    greeting = f"Bonjour {name}," if name else "Bonjour,"
+    subject = "Votre accès SynqIO — activez votre compte"
+    text = f"""{greeting}
+
+Vous avez été invité(e) à rejoindre SynqIO, la plateforme d'optimisation de fiches Amazon.
+
+Activez votre compte en cliquant sur ce lien (valable 72h) :
+{invite_url}
+
+Ce lien est personnel et à usage unique.
+
+— L'équipe SynqIO
+"""
+    html = f"""<!DOCTYPE html>
+<html><head><meta charset="utf-8"></head>
+<body style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:24px;color:#1f2937">
+  <div style="background:linear-gradient(135deg,#7c3aed,#4f46e5);border-radius:16px;padding:32px;text-align:center;margin-bottom:28px">
+    <h1 style="color:white;margin:0;font-size:26px;font-weight:800">SynqIO</h1>
+    <p style="color:rgba(255,255,255,0.85);margin-top:8px;font-size:16px">Votre invitation est prête</p>
+  </div>
+  <p style="font-size:15px;margin-bottom:8px">{greeting}</p>
+  <p style="font-size:15px;color:#374151;margin-bottom:24px">
+    Vous avez été invité(e) à rejoindre <strong>SynqIO</strong>, la plateforme d'optimisation de fiches Amazon alimentée par l'IA.
+  </p>
+  <div style="background:#f5f3ff;border-radius:12px;padding:20px;margin-bottom:24px;text-align:center">
+    <p style="font-size:13px;color:#6b7280;margin:0 0 12px">Ce lien est valable <strong>72 heures</strong> et à usage unique.</p>
+    <a href="{invite_url}" style="display:inline-block;background:linear-gradient(135deg,#7c3aed,#4f46e5);color:white;padding:14px 32px;border-radius:12px;font-weight:700;text-decoration:none;font-size:15px">
+      Activer mon compte →
+    </a>
+  </div>
+  <div style="background:#f9fafb;border-radius:10px;padding:16px;margin-bottom:24px">
+    <p style="font-size:12px;color:#9ca3af;margin:0 0 6px">Ou copiez ce lien dans votre navigateur :</p>
+    <p style="font-size:11px;color:#6b7280;word-break:break-all;margin:0">{invite_url}</p>
+  </div>
+  <p style="color:#9ca3af;font-size:13px;margin-top:32px;text-align:center">
+    Besoin d'aide ? Répondez à cet email.<br>— L'équipe SynqIO
+  </p>
+</body></html>"""
+    _send(to_email, subject, text, html)
+
+
+
     subject = "🎉 Bienvenue sur SynqIO — vos accès sont prêts"
     text = f"""Bonjour,
 

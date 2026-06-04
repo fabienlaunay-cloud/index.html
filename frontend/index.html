@@ -3749,9 +3749,8 @@ async function resendInvite(email) {
     const data = await r.json();
     if (!r.ok) throw new Error(data.detail);
     _showInviteLink(data.invite_token);
-    // Scroll to top of admin panel
     document.getElementById('adminPanelClients').scrollIntoView({ behavior: 'smooth' });
-    showToast('', `Nouveau lien généré pour ${email}`);
+    showToast('', `Lien envoyé par email à ${email}`);
   } catch (e) {
     showToast('', `Erreur : ${e.message}`);
   }

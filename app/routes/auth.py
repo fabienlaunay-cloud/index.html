@@ -281,14 +281,25 @@ async def get_users(authorization: str = Header(None)):
     return list_users()
 
 
+def _send_invite_email(email: str, invite_token: str, name: str = ""):
+    try:
+        from app.services.email import send_invite
+        import asyncio
+        app_url = os.getenv("APP_URL", "https://synqio.com").rstrip("/")
+        invite_url = f"{app_url}/?invite={invite_token}"
+        asyncio.get_event_loop().run_in_executor(None, send_invite, email, invite_url, name)
+    except Exception:
+        pass
+
+
 @admin_router.post("/users")
 async def add_user(req: CreateUserRequest, authorization: str = Header(None)):
     _require_admin(authorization)
     try:
-        # Mot de passe temporaire aléatoire — le client définira le sien via le lien
         temp_pw = req.password if req.password else secrets.token_hex(16)
         user = create_user(req.email, temp_pw, req.name)
         invite_token = _make_invite_token(req.email)
+        _send_invite_email(req.email, invite_token, req.name)
         return {"status": "created", "invite_token": invite_token, **user}
     except ValueError as e:
         raise HTTPException(400, str(e))
@@ -298,12 +309,13 @@ async def add_user(req: CreateUserRequest, authorization: str = Header(None)):
 async def resend_invite(email: str, authorization: str = Header(None)):
     _require_admin(authorization)
     conn = get_db()
-    exists = conn.execute("SELECT 1 FROM users WHERE email = ?", (email.lower(),)).fetchone()
+    row = conn.execute("SELECT name FROM users WHERE email = ?", (email.lower(),)).fetchone()
     conn.close()
-    if not exists:
+    if not row:
         raise HTTPException(404, "Utilisateur introuvable")
     invite_token = _make_invite_token(email)
-    return {"invite_token": invite_token}
+    _send_invite_email(email, invite_token, row["name"] if row["name"] else "")
+    return {"invite_token": invite_token, "email_sent": True}
 
 
 @admin_router.delete("/users/{email}")
