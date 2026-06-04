@@ -880,6 +880,25 @@
   </div>
 </div>
 
+<!-- ── Onboarding banner: connecter Seller Central ─────────────────────────── -->
+<div id="onboardingAmazonBanner" class="hidden bg-amber-50 border-b border-amber-200">
+  <div class="max-w-7xl mx-auto px-6 py-3 flex items-center gap-4 flex-wrap">
+    <div class="flex items-center gap-3 flex-1 min-w-0">
+      <span class="shrink-0 text-amber-500">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+      </span>
+      <div>
+        <p class="text-amber-900 font-semibold text-sm">Connectez votre Amazon Seller Central</p>
+        <p class="text-amber-700 text-xs">Publiez vos fiches directement sur Amazon en un clic depuis SynqIO.</p>
+      </div>
+    </div>
+    <div class="flex items-center gap-3 shrink-0">
+      <button onclick="_connectAmazonOnboarding()" class="bg-amber-500 hover:bg-amber-600 text-white rounded-lg px-4 py-1.5 text-sm font-semibold transition">Connecter mon Seller Central →</button>
+      <button onclick="_dismissOnboardingBanner()" class="text-amber-500 hover:text-amber-700 text-xs underline transition">Plus tard</button>
+    </div>
+  </div>
+</div>
+
 <header class="gradient-bg text-white shadow-lg">
   <div class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
     <div class="flex items-center gap-3">
@@ -2776,6 +2795,7 @@ function showApp(email) {
     document.querySelectorAll('a[href*="calendly.com"]').forEach(a => { a.href = SYNQIO_DEMO_URL; });
     document.querySelectorAll('a[href*="solutionstmf.com"]').forEach(a => { a.href = 'mailto:' + SYNQIO_CONTACT_EMAIL; });
     document.getElementById('feedbackBtn').classList.remove('hidden');
+    _checkOnboardingBanner();
   }
 }
 
@@ -5335,8 +5355,59 @@ async function downloadZipPack() {
 
 // Écouter la fermeture du popup OAuth Amazon
 window.addEventListener('message', (e) => {
-  if (e.data === 'amazon_connected') { checkAmazonStatus(); showToast('✅', 'Seller Central connecté !'); }
+  if (e.data === 'amazon_connected') {
+    checkAmazonStatus();
+    document.getElementById('onboardingAmazonBanner')?.classList.add('hidden');
+    showToast('✅', 'Seller Central connecté !');
+  }
 });
+
+// ── Onboarding banner Amazon ─────────────────────────────────────────────────
+async function _checkOnboardingBanner() {
+  const banner = document.getElementById('onboardingAmazonBanner');
+  if (!banner) return;
+  if (sessionStorage.getItem('synqio_amazon_banner_dismissed')) return;
+  try {
+    const r = await authFetch('/api/amazon/status');
+    const data = await r.json();
+    if (!data.connected) {
+      banner.classList.remove('hidden');
+    } else {
+      _amazonConnected = true;
+      banner.classList.add('hidden');
+    }
+  } catch { /* ignore */ }
+}
+
+function _dismissOnboardingBanner() {
+  document.getElementById('onboardingAmazonBanner')?.classList.add('hidden');
+  sessionStorage.setItem('synqio_amazon_banner_dismissed', '1');
+}
+
+async function _connectAmazonOnboarding() {
+  const popup = window.open('about:blank', 'amazon_oauth', 'width=820,height=720,scrollbars=yes,resizable=yes');
+  try {
+    const r = await authFetch('/api/amazon/connect');
+    const data = await r.json();
+    const errMsg = data.error || data.detail;
+    if (errMsg || !data.url) {
+      if (popup) popup.close();
+      showToast('⚠️', errMsg || 'URL Amazon manquante — vérifiez AMAZON_APP_ID dans l\'admin');
+      return;
+    }
+    popup.location.href = data.url;
+    const timer = setInterval(() => {
+      if (popup && popup.closed) {
+        clearInterval(timer);
+        _checkOnboardingBanner();
+        checkAmazonStatus();
+      }
+    }, 600);
+  } catch(e) {
+    if (popup) popup.close();
+    showToast('❌', 'Erreur lors de la connexion Amazon');
+  }
+}
 
 async function showPublishModal() {
   document.getElementById('publishModal').classList.remove('hidden');
