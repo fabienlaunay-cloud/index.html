@@ -974,7 +974,7 @@
       Auditer une fiche
     </button>
     <button id="modeTrackBtn" onclick="switchAppMode('track')" class="flex items-center gap-2 px-5 py-2.5 text-sm font-semibold border-b-2 border-transparent text-gray-500 hover:text-gray-700 -mb-px transition">
-      Suivi performance
+      Suivi des performances
     </button>
     <button id="modeAbBtn" onclick="switchAppMode('ab')" class="flex items-center gap-2 px-5 py-2.5 text-sm font-semibold border-b-2 border-transparent text-gray-500 hover:text-gray-700 -mb-px transition">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3H5a2 2 0 0 0-2 2v4m6-6h10a2 2 0 0 1 2 2v4M9 3v18m0 0h10a2 2 0 0 0 2-2V9M9 21H5a2 2 0 0 1-2-2V9m0 0h18"/></svg>
@@ -1775,7 +1775,10 @@
           <div class="bg-amber-50 px-5 py-3 flex items-center justify-between border-b border-amber-100">
             <div class="flex items-center gap-2">
               <span class="w-6 h-6 rounded-full bg-amber-400 text-white text-xs font-bold flex items-center justify-center">A</span>
-              <span class="font-semibold text-amber-800 text-sm">Variante Benefice</span>
+              <div>
+                <span class="font-semibold text-amber-800 text-sm">Variante Bénéfice</span>
+                <p class="text-xs text-amber-600 mt-0.5">Angle émotionnel — le client se reconnaît</p>
+              </div>
             </div>
             <span id="abScoreA" class="text-xs font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700"></span>
           </div>
@@ -1812,7 +1815,10 @@
           <div class="bg-blue-50 px-5 py-3 flex items-center justify-between border-b border-blue-100">
             <div class="flex items-center gap-2">
               <span class="w-6 h-6 rounded-full bg-blue-500 text-white text-xs font-bold flex items-center justify-center">B</span>
-              <span class="font-semibold text-blue-800 text-sm">Variante Precision</span>
+              <div>
+                <span class="font-semibold text-blue-800 text-sm">Variante Précision</span>
+                <p class="text-xs text-blue-500 mt-0.5">Angle technique — chiffres et certifications</p>
+              </div>
             </div>
             <span id="abScoreB" class="text-xs font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700"></span>
           </div>
@@ -8197,7 +8203,7 @@ async function _abGenerate() {
   } finally {
     document.getElementById('abLoading').classList.add('hidden');
     document.getElementById('abGenerateBtn').disabled = false;
-    document.getElementById('abGenerateBtn').innerHTML = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg> Generer les 2 variantes';
+    document.getElementById('abGenerateBtn').innerHTML = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg> Générer les 2 variantes';
   }
 }
 
@@ -8241,7 +8247,7 @@ function _abCopyAll(variant) {
 function _abPickVariant(variant) {
   if (!_abCurrentVariants) return;
   const v = variant === 'A' ? _abCurrentVariants.variant_a : _abCurrentVariants.variant_b;
-  const label = variant === 'A' ? 'Benefice' : 'Precision';
+  const label = variant === 'A' ? 'Bénéfice' : 'Précision';
   window._abPickedVariant = { variant, listing: v, sku: _abCurrentVariants.sku };
   showToast('', 'Variante ' + variant + ' (' + label + ') selectionnee');
 }
