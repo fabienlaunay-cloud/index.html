@@ -687,13 +687,16 @@ async def _run_generation_job(job_id: str, request: GenerationRequest, email: st
                 skus_used = usage_data.get("skus_used", 0)
                 skus_quota = usage_data.get("skus_quota", 0)
                 if skus_quota and skus_used >= skus_quota * 0.8:
+                    from datetime import datetime as _dt
+                    current_period = _dt.utcnow().strftime("%Y-%m")
                     _conn = _get_db()
                     _row = _conn.execute(
-                        "SELECT quota_alert_sent FROM users WHERE email = ?", (email,)
+                        "SELECT quota_alert_sent, quota_alert_period FROM users WHERE email = ?", (email,)
                     ).fetchone()
                     alert_sent = int((_row["quota_alert_sent"] if _row else None) or 0)
+                    alert_period = (_row["quota_alert_period"] if _row else None) or ""
                     _conn.close()
-                    if not alert_sent:
+                    if not alert_sent or alert_period != current_period:
                         from app.services.email import send_quota_alert
                         plan_label = usage_data.get("plan_label", "")
                         asyncio.get_event_loop().run_in_executor(
@@ -701,7 +704,8 @@ async def _run_generation_job(job_id: str, request: GenerationRequest, email: st
                         )
                         _conn2 = _get_db()
                         _conn2.execute(
-                            "UPDATE users SET quota_alert_sent = 1 WHERE email = ?", (email,)
+                            "UPDATE users SET quota_alert_sent = 1, quota_alert_period = ? WHERE email = ?",
+                            (current_period, email),
                         )
                         _conn2.commit()
                         _conn2.close()
