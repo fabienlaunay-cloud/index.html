@@ -2347,7 +2347,7 @@ function _attachCounter(inputEl, counterEl, max, isByte = false) {
 const _CAT_KW = {
   alimentaire: ['café','thé','chocolat','biscuit','snack','confiture','huile','vinaigre','sauce','épice','farine','sucre','pâtes','riz','céréales','yaourt','fromage','lait','jus','boisson','bière','vin','eau','complément alimentaire','vitamine','protéine','nourriture','alimentation','food','bio','végétal','vegan'],
   textile: ['t-shirt','tshirt','chemise','pull','robe','jupe','pantalon','jean','veste','manteau','chaussette','sous-vêtement','lingerie','pyjama','survêtement','short','legging','collant','chaussure','sac à main','ceinture','écharpe','chapeau','casquette','gant','textile','vêtement','mode','fashion','hoodie','sweat'],
-  electronique: ['téléphone','smartphone','ordinateur','tablette','écran','casque','écouteur','enceinte','chargeur','câble','batterie externe','appareil photo','caméra','drone','robot aspirateur','cafetière','grille-pain','mixeur','four micro','réfrigérateur','lave-linge','télévision','tv','console','jeu vidéo','montre connectée','gps','électronique','high-tech','luminaire','ampoule','led','prise connectée'],
+  electronique: ['smartphone','ordinateur','tablette','écran','casque audio','écouteur','enceinte bluetooth','chargeur','câble usb','batterie externe','appareil photo','caméra','drone','robot aspirateur','cafetière','grille-pain','mixeur','four micro','réfrigérateur','lave-linge','télévision','tv','console de jeu','jeu vidéo','montre connectée','gps','électronique','high-tech','ampoule connectée','prise connectée'],
   beaute: ['crème','sérum','shampooing','après-shampooing','gel douche','savon','parfum','maquillage','fond de teint','rouge à lèvres','mascara','huile visage','lotion','hydratant','anti-âge','solaire','déodorant','dentifrice','rasoir','beauté','cosmétique','skincare','soin visage','soin corps','gommage','masque visage'],
   jouets: ['jouet','jeu de société','puzzle','lego','poupée','peluche','figurine','voiture télécommandée','construction','vélo enfant','trottinette enfant','jeu enfant','jouet bébé','éveil bébé','hochet','landau','poussette'],
   sport: ['vélo','tapis de course','haltère','yoga','natation','tennis','football','basketball','randonnée','camping','tente','sac de sport','gourde sport','sport','fitness','outdoor','musculation','crossfit','ski','snowboard','surf'],
@@ -2427,7 +2427,7 @@ const _CAT_RULES = {
 function _detectCategoryGroup(listing) {
   const text = ((listing.category || '') + ' ' + (listing.title || '')).toLowerCase();
   // Check longest/most-specific keywords first to avoid false positives
-  const order = ['alimentaire','textile','electronique','beaute','jouets','sport','maison','animaux'];
+  const order = ['alimentaire','animaux','textile','electronique','beaute','jouets','sport','maison'];
   for (const grp of order) {
     if ((_CAT_KW[grp] || []).some(kw => text.includes(kw))) return grp;
   }
