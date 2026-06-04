@@ -1102,6 +1102,18 @@
               placeholder="mot1 mot2 mot3… (max 249 bytes, séparés par espaces)"></textarea>
           </div>
 
+          <!-- Description -->
+          <div>
+            <div class="flex items-center justify-between mb-1">
+              <label class="text-xs font-medium text-gray-500 uppercase tracking-wide">Description</label>
+              <span id="auditDescLen" class="text-xs text-gray-400">0 chars</span>
+            </div>
+            <textarea id="auditDesc" rows="3"
+              oninput="document.getElementById('auditDescLen').textContent=this.value.length+' chars'"
+              class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm resize-y focus:outline-none focus:border-purple-400"
+              placeholder="Description du produit (optionnel — enrichit l'analyse IA)"></textarea>
+          </div>
+
           <!-- Images -->
           <div>
             <div class="flex items-center justify-between mb-1">
@@ -1143,6 +1155,7 @@
           </div>
           <p class="text-gray-700 font-semibold text-lg mb-1">Diagnostic de fiche Amazon</p>
           <p class="text-gray-400 text-sm max-w-xs">Renseignez les champs de votre fiche existante<br>et cliquez sur "Analyser la fiche"</p>
+          <button onclick="_auditLoadExample()" class="mt-4 text-xs text-purple-600 border border-purple-200 bg-purple-50 hover:bg-purple-100 rounded-lg px-4 py-2 font-semibold transition">Tester avec un exemple →</button>
           <div class="mt-6 grid grid-cols-2 gap-3 text-xs text-gray-400 max-w-xs">
             <div class="bg-gray-50 rounded-xl p-3 text-left"><div class="text-xs font-semibold text-gray-500 mb-1">Titre &amp; bullets</div>Score sur 100</div>
             <div class="bg-gray-50 rounded-xl p-3 text-left"><div class="text-xs font-semibold text-gray-500 mb-1">Keywords backend</div>Score sur 100</div>
@@ -1904,6 +1917,7 @@
         </div>
         <h3 class="text-xl font-semibold text-gray-700 mb-2">Agent prêt</h3>
         <p class="text-gray-400 max-w-sm">Importez votre fichier et lancez la génération</p>
+        <button onclick="_genLoadExample()" class="mt-4 text-xs text-purple-600 border border-purple-200 bg-purple-50 hover:bg-purple-100 rounded-lg px-4 py-2 font-semibold transition">Tester avec un exemple →</button>
         <div class="mt-6 grid grid-cols-3 gap-4 text-sm">
           <div class="bg-purple-50 rounded-xl p-4"><div class="text-2xl mb-2 flex justify-center"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></div><p class="font-medium text-gray-700">CSV / Excel</p><p class="text-gray-400 text-xs mt-1">Import multi-format</p></div>
           <div class="bg-purple-50 rounded-xl p-4"><div class="text-2xl mb-2 flex justify-center"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></div><p class="font-medium text-gray-700">SEO optimisé</p><p class="text-gray-400 text-xs mt-1">Titre, bullets, A+</p></div>
@@ -2368,7 +2382,11 @@
         <label class="text-white/70 text-sm font-medium block mb-1.5">Confirmer le mot de passe</label>
         <input id="invitePasswordConfirm" type="password" placeholder="••••••••" class="input-auth w-full rounded-xl px-4 py-3 text-sm" onkeydown="if(event.key==='Enter') doAcceptInvite()">
       </div>
-      <button id="inviteBtn" onclick="doAcceptInvite()" class="btn-login w-full text-white rounded-xl py-3.5 font-semibold text-base shadow-lg mt-2">Activer mon compte →</button>
+      <label class="flex items-start gap-3 mt-1 cursor-pointer">
+        <input type="checkbox" id="inviteCgu" class="mt-0.5 w-4 h-4 accent-purple-400 flex-shrink-0 cursor-pointer">
+        <span class="text-white/60 text-xs leading-relaxed">J'accepte les <a href="/cgu.html" target="_blank" class="text-purple-300 underline hover:text-purple-200">Conditions Générales d'Utilisation</a> de SynqIO et sa <a href="/politique-confidentialite.html" target="_blank" class="text-purple-300 underline hover:text-purple-200">politique de confidentialité</a></span>
+      </label>
+      <button id="inviteBtn" onclick="doAcceptInvite()" class="btn-login w-full text-white rounded-xl py-3.5 font-semibold text-base shadow-lg mt-3">Activer mon compte →</button>
     </div>
     <div class="mt-6 pt-4 border-t border-white/10 text-center">
       <p class="text-white/30 text-xs">Ce lien est personnel et à usage unique</p>
@@ -2850,6 +2868,9 @@ async function doAcceptInvite() {
   const confirm = document.getElementById('invitePasswordConfirm').value;
   const errEl = document.getElementById('inviteError');
   const btn = document.getElementById('inviteBtn');
+  if (!document.getElementById('inviteCgu').checked) {
+    errEl.textContent = 'Vous devez accepter les conditions d\'utilisation pour continuer'; errEl.classList.remove('hidden'); return;
+  }
   if (password !== confirm) {
     errEl.textContent = 'Les mots de passe ne correspondent pas'; errEl.classList.remove('hidden'); return;
   }
@@ -3747,6 +3768,11 @@ async function _doIngest(file, customMapping) {
   });
   if (!r.ok) { const e = await r.json(); throw new Error(e.detail || 'Erreur'); }
   parsedProducts = await r.json();
+  const MAX_IMPORT = 100;
+  if (parsedProducts.length > MAX_IMPORT) {
+    showToast('⚠️', `Import limité à ${MAX_IMPORT} produits par lot — ${parsedProducts.length - MAX_IMPORT} produit(s) ignorés. Divisez votre fichier.`);
+    parsedProducts = parsedProducts.slice(0, MAX_IMPORT);
+  }
   activeSegmentFilter = null;
   showProductsList(parsedProducts);
   document.getElementById('generateBtn').disabled = false;
@@ -3954,6 +3980,10 @@ function loadDemoData() {
   dropZone.innerHTML = '<div class="text-3xl mb-2">✅</div><p class="text-purple-700 font-medium">3 produits démo chargés</p>';
   setStep(2);
   showToast('✅', '3 produits de démo chargés');
+}
+
+function _genLoadExample() {
+  loadDemoData();
 }
 
 // ── Segment keyword presets ───────────────────────────────────────────────────
@@ -8206,6 +8236,35 @@ function _auditApplyPrefillData(data, url) {
   return { ok: parts.join(', ') || 'données partielles', missing };
 }
 
+function _auditLoadExample() {
+  const ex = {
+    title: 'Tapis de Yoga Antidérapant TPE Écologique 6mm — Double Couche, Sangle Incluse | ZenFit',
+    bullets: [
+      'ANTIDÉRAPANT HAUTE PERFORMANCE — Double texture grip sur les deux faces, aucun glissement même en postures dynamiques ou Bikram yoga',
+      'MATÉRIAU ÉCOLOGIQUE TPE — Sans PVC, sans latex, sans phtalates. Léger (1,1 kg) et recyclable à 100 %',
+      'ÉPAISSEUR 6mm CONFORT OPTIMAL — Absorption des chocs pour protéger genoux et articulations sur tous les types de sols',
+      'DIMENSIONS STANDARD 183×61cm — Compatible avec tous les styles de yoga, pilates, stretching et fitness au sol',
+      'SANGLE DE TRANSPORT INCLUSE — Facilite le rangement et le transport, idéal pour les cours en studio ou en déplacement',
+    ],
+    backend_keywords: 'tapis yoga antidérapant écologique TPE pilates fitness sport sol exercice',
+    description: 'Tapis de yoga professionnel en TPE double couche recyclé. Surface antidérapante des deux côtés pour une stabilité maximale. Idéal yoga, pilates, fitness. Sangle de transport incluse.',
+  };
+  document.getElementById('auditTitle').value = ex.title;
+  const tl = ex.title.length;
+  const lenEl = document.getElementById('auditTitleLen');
+  lenEl.textContent = tl + '/200';
+  lenEl.className = 'text-xs ' + (tl > 150 ? 'text-green-600' : 'text-gray-400');
+  ex.bullets.forEach((b, i) => { document.getElementById('auditB'+i).value = b; });
+  document.getElementById('auditKw').value = ex.backend_keywords;
+  _auditKwCount(document.getElementById('auditKw'));
+  const descEl = document.getElementById('auditDesc');
+  if (descEl) { descEl.value = ex.description; document.getElementById('auditDescLen').textContent = ex.description.length + ' chars'; }
+  document.getElementById('auditImgCount').value = 3;
+  document.getElementById('auditImgVal').textContent = '3';
+  document.getElementById('auditEmpty').classList.add('hidden');
+  showToast('✅', 'Exemple chargé — cliquez sur Analyser la fiche');
+}
+
 async function auditPrefill() {
   const url = document.getElementById('auditAmazonUrl').value.trim();
   if (!url.startsWith('http')) { showToast('', 'Collez une URL complète (https://…)', true); return; }
@@ -8295,6 +8354,7 @@ async function runAudit() {
   const title   = document.getElementById('auditTitle').value.trim();
   const bullets = [0,1,2,3,4].map(i => document.getElementById('auditB'+i).value.trim());
   const kw      = document.getElementById('auditKw').value.trim();
+  const desc    = document.getElementById('auditDesc')?.value.trim() || '';
   const images  = parseInt(document.getElementById('auditImgCount').value, 10);
   const mkt     = document.getElementById('auditMkt').value;
   const imgUrls = document.getElementById('auditImgUrls').value.split('\n').map(u => u.trim()).filter(u => u.startsWith('http'));
@@ -8313,7 +8373,7 @@ async function runAudit() {
     const r = await authFetch('/api/audit', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title, bullets, backend_keywords: kw, image_count: images, image_urls: imgUrls, marketplace: mkt }),
+      body: JSON.stringify({ title, bullets, backend_keywords: kw, description: desc, image_count: images, image_urls: imgUrls, marketplace: mkt }),
     });
     if (!r.ok) throw new Error((await r.json()).detail || 'Erreur');
     const data = await r.json();

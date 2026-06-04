@@ -691,6 +691,16 @@ async def _run_generation_job(job_id: str, request: GenerationRequest, email: st
                 )
             except Exception:
                 pass
+            # Email notification for large batches (>= 5 SKUs)
+            if n_total >= 5:
+                try:
+                    from app.services.email import send_batch_complete
+                    plan_label = get_user_usage(email).get("plan_label", "")
+                    asyncio.get_event_loop().run_in_executor(
+                        None, send_batch_complete, email, n_total, plan_label
+                    )
+                except Exception:
+                    pass
     except Exception as e:
         _jobs[job_id].update({"status": "failed", "error": str(e)})
         log.error("job failed", extra={"job_id": job_id, "user": email})
@@ -1344,6 +1354,7 @@ class AuditRequest(BaseModel):
     title: str = ""
     bullets: list[str] = []
     backend_keywords: str = ""
+    description: str = ""
     image_count: int = 0
     image_urls: list[str] = []
     marketplace: str = "amazon_fr"
@@ -1472,6 +1483,9 @@ BULLETS ({len([b for b in req.bullets if b.strip()])}/5) :
 
 KEYWORDS BACKEND ({kw_bytes}/249 bytes) :
 {req.backend_keywords or "(vide)"}
+
+DESCRIPTION ({len(req.description)} chars) :
+{req.description[:1000] or "(vide)"}
 
 IMAGES : {effective_img_count} image(s)"""
 

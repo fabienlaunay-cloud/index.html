@@ -200,6 +200,13 @@ async def accept_invite(token: str, req: AcceptInviteRequest):
     conn.commit()
     conn.close()
     jwt_token = create_token(email)
+    # Welcome email — non-blocking (fails silently if SMTP not configured)
+    try:
+        from app.services.email import send_welcome
+        import asyncio
+        asyncio.get_event_loop().run_in_executor(None, send_welcome, email)
+    except Exception:
+        pass
     return {"token": jwt_token, "email": email, "is_admin": False}
 
 
