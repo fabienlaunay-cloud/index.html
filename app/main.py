@@ -2145,3 +2145,32 @@ async def reviews_fetch(asin: str, marketplace: str = "amazon_fr"):
         )
 
     return {"reviews": reviews, "count": len(reviews), "asin": asin}
+
+
+@app.post("/api/reviews/parse-html")
+async def reviews_parse_html(body: dict):
+    """Extract review texts from raw HTML source pasted by the user (Ctrl+U fallback)."""
+    import re as _re_rv
+    html = body.get("html_content", "")
+    if not html or len(html) < 200:
+        raise HTTPException(400, "HTML trop court — collez bien l'intégralité de la source")
+
+    chunks = _re_rv.findall(
+        r'data-hook=["\']review-body["\'][^>]*>.*?<span[^>]*>(.*?)</span>',
+        html, _re_rv.DOTALL
+    )
+    reviews: list[str] = []
+    for chunk in chunks:
+        text = _re_rv.sub(r'<[^>]+>', ' ', chunk)
+        text = _re_rv.sub(r'\s+', ' ', text).strip()
+        if text and len(text) > 15:
+            reviews.append(text)
+
+    if not reviews:
+        raise HTTPException(
+            404,
+            "Aucun avis trouvé dans ce code source. "
+            "Assurez-vous d'être sur la page des avis Amazon (url contenant /product-reviews/)"
+        )
+
+    return {"reviews": reviews, "count": len(reviews)}
