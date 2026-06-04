@@ -24,6 +24,7 @@
   @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
   @keyframes marquee { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
   .animate-marquee { animation: marquee 40s linear infinite; }
+  @keyframes fadeInUp { from { opacity:0; transform:translateY(14px); } to { opacity:1; transform:translateY(0); } }
   .animate-marquee:hover { animation-play-state: paused; }
   .banner-scroll { display: inline-block; animation: marquee 32s linear infinite; }
   .banner-scroll:hover { animation-play-state: paused; }
@@ -7189,12 +7190,13 @@ renderSegmentPresets();
 
       <!-- Messages -->
       <div id="chatMessages" class="flex-1 overflow-y-auto px-6 py-5 space-y-4">
-        <div id="chatWelcome" class="flex flex-col items-center justify-center h-full text-center py-12">
-          <div class="w-16 h-16 gradient-bg rounded-2xl flex items-center justify-center mb-4 shadow-lg">
+        <div id="chatWelcome" class="flex flex-col items-center justify-center h-full text-center py-10 px-4">
+          <div class="w-16 h-16 gradient-bg rounded-2xl flex items-center justify-center mb-5 shadow-lg">
             <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
           </div>
-          <h3 class="font-bold text-gray-800 text-lg mb-2">Ton assistant Amazon</h3>
-          <p class="text-gray-500 text-sm max-w-xs leading-relaxed">Décris tes produits en langage naturel, partage des images ou des PDF de catalogue. Je structure tout pour générer tes fiches optimisées.</p>
+          <h2 class="font-bold text-gray-900 text-2xl mb-1">Bonjour 👋</h2>
+          <p class="text-purple-600 font-medium text-base mb-1">Que fait-on aujourd'hui ?</p>
+          <p class="text-gray-400 text-sm max-w-xs leading-relaxed mt-1">Décris un produit, partage un catalogue, ou pose une question Amazon.</p>
           <div class="mt-6 grid grid-cols-1 gap-2 w-full max-w-sm">
             <button onclick="chatQuickStart('J\'ai un nouveau produit à lister sur Amazon. Il s\'agit de ')" class="text-left px-4 py-3 bg-purple-50 hover:bg-purple-100 border border-purple-100 rounded-xl text-sm text-purple-700 transition">"J'ai un nouveau produit à lister…"</button>
             <button onclick="chatQuickStart('Voici mon catalogue produits : ')" class="text-left px-4 py-3 bg-purple-50 hover:bg-purple-100 border border-purple-100 rounded-xl text-sm text-purple-700 transition">📄 Partager un catalogue PDF</button>
@@ -7532,14 +7534,26 @@ async function newChatSession() {
   }
 }
 
+function _chatGreeting() {
+  const h = new Date().getHours();
+  const salut = h >= 18 ? 'Bonsoir' : 'Bonjour';
+  const name = (currentUser?.name || '').trim().split(' ')[0]
+            || (currentUser?.email || '').split('@')[0];
+  return { salut, name: name ? name.charAt(0).toUpperCase() + name.slice(1) : '' };
+}
+
 function resetChatWelcome() {
+  const { salut, name } = _chatGreeting();
+  const greeting = name ? `${salut} ${name} 👋` : `${salut} 👋`;
   document.getElementById('chatMessages').innerHTML = `
-    <div id="chatWelcome" class="flex flex-col items-center justify-center h-full text-center py-12">
-      <div class="w-16 h-16 gradient-bg rounded-2xl flex items-center justify-center mb-4 shadow-lg">
+    <div id="chatWelcome" class="flex flex-col items-center justify-center h-full text-center py-10 px-4"
+         style="animation:fadeInUp .35s ease both">
+      <div class="w-16 h-16 gradient-bg rounded-2xl flex items-center justify-center mb-5 shadow-lg">
         <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
       </div>
-      <h3 class="font-bold text-gray-800 text-lg mb-2">Ton assistant Amazon</h3>
-      <p class="text-gray-500 text-sm max-w-xs leading-relaxed">Décris tes produits en langage naturel, partage des images ou des PDF de catalogue.</p>
+      <h2 class="font-bold text-gray-900 text-2xl mb-1">${greeting}</h2>
+      <p class="text-purple-600 font-medium text-base mb-1">Que fait-on aujourd'hui ?</p>
+      <p class="text-gray-400 text-sm max-w-xs leading-relaxed mt-1">Décris un produit, partage un catalogue, ou pose une question Amazon.</p>
       <div class="mt-6 grid grid-cols-1 gap-2 w-full max-w-sm">
         <button onclick="chatQuickStart('J\\'ai un nouveau produit à lister sur Amazon. Il s\\'agit de ')" class="text-left px-4 py-3 bg-purple-50 hover:bg-purple-100 border border-purple-100 rounded-xl text-sm text-purple-700 transition">"J'ai un nouveau produit à lister…"</button>
         <button onclick="chatQuickStart('Voici mon catalogue produits : ')" class="text-left px-4 py-3 bg-purple-50 hover:bg-purple-100 border border-purple-100 rounded-xl text-sm text-purple-700 transition">📄 Partager un catalogue PDF</button>
