@@ -1135,6 +1135,14 @@
         <!-- Results -->
         <div id="auditResults" class="hidden space-y-4">
 
+          <!-- Reset button -->
+          <div class="flex justify-end">
+            <button onclick="_auditReset()" class="flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-600 bg-white border border-gray-200 hover:border-gray-300 rounded-lg px-3 py-1.5 transition">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              Nouvelle analyse
+            </button>
+          </div>
+
           <!-- Global score card -->
           <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
             <div class="flex items-center gap-5">
@@ -7801,6 +7809,10 @@ async function auditPrefillFromHtml() {
   } catch(e) {
     msg.textContent = 'Erreur'; msg.className = 'text-xs text-red-500';
   }
+}
+
+function _auditReset() {
+  document.getElementById('auditResults').classList.add('hidden');
 }
 
 function _auditScoreColor(s) {
