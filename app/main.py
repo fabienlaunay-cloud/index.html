@@ -2155,22 +2155,50 @@ async def reviews_parse_html(body: dict):
     if not html or len(html) < 200:
         raise HTTPException(400, "HTML trop court — collez bien l'intégralité de la source")
 
-    chunks = _re_rv.findall(
-        r'data-hook=["\']review-body["\'][^>]*>.*?<span[^>]*>(.*?)</span>',
-        html, _re_rv.DOTALL
-    )
+    seen: set = set()
     reviews: list[str] = []
-    for chunk in chunks:
-        text = _re_rv.sub(r'<[^>]+>', ' ', chunk)
-        text = _re_rv.sub(r'\s+', ' ', text).strip()
-        if text and len(text) > 15:
-            reviews.append(text)
+
+    def _clean_add(raw: str):
+        t = _re_rv.sub(r'<[^>]+>', ' ', raw)
+        t = _re_rv.sub(r'\s+', ' ', t).strip()
+        if t and len(t) > 20 and t.lower() not in seen:
+            seen.add(t.lower())
+            reviews.append(t)
+
+    # Pattern 1: data-hook="review-body" — capture up to the OUTER closing </span></span>
+    for m in _re_rv.finditer(
+        r'data-hook=["\']review-body["\'][^>]*>(.*?)</span>\s*</span>',
+        html, _re_rv.DOTALL
+    ):
+        _clean_add(m.group(1))
+
+    # Pattern 2: class="review-text" (older Amazon layout)
+    if not reviews:
+        for m in _re_rv.finditer(
+            r'class=["\'][^"\']*\breview-text\b[^"\']*["\'][^>]*>(.*?)</span>',
+            html, _re_rv.DOTALL
+        ):
+            _clean_add(m.group(1))
+
+    # Pattern 3: split-based last resort — scan raw text between data-hook markers
+    if not reviews:
+        parts = _re_rv.split(r'data-hook=["\']review-body["\']', html)
+        for part in parts[1:]:
+            gt = part.find('>')
+            if gt < 0:
+                continue
+            chunk = part[gt + 1: gt + 6000]
+            # Find approximate end at double-</span> boundary
+            end = chunk.find('</span>\n')
+            if end < 0:
+                end = min(2500, len(chunk))
+            _clean_add(chunk[:end])
 
     if not reviews:
         raise HTTPException(
             404,
             "Aucun avis trouvé dans ce code source. "
-            "Assurez-vous d'être sur la page des avis Amazon (url contenant /product-reviews/)"
+            "Assurez-vous d'avoir copié la source de la page /product-reviews/ (pas la page produit principale)."
         )
 
     return {"reviews": reviews, "count": len(reviews)}
