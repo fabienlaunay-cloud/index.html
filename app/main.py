@@ -718,7 +718,8 @@ async def _run_generation_job(job_id: str, request: GenerationRequest, email: st
                 skus_quota = usage_data.get("skus_quota", 0)
                 if skus_quota and skus_used >= skus_quota * 0.8:
                     from datetime import datetime as _dt
-                    current_period = _dt.utcnow().strftime("%Y-%m")
+                    _annual = usage_data.get("annual_pool", False)
+                    current_period = _dt.utcnow().strftime("%Y" if _annual else "%Y-%m")
                     _conn = _get_db()
                     _row = _conn.execute(
                         "SELECT quota_alert_sent, quota_alert_period FROM users WHERE email = ?", (email,)
