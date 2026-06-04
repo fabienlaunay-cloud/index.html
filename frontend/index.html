@@ -1253,9 +1253,10 @@
                 <p class="text-xs text-gray-500 mt-0.5">Conversion</p>
                 <p id="kpiConvDelta" class="text-xs font-semibold text-green-600 mt-0.5"></p>
               </div>
-              <div class="bg-indigo-50 rounded-xl p-3 text-center">
+              <div class="bg-indigo-50 rounded-xl p-3 text-center" title="Non inclus dans le Business Report Amazon — saisissez manuellement via + Saisie manuelle, ou utilisez un outil de suivi de position (Helium 10, Keepa...)">
                 <p id="kpiRank" class="text-lg font-bold text-indigo-700">—</p>
                 <p class="text-xs text-gray-500 mt-0.5">Rang keyword</p>
+                <p class="text-xs text-gray-400 mt-0.5 italic">saisie manuelle</p>
                 <p id="kpiRankDelta" class="text-xs font-semibold text-green-600 mt-0.5"></p>
               </div>
               <div class="bg-green-50 rounded-xl p-3 text-center">
@@ -7393,8 +7394,14 @@ function _renderKpis() {
 
   document.getElementById('kpiSessions').textContent     = last ? _fmt(last.sessions) : '—';
   document.getElementById('kpiSessionsDelta').textContent = first && last ? _delta(first.sessions, last.sessions) : '';
-  document.getElementById('kpiConv').textContent          = last && last.conversion_rate ? last.conversion_rate.toFixed(1)+'%' : '—';
-  document.getElementById('kpiConvDelta').textContent     = first && last ? _delta(first.conversion_rate, last.conversion_rate) : '';
+  // Conversion: use stored rate, or compute from units/sessions if rate is 0
+  const _convRate = last
+    ? (last.conversion_rate > 0
+        ? last.conversion_rate
+        : (last.sessions > 0 && last.units_ordered > 0 ? last.units_ordered / last.sessions * 100 : null))
+    : null;
+  document.getElementById('kpiConv').textContent          = _convRate != null ? _convRate.toFixed(1)+'%' : '—';
+  document.getElementById('kpiConvDelta').textContent     = first && last ? _delta(first.conversion_rate || (first.sessions > 0 && first.units_ordered > 0 ? first.units_ordered/first.sessions*100 : 0), _convRate || 0) : '';
   const lastRank = [..._trackSnapshots].reverse().find(s => s.keyword_rank);
   const firstRank = _trackSnapshots.find(s => s.keyword_rank);
   document.getElementById('kpiRank').textContent          = lastRank ? '#'+lastRank.keyword_rank : '—';

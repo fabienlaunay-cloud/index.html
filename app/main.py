@@ -1607,8 +1607,16 @@ async def tracking_import_csv(listing_id: str, request: Request):
     email = request.state.user_email
 
     reader = _csv.DictReader(_io.StringIO(csv_text))
-    # Normalise header names: lowercase + strip
-    def _norm(k): return k.lower().strip().replace("﻿", "")
+    # Normalise header names: lowercase + strip + normalize dashes and quotes
+    def _norm(k):
+        return (k.lower().strip()
+                .replace("﻿", "")          # BOM
+                .replace("–", "-")          # en-dash → hyphen
+                .replace("—", "-")          # em-dash → hyphen
+                .replace("’", "'")          # right single quote → apostrophe
+                .replace("‘", "'")          # left single quote → apostrophe
+                .replace(" ", " ")          # non-breaking space → space
+                )
     rows = [{_norm(k): v.strip() for k, v in row.items()} for row in reader]
 
     # Column name aliases
@@ -1639,26 +1647,33 @@ async def tracking_import_csv(listing_id: str, request: Request):
             snap_date = str(_dt.date.today())
 
         sessions   = int(float(_pick(row,
-            "sessions", "sessions - total", "sessions – total") or 0))
+            "sessions", "sessions - total") or 0))
         page_views = int(float(_pick(row,
             "page views", "page_views",
-            "vues de la page - total", "vues de la page – total",
+            "vues de la page - total",
             "vues de page") or 0))
         units      = int(float(_pick(row,
             "units ordered", "units_ordered",
-            "unités commandées", "unités commandées - total", "unités commandées – total") or 0))
+            "unites commandees", "unites commandees - total",
+            "unites commandees - total") or 0))
         conv_str   = _pick(row,
             "unit session percentage", "taux de conversion", "conversion rate",
-            "pourcentage de session d'unité",
-            "pourcentage par session d'unités",
+            "pourcentage de session d'unite",
+            "pourcentage par session d'unites",
+            "pourcentage de session d'unite - total",
             "taux d'acquisition des commandes - total",
-            "pourcentage de sessions d'unités - total") or "0"
-        conv       = float(conv_str.replace("%", "").replace(",", ".").strip()) if conv_str else 0.0
+            "pourcentage de sessions d'unites - total") or ""
+        if conv_str:
+            conv = float(conv_str.replace("%", "").replace(",", ".").replace(" ", "").strip() or "0")
+        elif sessions > 0 and units > 0:
+            conv = round(units / sessions * 100, 2)
+        else:
+            conv = 0.0
         rev_str    = _pick(row,
             "ordered product sales", "revenue",
-            "ventes de produits commandés",
-            "chiffre d'affaires des produits commandés - total",
-            "chiffre d'affaires des produits commandés") or "0"
+            "ventes de produits commandes",
+            "chiffre d'affaires des produits commandes - total",
+            "chiffre d'affaires des produits commandes") or "0"
         def _parse_eur(s):
             s = s.replace("€","").replace("$","").replace("\xa0","").replace(" ","").replace("\u00a0","").replace(" ","").strip()
             if "," in s and "." in s:
