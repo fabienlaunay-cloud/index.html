@@ -568,6 +568,65 @@
       <p class="text-gray-500 text-lg">Idéal pour les vendeurs en lancement ou les marques établies qui veulent un accompagnement complet — audits Amazon inclus.</p>
     </div>
 
+    <!-- Tableau comparatif rapide -->
+    <div class="overflow-x-auto mb-10 rounded-2xl border border-gray-200 shadow-sm">
+      <table class="w-full text-sm text-center">
+        <thead>
+          <tr class="bg-gray-50 border-b border-gray-200">
+            <th class="text-left px-5 py-3 text-gray-500 font-semibold text-xs uppercase tracking-wide">Formule</th>
+            <th class="px-5 py-3 text-gray-700 font-bold">Starter</th>
+            <th class="px-5 py-3 font-bold" style="background:linear-gradient(135deg,#faf5ff,#f5f3ff);color:#7c3aed">Business ★</th>
+            <th class="px-5 py-3 text-gray-700 font-bold">Scale</th>
+            <th class="px-5 py-3 text-gray-700 font-bold">Pro</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-100">
+          <tr class="hover:bg-gray-50">
+            <td class="text-left px-5 py-3 text-gray-500 text-xs font-medium">SKU / mois</td>
+            <td class="px-5 py-3 font-semibold text-gray-800">200</td>
+            <td class="px-5 py-3 font-bold text-purple-700" style="background:#faf5ff">600</td>
+            <td class="px-5 py-3 font-semibold text-gray-800">1 500</td>
+            <td class="px-5 py-3 font-semibold text-gray-800">300 / an</td>
+          </tr>
+          <tr class="hover:bg-gray-50">
+            <td class="text-left px-5 py-3 text-gray-500 text-xs font-medium">Marketplaces</td>
+            <td class="px-5 py-3 text-gray-700">1</td>
+            <td class="px-5 py-3 text-purple-700 font-semibold" style="background:#faf5ff">5</td>
+            <td class="px-5 py-3 text-gray-700">Illimitées</td>
+            <td class="px-5 py-3 text-gray-700">1</td>
+          </tr>
+          <tr class="hover:bg-gray-50">
+            <td class="text-left px-5 py-3 text-gray-500 text-xs font-medium">Prix / mois</td>
+            <td class="px-5 py-3 text-gray-800">390 €</td>
+            <td class="px-5 py-3 font-bold text-purple-700" style="background:#faf5ff">790 €</td>
+            <td class="px-5 py-3 text-gray-800">1 490 €</td>
+            <td class="px-5 py-3 text-gray-800">99 €</td>
+          </tr>
+          <tr class="hover:bg-gray-50">
+            <td class="text-left px-5 py-3 text-gray-500 text-xs font-medium">Setup</td>
+            <td class="px-5 py-3 text-gray-600">490 €</td>
+            <td class="px-5 py-3 text-purple-600" style="background:#faf5ff">990 €</td>
+            <td class="px-5 py-3 text-gray-600">1 990 €</td>
+            <td class="px-5 py-3 text-green-600 font-semibold">Offert</td>
+          </tr>
+          <tr class="hover:bg-gray-50">
+            <td class="text-left px-5 py-3 text-gray-500 text-xs font-medium">Engagement</td>
+            <td class="px-5 py-3 text-gray-600">Sans</td>
+            <td class="px-5 py-3 text-gray-600" style="background:#faf5ff">3 mois</td>
+            <td class="px-5 py-3 text-gray-600">6 mois</td>
+            <td class="px-5 py-3 text-gray-600">1 an</td>
+          </tr>
+          <tr class="hover:bg-gray-50">
+            <td class="text-left px-5 py-3 text-gray-500 text-xs font-medium">Audit Amazon</td>
+            <td class="px-5 py-3 text-green-500">✓</td>
+            <td class="px-5 py-3 text-green-500 font-bold" style="background:#faf5ff">✓ trimestriel</td>
+            <td class="px-5 py-3 text-green-500">✓ mensuel</td>
+            <td class="px-5 py-3 text-green-500">✓</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
     <div class="grid md:grid-cols-3 gap-6 items-start">
 
       <!-- Starter -->
@@ -1961,7 +2020,7 @@
               <input type="file" id="amazonTemplateInput" accept=".xlsm,.xlsx" class="hidden" onchange="fillAmazonTemplate(this)">
               <button onclick="downloadZipPack()" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg px-3 py-2 text-sm font-medium transition flex items-center gap-1.5">📦 Pack ZIP</button>
               <button id="bulkGenImgBtn" onclick="generateAllImages()" class="bg-pink-50 hover:bg-pink-100 text-pink-700 rounded-lg px-3 py-2 text-sm font-medium transition flex items-center gap-1.5">Générer toutes les photos</button>
-              <button onclick="showPublishModal()" class="gradient-bg text-white rounded-lg px-4 py-2 text-sm font-semibold hover:opacity-90 transition">Publier</button>
+              <button onclick="showPublishModal()" class="gradient-bg text-white rounded-lg px-4 py-2 text-sm font-semibold hover:opacity-90 transition flex items-center gap-1.5">↗ Exporter vers Seller Central</button>
             </div>
           </div>
           <div class="grid grid-cols-4 gap-3">
@@ -2413,8 +2472,13 @@
 
     <!-- Option 2 : API directe -->
     <div class="border border-gray-200 rounded-xl p-4">
-      <p class="text-sm font-semibold text-gray-800 mb-1">Push direct via API</p>
-      <p class="text-xs text-gray-500 mb-3">Publie automatiquement sans upload manuel.</p>
+      <div class="flex items-center justify-between mb-1">
+        <p class="text-sm font-semibold text-gray-800">Push direct via API</p>
+        <span class="text-xs bg-amber-100 text-amber-700 font-semibold px-2 py-0.5 rounded-full">Bêta</span>
+      </div>
+      <div class="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-3 text-xs text-amber-800">
+        ⚠️ L'accès SP-API Amazon nécessite une validation par Amazon (en cours). En attendant, utilisez l'export Flat File ci-dessus — c'est la méthode recommandée.
+      </div>
 
       <!-- Statut connexion Amazon -->
       <div id="amazonStatusBox" class="mb-3 text-xs rounded-lg px-3 py-2 bg-gray-50 text-gray-400">Vérification connexion...</div>
