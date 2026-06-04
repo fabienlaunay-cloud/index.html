@@ -215,25 +215,6 @@ async def accept_invite(token: str, req: AcceptInviteRequest):
     return {"token": jwt_token, "email": email, "is_admin": False}
 
 
-@router.get("/debug-admin")
-async def debug_admin():
-    """Diagnostic public — vérifie si des admins existent et si la DB répond."""
-    try:
-        conn = get_db()
-        row = conn.execute("SELECT COUNT(*) AS cnt FROM users WHERE is_admin = 1 AND is_active = 1").fetchone()
-        admin_count = row["cnt"] if row else 0
-        row2 = conn.execute("SELECT COUNT(*) AS cnt FROM users").fetchone()
-        total = row2["cnt"] if row2 else 0
-        conn.close()
-        return {
-            "db_ok": True,
-            "total_users": total,
-            "active_admins": admin_count,
-            "admin_email_configured": bool(os.getenv("ADMIN_EMAIL")),
-        }
-    except Exception as e:
-        return {"db_ok": False, "error": str(e)}
-
 
 class ResetAdminRequest(BaseModel):
     secret: str
