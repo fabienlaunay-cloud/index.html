@@ -1976,3 +1976,91 @@ async def ab_test_set_winner(exp_id: str, body: dict, request: Request):
     if not update_ab_experiment(exp_id, email, winner=winner):
         raise HTTPException(404, "Expérience introuvable")
     return {"ok": True}
+
+
+# ── Review monitoring ──────────────────────────────────────────────────────────
+
+_REVIEWS_SYSTEM = """Tu es un expert Amazon listing. Analyse les avis clients négatifs fournis et retourne UNIQUEMENT un objet JSON valide, sans texte avant ni après, sans bloc markdown.
+
+Structure JSON exacte :
+{
+  "summary": "<2 phrases max résumant les problèmes principaux>",
+  "issues": [
+    {
+      "theme": "<nom court du problème, ex: Taille sous-estimée>",
+      "frequency": "frequent" | "occasional" | "rare",
+      "impact": "high" | "medium" | "low",
+      "customer_words": "<verbatim court représentatif>",
+      "field": "title" | "bullets" | "description" | "keywords" | "images",
+      "suggestion": "<amélioration concrète et actionnable pour ce champ de la fiche>",
+      "urgency": "critical" | "important" | "minor"
+    }
+  ]
+}
+
+Règles :
+- frequency: "frequent" si ≥3 mentions similaires, "occasional" si 2, "rare" si 1
+- field: champ de la fiche produit le plus pertinent à corriger pour ce problème
+- suggestion: formule une action précise, ex: "Préciser dans les bullets : Taille réelle S = 38 FR — consultez le guide des tailles inclus"
+- Trie les issues par urgency (critical d'abord) puis par impact (high d'abord)
+- Retourne entre 2 et 8 issues maximum"""
+
+
+class ReviewsAnalyzeRequest(BaseModel):
+    reviews: str
+    asin: str = ""
+    marketplace: str = "amazon_fr"
+    product_name: str = ""
+
+
+async def _run_reviews_job(job_id: str, req: ReviewsAnalyzeRequest, email: str):
+    if job_id not in _jobs:
+        _jobs[job_id] = {"status": "running", "progress": 0, "total": 1, "created_at": time.time()}
+    else:
+        _jobs[job_id]["status"] = "running"
+    try:
+        from app.services.ai_agent import get_client
+        import json as _json
+        import re as _re
+        lang = "français" if "fr" in req.marketplace else ("anglais" if "uk" in req.marketplace else "langue locale du marché")
+        product_ctx = f"Produit : {req.product_name}\n" if req.product_name else ""
+        asin_ctx = f"ASIN : {req.asin}\n" if req.asin else ""
+        prompt = f"""{product_ctx}{asin_ctx}Marketplace : {req.marketplace} (langue : {lang})
+
+Avis négatifs à analyser :
+{req.reviews[:6000]}"""
+        resp = await get_client().messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=2000,
+            system=[{"type": "text", "text": _REVIEWS_SYSTEM, "cache_control": {"type": "ephemeral"}}],
+            messages=[{"role": "user", "content": prompt}],
+        )
+        raw = resp.content[0].text.strip()
+        raw = _re.sub(r'^```(?:json)?\s*', '', raw, flags=_re.MULTILINE)
+        raw = _re.sub(r'\s*```$', '', raw, flags=_re.MULTILINE).strip()
+        result = _json.loads(raw)
+        _jobs[job_id].update({"status": "done", "progress": 1, "result": result})
+        if email:
+            tokens_in = getattr(resp.usage, "input_tokens", 0)
+            tokens_out = getattr(resp.usage, "output_tokens", 0)
+            if tokens_in: log_usage(email, "tokens_in", tokens_in)
+            if tokens_out: log_usage(email, "tokens_out", tokens_out)
+    except Exception as e:
+        log.error("reviews_job failed", extra={"job_id": job_id, "error": str(e)})
+        _jobs[job_id].update({"status": "failed", "error": f"{type(e).__name__}: {str(e)[:300]}"})
+
+
+@app.post("/api/reviews/analyze")
+async def reviews_analyze(req: ReviewsAnalyzeRequest, request: Request):
+    if not os.getenv("ANTHROPIC_API_KEY"):
+        raise HTTPException(503, "ANTHROPIC_API_KEY manquante")
+    if not req.reviews.strip() or len(req.reviews.strip()) < 30:
+        raise HTTPException(400, "Veuillez coller au moins quelques avis")
+    email = getattr(request.state, "user_email", None)
+    if email and not _rate_limit(f"{email}:reviews_analyze", limit=20, window=3600):
+        raise HTTPException(429, "Maximum 20 analyses par heure")
+    job_id = str(uuid4())
+    _jobs[job_id] = {"status": "pending", "progress": 0, "total": 1, "created_at": time.time()}
+    _cleanup_jobs()
+    asyncio.create_task(_run_reviews_job(job_id, req, email or ""))
+    return {"job_id": job_id}
