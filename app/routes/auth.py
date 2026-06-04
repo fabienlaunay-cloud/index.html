@@ -357,6 +357,12 @@ async def change_password(req: ChangePasswordRequest, authorization: str = Heade
     conn.execute("UPDATE users SET password_hash = ? WHERE email = ?", (new_hash, email))
     conn.commit()
     conn.close()
+    try:
+        import asyncio
+        from app.services.email import send_password_changed
+        asyncio.get_event_loop().run_in_executor(None, send_password_changed, email)
+    except Exception:
+        pass
     return {"status": "ok"}
 
 
