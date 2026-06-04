@@ -22,7 +22,8 @@ def _get_ip(request: Request) -> str:
 
 import re as _re
 
-_PW_RE = _re.compile(r'^(?=.*[!@#$%^&*()_+\-=\[\]{};\':"\\|,.<>\/?]).{12,}$')
+_PW_RE    = _re.compile(r'^(?=.*[!@#$%^&*()_+\-=\[\]{};\':"\\|,.<>\/?]).{12,}$')
+_EMAIL_RE = _re.compile(r'^[^@\s]+@[^@\s]+\.[^@\s]+$')
 
 
 def _validate_password(password: str):
@@ -31,6 +32,11 @@ def _validate_password(password: str):
             400,
             "Le mot de passe doit contenir au moins 12 caractères et un caractère spécial (!@#$%^&*…)"
         )
+
+
+def _validate_email(email: str):
+    if not email or not _EMAIL_RE.match(email):
+        raise HTTPException(400, "Adresse email invalide")
 
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
@@ -109,6 +115,7 @@ async def setup_first_user(req: SetupRequest):
     count = row["cnt"] if row else 0
     if count > 0:
         raise HTTPException(403, "Setup déjà effectué")
+    _validate_email(req.email)
     _validate_password(req.password)
     user = create_user(req.email, req.password, req.name, is_admin=True)
     token = create_token(req.email, is_admin=True)
@@ -125,6 +132,7 @@ async def login(req: LoginRequest, request: Request):
             f"Trop de tentatives. Réessayez dans {retry // 60}m{retry % 60:02d}s.",
             headers={"Retry-After": str(retry)},
         )
+    _validate_email(req.email)
     user = authenticate_user(req.email, req.password)
     if not user:
         record_failed_attempt(ip)
@@ -227,8 +235,14 @@ class ResetPasswordRequest(BaseModel):
 
 
 @router.post("/forgot-password")
-async def forgot_password(req: ForgotPasswordRequest):
+async def forgot_password(req: ForgotPasswordRequest, request: Request):
     """Génère un token de reset et envoie l'email — silencieux si l'email n'existe pas."""
+    ip = _get_ip(request)
+    if not check_rate_limit(ip):
+        retry = get_retry_after(ip)
+        raise HTTPException(429, f"Trop de tentatives. Réessayez dans {retry // 60}m{retry % 60:02d}s.", headers={"Retry-After": str(retry)})
+    _validate_email(req.email)
+    record_failed_attempt(ip)  # always count to prevent email enumeration via timing
     email = req.email.lower().strip()
     conn = get_db()
     user = conn.execute("SELECT 1 FROM users WHERE email = ? AND is_active = 1", (email,)).fetchone()
@@ -500,22 +514,6 @@ async def get_app_config(authorization: str = Header(None)):
             result[k] = "❌ vide"
     return result
 
-
-@admin_router.get("/config/debug")
-async def debug_app_config(authorization: str = Header(None)):
-    """Diagnostic : montre le contenu brut de app_config et le chemin de la DB."""
-    _require_admin(authorization)
-    from app.db import DB_PATH
-    import os as _os
-    conn = get_db()
-    rows = conn.execute("SELECT key, length(value) as len, updated_at FROM app_config").fetchall()
-    conn.close()
-    return {
-        "db_path": DB_PATH,
-        "db_exists": _os.path.isfile(DB_PATH),
-        "db_size_bytes": _os.path.getsize(DB_PATH) if _os.path.isfile(DB_PATH) else 0,
-        "app_config_rows": [{"key": r["key"], "value_length": r["len"], "updated_at": r["updated_at"]} for r in rows],
-    }
 
 @admin_router.post("/config")
 async def set_app_config(req: ConfigRequest, authorization: str = Header(None)):
