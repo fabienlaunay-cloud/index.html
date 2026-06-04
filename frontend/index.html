@@ -8540,10 +8540,12 @@ async function _kwSuggest(inputId, marketplace, triggerBtn, queryInputId = null)
   const list  = document.getElementById('kwSuggestList');
   const loader = document.getElementById('kwSuggestLoading');
 
-  // Position panel below trigger button
+  // Position panel below trigger button (fixed = viewport-relative, no scroll offset)
   const rect = triggerBtn.getBoundingClientRect();
-  panel.style.top  = (rect.bottom + window.scrollY + 8) + 'px';
-  panel.style.left = Math.min(rect.left + window.scrollX, window.innerWidth - 336) + 'px';
+  const panelTop = rect.bottom + 8;
+  const panelLeft = Math.min(rect.left, window.innerWidth - 336);
+  panel.style.top  = (panelTop < window.innerHeight - 80 ? panelTop : rect.top - 360) + 'px';
+  panel.style.left = Math.max(8, panelLeft) + 'px';
   panel.classList.remove('hidden');
   list.innerHTML = '';
   loader.classList.remove('hidden');
