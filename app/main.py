@@ -72,6 +72,7 @@ from app.routes.auth import router as auth_router, admin_router
 from app.routes.amazon_oauth import router as amazon_router
 from app.routes.chat import router as chat_router
 from app.routes.stripe_webhook import router as stripe_router
+from app.routes.insights import router as insights_router
 
 # Routes sans authentification
 PUBLIC_PATHS = {"/", "/health", "/api/auth/login", "/api/auth/setup", "/api/auth/needs-setup", "/api/marketplaces", "/api/amazon/callback", "/api/template", "/api/auth/unsubscribe", "/api/auth/forgot-password", "/api/auth/reset-password", "/api/stripe/webhook"}
@@ -138,6 +139,7 @@ app.include_router(admin_router)
 app.include_router(amazon_router)
 app.include_router(chat_router)
 app.include_router(stripe_router)
+app.include_router(insights_router)
 
 
 @app.on_event("startup")
