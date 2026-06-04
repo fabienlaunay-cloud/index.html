@@ -395,6 +395,7 @@ def _send_invite_email(email: str, invite_token: str, name: str = ""):
 @admin_router.post("/users")
 async def add_user(req: CreateUserRequest, authorization: str = Header(None)):
     _require_admin(authorization)
+    _validate_email(req.email)
     try:
         temp_pw = req.password if req.password else secrets.token_hex(16)
         user = create_user(req.email, temp_pw, req.name)

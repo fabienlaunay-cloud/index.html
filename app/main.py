@@ -170,6 +170,22 @@ async def startup():
         pass
 
 
+from fastapi.responses import JSONResponse
+from fastapi.exceptions import RequestValidationError
+
+@app.exception_handler(404)
+async def not_found_handler(request: Request, exc):
+    return JSONResponse(status_code=404, content={"detail": "Ressource introuvable"})
+
+@app.exception_handler(500)
+async def server_error_handler(request: Request, exc):
+    return JSONResponse(status_code=500, content={"detail": "Erreur serveur — réessayez dans quelques instants"})
+
+@app.exception_handler(RequestValidationError)
+async def validation_error_handler(request: Request, exc: RequestValidationError):
+    return JSONResponse(status_code=422, content={"detail": "Données invalides", "errors": exc.errors()})
+
+
 def _check_secrets():
     import secrets as _secrets
     jwt = os.getenv("JWT_SECRET", "")

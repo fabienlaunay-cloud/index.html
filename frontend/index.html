@@ -7950,7 +7950,8 @@ function _helpRenderMsg(role, text) {
   const div = document.createElement('div');
   const isBot = role === 'assistant';
   div.style.cssText = `background:${isBot?'#f3f0ff':'#7c3aed'};color:${isBot?'#374151':'#fff'};padding:10px 13px;border-radius:${isBot?'14px 14px 14px 4px':'14px 14px 4px 14px'};font-size:0.82rem;line-height:1.5;max-width:90%;${isBot?'':'align-self:flex-end'}`;
-  div.innerHTML = text
+  const _safe = text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  div.innerHTML = _safe
     .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
     .replace(/^- (.+)$/gm, '• $1')
     .replace(/\n/g, '<br>');
