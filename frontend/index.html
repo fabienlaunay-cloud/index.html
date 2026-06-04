@@ -8092,7 +8092,7 @@ function _abPopulateListings(type) {
       opt.dataset.listing = JSON.stringify(l);
       sel.appendChild(opt);
     });
-    if (!listings.length) sel.innerHTML = '<option value="">Aucun listing en session — generez d'abord des fiches</option>';
+    if (!listings.length) sel.innerHTML = '<option value="">Aucun listing en session — generez d\'abord des fiches</option>';
   } else if (type === 'history') {
     authFetch('/api/history').then(r => r.json()).then(items => {
       (items || []).forEach(b => {
@@ -8103,7 +8103,7 @@ function _abPopulateListings(type) {
         opt.dataset.batchId = b.id;
         sel.appendChild(opt);
       });
-      if (!items.length) sel.innerHTML = '<option value="">Aucune generation dans l'historique</option>';
+      if (!items.length) sel.innerHTML = '<option value="">Aucune generation dans l\'historique</option>';
     }).catch(() => {});
   }
 }
@@ -8245,7 +8245,7 @@ async function _abSaveExperiment() {
 }
 
 async function _abPushToAmazon() {
-  if (!_abCurrentVariants) { showToast('', 'Generez d'abord les variantes'); return; }
+  if (!_abCurrentVariants) { showToast('', 'Generez d\'abord les variantes'); return; }
   const asin = document.getElementById('abAsin').value.trim().toUpperCase();
   if (!asin || asin.length < 10) { showToast('', 'ASIN invalide (format B0XXXXXXXXX)'); return; }
   const btn = document.getElementById('abPushBtn');
@@ -8321,8 +8321,8 @@ function _abRenderExperiments(experiments) {
       '</div>' +
       '<span class="text-xs font-semibold px-2 py-0.5 rounded-full flex-shrink-0 ' + statusCls + '">' + statusLabel + '</span>' +
       '<div class="flex gap-1 flex-shrink-0">' +
-        '<button onclick="_abViewExperiment('' + e.id + '')" class="text-xs bg-purple-50 hover:bg-purple-100 text-purple-600 px-2.5 py-1.5 rounded-lg transition">Voir</button>' +
-        '<button onclick="_abDeleteExperiment('' + e.id + '')" class="text-xs bg-red-50 hover:bg-red-100 text-red-500 px-2.5 py-1.5 rounded-lg transition">Suppr.</button>' +
+        '<button onclick="_abViewExperiment(\'' + e.id + '\')" class="text-xs bg-purple-50 hover:bg-purple-100 text-purple-600 px-2.5 py-1.5 rounded-lg transition">Voir</button>' +
+        '<button onclick="_abDeleteExperiment(\'' + e.id + '\')" class="text-xs bg-red-50 hover:bg-red-100 text-red-500 px-2.5 py-1.5 rounded-lg transition">Suppr.</button>' +
       '</div></div>';
   }).join('');
 }
