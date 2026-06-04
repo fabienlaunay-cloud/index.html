@@ -7542,9 +7542,47 @@ function _chatGreeting() {
   return { salut, name: name ? name.charAt(0).toUpperCase() + name.slice(1) : '' };
 }
 
+function _chatContextualHints() {
+  const hints = [];
+  const _b = s => s.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+
+  // Quota hint
+  if (_currentUsage && _currentUsage.skus_quota > 0) {
+    const used   = _currentUsage.skus_used  || 0;
+    const quota  = _currentUsage.skus_quota;
+    const remaining = quota - used;
+    const pct    = Math.round((used / quota) * 100);
+    const period = _currentUsage.annual_pool ? 'cette année' : 'ce mois';
+
+    if (used === 0) {
+      hints.push({ icon: '✨', html: _b(`C'est ta première session ${period} — **${quota}** fiches disponibles.`), cls: 'bg-purple-50 border-purple-100 text-purple-700' });
+    } else if (pct >= 90) {
+      hints.push({ icon: '⚠️', html: _b(`Quota presque atteint — il ne reste que **${remaining}** fiche${remaining > 1 ? 's' : ''}.`), cls: 'bg-red-50 border-red-100 text-red-700' });
+    } else if (pct >= 70) {
+      hints.push({ icon: '📊', html: _b(`**${used}** fiches générées ${period} — encore **${remaining}** disponibles.`), cls: 'bg-amber-50 border-amber-100 text-amber-700' });
+    } else {
+      hints.push({ icon: '📊', html: _b(`**${used}** fiche${used > 1 ? 's' : ''} générée${used > 1 ? 's' : ''} ${period} — **${remaining}** restantes.`), cls: 'bg-gray-50 border-gray-200 text-gray-500' });
+    }
+  }
+
+  // Session/batch hint
+  const totalListings = _batches.reduce((s, b) => s + (b.listings?.length || 0), 0);
+  if (_batches.length > 1) {
+    hints.push({ icon: '🗂️', html: _b(`**${_batches.length}** sessions sauvegardées avec **${totalListings}** fiches au total.`), cls: 'bg-purple-50 border-purple-100 text-purple-700' });
+  } else if (totalListings > 0) {
+    hints.push({ icon: '📋', html: _b(`Ta dernière session contient **${totalListings}** fiche${totalListings > 1 ? 's' : ''} — tu peux reprendre où tu en étais.`), cls: 'bg-gray-50 border-gray-200 text-gray-500' });
+  }
+
+  if (!hints.length) return '';
+  return `<div class="mt-3 flex flex-col gap-1.5 w-full max-w-sm">
+    ${hints.slice(0,2).map(h => `<div class="flex items-center gap-2 px-3 py-2 border rounded-lg text-xs ${h.cls}"><span>${h.icon}</span><span>${h.html}</span></div>`).join('')}
+  </div>`;
+}
+
 function resetChatWelcome() {
   const { salut, name } = _chatGreeting();
   const greeting = name ? `${salut} ${name} 👋` : `${salut} 👋`;
+  const hints = _chatContextualHints();
   document.getElementById('chatMessages').innerHTML = `
     <div id="chatWelcome" class="flex flex-col items-center justify-center h-full text-center py-10 px-4"
          style="animation:fadeInUp .35s ease both">
@@ -7554,6 +7592,7 @@ function resetChatWelcome() {
       <h2 class="font-bold text-gray-900 text-2xl mb-1">${greeting}</h2>
       <p class="text-purple-600 font-medium text-base mb-1">Que fait-on aujourd'hui ?</p>
       <p class="text-gray-400 text-sm max-w-xs leading-relaxed mt-1">Décris un produit, partage un catalogue, ou pose une question Amazon.</p>
+      ${hints}
       <div class="mt-6 grid grid-cols-1 gap-2 w-full max-w-sm">
         <button onclick="chatQuickStart('J\\'ai un nouveau produit à lister sur Amazon. Il s\\'agit de ')" class="text-left px-4 py-3 bg-purple-50 hover:bg-purple-100 border border-purple-100 rounded-xl text-sm text-purple-700 transition">"J'ai un nouveau produit à lister…"</button>
         <button onclick="chatQuickStart('Voici mon catalogue produits : ')" class="text-left px-4 py-3 bg-purple-50 hover:bg-purple-100 border border-purple-100 rounded-xl text-sm text-purple-700 transition">📄 Partager un catalogue PDF</button>
