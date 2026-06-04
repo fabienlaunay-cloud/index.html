@@ -1195,7 +1195,7 @@ async def help_chat(req_body: HelpChatRequest, request: Request):
     resp = await get_client().messages.create(
         model="claude-haiku-4-5-20251001",
         max_tokens=600,
-        system=_HELP_SYSTEM,
+        system=[{"type": "text", "text": _HELP_SYSTEM, "cache_control": {"type": "ephemeral"}}],
         messages=messages,
     )
     return {"reply": resp.content[0].text}
@@ -1505,7 +1505,7 @@ IMAGES : {effective_img_count} image(s)"""
     resp = await get_client().messages.create(
         model="claude-haiku-4-5-20251001" if not vision_used else "claude-sonnet-4-6",
         max_tokens=1500,
-        system=_AUDIT_SYSTEM,
+        system=[{"type": "text", "text": _AUDIT_SYSTEM, "cache_control": {"type": "ephemeral"}}],
         messages=[{"role": "user", "content": content}],
     )
     raw = resp.content[0].text.strip()
@@ -1698,7 +1698,7 @@ KEYWORDS : {req.backend_keywords or "(vide)"}"""
     resp = await get_client().messages.create(
         model="claude-haiku-4-5-20251001",
         max_tokens=1200,
-        system=_IMPROVE_SYSTEM,
+        system=[{"type": "text", "text": _IMPROVE_SYSTEM, "cache_control": {"type": "ephemeral"}}],
         messages=[{"role": "user", "content": prompt}],
     )
     raw = resp.content[0].text.strip()
