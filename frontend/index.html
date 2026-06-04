@@ -1590,6 +1590,13 @@
           <div id="segmentPresetsList" class="space-y-2"></div>
           <div class="border-t border-gray-100 pt-3 space-y-2">
             <input id="newSegmentName" type="text" placeholder="Segment (ex: collier chien)" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-xs focus:ring-2 focus:ring-purple-300 outline-none">
+            <div class="flex items-center justify-between mb-1">
+              <span class="text-xs text-gray-500">Mots-clés</span>
+              <button onclick="_kwSuggest('newSegmentKw', selectedMarketplaces[0] || 'amazon_fr', this, 'newSegmentName')" class="flex items-center gap-1 text-xs text-purple-600 hover:text-purple-800 font-medium transition">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+                Suggestions Amazon
+              </button>
+            </div>
             <textarea id="newSegmentKw" rows="2" placeholder="Mots-clés séparés par virgule (SQP)..." class="w-full border border-gray-200 rounded-lg px-3 py-2 text-xs focus:ring-2 focus:ring-purple-300 outline-none resize-none"></textarea>
             <button onclick="addSegmentPreset()" class="w-full bg-purple-50 hover:bg-purple-100 text-purple-700 rounded-lg py-2 text-xs font-medium transition">+ Ajouter ce segment</button>
           </div>
@@ -8449,14 +8456,17 @@ async function _abDeleteExperiment(expId) {
 
 let _kwSuggestTargetId = null;
 
-async function _kwSuggest(inputId, marketplace, triggerBtn) {
+async function _kwSuggest(inputId, marketplace, triggerBtn, queryInputId = null) {
   const input = document.getElementById(inputId);
   if (!input) return;
 
-  // Get query from current input value or the product name if empty
-  let query = input.value.trim().split(',')[0].trim();
+  // Get query: from dedicated query field, or first keyword in target, or product context
+  let query = '';
+  if (queryInputId) {
+    query = (document.getElementById(queryInputId)?.value || '').trim();
+  }
+  if (!query) query = input.value.trim().split(',')[0].trim();
   if (!query) {
-    // Try to infer from context
     const listing = typeof _abCurrentVariants !== 'undefined' && _abCurrentVariants
       ? (_abCurrentVariants.sku || '')
       : (typeof parsedProducts !== 'undefined' && parsedProducts[0]
@@ -8464,7 +8474,7 @@ async function _kwSuggest(inputId, marketplace, triggerBtn) {
           : '');
     query = listing;
   }
-  if (!query) { showToast('', 'Saisissez d\'abord un mot-clé ou un nom de produit'); return; }
+  if (!query) { showToast('', 'Saisissez d\'abord un nom de segment ou un mot-clé'); return; }
 
   _kwSuggestTargetId = inputId;
   const panel = document.getElementById('kwSuggestPanel');
@@ -8504,7 +8514,7 @@ function _kwAddKeyword(kw) {
   if (!input) return;
   const existing = input.value.trim();
   const parts = existing ? existing.split(',').map(k => k.trim()).filter(Boolean) : [];
-  if (!parts.includes(kw)) {
+  if (!parts.map(p => p.toLowerCase()).includes(kw.toLowerCase())) {
     input.value = [...parts, kw].join(', ');
   }
   // Highlight the added keyword in the list
