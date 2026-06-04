@@ -224,7 +224,8 @@ async def health():
     return {
         "status": "ok",
         "ai_ready": bool(os.getenv("ANTHROPIC_API_KEY")),
-        "version": "1.0.0",
+        "version": "1.0.1",
+        "git_commit": os.getenv("RAILWAY_GIT_COMMIT_SHA", "unknown")[:7],
         "db_path": db_abs,
         "db_on_volume": db_abs.startswith("/app/data"),
         "db_exists": db_exists,
@@ -1785,7 +1786,10 @@ class ABTestExperimentCreate(BaseModel):
 
 
 async def _run_ab_job(job_id: str, req: ABTestGenerateRequest, email: str):
-    _jobs[job_id]["status"] = "running"
+    if job_id not in _jobs:
+        _jobs[job_id] = {"status": "running", "progress": 0, "total": 2, "created_at": time.time()}
+    else:
+        _jobs[job_id]["status"] = "running"
     try:
         result = await generate_ab_variants(
             listing_data=req.listing,
