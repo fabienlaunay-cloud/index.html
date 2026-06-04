@@ -2135,13 +2135,13 @@ async def reviews_fetch(asin: str, marketplace: str = "amazon_fr"):
     if blocked:
         raise HTTPException(
             503,
-            "Amazon bloque les requêtes automatisées depuis ce serveur. "
-            "Copiez-collez les avis directement depuis la page produit."
+            "BLOCKED: Amazon bloque les requêtes automatisées depuis ce serveur."
         )
     if not reviews:
         raise HTTPException(
             404,
-            "Aucun avis négatif trouvé — le produit n'existe peut-être pas ou n'a pas encore d'avis 1★/2★."
+            "Aucun avis 1★ ou 2★ trouvé pour ce produit (ASIN "
+            + asin + "). Le produit n'a peut-être pas encore d'avis négatifs."
         )
 
     return {"reviews": reviews, "count": len(reviews), "asin": asin}

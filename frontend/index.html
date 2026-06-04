@@ -8730,7 +8730,7 @@ async function _revFetchFromUrl() {
   const msg = document.getElementById('revFetchMsg');
   msg.classList.add('hidden');
 
-  // Extract ASIN from URL (B + 9 alphanumeric chars, standard Amazon format)
+  // Extract ASIN from URL
   const m = url.match(/\/(?:dp|product-reviews|gp\/product)\/([A-Z0-9]{10})/i)
            || url.match(/(?:^|[^A-Z0-9])(B[A-Z0-9]{9})(?:[^A-Z0-9]|$)/i);
   if (!m) {
@@ -8740,7 +8740,17 @@ async function _revFetchFromUrl() {
     return;
   }
   const asin = m[1].toUpperCase();
-  const marketplace = document.getElementById('auditMkt')?.value || 'amazon_fr';
+
+  // Auto-detect marketplace from URL domain
+  const domainMktMap = {
+    'amazon.fr': 'amazon_fr', 'amazon.de': 'amazon_de',
+    'amazon.co.uk': 'amazon_uk', 'amazon.it': 'amazon_it',
+    'amazon.es': 'amazon_es', 'amazon.com': 'amazon_com',
+  };
+  const domainMatch = url.match(/amazon\.(fr|de|co\.uk|it|es|com)/i);
+  const marketplace = (domainMatch && domainMktMap['amazon.' + domainMatch[1].toLowerCase()])
+                    || document.getElementById('auditMkt')?.value
+                    || 'amazon_fr';
   const btn = document.getElementById('revFetchBtn');
   btn.disabled = true;
   btn.innerHTML = '<div class="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin inline-block mr-1"></div>Chargement…';
@@ -8751,18 +8761,21 @@ async function _revFetchFromUrl() {
     const r = await authFetch(`/api/reviews/fetch?asin=${encodeURIComponent(asin)}&marketplace=${encodeURIComponent(marketplace)}`);
     const data = await r.json().catch(() => ({}));
     if (!r.ok) {
-      if (r.status === 503 || (data.detail || '').toLowerCase().includes('bloque')) {
+      const detail = data.detail || '';
+      if (r.status === 503 || detail.toUpperCase().includes('BLOCKED') || detail.toLowerCase().includes('bloque')) {
         msg.textContent = 'Amazon bloque l\'import automatique — utilisez la méthode manuelle ci-dessous.';
         msg.className = 'text-xs text-amber-600';
         msg.classList.remove('hidden');
         fallback.classList.remove('hidden');
       } else {
-        throw new Error(data.detail || `Erreur HTTP ${r.status}`);
+        msg.textContent = detail || `Erreur HTTP ${r.status}`;
+        msg.className = 'text-xs text-red-600';
+        msg.classList.remove('hidden');
       }
       return;
     }
     document.getElementById('revReviews').value = data.reviews.join('\n\n---\n\n');
-    msg.textContent = `${data.count} avis importés (1★ et 2★) — ASIN ${asin}`;
+    msg.textContent = `${data.count} avis importés (1★ et 2★) — ASIN ${asin} · ${marketplace}`;
     msg.className = 'text-xs text-green-600';
     msg.classList.remove('hidden');
   } catch(e) {
