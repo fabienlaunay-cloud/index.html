@@ -263,6 +263,9 @@ def _init_db_pg():
         )
     """)
 
+    # Migrate existing tables: add columns added after initial deployment
+    conn.execute("ALTER TABLE saved_sessions ADD COLUMN IF NOT EXISTS data_json TEXT NOT NULL DEFAULT '{}'")
+
     conn.commit()
     conn.close()
 
