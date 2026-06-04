@@ -76,7 +76,7 @@ Ce lien est personnel et à usage unique.
     _send(to_email, subject, text, html)
 
 
-
+def send_welcome(to_email: str):
     subject = "🎉 Bienvenue sur SynqIO — vos accès sont prêts"
     text = f"""Bonjour,
 

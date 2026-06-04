@@ -3,6 +3,11 @@
   publish = "."
   command = "printf '/api/* %s/api/:splat 200!\\n/health %s/health 200!\\n' \"$RAILWAY_BACKEND_URL\" \"$RAILWAY_BACKEND_URL\" > _redirects"
 
-# URL du backend Railway — surcharger dans le dashboard Netlify par contexte
 [build.environment]
   RAILWAY_BACKEND_URL = "https://web-production-393ef.up.railway.app"
+
+[context.staging]
+  command = "printf '/api/* %s/api/:splat 200!\\n/health %s/health 200!\\n' \"$RAILWAY_BACKEND_URL\" \"$RAILWAY_BACKEND_URL\" > _redirects"
+
+[context.staging.environment]
+  RAILWAY_BACKEND_URL = "https://web-staging-a11f.up.railway.app"
