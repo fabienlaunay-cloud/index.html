@@ -1065,6 +1065,8 @@ def get_drive_token(user_email: str) -> dict | None:
     conn.close()
     if not row:
         return None
+    if hasattr(row, "keys"):
+        return {"refresh_token": row["refresh_token"], "drive_email": row["drive_email"]}
     return {"refresh_token": row[0], "drive_email": row[1]}
 
 

@@ -99,7 +99,7 @@ async def drive_oauth_callback(code: str = None, state: str = None, error: str =
     if not row:
         return RedirectResponse(f"{app_url}/?drive_oauth=error")
 
-    user_email = row[0]
+    user_email = row["user_email"] if hasattr(row, "keys") else row[0]
 
     async with httpx.AsyncClient() as client:
         # Exchange code for tokens
