@@ -95,13 +95,12 @@ def _collect_files(service, folder_id: str, images_only: bool, depth: int = 0) -
     if depth > 5:
         return []
     results = []
-    # Use contains 'image/' to match all photo formats (JPEG, PNG, HEIC, TIFF, AVIF, WebP, RAW…)
+    # images_only: restrict to image/* mime types; otherwise fetch everything
     if images_only:
-        type_q = "mimeType contains 'image/'"
+        type_filter = " and mimeType contains 'image/'"
     else:
-        mime_q = " or ".join(f"mimeType='{m}'" for m in sorted(ALL_MIMETYPES))
-        type_q = f"({mime_q}) or mimeType contains 'image/'"
-    query = f"'{folder_id}' in parents and trashed=false and ({type_q})"
+        type_filter = ""
+    query = f"'{folder_id}' in parents and trashed=false and mimeType != 'application/vnd.google-apps.folder'{type_filter}"
     page_token = None
     while True:
         resp = service.files().list(
