@@ -1897,6 +1897,12 @@
           <!-- Service account status -->
           <div id="driveStatusBanner" class="hidden mt-4 text-xs px-3 py-2 rounded-lg"></div>
 
+          <!-- Mode toggle -->
+          <div class="flex rounded-lg border border-gray-200 overflow-hidden text-xs font-semibold mt-4">
+            <button id="driveModePhotosBtn" onclick="_setDriveMode('photos')" class="flex-1 py-2 gradient-bg text-white transition">Photos</button>
+            <button id="driveModeDataBtn" onclick="_setDriveMode('data')" class="flex-1 py-2 bg-white text-gray-500 hover:bg-gray-50 transition">Données produits</button>
+          </div>
+
           <!-- Folder URL -->
           <div>
             <label class="text-xs font-medium text-gray-600 block mb-1.5">URL ou ID du dossier Drive</label>
@@ -1904,8 +1910,8 @@
               class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-purple-300 outline-none">
           </div>
 
-          <!-- Brand / Client -->
-          <div class="grid grid-cols-2 gap-3">
+          <!-- Brand / Client (photos only) -->
+          <div id="drivePhotosMeta" class="grid grid-cols-2 gap-3">
             <div>
               <label class="text-xs font-medium text-gray-600 block mb-1.5">Préfixe marque</label>
               <input id="driveBrand" type="text" placeholder="ex: BC"
@@ -1913,7 +1919,7 @@
             </div>
             <div>
               <label class="text-xs font-medium text-gray-600 block mb-1.5">Nom client</label>
-              <input id="driveClient" type="text" placeholder="ex: Bande de Canailles"
+              <input id="driveClient" type="text" placeholder="ex: Bande de Canaille"
                 class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-purple-300 outline-none">
             </div>
           </div>
@@ -1930,8 +1936,8 @@
             <div id="driveKwTags" class="flex flex-wrap gap-1.5 mt-2"></div>
           </div>
 
-          <!-- Product type filter -->
-          <div>
+          <!-- Product type filter (photos only) -->
+          <div id="driveTypeFilterWrap">
             <label class="text-xs font-medium text-gray-600 block mb-1.5">Type produit <span class="text-gray-400">(optionnel)</span></label>
             <select id="driveTypeFilter" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-purple-300 outline-none bg-white">
               <option value="">Tous les types</option>
@@ -1957,15 +1963,31 @@
           <!-- Results -->
           <div id="driveResults" class="hidden space-y-3">
             <div id="driveSummary" class="bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 text-xs text-gray-600 space-y-1"></div>
-            <div id="driveThumbsWrap" class="hidden">
-              <p class="text-xs font-medium text-gray-500 mb-2">Aperçu</p>
-              <div id="driveThumbs" class="grid grid-cols-4 gap-1.5 max-h-48 overflow-y-auto"></div>
+
+            <!-- Photos results -->
+            <div id="drivePhotosResults">
+              <div id="driveThumbsWrap" class="hidden mb-3">
+                <p class="text-xs font-medium text-gray-500 mb-2">Aperçu</p>
+                <div id="driveThumbs" class="grid grid-cols-4 gap-1.5 max-h-48 overflow-y-auto"></div>
+              </div>
+              <div class="flex gap-2">
+                <button onclick="exportDriveCSV()" id="driveCsvBtn"
+                  class="flex-1 bg-green-50 hover:bg-green-100 text-green-700 border border-green-200 rounded-lg py-2 text-sm font-semibold transition flex items-center justify-center gap-2">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                  CSV
+                </button>
+                <button onclick="exportDriveZIP()" id="driveZipBtn"
+                  class="flex-1 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-lg py-2 text-sm font-semibold transition flex items-center justify-center gap-2">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                  ZIP
+                </button>
+              </div>
             </div>
-            <button onclick="exportDriveCSV()" id="driveCsvBtn"
-              class="w-full bg-green-50 hover:bg-green-100 text-green-700 border border-green-200 rounded-lg py-2 text-sm font-semibold transition flex items-center justify-center gap-2">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-              Télécharger CSV
-            </button>
+
+            <!-- Documents results -->
+            <div id="driveDocResults" class="hidden">
+              <div id="driveDocList" class="space-y-1.5 max-h-64 overflow-y-auto"></div>
+            </div>
           </div>
 
         </div>
@@ -5871,6 +5893,17 @@ function toggleDlMenu() {
 
 let _driveFiles = [];
 let _driveKws = [];
+let _driveMode = 'photos';
+
+function _setDriveMode(mode) {
+  _driveMode = mode;
+  const isPhotos = mode === 'photos';
+  document.getElementById('driveModePhotosBtn').className = `flex-1 py-2 transition text-xs font-semibold ${isPhotos ? 'gradient-bg text-white' : 'bg-white text-gray-500 hover:bg-gray-50'}`;
+  document.getElementById('driveModeDataBtn').className = `flex-1 py-2 transition text-xs font-semibold ${!isPhotos ? 'gradient-bg text-white' : 'bg-white text-gray-500 hover:bg-gray-50'}`;
+  document.getElementById('drivePhotosMeta').classList.toggle('hidden', !isPhotos);
+  document.getElementById('driveTypeFilterWrap').classList.toggle('hidden', !isPhotos);
+  document.getElementById('driveResults').classList.add('hidden');
+}
 
 function _toggleDrivePanel() {
   const panel = document.getElementById('drivePanel');
@@ -5931,17 +5964,19 @@ async function extractDrive() {
   btn.innerHTML = '<svg class="animate-spin" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> Extraction…';
   document.getElementById('driveResults').classList.add('hidden');
 
+  const isPhotos = _driveMode === 'photos';
   try {
     const r = await authFetch('/api/drive/extract', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         folder_url: url,
-        brand: document.getElementById('driveBrand').value.trim(),
-        client_name: document.getElementById('driveClient').value.trim(),
+        brand: isPhotos ? document.getElementById('driveBrand').value.trim() : '',
+        client_name: isPhotos ? document.getElementById('driveClient').value.trim() : '',
         keywords: [..._driveKws],
-        product_type_filter: document.getElementById('driveTypeFilter').value || null,
-        images_only: true,
+        product_type_filter: isPhotos ? (document.getElementById('driveTypeFilter').value || null) : null,
+        images_only: isPhotos,
+        documents_only: !isPhotos,
       }),
     });
     if (!r.ok) {
@@ -5963,31 +5998,53 @@ async function extractDrive() {
 
 function _renderDriveResults(data) {
   const summary = document.getElementById('driveSummary');
-  const byType = data.by_type || {};
-  const typeLines = Object.entries(byType)
-    .sort((a, b) => b[1] - a[1])
-    .map(([t, n]) => `<span class="font-semibold text-gray-800">${t.charAt(0).toUpperCase()+t.slice(1)}</span> ${n}`)
-    .join(' &nbsp;·&nbsp; ');
-  summary.innerHTML = `<div class="font-semibold text-gray-800 mb-1">${data.total} fichier${data.total > 1 ? 's' : ''} trouvé${data.total > 1 ? 's' : ''}</div>${typeLines ? `<div class="text-gray-500">${typeLines}</div>` : ''}`;
+  const n = data.total;
+  summary.innerHTML = `<div class="font-semibold text-gray-800">${n} fichier${n > 1 ? 's' : ''} trouvé${n > 1 ? 's' : ''}</div>`;
 
-  // Thumbnails (images only)
-  const imgs = _driveFiles.filter(f => f.is_image).slice(0, 16);
-  const thumbsWrap = document.getElementById('driveThumbsWrap');
-  const thumbs = document.getElementById('driveThumbs');
-  if (imgs.length) {
-    thumbs.innerHTML = imgs.map(f => `
-      <div class="aspect-square bg-gray-100 rounded-lg overflow-hidden border border-gray-200">
-        <img src="/api/drive/image/${_escHtml(f.file_id)}" alt="${_escHtml(f.name)}"
-          class="w-full h-full object-cover"
-          onerror="this.parentElement.innerHTML='<div class=\'w-full h-full flex items-center justify-center text-gray-300 text-xs\'>?</div>'">
-      </div>`).join('');
-    thumbsWrap.classList.remove('hidden');
+  const photosSection = document.getElementById('drivePhotosResults');
+  const docSection = document.getElementById('driveDocResults');
+
+  if (_driveMode === 'photos') {
+    photosSection.classList.remove('hidden');
+    docSection.classList.add('hidden');
+    const imgs = _driveFiles.filter(f => f.is_image).slice(0, 16);
+    const thumbsWrap = document.getElementById('driveThumbsWrap');
+    if (imgs.length) {
+      document.getElementById('driveThumbs').innerHTML = imgs.map(f => `
+        <div class="aspect-square bg-gray-100 rounded-lg overflow-hidden border border-gray-200">
+          <img src="/api/drive/image/${_escHtml(f.file_id)}" alt="${_escHtml(f.name)}"
+            class="w-full h-full object-cover"
+            onerror="this.parentElement.innerHTML='<div class=\'w-full h-full flex items-center justify-center text-gray-300 text-xs\'>?</div>'">
+        </div>`).join('');
+      thumbsWrap.classList.remove('hidden');
+    } else {
+      thumbsWrap.classList.add('hidden');
+    }
   } else {
-    thumbsWrap.classList.add('hidden');
+    photosSection.classList.add('hidden');
+    docSection.classList.remove('hidden');
+    const extIcon = mime => {
+      if (mime.includes('spreadsheet') || mime.includes('excel') || mime.includes('csv')) return '📊';
+      if (mime.includes('json')) return '📋';
+      return '📄';
+    };
+    document.getElementById('driveDocList').innerHTML = _driveFiles.length
+      ? _driveFiles.map(f => `
+        <div class="flex items-center justify-between gap-2 bg-gray-50 border border-gray-100 rounded-lg px-3 py-2">
+          <div class="flex items-center gap-2 min-w-0">
+            <span class="text-base flex-shrink-0">${extIcon(f.mime_type)}</span>
+            <span class="text-xs text-gray-700 truncate font-medium">${_escHtml(f.name)}</span>
+          </div>
+          <button onclick="importDriveFile('${_escHtml(f.file_id)}','${_escHtml(f.name.replace(/'/g,''))}','${_escHtml(f.mime_type)}')"
+            class="flex-shrink-0 text-xs bg-purple-600 hover:bg-purple-700 text-white rounded-lg px-2.5 py-1 font-semibold transition">
+            Importer
+          </button>
+        </div>`).join('')
+      : '<p class="text-xs text-gray-400 text-center py-4">Aucun fichier trouvé</p>';
   }
 
   document.getElementById('driveResults').classList.remove('hidden');
-  if (data.total > 0) showToast('✅', `${data.total} fichiers extraits depuis Drive`);
+  if (n > 0) showToast('✅', `${n} fichier${n > 1 ? 's' : ''} extrait${n > 1 ? 's' : ''} depuis Drive`);
   else showToast('⚠️', 'Aucun fichier trouvé — vérifie l\'URL et les mots-clés');
 }
 
@@ -6003,15 +6060,48 @@ async function exportDriveCSV() {
     });
     if (!r.ok) throw new Error((await r.json()).detail);
     const blob = await r.blob();
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = 'synqio_drive_export.csv';
-    a.click();
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+    a.download = 'synqio_drive_export.csv'; a.click();
     showToast('✅', 'CSV téléchargé — prêt à importer dans SynqIO');
   } catch (e) {
     showToast('❌', `Erreur export : ${e.message}`, true);
+  } finally { btn.disabled = false; }
+}
+
+async function exportDriveZIP() {
+  if (!_driveFiles.length) { showToast('⚠️', 'Lance d\'abord une extraction'); return; }
+  const btn = document.getElementById('driveZipBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<svg class="animate-spin" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> ZIP…';
+  try {
+    const r = await authFetch('/api/drive/export/zip', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ files: _driveFiles.map(f => ({ file_id: f.file_id, name: f.name })) }),
+    });
+    if (!r.ok) throw new Error('Erreur ZIP');
+    const blob = await r.blob();
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+    a.download = 'synqio_drive_photos.zip'; a.click();
+    showToast('✅', `ZIP téléchargé — ${_driveFiles.length} fichiers`);
+  } catch (e) {
+    showToast('❌', `Erreur ZIP : ${e.message}`, true);
   } finally {
     btn.disabled = false;
+    btn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> ZIP';
+  }
+}
+
+async function importDriveFile(fileId, fileName, mimeType) {
+  showToast('⏳', `Téléchargement de ${fileName}…`);
+  try {
+    const r = await authFetch(`/api/drive/file/${encodeURIComponent(fileId)}?name=${encodeURIComponent(fileName)}`);
+    if (!r.ok) throw new Error('Téléchargement échoué');
+    const blob = await r.blob();
+    const file = new File([blob], fileName, { type: mimeType });
+    await handleFile(file);
+  } catch (e) {
+    showToast('❌', `Erreur import : ${e.message}`, true);
   }
 }
 document.addEventListener('click', e => {

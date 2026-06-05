@@ -38,13 +38,15 @@ _PATTERNS: dict[str, list[str]] = {
 IMAGE_MIMETYPES = frozenset({
     "image/jpeg", "image/jpg", "image/png", "image/webp", "image/gif", "image/bmp",
 })
-ALL_MIMETYPES = IMAGE_MIMETYPES | frozenset({
+DOCUMENT_MIMETYPES = frozenset({
     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     "application/vnd.ms-excel",
     "text/csv",
     "text/plain",
     "application/json",
+    "application/vnd.oasis.opendocument.spreadsheet",
 })
+ALL_MIMETYPES = IMAGE_MIMETYPES | DOCUMENT_MIMETYPES
 
 _TYPE_CODES = {
     "collier": "COL", "laisse": "LAI", "harnais": "HAR",
@@ -90,14 +92,16 @@ def _make_sku(brand: str, ptype: Optional[str], idx: int) -> str:
     return f"{prefix}-{code}-{idx:03d}"
 
 
-def _collect_files(service, folder_id: str, images_only: bool, depth: int = 0) -> list[dict]:
+def _collect_files(service, folder_id: str, images_only: bool, documents_only: bool, depth: int = 0) -> list[dict]:
     """Recursively collect files from a folder and all its subfolders (max depth 5)."""
     if depth > 5:
         return []
     results = []
-    # images_only: restrict to image/* mime types; otherwise fetch everything
     if images_only:
         type_filter = " and mimeType contains 'image/'"
+    elif documents_only:
+        mime_q = " or ".join(f"mimeType='{m}'" for m in sorted(DOCUMENT_MIMETYPES))
+        type_filter = f" and ({mime_q})"
     else:
         type_filter = ""
     query = f"'{folder_id}' in parents and trashed=false and mimeType != 'application/vnd.google-apps.folder'{type_filter}"
@@ -124,7 +128,7 @@ def _collect_files(service, folder_id: str, images_only: bool, depth: int = 0) -
             includeItemsFromAllDrives=True, supportsAllDrives=True,
         ).execute()
         for subfolder in resp.get("files", []):
-            results.extend(_collect_files(service, subfolder["id"], images_only, depth + 1))
+            results.extend(_collect_files(service, subfolder["id"], images_only, documents_only, depth + 1))
         page_token = resp.get("nextPageToken")
         if not page_token:
             break
@@ -138,11 +142,12 @@ def list_files(
     keywords: list[str] | None = None,
     product_type_filter: Optional[str] = None,
     images_only: bool = True,
+    documents_only: bool = False,
 ) -> dict:
     service = _get_service()
     folder_id = extract_folder_id(folder_url)
 
-    raw = _collect_files(service, folder_id, images_only)
+    raw = _collect_files(service, folder_id, images_only, documents_only)
 
     # Keyword filter
     kws = [k.lower().strip() for k in (keywords or []) if k.strip()]
@@ -202,12 +207,12 @@ def build_csv(files: list[dict], proxy_base: str = "") -> str:
     return out.getvalue()
 
 
-def get_image_bytes(file_id: str) -> tuple[bytes, str]:
+def get_file_bytes(file_id: str) -> tuple[bytes, str]:
     """Download a Drive file and return (bytes, mime_type)."""
     from googleapiclient.http import MediaIoBaseDownload
     service = _get_service()
     meta = service.files().get(fileId=file_id, fields="mimeType", supportsAllDrives=True).execute()
-    mime = meta.get("mimeType", "image/jpeg")
+    mime = meta.get("mimeType", "application/octet-stream")
     buf = io.BytesIO()
     req = service.files().get_media(fileId=file_id, supportsAllDrives=True)
     dl = MediaIoBaseDownload(buf, req)

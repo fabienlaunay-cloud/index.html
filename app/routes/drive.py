@@ -1,14 +1,24 @@
+import io
 import os
+import zipfile
 from typing import Optional
 
-from fastapi import APIRouter, Request, HTTPException
+from fastapi import APIRouter, Request, HTTPException, Query
 from fastapi.responses import Response
 from pydantic import BaseModel
 
-from app.services.drive import list_files, build_csv, get_image_bytes
+from app.services.drive import list_files, build_csv, get_file_bytes
 from app.logger import log
 
 router = APIRouter(prefix="/api/drive", tags=["drive"])
+
+DOCUMENT_MIMETYPES = frozenset({
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "application/vnd.ms-excel",
+    "text/csv",
+    "text/plain",
+    "application/json",
+})
 
 
 # ── Status ─────────────────────────────────────────────────────────────────────
@@ -36,6 +46,7 @@ class ExtractRequest(BaseModel):
     keywords: list[str] = []
     product_type_filter: Optional[str] = None
     images_only: bool = True
+    documents_only: bool = False
 
 
 @router.post("/extract")
@@ -49,6 +60,7 @@ async def extract_drive(body: ExtractRequest, request: Request):
             keywords=body.keywords,
             product_type_filter=body.product_type_filter,
             images_only=body.images_only,
+            documents_only=body.documents_only,
         )
         log.info(f"[drive] {email} extracted {result['total']} files from folder {result['folder_id']}")
         return result
@@ -76,12 +88,57 @@ async def export_drive_csv(body: ExportCSVRequest, request: Request):
     )
 
 
+# ── ZIP export ─────────────────────────────────────────────────────────────────
+
+class ExportZIPRequest(BaseModel):
+    files: list[dict]  # [{file_id, name}]
+
+
+@router.post("/export/zip")
+async def export_drive_zip(body: ExportZIPRequest, request: Request):
+    email = request.state.user_email
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        for f in body.files:
+            try:
+                data, _ = get_file_bytes(f["file_id"])
+                zf.writestr(f.get("name", f["file_id"]), data)
+            except Exception as e:
+                log.warning(f"[drive] zip skip {f.get('name')}: {e}")
+    buf.seek(0)
+    log.info(f"[drive] {email} downloaded ZIP with {len(body.files)} files")
+    return Response(
+        content=buf.read(),
+        media_type="application/zip",
+        headers={"Content-Disposition": 'attachment; filename="synqio_drive_photos.zip"'},
+    )
+
+
+# ── File proxy (for product data import) ──────────────────────────────────────
+
+@router.get("/file/{file_id}")
+async def proxy_file(file_id: str, name: str = Query(default="file"), request: Request = None):
+    try:
+        data, mime = get_file_bytes(file_id)
+        safe_name = name.replace('"', '')
+        return Response(
+            content=data,
+            media_type=mime,
+            headers={
+                "Content-Disposition": f'attachment; filename="{safe_name}"',
+                "Cache-Control": "max-age=300",
+            },
+        )
+    except Exception as e:
+        raise HTTPException(404, f"Fichier introuvable : {e}")
+
+
 # ── Image proxy ────────────────────────────────────────────────────────────────
 
 @router.get("/image/{file_id}")
-async def proxy_image(file_id: str, request: Request):
+async def proxy_image(file_id: str, request: Request = None):
     try:
-        data, mime = get_image_bytes(file_id)
+        data, mime = get_file_bytes(file_id)
         return Response(content=data, media_type=mime, headers={"Cache-Control": "max-age=3600"})
     except Exception as e:
         raise HTTPException(404, f"Image introuvable : {e}")
