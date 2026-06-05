@@ -2081,8 +2081,9 @@
               <input id="driveFolderUrl" type="text" placeholder="https://drive.google.com/drive/folders/…"
                 class="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-purple-300 outline-none">
               <button id="drivePickerBtn" onclick="openDrivePicker()" title="Parcourir Drive"
-                class="hidden flex-shrink-0 border border-gray-200 rounded-lg px-3 py-2 hover:bg-gray-50 transition text-gray-500">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+                class="hidden flex-shrink-0 flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-lg transition" style="background:rgba(26,115,232,0.1);color:#1a73e8;border:1px solid rgba(26,115,232,0.25)">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+                Parcourir
               </button>
             </div>
           </div>
@@ -2095,8 +2096,9 @@
                 <input id="drivePhotoFolderUrl" type="text" placeholder="https://drive.google.com/drive/folders/…"
                   class="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-purple-300 outline-none">
                 <button id="drivePickerBtnUnified" onclick="openDrivePicker('unified')" title="Parcourir Drive"
-                  class="hidden flex-shrink-0 border border-gray-200 rounded-lg px-3 py-2 hover:bg-gray-50 transition text-gray-500">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+                  class="hidden flex-shrink-0 flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-lg transition" style="background:rgba(26,115,232,0.1);color:#1a73e8;border:1px solid rgba(26,115,232,0.25)">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+                  Parcourir
                 </button>
               </div>
             </div>
@@ -2106,8 +2108,9 @@
                 <input id="driveDataFileUrl" type="text" placeholder="URL ou ID du fichier Drive"
                   class="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-purple-300 outline-none">
                 <button id="driveFilePickerBtn" onclick="openDriveFilePicker()" title="Sélectionner un fichier"
-                  class="hidden flex-shrink-0 border border-gray-200 rounded-lg px-3 py-2 hover:bg-gray-50 transition text-gray-500">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>
+                  class="hidden flex-shrink-0 flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-lg transition" style="background:rgba(26,115,232,0.1);color:#1a73e8;border:1px solid rgba(26,115,232,0.25)">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>
+                  Parcourir
                 </button>
               </div>
               <p class="text-xs text-gray-400 mt-1.5">Conseil : nommez vos photos avec le SKU ou l'EAN pour un matching automatique.</p>
@@ -2950,6 +2953,43 @@
       <input id="resetPassword" type="password" placeholder="Nouveau mot de passe (12 car. min + spécial)" class="input-auth w-full rounded-xl px-4 py-3 text-sm">
       <input id="resetPassword2" type="password" placeholder="Confirmez le mot de passe" class="input-auth w-full rounded-xl px-4 py-3 text-sm" onkeydown="if(event.key==='Enter') doResetPassword()">
       <button onclick="doResetPassword()" class="btn-login w-full text-white rounded-xl py-3.5 font-semibold text-sm mt-2">Enregistrer →</button>
+    </div>
+  </div>
+</div>
+
+<!-- Drive Custom Browser Modal -->
+<div id="driveBrowserModal" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[500] p-4">
+  <div class="login-card w-full max-w-xl rounded-3xl overflow-hidden flex flex-col" style="max-height:80vh">
+    <!-- Header -->
+    <div class="flex items-center justify-between px-6 py-4" style="border-bottom:1px solid rgba(124,58,237,0.15)">
+      <div class="flex items-center gap-3">
+        <!-- Google Drive color icon -->
+        <svg width="28" height="28" viewBox="0 0 87.3 78" xmlns="http://www.w3.org/2000/svg">
+          <path d="m6.6 66.85 3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3l13.75-23.8h-27.5c0 1.55.4 3.1 1.2 4.5z" fill="#0066da"/>
+          <path d="m43.65 25-13.75-23.8c-1.35.8-2.5 1.9-3.3 3.3l-25.4 44a9.06 9.06 0 0 0 -1.2 4.5h27.5z" fill="#00ac47"/>
+          <path d="m73.55 76.8c1.35-.8 2.5-1.9 3.3-3.3l1.6-2.75 7.65-13.25c.8-1.4 1.2-2.95 1.2-4.5h-27.502l5.852 11.5z" fill="#ea4335"/>
+          <path d="m43.65 25 13.75-23.8c-1.35-.8-2.9-1.2-4.5-1.2h-18.5c-1.6 0-3.15.45-4.5 1.2z" fill="#00832d"/>
+          <path d="m59.8 53h-32.3l-13.75 23.8c1.35.8 2.9 1.2 4.5 1.2h50.8c1.6 0 3.15-.45 4.5-1.2z" fill="#2684fc"/>
+          <path d="m73.4 26.5-12.7-22c-.8-1.4-1.95-2.5-3.3-3.3l-13.75 23.8 16.15 28h27.45c0-1.55-.4-3.1-1.2-4.5z" fill="#ffba00"/>
+        </svg>
+        <div>
+          <p class="font-semibold text-sm" style="color:rgba(255,255,255,0.9)">Google Drive</p>
+          <div id="driveBrowserBreadcrumb" class="flex items-center gap-1 flex-wrap" style="font-size:11px;color:rgba(255,255,255,0.45);margin-top:2px"></div>
+        </div>
+      </div>
+      <button onclick="_closeDriveBrowser()" style="color:rgba(255,255,255,0.4);font-size:20px;line-height:1" class="hover:text-white transition">×</button>
+    </div>
+    <!-- File list -->
+    <div id="driveBrowserList" class="flex-1 overflow-y-auto p-3 space-y-0.5">
+      <p class="text-center py-10 text-sm" style="color:rgba(255,255,255,0.35)">Chargement…</p>
+    </div>
+    <!-- Footer -->
+    <div id="driveBrowserFooter" class="px-6 py-4 flex gap-3 items-center" style="border-top:1px solid rgba(124,58,237,0.15)">
+      <p id="driveBrowserHint" class="flex-1 text-xs" style="color:rgba(255,255,255,0.35)"></p>
+      <button onclick="_closeDriveBrowser()" style="color:rgba(255,255,255,0.5);border:1px solid rgba(255,255,255,0.12);border-radius:10px;padding:8px 16px;font-size:13px;transition:background 0.2s" onmouseover="this.style.background='rgba(255,255,255,0.06)'" onmouseout="this.style.background='transparent'">Annuler</button>
+      <button id="driveBrowserSelectFolderBtn" onclick="_driveBrowserSelectFolder()" class="hidden gradient-bg text-white font-semibold text-sm rounded-xl px-4 py-2 transition hover:opacity-90">
+        <span id="driveBrowserSelectLabel">📁 Sélectionner ce dossier</span>
+      </button>
     </div>
   </div>
 </div>
@@ -6256,10 +6296,9 @@ async function _checkDriveStatus() {
       notConn.classList.add('hidden');
       conn.classList.remove('hidden');
       document.getElementById('driveConnectedEmail').textContent = d.drive_email || '';
-      const showPicker = !!d.api_key;
-      document.getElementById('drivePickerBtn').classList.toggle('hidden', !showPicker);
-      document.getElementById('drivePickerBtnUnified').classList.toggle('hidden', !showPicker);
-      document.getElementById('driveFilePickerBtn').classList.toggle('hidden', !showPicker);
+      document.getElementById('drivePickerBtn').classList.remove('hidden');
+      document.getElementById('drivePickerBtnUnified').classList.remove('hidden');
+      document.getElementById('driveFilePickerBtn').classList.remove('hidden');
     } else {
       dot.className = 'w-2 h-2 rounded-full bg-gray-300';
       conn.classList.add('hidden');
@@ -6298,46 +6337,184 @@ function _loadPickerApi(cb) {
 
 function openDrivePicker(target) {
   const inputId = target === 'unified' ? 'drivePhotoFolderUrl' : 'driveFolderUrl';
-  _loadPickerApi(() => {
-    authFetch('/api/drive/oauth/token').then(r => r.json()).then(({ access_token }) => {
-      const picker = new google.picker.PickerBuilder()
-        .addView(new google.picker.DocsView(google.picker.ViewId.FOLDERS)
-          .setIncludeFolders(true).setSelectFolderEnabled(true).setMimeTypes('application/vnd.google-apps.folder'))
-        .setOAuthToken(access_token)
-        .setDeveloperKey(_driveOAuthConfig.api_key)
-        .setCallback(data => {
-          if (data.action === google.picker.Action.PICKED)
-            document.getElementById(inputId).value = `https://drive.google.com/drive/folders/${data.docs[0].id}`;
-        })
-        .build();
-      picker.setVisible(true);
-    }).catch(() => showToast('❌', 'Impossible d\'ouvrir le sélecteur Drive'));
-  });
+  if (_driveOAuthConfig.api_key) {
+    _loadPickerApi(() => {
+      authFetch('/api/drive/oauth/token').then(r => r.json()).then(({ access_token }) => {
+        const picker = new google.picker.PickerBuilder()
+          .addView(new google.picker.DocsView(google.picker.ViewId.FOLDERS)
+            .setIncludeFolders(true).setSelectFolderEnabled(true).setMimeTypes('application/vnd.google-apps.folder'))
+          .setOAuthToken(access_token)
+          .setDeveloperKey(_driveOAuthConfig.api_key)
+          .setCallback(data => {
+            if (data.action === google.picker.Action.PICKED)
+              document.getElementById(inputId).value = `https://drive.google.com/drive/folders/${data.docs[0].id}`;
+          })
+          .build();
+        picker.setVisible(true);
+      }).catch(() => showToast('❌', 'Impossible d\'ouvrir le sélecteur Drive'));
+    });
+  } else {
+    _openDriveBrowser('folder', inputId);
+  }
 }
 
 function openDriveFilePicker() {
-  _loadPickerApi(() => {
-    authFetch('/api/drive/oauth/token').then(r => r.json()).then(({ access_token }) => {
-      const view = new google.picker.DocsView()
-        .setIncludeFolders(false)
-        .setMimeTypes([
-          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-          'application/vnd.ms-excel', 'text/csv',
-          'application/vnd.oasis.opendocument.spreadsheet',
-        ].join(','));
-      const picker = new google.picker.PickerBuilder()
-        .addView(view)
-        .setOAuthToken(access_token)
-        .setDeveloperKey(_driveOAuthConfig.api_key)
-        .setCallback(data => {
-          if (data.action === google.picker.Action.PICKED)
-            document.getElementById('driveDataFileUrl').value = data.docs[0].id;
-        })
-        .build();
-      picker.setVisible(true);
-    }).catch(() => showToast('❌', 'Impossible d\'ouvrir le sélecteur Drive'));
-  });
+  if (_driveOAuthConfig.api_key) {
+    _loadPickerApi(() => {
+      authFetch('/api/drive/oauth/token').then(r => r.json()).then(({ access_token }) => {
+        const view = new google.picker.DocsView()
+          .setIncludeFolders(false)
+          .setMimeTypes([
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'application/vnd.ms-excel', 'text/csv',
+            'application/vnd.oasis.opendocument.spreadsheet',
+          ].join(','));
+        const picker = new google.picker.PickerBuilder()
+          .addView(view)
+          .setOAuthToken(access_token)
+          .setDeveloperKey(_driveOAuthConfig.api_key)
+          .setCallback(data => {
+            if (data.action === google.picker.Action.PICKED)
+              document.getElementById('driveDataFileUrl').value = data.docs[0].id;
+          })
+          .build();
+        picker.setVisible(true);
+      }).catch(() => showToast('❌', 'Impossible d\'ouvrir le sélecteur Drive'));
+    });
+  } else {
+    _openDriveBrowser('file', 'driveDataFileUrl');
+  }
 }
+
+// ── Custom Drive Browser (fallback when no GOOGLE_API_KEY) ──────────────────
+
+let _driveBrowserTarget = null; // 'folder' | 'file'
+let _driveBrowserInputId = null;
+let _driveBrowserStack = []; // [{id, name}]
+let _driveBrowserToken = null;
+
+const _DRIVE_FILE_MIMES = new Set([
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'application/vnd.ms-excel', 'text/csv',
+  'application/vnd.oasis.opendocument.spreadsheet',
+]);
+
+async function _openDriveBrowser(target, inputId) {
+  _driveBrowserTarget = target;
+  _driveBrowserInputId = inputId;
+  _driveBrowserStack = [{ id: 'root', name: 'Mon Drive' }];
+  document.getElementById('driveBrowserModal').classList.remove('hidden');
+  const selectBtn = document.getElementById('driveBrowserSelectFolderBtn');
+  selectBtn.classList.toggle('hidden', target === 'file');
+  document.getElementById('driveBrowserHint').textContent =
+    target === 'file' ? 'Cliquez sur un fichier pour le sélectionner' : 'Naviguez et sélectionnez un dossier';
+  try {
+    const r = await authFetch('/api/drive/oauth/token');
+    const { access_token } = await r.json();
+    _driveBrowserToken = access_token;
+    await _driveBrowserLoad('root');
+  } catch(e) {
+    showToast('❌', 'Impossible d\'accéder à Drive');
+    document.getElementById('driveBrowserModal').classList.add('hidden');
+  }
+}
+
+async function _driveBrowserLoad(folderId) {
+  const list = document.getElementById('driveBrowserList');
+  list.innerHTML = '<p class="text-center py-10 text-sm" style="color:rgba(255,255,255,0.35)">Chargement…</p>';
+  _driveBrowserRenderBreadcrumb();
+  const current = _driveBrowserStack[_driveBrowserStack.length - 1];
+  const lbl = document.getElementById('driveBrowserSelectLabel');
+  if (lbl) lbl.textContent = current.id === 'root' ? '📁 Sélectionner ce dossier' : `📁 "${current.name}"`;
+  try {
+    const q = encodeURIComponent(`'${folderId}' in parents and trashed=false`);
+    const fields = encodeURIComponent('files(id,name,mimeType,modifiedTime,size)');
+    const resp = await fetch(
+      `https://www.googleapis.com/drive/v3/files?q=${q}&fields=${fields}&orderBy=folder,name&pageSize=200`,
+      { headers: { Authorization: `Bearer ${_driveBrowserToken}` } }
+    );
+    if (resp.status === 401) { showToast('❌', 'Session Drive expirée — reconnectez-vous'); _closeDriveBrowser(); return; }
+    const data = await resp.json();
+    const files = (data.files || []);
+    if (!files.length) {
+      list.innerHTML = '<p class="text-center py-10 text-sm" style="color:rgba(255,255,255,0.35)">Dossier vide</p>';
+      return;
+    }
+    list.innerHTML = files.map(f => {
+      const isFolder = f.mimeType === 'application/vnd.google-apps.folder';
+      const isSelectableFile = !isFolder && _driveBrowserTarget === 'file' && (
+        _DRIVE_FILE_MIMES.has(f.mimeType) || f.name.match(/\.(xlsx?|csv|ods)$/i)
+      );
+      const isImage = !isFolder && f.mimeType.startsWith('image/');
+      const dimmed = !isFolder && _driveBrowserTarget === 'file' && !isSelectableFile;
+      let icon = '📄';
+      if (isFolder) icon = '📁';
+      else if (isImage) icon = '🖼️';
+      else if (isSelectableFile) icon = '📊';
+      const date = f.modifiedTime
+        ? new Date(f.modifiedTime).toLocaleDateString('fr-FR', {day:'2-digit',month:'short',year:'numeric'})
+        : '';
+      const click = isFolder
+        ? `_driveBrowserEnter('${f.id.replace(/'/g,"\\'")}','${f.name.replace(/'/g,"\\'")}')`
+        : isSelectableFile ? `_driveBrowserSelectFile('${f.id.replace(/'/g,"\\'")}','${f.name.replace(/'/g,"\\'")}')` : '';
+      return `<div onclick="${click}" style="display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:10px;cursor:${click?'pointer':'default'};transition:background 0.15s;opacity:${dimmed?'0.35':'1'}"
+        onmouseover="${click?`this.style.background='rgba(124,58,237,0.12)'`:''}"
+        onmouseout="${click?`this.style.background='transparent'`:''}">
+        <span style="font-size:17px;flex-shrink:0;width:22px;text-align:center">${icon}</span>
+        <span style="flex:1;font-size:13px;color:rgba(255,255,255,0.85);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${_escHtml(f.name)}</span>
+        ${date?`<span style="font-size:11px;color:rgba(255,255,255,0.28);flex-shrink:0">${date}</span>`:''}
+        ${isFolder?'<span style="color:rgba(124,58,237,0.7);font-size:13px;flex-shrink:0;margin-left:2px">›</span>':''}
+        ${isSelectableFile?'<span style="font-size:10px;font-weight:600;padding:2px 6px;border-radius:4px;flex-shrink:0;background:rgba(124,58,237,0.2);color:rgba(167,139,250,0.9)">Sélectionner</span>':''}
+      </div>`;
+    }).join('');
+  } catch(e) {
+    list.innerHTML = '<p class="text-center py-10 text-sm text-red-400">Erreur — réessayez</p>';
+  }
+}
+
+function _driveBrowserEnter(id, name) {
+  _driveBrowserStack.push({ id, name });
+  _driveBrowserLoad(id);
+}
+
+function _driveBrowserNavigate(id, name) {
+  const idx = _driveBrowserStack.findIndex(s => s.id === id);
+  _driveBrowserStack = idx >= 0 ? _driveBrowserStack.slice(0, idx + 1) : [{ id, name }];
+  _driveBrowserLoad(id);
+}
+
+function _driveBrowserRenderBreadcrumb() {
+  const el = document.getElementById('driveBrowserBreadcrumb');
+  el.innerHTML = _driveBrowserStack.map((s, i) => {
+    const isLast = i === _driveBrowserStack.length - 1;
+    return isLast
+      ? `<span style="color:rgba(255,255,255,0.75);font-weight:600">${_escHtml(s.name)}</span>`
+      : `<button onclick="_driveBrowserNavigate('${s.id.replace(/'/g,"\\'")}','${s.name.replace(/'/g,"\\'")}')" style="color:rgba(124,58,237,0.75)" class="hover:underline">${_escHtml(s.name)}</button><span style="color:rgba(255,255,255,0.2);margin:0 3px">/</span>`;
+  }).join('');
+}
+
+function _driveBrowserSelectFolder() {
+  const current = _driveBrowserStack[_driveBrowserStack.length - 1];
+  if (current.id === 'root') { showToast('⚠️', 'Naviguez dans un dossier pour le sélectionner'); return; }
+  const input = document.getElementById(_driveBrowserInputId);
+  if (input) input.value = `https://drive.google.com/drive/folders/${current.id}`;
+  _closeDriveBrowser();
+  showToast('✅', `Dossier sélectionné : ${current.name}`);
+}
+
+function _driveBrowserSelectFile(id, name) {
+  const input = document.getElementById(_driveBrowserInputId);
+  if (input) input.value = id;
+  _closeDriveBrowser();
+  showToast('✅', `Fichier sélectionné : ${name}`);
+}
+
+function _closeDriveBrowser() {
+  document.getElementById('driveBrowserModal').classList.add('hidden');
+  _driveBrowserToken = null;
+}
+
+// ── End Custom Drive Browser ────────────────────────────────────────────────
 
 function _addDriveKw() {
   const inp = document.getElementById('driveKwInput');
