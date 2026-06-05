@@ -90,6 +90,41 @@ def _make_sku(brand: str, ptype: Optional[str], idx: int) -> str:
     return f"{prefix}-{code}-{idx:03d}"
 
 
+def _collect_files(service, folder_id: str, mimes: frozenset, depth: int = 0) -> list[dict]:
+    """Recursively collect files from a folder and all its subfolders (max depth 5)."""
+    if depth > 5:
+        return []
+    results = []
+    mime_q = " or ".join(f"mimeType='{m}'" for m in sorted(mimes))
+    query = f"'{folder_id}' in parents and trashed=false and ({mime_q})"
+    page_token = None
+    while True:
+        resp = service.files().list(
+            q=query, spaces="drive",
+            fields="nextPageToken, files(id,name,mimeType,size,webViewLink)",
+            pageToken=page_token, pageSize=500,
+        ).execute()
+        results.extend(resp.get("files", []))
+        page_token = resp.get("nextPageToken")
+        if not page_token:
+            break
+    # Recurse into subfolders
+    sub_q = f"'{folder_id}' in parents and trashed=false and mimeType='application/vnd.google-apps.folder'"
+    page_token = None
+    while True:
+        resp = service.files().list(
+            q=sub_q, spaces="drive",
+            fields="nextPageToken, files(id,name)",
+            pageToken=page_token, pageSize=200,
+        ).execute()
+        for subfolder in resp.get("files", []):
+            results.extend(_collect_files(service, subfolder["id"], mimes, depth + 1))
+        page_token = resp.get("nextPageToken")
+        if not page_token:
+            break
+    return results
+
+
 def list_files(
     folder_url: str,
     brand: str = "",
@@ -102,21 +137,7 @@ def list_files(
     folder_id = extract_folder_id(folder_url)
 
     mimes = IMAGE_MIMETYPES if images_only else ALL_MIMETYPES
-    mime_q = " or ".join(f"mimeType='{m}'" for m in sorted(mimes))
-    query = f"'{folder_id}' in parents and trashed=false and ({mime_q})"
-
-    raw: list[dict] = []
-    page_token = None
-    while True:
-        resp = service.files().list(
-            q=query, spaces="drive",
-            fields="nextPageToken, files(id,name,mimeType,size,webViewLink)",
-            pageToken=page_token, pageSize=500,
-        ).execute()
-        raw.extend(resp.get("files", []))
-        page_token = resp.get("nextPageToken")
-        if not page_token:
-            break
+    raw = _collect_files(service, folder_id, mimes)
 
     # Keyword filter
     kws = [k.lower().strip() for k in (keywords or []) if k.strip()]
