@@ -2216,6 +2216,14 @@
         </div>
       </div>
 
+      <!-- Generate button — standalone card -->
+      <div class="bg-white rounded-2xl shadow-sm p-4 border border-gray-100">
+        <button id="generateBtn" onclick="generateListings()"
+          class="w-full gradient-bg text-white rounded-xl py-3 font-semibold text-sm shadow-md hover:opacity-90 transition flex items-center justify-center gap-2 disabled:opacity-40" disabled>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg> Générer les fiches
+        </button>
+      </div>
+
       <!-- ── Importer manuellement — SECONDARY ──────────────────────────── -->
       <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
         <button onclick="_toggleImportPanel()" class="w-full flex items-center justify-between px-6 py-4 hover:bg-gray-50 transition">
@@ -2313,14 +2321,6 @@
             </select>
           </div>
         </div>
-      </div>
-
-      <!-- Generate button — standalone card -->
-      <div class="bg-white rounded-2xl shadow-sm p-4 border border-gray-100">
-        <button id="generateBtn" onclick="generateListings()"
-          class="w-full gradient-bg text-white rounded-xl py-3 font-semibold text-sm shadow-md hover:opacity-90 transition flex items-center justify-center gap-2 disabled:opacity-40" disabled>
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg> Générer les fiches
-        </button>
       </div>
 
       <!-- Voix de marque -->
