@@ -90,13 +90,18 @@ def _make_sku(brand: str, ptype: Optional[str], idx: int) -> str:
     return f"{prefix}-{code}-{idx:03d}"
 
 
-def _collect_files(service, folder_id: str, mimes: frozenset, depth: int = 0) -> list[dict]:
+def _collect_files(service, folder_id: str, images_only: bool, depth: int = 0) -> list[dict]:
     """Recursively collect files from a folder and all its subfolders (max depth 5)."""
     if depth > 5:
         return []
     results = []
-    mime_q = " or ".join(f"mimeType='{m}'" for m in sorted(mimes))
-    query = f"'{folder_id}' in parents and trashed=false and ({mime_q})"
+    # Use contains 'image/' to match all photo formats (JPEG, PNG, HEIC, TIFF, AVIF, WebP, RAW…)
+    if images_only:
+        type_q = "mimeType contains 'image/'"
+    else:
+        mime_q = " or ".join(f"mimeType='{m}'" for m in sorted(ALL_MIMETYPES))
+        type_q = f"({mime_q}) or mimeType contains 'image/'"
+    query = f"'{folder_id}' in parents and trashed=false and ({type_q})"
     page_token = None
     while True:
         resp = service.files().list(
@@ -118,7 +123,7 @@ def _collect_files(service, folder_id: str, mimes: frozenset, depth: int = 0) ->
             pageToken=page_token, pageSize=200,
         ).execute()
         for subfolder in resp.get("files", []):
-            results.extend(_collect_files(service, subfolder["id"], mimes, depth + 1))
+            results.extend(_collect_files(service, subfolder["id"], images_only, depth + 1))
         page_token = resp.get("nextPageToken")
         if not page_token:
             break
@@ -136,8 +141,7 @@ def list_files(
     service = _get_service()
     folder_id = extract_folder_id(folder_url)
 
-    mimes = IMAGE_MIMETYPES if images_only else ALL_MIMETYPES
-    raw = _collect_files(service, folder_id, mimes)
+    raw = _collect_files(service, folder_id, images_only)
 
     # Keyword filter
     kws = [k.lower().strip() for k in (keywords or []) if k.strip()]
@@ -161,7 +165,7 @@ def list_files(
             "pattern":    pattern or "",
             "brand":      brand,
             "client":     client_name,
-            "is_image":   f["mimeType"] in IMAGE_MIMETYPES,
+            "is_image":   f["mimeType"].startswith("image/"),
             "web_view_link": f.get("webViewLink", ""),
         })
 
