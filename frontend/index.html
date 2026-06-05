@@ -5945,8 +5945,9 @@ async function extractDrive() {
       }),
     });
     if (!r.ok) {
-      const e = await r.json();
-      showToast('❌', e.detail || 'Erreur Drive', true);
+      let detail = 'Erreur Drive';
+      try { const e = await r.json(); detail = e.detail || detail; } catch {}
+      showToast('❌', detail, true);
       return;
     }
     const data = await r.json();
