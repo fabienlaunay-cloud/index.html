@@ -76,7 +76,7 @@ async def drive_oauth_connect(request: Request):
         f"&prompt=consent"
         f"&state={state}"
     )
-    return RedirectResponse(auth_url)
+    return {"url": auth_url}
 
 
 # ── Callback ───────────────────────────────────────────────────────────────────

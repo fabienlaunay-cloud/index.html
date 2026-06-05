@@ -5985,7 +5985,12 @@ async function _checkDriveStatus() {
 }
 
 async function connectDrive() {
-  window.location.href = '/api/drive/oauth/connect';
+  try {
+    const r = await authFetch('/api/drive/oauth/connect');
+    const d = await r.json();
+    if (d.url) window.location.href = d.url;
+    else showToast('❌', d.detail || 'Erreur configuration OAuth');
+  } catch (e) { showToast('❌', 'Erreur connexion Drive'); }
 }
 
 async function disconnectDrive() {
