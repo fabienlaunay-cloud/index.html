@@ -11666,5 +11666,348 @@ function _laExportBatchCsv() {
 }
 </script>
 
+<!-- ── SynqIO Agent ──────────────────────────────────────────────────────── -->
+
+<!-- Floating button -->
+<button id="agentFloatBtn" onclick="_openAgentPanel()"
+  title="SynqIO Agent — assistant IA"
+  style="position:fixed;bottom:24px;right:24px;width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#6d28d9);color:white;box-shadow:0 4px 24px rgba(124,58,237,0.45);z-index:300;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:transform .15s,box-shadow .15s"
+  onmouseover="this.style.transform='scale(1.08)';this.style.boxShadow='0 6px 30px rgba(124,58,237,0.55)'"
+  onmouseout="this.style.transform='';this.style.boxShadow='0 4px 24px rgba(124,58,237,0.45)'">
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/>
+  </svg>
+</button>
+
+<!-- Overlay -->
+<div id="agentOverlay" onclick="_closeAgentPanel()"
+  style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.18);z-index:400;backdrop-filter:blur(1px)"></div>
+
+<!-- Agent panel -->
+<div id="agentPanel"
+  style="display:none;position:fixed;bottom:0;right:0;top:0;width:380px;max-width:100vw;background:white;border-left:1px solid rgba(124,58,237,0.12);z-index:500;flex-direction:column;box-shadow:-6px 0 40px rgba(0,0,0,0.12)">
+
+  <!-- Header -->
+  <div style="background:linear-gradient(135deg,#7c3aed,#5b21b6);padding:14px 16px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0">
+    <div style="display:flex;align-items:center;gap:10px">
+      <div style="width:34px;height:34px;border-radius:50%;background:rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/>
+        </svg>
+      </div>
+      <div>
+        <div style="color:white;font-weight:700;font-size:14px;line-height:1.2">SynqIO Agent</div>
+        <div style="color:rgba(255,255,255,0.65);font-size:11px">Assistant IA • Commandes vocales &amp; texte</div>
+      </div>
+    </div>
+    <button onclick="_closeAgentPanel()" style="color:rgba(255,255,255,0.7);background:none;border:none;cursor:pointer;padding:4px;border-radius:6px;line-height:1;font-size:18px" onmouseover="this.style.color='white'" onmouseout="this.style.color='rgba(255,255,255,0.7)'">✕</button>
+  </div>
+
+  <!-- Messages -->
+  <div id="agentMessages" style="flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:10px">
+    <!-- Welcome -->
+    <div style="display:flex;gap:8px;align-items:flex-start">
+      <div style="width:26px;height:26px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#6d28d9);flex-shrink:0;display:flex;align-items:center;justify-content:center">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>
+      </div>
+      <div style="background:#f5f3ff;border-radius:16px;border-top-left-radius:4px;padding:10px 13px;font-size:13px;color:#374151;max-width:295px;line-height:1.5">
+        Bonjour ! Je suis votre assistant SynqIO. Dites-moi ce que vous voulez faire et j'exécute les actions pour vous.
+        <div style="margin-top:7px;font-size:11px;color:#8b5cf6;font-style:italic">Ex : « Prends le dossier Drive Produits/Été, mots-clés colliers chiens, ton enthousiaste, génère »</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Input bar -->
+  <div style="border-top:1px solid #f3f4f6;padding:12px;flex-shrink:0">
+    <div style="display:flex;align-items:flex-end;gap:8px">
+      <button id="agentMicBtn" onclick="_agentMic()" title="Dicter"
+        style="flex-shrink:0;width:36px;height:36px;border-radius:50%;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;background:rgba(124,58,237,0.1);color:#7c3aed;transition:background .15s">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/></svg>
+      </button>
+      <textarea id="agentInput" rows="1" placeholder="Décrivez ce que vous voulez faire…"
+        style="flex:1;border:1px solid #e5e7eb;border-radius:18px;padding:8px 14px;font-size:13px;resize:none;outline:none;font-family:inherit;line-height:1.45;max-height:120px;overflow-y:auto;transition:border-color .15s"
+        onfocus="this.style.borderColor='#7c3aed'"
+        onblur="this.style.borderColor='#e5e7eb'"
+        oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,120)+'px'"
+        onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();_agentSend()}"></textarea>
+      <button onclick="_agentSend()"
+        style="flex-shrink:0;width:36px;height:36px;border-radius:50%;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#7c3aed,#6d28d9);color:white;transition:opacity .15s"
+        onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+      </button>
+    </div>
+    <div style="margin-top:6px;font-size:10px;color:#9ca3af;text-align:center">Entrée pour envoyer • Shift+Entrée pour saut de ligne</div>
+  </div>
+</div>
+
+<script>
+// ── SynqIO Agent ──────────────────────────────────────────────────────────────
+
+let _agentHistory = [];
+let _agentListening = false;
+let _agentRecognition = null;
+let _agentBusy = false;
+
+function _openAgentPanel() {
+  const panel = document.getElementById('agentPanel');
+  const overlay = document.getElementById('agentOverlay');
+  panel.style.display = 'flex';
+  overlay.style.display = 'block';
+  document.getElementById('agentFloatBtn').style.display = 'none';
+  setTimeout(() => document.getElementById('agentInput').focus(), 50);
+}
+
+function _closeAgentPanel() {
+  document.getElementById('agentPanel').style.display = 'none';
+  document.getElementById('agentOverlay').style.display = 'none';
+  document.getElementById('agentFloatBtn').style.display = 'flex';
+}
+
+async function _agentSend() {
+  if (_agentBusy) return;
+  const input = document.getElementById('agentInput');
+  const text = input.value.trim();
+  if (!text) return;
+
+  input.value = '';
+  input.style.height = 'auto';
+  _agentBusy = true;
+
+  _agentHistory.push({role: 'user', content: text});
+  _agentAddMsg('user', text);
+
+  const typingId = 'aty-' + Date.now();
+  _agentAddTyping(typingId);
+
+  const ctx = _agentCtx();
+
+  try {
+    const resp = await fetch('/api/agent/chat', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`},
+      body: JSON.stringify({messages: _agentHistory.slice(-12), context: ctx}),
+    });
+
+    if (!resp.ok) {
+      document.getElementById(typingId)?.remove();
+      _agentAddMsg('assistant', '❌ Erreur ' + resp.status);
+      _agentBusy = false;
+      return;
+    }
+
+    const reader = resp.body.getReader();
+    const dec = new TextDecoder();
+    let buf = '';
+    let replyText = '';
+    let msgEl = null;
+
+    document.getElementById(typingId)?.remove();
+
+    while (true) {
+      const {done, value} = await reader.read();
+      if (done) break;
+      buf += dec.decode(value, {stream: true});
+      const lines = buf.split('\n');
+      buf = lines.pop();
+
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        let data;
+        try { data = JSON.parse(line.slice(6)); } catch { continue; }
+
+        if (data.type === 'text') {
+          if (!msgEl) msgEl = _agentAddMsg('assistant', '');
+          replyText += data.delta;
+          const span = msgEl.querySelector('.amt');
+          if (span) span.textContent = replyText;
+          const msgs = document.getElementById('agentMessages');
+          msgs.scrollTop = msgs.scrollHeight;
+        }
+        else if (data.type === 'action') {
+          _agentShowAction(data.name, data.input || {});
+          await _agentExec(data.name, data.input || {});
+        }
+        else if (data.type === 'done') {
+          if (replyText) _agentHistory.push({role: 'assistant', content: replyText});
+        }
+        else if (data.type === 'error') {
+          if (!msgEl) msgEl = _agentAddMsg('assistant', '');
+          const span = msgEl.querySelector('.amt');
+          if (span) span.textContent = '❌ ' + data.message;
+        }
+      }
+    }
+  } catch(e) {
+    document.getElementById(typingId)?.remove();
+    _agentAddMsg('assistant', '❌ Erreur : ' + e.message);
+  }
+  _agentBusy = false;
+}
+
+function _agentCtx() {
+  const driveConnected = document.getElementById('driveConnected') &&
+    !document.getElementById('driveConnected').classList.contains('hidden');
+  const driveEmail = document.getElementById('driveConnectedEmail')?.textContent?.trim() || '';
+  const filesCount = typeof _loadedProducts !== 'undefined' ? (_loadedProducts?.length || 0) : 0;
+  const marketplace = (typeof selectedMarketplaces !== 'undefined' && selectedMarketplaces?.length)
+    ? selectedMarketplaces[0] : 'amazon_fr';
+  return {drive_connected: driveConnected, drive_email: driveEmail, files_count: filesCount, marketplace};
+}
+
+function _agentAddMsg(role, text) {
+  const msgs = document.getElementById('agentMessages');
+  const div = document.createElement('div');
+  if (role === 'user') {
+    div.style.cssText = 'display:flex;justify-content:flex-end';
+    div.innerHTML = `<div style="background:#7c3aed;color:white;border-radius:16px;border-top-right-radius:4px;padding:9px 13px;font-size:13px;max-width:290px;line-height:1.5;word-break:break-word">${_esc(text)}</div>`;
+  } else {
+    div.style.cssText = 'display:flex;gap:8px;align-items:flex-start';
+    div.innerHTML = `
+      <div style="width:26px;height:26px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#6d28d9);flex-shrink:0;display:flex;align-items:center;justify-content:center;margin-top:2px">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>
+      </div>
+      <div style="background:#f5f3ff;border-radius:16px;border-top-left-radius:4px;padding:9px 13px;font-size:13px;color:#374151;max-width:290px;line-height:1.5;word-break:break-word"><span class="amt">${_esc(text)}</span></div>`;
+  }
+  msgs.appendChild(div);
+  msgs.scrollTop = msgs.scrollHeight;
+  return div;
+}
+
+function _agentAddTyping(id) {
+  const msgs = document.getElementById('agentMessages');
+  const div = document.createElement('div');
+  div.id = id;
+  div.style.cssText = 'display:flex;gap:8px;align-items:flex-start';
+  div.innerHTML = `
+    <div style="width:26px;height:26px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#6d28d9);flex-shrink:0;display:flex;align-items:center;justify-content:center">
+      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>
+    </div>
+    <div style="background:#f5f3ff;border-radius:16px;border-top-left-radius:4px;padding:12px 16px;display:flex;align-items:center;gap:5px">
+      <span style="width:7px;height:7px;background:#7c3aed;border-radius:50%;display:inline-block;animation:ab .8s ease-in-out infinite"></span>
+      <span style="width:7px;height:7px;background:#7c3aed;border-radius:50%;display:inline-block;animation:ab .8s ease-in-out .2s infinite"></span>
+      <span style="width:7px;height:7px;background:#7c3aed;border-radius:50%;display:inline-block;animation:ab .8s ease-in-out .4s infinite"></span>
+    </div>`;
+  msgs.appendChild(div);
+  msgs.scrollTop = msgs.scrollHeight;
+}
+
+function _agentShowAction(name, input) {
+  const labels = {
+    connect_drive:     '🔗 Connexion Google Drive',
+    open_drive_browser: '📁 Ouverture navigateur Drive',
+    set_drive_folder:  '📂 Dossier Drive configuré',
+    set_keywords:      `🔑 Mots-clés : ${input.keywords || ''}`,
+    set_tone:          `🎨 Ton : ${(input.tone || '').replace('_', ' ')}`,
+    import_drive_files: '⬇️ Import des fichiers Drive',
+    generate_listings: '✨ Génération des fiches lancée',
+    export_results:    `📥 Export ${input.format || ''}`,
+  };
+  const msgs = document.getElementById('agentMessages');
+  const div = document.createElement('div');
+  div.style.cssText = 'display:flex;justify-content:center';
+  div.innerHTML = `<div style="display:inline-flex;align-items:center;gap:5px;font-size:11px;color:#7c3aed;background:#f5f3ff;border:1px solid rgba(124,58,237,0.2);border-radius:20px;padding:4px 12px">
+    <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+    ${labels[name] || name}
+  </div>`;
+  msgs.appendChild(div);
+  msgs.scrollTop = msgs.scrollHeight;
+}
+
+async function _agentExec(name, input) {
+  await new Promise(r => setTimeout(r, 120));
+  switch (name) {
+    case 'connect_drive':
+      if (typeof connectDrive === 'function') connectDrive();
+      break;
+    case 'open_drive_browser': {
+      const inputId = input.target === 'documents' ? 'driveFolderUrl' : 'drivePhotoFolderUrl';
+      if (typeof _openDriveBrowser === 'function') _openDriveBrowser('folder', inputId);
+      break;
+    }
+    case 'set_drive_folder': {
+      const id = input.target === 'documents' ? 'driveFolderUrl'
+               : input.target === 'unified'   ? 'drivePhotoFolderUrl'
+               : 'drivePhotoFolderUrl';
+      const el = document.getElementById(id);
+      if (el) { el.value = input.folder_url; el.dispatchEvent(new Event('input')); }
+      break;
+    }
+    case 'set_keywords': {
+      const kw = document.getElementById('focusKeywords');
+      if (kw) {
+        kw.value = input.keywords;
+        const kwTon = document.getElementById('kwTonContent');
+        if (kwTon && kwTon.classList.contains('hidden')) _toggleKwTonCard();
+        const kwP = document.getElementById('kwPanel');
+        if (kwP && kwP.classList.contains('hidden')) toggleKwPanel();
+        kw.style.transition = 'box-shadow .3s';
+        kw.style.boxShadow = '0 0 0 3px rgba(124,58,237,0.35)';
+        setTimeout(() => { kw.style.boxShadow = ''; }, 2000);
+      }
+      break;
+    }
+    case 'set_tone': {
+      const tone = document.getElementById('styleTone');
+      if (tone) {
+        tone.value = input.tone;
+        const kwTon = document.getElementById('kwTonContent');
+        if (kwTon && kwTon.classList.contains('hidden')) _toggleKwTonCard();
+      }
+      break;
+    }
+    case 'import_drive_files': {
+      const btn = document.getElementById('driveExtractBtn');
+      if (btn) btn.click();
+      break;
+    }
+    case 'generate_listings':
+      if (typeof generateListings === 'function') generateListings();
+      break;
+    case 'export_results':
+      if (typeof exportResults === 'function') exportResults(input.format || 'csv');
+      break;
+  }
+}
+
+function _agentMic() {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) { alert('Reconnaissance vocale non disponible — utilisez Chrome.'); return; }
+
+  const micBtn = document.getElementById('agentMicBtn');
+
+  if (_agentListening) {
+    _agentRecognition?.stop();
+    return;
+  }
+
+  _agentRecognition = new SR();
+  _agentRecognition.lang = 'fr-FR';
+  _agentRecognition.continuous = false;
+  _agentRecognition.interimResults = false;
+  _agentListening = true;
+  micBtn.style.background = 'rgba(239,68,68,0.12)';
+  micBtn.style.color = '#ef4444';
+
+  _agentRecognition.onresult = e => {
+    document.getElementById('agentInput').value = e.results[0][0].transcript;
+  };
+  _agentRecognition.onend = () => {
+    _agentListening = false;
+    micBtn.style.background = 'rgba(124,58,237,0.1)';
+    micBtn.style.color = '#7c3aed';
+  };
+  _agentRecognition.onerror = () => {
+    _agentListening = false;
+    micBtn.style.background = 'rgba(124,58,237,0.1)';
+    micBtn.style.color = '#7c3aed';
+  };
+  _agentRecognition.start();
+}
+</script>
+
+<style>
+@keyframes ab { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-5px)} }
+</style>
+
 </body>
 </html>
