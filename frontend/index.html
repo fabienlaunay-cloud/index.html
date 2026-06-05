@@ -3592,6 +3592,7 @@ async function initApp() {
     const data = await r.json();
     currentUser = data;
     showApp(data.email);
+    _initCobrowse(data.email);
     const params = new URLSearchParams(window.location.search);
     if (params.get('amazon') === 'connected') {
       showToast('✅', 'Seller Central connecté avec succès !');
@@ -3671,7 +3672,6 @@ function showApp(email) {
     if (!localStorage.getItem('synqio_onboarded')) {
       document.getElementById('onboardingModal').classList.remove('hidden');
     }
-    _initCobrowse(email);
   }
 }
 
