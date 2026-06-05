@@ -174,6 +174,28 @@
   .roi-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%; background: var(--g); cursor: pointer; box-shadow: 0 2px 8px rgba(124,58,237,0.5); }
   .roi-slider::-moz-range-thumb { width: 18px; height: 18px; border-radius: 50%; background: var(--g); cursor: pointer; border: none; }
 
+  /* ── Dark panel items (sessions, history) ───────────────────────────────── */
+  #sessPanel button:not(.gradient-bg):hover, #historyPanel button:hover {
+    background: rgba(124,58,237,0.12) !important;
+    color: white !important;
+  }
+
+  /* ── User dropdown hover ─────────────────────────────────────────────────── */
+  #userDropdown button:hover { background: rgba(255,255,255,0.05) !important; }
+
+  /* ── Marketplace dropdown items ─────────────────────────────────────────── */
+  .mkt-item:hover { background: rgba(124,58,237,0.15) !important; }
+
+  /* ── Modals backdrop close area ─────────────────────────────────────────── */
+  .modal-close-btn {
+    background: rgba(255,255,255,0.07) !important;
+    border: 1px solid rgba(255,255,255,0.1) !important;
+    color: rgba(255,255,255,0.5) !important;
+    border-radius: 10px !important;
+    transition: all 0.2s !important;
+  }
+  .modal-close-btn:hover { background: rgba(255,255,255,0.12) !important; color: white !important; }
+
   /* ── Scrollbar ──────────────────────────────────────────────────────────── */
   ::-webkit-scrollbar { width: 6px; height: 6px; }
   ::-webkit-scrollbar-track { background: transparent; }
@@ -1150,7 +1172,7 @@
           <span id="mktSelectorLabel" class="hidden sm:inline">Amazon France</span>
           <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>
         </button>
-        <div id="mktSelectorList" class="hidden absolute right-0 top-10 bg-indigo-950 border border-white/20 rounded-xl shadow-2xl py-2 z-50 min-w-[220px]">
+        <div id="mktSelectorList" class="hidden absolute right-0 top-11 rounded-xl py-2 z-50 min-w-[220px]" style="background:#0f0b1e;border:1px solid rgba(124,58,237,0.2);box-shadow:0 16px 48px rgba(0,0,0,0.5)">
           <p class="text-white/40 text-xs px-4 pb-1.5">Sélectionnez un ou plusieurs marchés</p>
           <div onclick="toggleMkt('amazon_fr')" class="mkt-item flex items-center gap-3 px-4 py-2 text-sm text-white hover:bg-white/10 cursor-pointer rounded-lg mx-1" data-mkt="amazon_fr"><span class="w-4 h-4 rounded border border-white/40 flex items-center justify-center flex-shrink-0 mkt-check" id="mkt-check-amazon_fr"></span>Amazon France</div>
           <div onclick="toggleMkt('amazon_de')" class="mkt-item flex items-center gap-3 px-4 py-2 text-sm text-white hover:bg-white/10 cursor-pointer rounded-lg mx-1" data-mkt="amazon_de"><span class="w-4 h-4 rounded border border-white/40 flex items-center justify-center flex-shrink-0 mkt-check" id="mkt-check-amazon_de"></span>Amazon Allemagne</div>
@@ -1176,26 +1198,27 @@
           </div>
           <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" class="text-white/50"><polyline points="6 9 12 15 18 9"/></svg>
         </button>
-        <div id="userDropdown" class="hidden absolute right-0 top-10 bg-white rounded-xl shadow-2xl border border-gray-100 py-2 w-52 z-40">
-          <div class="px-4 py-2 border-b border-gray-100">
-            <p class="text-xs text-gray-400">Connecté en tant que</p>
-            <p id="userEmailFull" class="text-sm font-medium text-gray-800 truncate"></p>
-            <p id="usageDetail" class="text-xs text-gray-400 mt-0.5"></p>
+        <div id="userDropdown" class="hidden absolute right-0 top-11 rounded-2xl py-1.5 w-56 z-40" style="background:#0f0b1e;border:1px solid rgba(124,58,237,0.2);box-shadow:0 16px 48px rgba(0,0,0,0.5),0 0 0 1px rgba(255,255,255,0.04) inset">
+          <div class="px-4 py-2.5" style="border-bottom:1px solid rgba(255,255,255,0.07)">
+            <p class="text-xs" style="color:rgba(255,255,255,0.35)">Connecté en tant que</p>
+            <p id="userEmailFull" class="text-sm font-semibold text-white truncate mt-0.5"></p>
+            <p id="usageDetail" class="text-xs mt-0.5" style="color:rgba(167,139,250,0.6)"></p>
           </div>
-          <button onclick="openHistoryPanel();toggleUserMenu()" class="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition flex items-center gap-2">
+          <button onclick="openHistoryPanel();toggleUserMenu()" class="w-full text-left px-4 py-2 text-sm transition flex items-center gap-2" style="color:rgba(255,255,255,0.65)">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
             Historique
           </button>
-          <button onclick="showPublishModal();toggleUserMenu()" class="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition flex items-center gap-2">
+          <button onclick="showPublishModal();toggleUserMenu()" class="w-full text-left px-4 py-2 text-sm transition flex items-center gap-2" style="color:rgba(255,255,255,0.65)">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 7H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
             Connecter Seller Central
           </button>
-          <button onclick="openChangePasswordModal();toggleUserMenu()" class="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition flex items-center gap-2">
+          <button onclick="openChangePasswordModal();toggleUserMenu()" class="w-full text-left px-4 py-2 text-sm transition flex items-center gap-2" style="color:rgba(255,255,255,0.65)">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
             Changer le mot de passe
           </button>
-          <button id="adminMenuBtn" onclick="showAdminPanel()" class="hidden w-full text-left px-4 py-2.5 text-sm text-purple-600 hover:bg-purple-50 transition">Administration</button>
-          <button onclick="doLogout()" class="w-full text-left px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition">Se déconnecter</button>
+          <button id="adminMenuBtn" onclick="showAdminPanel()" class="hidden w-full text-left px-4 py-2 text-sm transition" style="color:#a78bfa">Administration</button>
+          <div style="border-top:1px solid rgba(255,255,255,0.07);margin:4px 0"></div>
+          <button onclick="doLogout()" class="w-full text-left px-4 py-2 text-sm transition" style="color:#fca5a5">Se déconnecter</button>
         </div>
       </div>
     </div>
@@ -2729,30 +2752,30 @@
 
 
 <!-- ═══════════════════ ADMIN VIEW (full page) ═══════════════════ -->
-<div id="adminView" class="hidden min-h-screen bg-gray-50">
+<div id="adminView" class="hidden min-h-screen" style="background:#f0eeff">
 
-  <header class="gradient-bg text-white shadow-lg">
-    <div class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between gap-4">
+  <header class="app-header text-white">
+    <div class="max-w-7xl mx-auto px-6 py-0 h-16 flex items-center justify-between gap-4">
       <div class="flex items-center gap-6">
         <div class="flex items-center gap-3">
-          <div class="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
-            <svg viewBox="0 0 24 24" fill="none" width="20" height="20"><path d="M12 2L2 7l10 5 10-5-10-5z" stroke="white" stroke-width="2" stroke-linejoin="round"/><path d="M2 17l10 5 10-5M2 12l10 5 10-5" stroke="white" stroke-width="2" stroke-linejoin="round"/></svg>
+          <div class="w-9 h-9 rounded-xl flex items-center justify-center" style="background:linear-gradient(135deg,rgba(124,58,237,0.6),rgba(79,70,229,0.6));border:1px solid rgba(255,255,255,0.12);box-shadow:0 0 16px rgba(124,58,237,0.4)">
+            <svg viewBox="0 0 24 24" fill="none" width="17" height="17"><path d="M12 2L2 7l10 5 10-5-10-5z" stroke="white" stroke-width="2" stroke-linejoin="round"/><path d="M2 17l10 5 10-5M2 12l10 5 10-5" stroke="white" stroke-width="2" stroke-linejoin="round"/></svg>
           </div>
           <div>
-            <h1 class="text-xl font-bold">SynqIO</h1>
-            <p class="text-purple-200 text-xs">Administration</p>
+            <h1 class="text-sm font-bold tracking-tight text-white">SynqIO</h1>
+            <p class="text-[10px] font-medium tracking-widest uppercase" style="color:rgba(196,181,253,0.6)">Administration</p>
           </div>
         </div>
-        <nav class="flex gap-1 bg-white/10 rounded-xl p-1">
-          <button id="adminTabBtnClients" onclick="switchAdminTab('clients')" class="px-4 py-2 rounded-lg text-sm font-medium bg-white/20 text-white transition">👥 Clients</button>
-          <button id="adminTabBtnUsage" onclick="switchAdminTab('usage')" class="px-4 py-2 rounded-lg text-sm font-medium text-white/70 hover:text-white hover:bg-white/10 transition">Usage & Plans</button>
-          <button id="adminTabBtnConfig" onclick="switchAdminTab('config')" class="px-4 py-2 rounded-lg text-sm font-medium text-white/70 hover:text-white hover:bg-white/10 transition">⚙️ Config API</button>
+        <nav class="flex gap-1 p-1 rounded-xl" style="background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.1)">
+          <button id="adminTabBtnClients" onclick="switchAdminTab('clients')" class="px-4 py-1.5 rounded-lg text-xs font-semibold transition" style="background:linear-gradient(135deg,#7c3aed,#4f46e5);color:white;box-shadow:0 2px 8px rgba(124,58,237,0.4)">Clients</button>
+          <button id="adminTabBtnUsage" onclick="switchAdminTab('usage')" class="px-4 py-1.5 rounded-lg text-xs font-medium transition" style="color:rgba(255,255,255,0.55)">Usage & Plans</button>
+          <button id="adminTabBtnConfig" onclick="switchAdminTab('config')" class="px-4 py-1.5 rounded-lg text-xs font-medium transition" style="color:rgba(255,255,255,0.55)">Config API</button>
         </nav>
       </div>
-      <div class="flex items-center gap-3">
-        <span id="adminEmailBadge" class="text-white/60 text-xs hidden sm:block"></span>
-        <button onclick="showMainApp()" class="bg-white/10 hover:bg-white/20 text-white text-sm px-4 py-2 rounded-lg transition">← Utiliser l'app</button>
-        <button onclick="doLogout()" class="bg-red-500/20 hover:bg-red-500/30 text-white text-sm px-4 py-2 rounded-lg transition">Déconnexion</button>
+      <div class="flex items-center gap-2">
+        <span id="adminEmailBadge" class="text-xs hidden sm:block" style="color:rgba(255,255,255,0.4)"></span>
+        <button onclick="showMainApp()" class="text-sm px-4 py-1.5 rounded-lg font-medium transition" style="background:rgba(255,255,255,0.08);color:rgba(255,255,255,0.8);border:1px solid rgba(255,255,255,0.12)">← Utiliser l'app</button>
+        <button onclick="doLogout()" class="text-sm px-4 py-1.5 rounded-lg font-medium transition" style="background:rgba(220,38,38,0.15);color:#fca5a5;border:1px solid rgba(220,38,38,0.2)">Déconnexion</button>
       </div>
     </div>
   </header>
@@ -2895,30 +2918,30 @@
 </div>
 
 <!-- Reset Password Modal -->
-<div id="resetPasswordModal" class="hidden fixed inset-0 bg-black/70 flex items-center justify-center z-[400] p-4">
-  <div class="w-full max-w-sm rounded-3xl p-8 shadow-2xl" style="background:linear-gradient(135deg,#1e1b4b,#312e81)">
+<div id="resetPasswordModal" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[400] p-4">
+  <div class="login-card w-full max-w-sm rounded-3xl p-8">
     <div class="text-center mb-6">
-      <div class="inline-flex items-center justify-center w-14 h-14 rounded-2xl mb-4 gradient-bg shadow-lg">
-        <span class="text-2xl">🔑</span>
+      <div class="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4 gradient-bg" style="box-shadow:0 8px 24px rgba(124,58,237,0.45)">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
       </div>
       <h3 class="text-white text-xl font-bold">Nouveau mot de passe</h3>
-      <p id="resetEmailLabel" class="text-white/50 mt-1 text-sm"></p>
+      <p id="resetEmailLabel" class="mt-1 text-sm" style="color:rgba(255,255,255,0.45)"></p>
     </div>
     <div id="resetError" class="hidden mb-4 bg-red-500/20 border border-red-500/30 rounded-xl px-4 py-3 text-red-300 text-sm text-center"></div>
     <div class="space-y-3">
       <input id="resetPassword" type="password" placeholder="Nouveau mot de passe (12 car. min + spécial)" class="input-auth w-full rounded-xl px-4 py-3 text-sm">
       <input id="resetPassword2" type="password" placeholder="Confirmez le mot de passe" class="input-auth w-full rounded-xl px-4 py-3 text-sm" onkeydown="if(event.key==='Enter') doResetPassword()">
-      <button onclick="doResetPassword()" class="btn-login w-full text-white rounded-xl py-3.5 font-semibold text-base shadow-lg mt-2">Enregistrer →</button>
+      <button onclick="doResetPassword()" class="btn-login w-full text-white rounded-xl py-3.5 font-semibold text-sm mt-2">Enregistrer →</button>
     </div>
   </div>
 </div>
 
 <!-- Change Password Modal -->
-<div id="changePasswordModal" class="hidden fixed inset-0 bg-black/70 flex items-center justify-center z-[400] p-4">
-  <div class="w-full max-w-sm rounded-3xl p-8 shadow-2xl" style="background:linear-gradient(135deg,#1e1b4b,#312e81)">
+<div id="changePasswordModal" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[400] p-4">
+  <div class="login-card w-full max-w-sm rounded-3xl p-8">
     <div class="text-center mb-6">
-      <div class="inline-flex items-center justify-center w-14 h-14 rounded-2xl mb-4 gradient-bg shadow-lg">
-        <span class="text-2xl">🔒</span>
+      <div class="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4 gradient-bg" style="box-shadow:0 8px 24px rgba(124,58,237,0.45)">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
       </div>
       <h3 class="text-white text-xl font-bold">Changer le mot de passe</h3>
     </div>
@@ -2928,8 +2951,8 @@
       <input id="changePwCurrent" type="password" placeholder="Mot de passe actuel" class="input-auth w-full rounded-xl px-4 py-3 text-sm">
       <input id="changePwNew" type="password" placeholder="Nouveau mot de passe (12 car. min + spécial)" class="input-auth w-full rounded-xl px-4 py-3 text-sm">
       <input id="changePwNew2" type="password" placeholder="Confirmez le nouveau mot de passe" class="input-auth w-full rounded-xl px-4 py-3 text-sm" onkeydown="if(event.key==='Enter') doChangePassword()">
-      <button onclick="doChangePassword()" class="btn-login w-full text-white rounded-xl py-3.5 font-semibold text-base shadow-lg mt-2">Enregistrer →</button>
-      <button onclick="document.getElementById('changePasswordModal').classList.add('hidden')" class="w-full text-white/50 text-sm py-2 hover:text-white/80 transition">Annuler</button>
+      <button onclick="doChangePassword()" class="btn-login w-full text-white rounded-xl py-3.5 font-semibold text-sm mt-2">Enregistrer →</button>
+      <button onclick="document.getElementById('changePasswordModal').classList.add('hidden')" class="w-full text-sm py-2 transition" style="color:rgba(255,255,255,0.4)">Annuler</button>
     </div>
   </div>
 </div>
@@ -4094,7 +4117,12 @@ function switchAdminTab(tab) {
     const btn = document.getElementById(`adminTabBtn${t.charAt(0).toUpperCase() + t.slice(1)}`);
     const panel = document.getElementById(`adminPanel${t.charAt(0).toUpperCase() + t.slice(1)}`);
     const active = t === tab;
-    if (btn) btn.className = `px-4 py-2 rounded-lg text-sm font-medium transition ${active ? 'bg-white/20 text-white' : 'text-white/70 hover:text-white hover:bg-white/10'}`;
+    if (btn) {
+      btn.className = 'px-4 py-1.5 rounded-lg text-xs font-medium transition';
+      btn.style.cssText = active
+        ? 'background:linear-gradient(135deg,#7c3aed,#4f46e5);color:white;box-shadow:0 2px 8px rgba(124,58,237,0.4);font-weight:600'
+        : 'color:rgba(255,255,255,0.55)';
+    }
     if (panel) panel.classList.toggle('hidden', !active);
   });
   if (tab === 'config') loadConfigStatus();
@@ -5300,13 +5328,13 @@ async function _sessLoadList() {
       const dt = new Date(s.created_at);
       const label = dt.toLocaleDateString('fr-FR', {day:'2-digit', month:'short', year:'numeric'})
                   + ' ' + dt.toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
-      return `<div class="border border-gray-100 rounded-xl p-3 flex items-center gap-3 hover:bg-gray-50">
+      return `<div style="border:1px solid rgba(124,58,237,0.15);border-radius:14px;padding:12px;display:flex;align-items:center;gap:12px;cursor:pointer;transition:background 0.2s,border-color 0.2s" onmouseover="this.style.background='rgba(124,58,237,0.1)';this.style.borderColor='rgba(124,58,237,0.3)'" onmouseout="this.style.background='transparent';this.style.borderColor='rgba(124,58,237,0.15)'">
         <div class="flex-1 min-w-0">
-          <p class="font-semibold text-gray-800 text-sm truncate">${s.name}</p>
-          <p class="text-xs text-gray-400 mt-0.5">${label}</p>
+          <p style="font-weight:600;font-size:13px;color:rgba(255,255,255,0.9)" class="truncate">${s.name}</p>
+          <p style="font-size:11px;color:rgba(255,255,255,0.4);margin-top:2px">${label}</p>
         </div>
-        <button onclick="_sessLoad('${s.id}')" class="flex-shrink-0 text-xs font-semibold text-purple-600 hover:text-purple-800 border border-purple-200 hover:bg-purple-50 rounded-lg px-3 py-1.5 transition">Charger</button>
-        <button onclick="_sessDelete('${s.id}',this)" class="flex-shrink-0 text-gray-300 hover:text-red-400 transition p-1" title="Supprimer">
+        <button onclick="_sessLoad('${s.id}')" style="flex-shrink:0;font-size:11px;font-weight:600;color:rgba(167,139,250,0.9);background:rgba(124,58,237,0.15);border:1px solid rgba(124,58,237,0.3);border-radius:8px;padding:6px 12px;transition:background 0.2s" onmouseover="this.style.background='rgba(124,58,237,0.28)'" onmouseout="this.style.background='rgba(124,58,237,0.15)'">Charger</button>
+        <button onclick="_sessDelete('${s.id}',this)" style="flex-shrink:0;color:rgba(255,255,255,0.25);transition:color 0.2s;padding:4px" onmouseover="this.style.color='#f87171'" onmouseout="this.style.color='rgba(255,255,255,0.25)'" title="Supprimer">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>
         </button>
       </div>`;
@@ -5449,28 +5477,28 @@ async function loadHistoryList() {
     container.innerHTML = batches.map(b => {
       const flag = MKT_META_H[b.marketplace] || '🌐';
       const date = new Date(b.created_at).toLocaleString('fr-FR', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' });
-      const seoCol = b.avg_seo_score >= 70 ? 'text-green-600' : b.avg_seo_score >= 40 ? 'text-yellow-600' : 'text-red-500';
-      const label = b.label ? `<span class="text-xs text-purple-700 bg-purple-50 border border-purple-200 px-2 py-0.5 rounded max-w-[140px] truncate">${_esc(b.label)}</span>` : '';
-      return `<div class="bg-white border border-gray-100 rounded-xl p-3 hover:border-purple-200 hover:shadow-sm transition" id="hentry-${_esc(b.id)}">
+      const seoCol = b.avg_seo_score >= 70 ? '#4ade80' : b.avg_seo_score >= 40 ? '#fbbf24' : '#f87171';
+      const label = b.label ? `<span style="font-size:10px;color:rgba(167,139,250,0.9);background:rgba(124,58,237,0.15);border:1px solid rgba(124,58,237,0.25);padding:2px 8px;border-radius:6px;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block">${_esc(b.label)}</span>` : '';
+      return `<div style="border:1px solid rgba(124,58,237,0.15);border-radius:14px;padding:12px;transition:background 0.2s,border-color 0.2s" onmouseover="this.style.background='rgba(124,58,237,0.1)';this.style.borderColor='rgba(124,58,237,0.3)'" onmouseout="this.style.background='transparent';this.style.borderColor='rgba(124,58,237,0.15)'" id="hentry-${_esc(b.id)}">
         <div class="flex items-start justify-between gap-2 mb-1.5">
           <div class="flex items-center gap-1.5 flex-wrap min-w-0">
             <span class="text-base leading-none">${flag}</span>
-            <span class="text-xs font-medium text-gray-700 truncate">${_esc(b.marketplace.replace('amazon_','Amazon ').toUpperCase())}</span>
+            <span style="font-size:11px;font-weight:600;color:rgba(255,255,255,0.9)" class="truncate">${_esc(b.marketplace.replace('amazon_','Amazon ').toUpperCase())}</span>
             ${label}
           </div>
-          <button onclick="deleteHistoryEntry('${_esc(b.id)}')" class="flex-shrink-0 text-gray-300 hover:text-red-500 transition text-lg leading-none" title="Supprimer">✕</button>
+          <button onclick="deleteHistoryEntry('${_esc(b.id)}')" class="flex-shrink-0 transition text-lg leading-none" style="color:rgba(255,255,255,0.25)" onmouseover="this.style.color='#f87171'" onmouseout="this.style.color='rgba(255,255,255,0.25)'" title="Supprimer">✕</button>
         </div>
-        <div class="flex items-center gap-3 text-xs text-gray-500 mb-2.5">
+        <div style="display:flex;align-items:center;gap:12px;font-size:11px;color:rgba(255,255,255,0.45);margin-bottom:10px">
           <span>📅 ${date}</span>
           <span>📦 ${b.product_count} fiche${b.product_count > 1 ? 's' : ''}</span>
-          <span class="font-semibold ${seoCol}">SEO ${b.avg_seo_score}</span>
-          ${b.image_count > 0 ? `<span class="text-indigo-600">🖼️ ${b.image_count} image${b.image_count > 1 ? 's' : ''}</span>` : ''}
+          <span style="font-weight:700;color:${seoCol}">SEO ${b.avg_seo_score}</span>
+          ${b.image_count > 0 ? `<span style="color:rgba(167,139,250,0.8)">🖼️ ${b.image_count} image${b.image_count > 1 ? 's' : ''}</span>` : ''}
         </div>
         <div class="flex gap-2">
           <button onclick="restoreBatch('${_esc(b.id)}')" class="flex-1 gradient-bg text-white rounded-lg py-1.5 text-xs font-semibold hover:opacity-90 transition">
             ↩ Charger ce lot
           </button>
-          <button onclick="renameHistoryEntry('${_esc(b.id)}', this)" class="bg-gray-50 hover:bg-gray-100 text-gray-600 rounded-lg px-3 py-1.5 text-xs transition" title="Renommer">✏️</button>
+          <button onclick="renameHistoryEntry('${_esc(b.id)}', this)" style="background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.6);border-radius:8px;padding:6px 12px;font-size:11px;border:1px solid rgba(255,255,255,0.08);transition:background 0.2s" onmouseover="this.style.background='rgba(255,255,255,0.12)'" onmouseout="this.style.background='rgba(255,255,255,0.06)'" title="Renommer">✏️</button>
         </div>
       </div>`;
     }).join('');
@@ -8049,120 +8077,119 @@ renderSegmentPresets();
 <!-- ═══════════════════ HISTORY PANEL (slide-over) ═══════════════════ -->
 <div id="historyOverlay" class="hidden fixed inset-0 bg-black/40 z-[280]" onclick="closeHistoryPanel()"></div>
 <!-- ═══════════════════ SESSIONS PANEL ═══════════════════ -->
-<div id="sessPanel" class="fixed top-0 right-0 h-full w-full max-w-md bg-white shadow-2xl z-[291] flex flex-col translate-x-full transition-transform duration-300">
-  <div class="flex items-center justify-between px-5 py-4 border-b border-gray-100 flex-shrink-0">
+<div id="sessPanel" class="fixed top-0 right-0 h-full w-full max-w-md z-[291] flex flex-col translate-x-full transition-transform duration-300" style="background:#0f0b1e;border-left:1px solid rgba(124,58,237,0.2);box-shadow:-8px 0 40px rgba(0,0,0,0.4)">
+  <div class="flex items-center justify-between px-5 py-4 flex-shrink-0" style="border-bottom:1px solid rgba(124,58,237,0.15)">
     <div>
-      <h2 class="font-semibold text-gray-800">Sessions sauvegardées</h2>
-      <p class="text-xs text-gray-400 mt-0.5">Accessibles depuis tous vos appareils</p>
+      <h2 class="font-semibold text-white text-sm">Sessions sauvegardées</h2>
+      <p class="text-xs mt-0.5" style="color:rgba(255,255,255,0.4)">Accessibles depuis tous vos appareils</p>
     </div>
-    <button onclick="_sessClose()" class="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500 transition">✕</button>
+    <button onclick="_sessClose()" class="w-8 h-8 rounded-xl flex items-center justify-center transition text-sm font-bold" style="background:rgba(255,255,255,0.07);color:rgba(255,255,255,0.5)">✕</button>
   </div>
-  <div class="px-4 py-3 border-b border-gray-100 flex-shrink-0">
-    <button onclick="_sessSave()" class="w-full gradient-bg text-white rounded-xl py-2.5 text-sm font-semibold hover:opacity-90 transition flex items-center justify-center gap-2">
+  <div class="px-4 py-3 flex-shrink-0" style="border-bottom:1px solid rgba(124,58,237,0.1)">
+    <button onclick="_sessSave()" class="w-full gradient-bg text-white rounded-xl py-2.5 text-sm font-semibold transition flex items-center justify-center gap-2">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
       Enregistrer la session courante
     </button>
   </div>
   <div id="sessList" class="flex-1 overflow-y-auto px-4 py-3 space-y-2">
-    <p class="text-center text-gray-400 text-sm py-8">Chargement…</p>
+    <p class="text-center text-sm py-8" style="color:rgba(255,255,255,0.3)">Chargement…</p>
   </div>
 </div>
 
 <!-- ═══════════════════ SESSION SAVE MODAL ═══════════════════ -->
-<div id="sessSaveModal" class="hidden fixed inset-0 bg-black/40 z-[300] flex items-center justify-center p-4">
-  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 space-y-4">
-    <h3 class="font-bold text-gray-800 text-base">Enregistrer la session</h3>
+<div id="sessSaveModal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-[300] flex items-center justify-center p-4">
+  <div class="login-card w-full max-w-sm rounded-2xl p-6 space-y-4">
+    <h3 class="font-bold text-white text-base">Enregistrer la session</h3>
     <div>
-      <label class="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1 block">Nom de la session</label>
+      <label class="text-xs font-medium uppercase tracking-wide mb-1.5 block" style="color:rgba(255,255,255,0.4)">Nom de la session</label>
       <input id="sessNameInput" type="text" placeholder="ex: Colliers chien – juin 2026"
-        class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-purple-400"
+        class="input-auth w-full rounded-xl px-4 py-2.5 text-sm"
         onkeydown="if(event.key==='Enter')_sessDoSave()">
     </div>
-    <p id="sessSaveMsg" class="hidden text-sm font-medium text-red-500"></p>
+    <p id="sessSaveMsg" class="hidden text-sm font-medium text-red-400"></p>
     <div class="flex gap-3 pt-1">
-      <button onclick="document.getElementById('sessSaveModal').classList.add('hidden')" class="flex-1 border border-gray-200 text-gray-600 rounded-xl py-2.5 text-sm font-semibold hover:bg-gray-50 transition">Annuler</button>
-      <button id="sessSaveBtn" onclick="_sessDoSave()" class="flex-1 gradient-bg text-white rounded-xl py-2.5 text-sm font-semibold hover:opacity-90 transition">Enregistrer</button>
+      <button onclick="document.getElementById('sessSaveModal').classList.add('hidden')" class="flex-1 rounded-xl py-2.5 text-sm font-semibold transition" style="border:1px solid rgba(255,255,255,0.12);color:rgba(255,255,255,0.5)">Annuler</button>
+      <button id="sessSaveBtn" onclick="_sessDoSave()" class="flex-1 gradient-bg text-white rounded-xl py-2.5 text-sm font-semibold transition">Enregistrer</button>
     </div>
   </div>
 </div>
 
-<div id="historyPanel" class="fixed top-0 right-0 h-full w-full max-w-md bg-white shadow-2xl z-[290] flex flex-col translate-x-full transition-transform duration-300">
-  <div class="flex items-center justify-between px-5 py-4 border-b border-gray-100 flex-shrink-0">
+<div id="historyPanel" class="fixed top-0 right-0 h-full w-full max-w-md z-[290] flex flex-col translate-x-full transition-transform duration-300" style="background:#0f0b1e;border-left:1px solid rgba(124,58,237,0.2);box-shadow:-8px 0 40px rgba(0,0,0,0.4)">
+  <div class="flex items-center justify-between px-5 py-4 flex-shrink-0" style="border-bottom:1px solid rgba(124,58,237,0.15)">
     <div>
-      <h2 class="font-semibold text-gray-800">Historique des générations</h2>
-      <p class="text-xs text-gray-400 mt-0.5">Lots sauvegardés sur le serveur</p>
+      <h2 class="font-semibold text-white text-sm">Historique des générations</h2>
+      <p class="text-xs mt-0.5" style="color:rgba(255,255,255,0.4)">Lots sauvegardés sur le serveur</p>
     </div>
-    <button onclick="closeHistoryPanel()" class="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500 transition">✕</button>
+    <button onclick="closeHistoryPanel()" class="w-8 h-8 rounded-xl flex items-center justify-center transition text-sm font-bold" style="background:rgba(255,255,255,0.07);color:rgba(255,255,255,0.5)">✕</button>
   </div>
   <div id="historyList" class="flex-1 overflow-y-auto px-4 py-3 space-y-2">
-    <p class="text-center text-gray-400 text-sm py-8">Chargement…</p>
+    <p class="text-center text-sm py-8" style="color:rgba(255,255,255,0.3)">Chargement…</p>
   </div>
 </div>
 
 <!-- ═══════════════════ UPGRADE MODAL ═══════════════════ -->
-<div id="upgradeModal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-[300] flex items-center justify-center p-4">
-  <div class="relative bg-white rounded-3xl shadow-2xl w-full max-w-md p-8">
-    <button onclick="closeUpgradeModal()" class="absolute top-4 right-4 w-8 h-8 bg-gray-100 hover:bg-gray-200 rounded-full text-gray-500 flex items-center justify-center text-sm transition">✕</button>
+<div id="upgradeModal" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-[300] flex items-center justify-center p-4">
+  <div class="login-card relative w-full max-w-md rounded-3xl p-8">
+    <button onclick="closeUpgradeModal()" class="absolute top-4 right-4 w-8 h-8 rounded-xl flex items-center justify-center text-sm font-bold transition" style="background:rgba(255,255,255,0.07);color:rgba(255,255,255,0.5)">✕</button>
 
     <div class="text-center mb-6">
-      <div class="w-14 h-14 gradient-bg rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
-        <svg viewBox="0 0 24 24" fill="none" width="26" height="26"><path d="M12 2L2 7l10 5 10-5-10-5z" stroke="white" stroke-width="1.8" stroke-linejoin="round"/><path d="M2 17l10 5 10-5M2 12l10 5 10-5" stroke="white" stroke-width="1.8" stroke-linejoin="round"/></svg>
+      <div class="w-14 h-14 gradient-bg rounded-2xl flex items-center justify-center mx-auto mb-4" style="box-shadow:0 8px 24px rgba(124,58,237,0.45)">
+        <svg viewBox="0 0 24 24" fill="none" width="22" height="22"><path d="M12 2L2 7l10 5 10-5-10-5z" stroke="white" stroke-width="2" stroke-linejoin="round"/><path d="M2 17l10 5 10-5M2 12l10 5 10-5" stroke="white" stroke-width="2" stroke-linejoin="round"/></svg>
       </div>
-      <h3 class="text-gray-900 text-xl font-black">Passez au niveau supérieur</h3>
-      <p id="upgradeSubtitle" class="text-gray-400 text-sm mt-1">Votre quota mensuel est atteint</p>
+      <h3 class="text-white text-xl font-black">Passez au niveau supérieur</h3>
+      <p id="upgradeSubtitle" class="text-sm mt-1" style="color:rgba(255,255,255,0.45)">Votre quota mensuel est atteint</p>
     </div>
 
     <!-- Plan actuel -->
-    <div id="upgradeCurrentPlan" class="bg-gray-50 rounded-xl p-4 mb-4 text-sm text-center text-gray-500"></div>
+    <div id="upgradeCurrentPlan" class="rounded-xl p-4 mb-4 text-sm text-center" style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);color:rgba(255,255,255,0.5)"></div>
 
     <!-- Flèche -->
-    <div class="text-center text-2xl mb-4 text-purple-400">↓</div>
+    <div class="text-center text-xl mb-4" style="color:rgba(167,139,250,0.7)">↓</div>
 
     <!-- Prochain plan -->
-    <div id="upgradeNextPlan" class="border-2 border-purple-500 rounded-2xl p-5 mb-6" style="background:linear-gradient(135deg,#faf5ff,#f5f3ff)">
+    <div id="upgradeNextPlan" class="rounded-2xl p-5 mb-6" style="background:linear-gradient(135deg,rgba(124,58,237,0.15),rgba(79,70,229,0.15));border:1.5px solid rgba(124,58,237,0.35)">
       <div class="flex items-center justify-between mb-3">
-        <h4 id="upgradeNextName" class="font-black text-2xl text-gray-900"></h4>
-        <span id="upgradeSkusBadge" class="text-xs bg-purple-100 text-purple-700 px-3 py-1 rounded-full font-semibold"></span>
+        <h4 id="upgradeNextName" class="font-black text-2xl text-white"></h4>
+        <span id="upgradeSkusBadge" class="text-xs px-3 py-1 rounded-full font-semibold" style="background:rgba(167,139,250,0.2);color:#c4b5fd"></span>
       </div>
       <div class="flex items-end gap-2 mb-1">
-        <p id="upgradeMonthly" class="text-3xl font-black text-gray-900"></p>
-        <span class="text-gray-400 text-sm mb-1">/mois</span>
+        <p id="upgradeMonthly" class="text-3xl font-black text-white"></p>
+        <span class="text-sm mb-1" style="color:rgba(255,255,255,0.45)">/mois</span>
       </div>
-      <p id="upgradeSetup" class="text-sm text-gray-500 mb-4"></p>
-      <a id="upgradeBtn" href="#" target="_blank"
-         class="block w-full text-center gradient-bg text-white rounded-xl py-3 font-bold text-sm shadow-md hover:opacity-90 transition">
+      <p id="upgradeSetup" class="text-sm mb-4" style="color:rgba(255,255,255,0.45)"></p>
+      <a id="upgradeBtn" href="#" target="_blank" class="block w-full text-center gradient-bg text-white rounded-xl py-3 font-bold text-sm transition">
         Passer à ce forfait →
       </a>
     </div>
 
-    <p class="text-xs text-gray-400 text-center">Votre compte sera mis à jour après paiement. Contactez-nous si besoin : <a href="https://calendly.com/fl-synqio/30min" target="_blank" class="text-purple-500 hover:underline">prendre un RDV</a></p>
+    <p class="text-xs text-center" style="color:rgba(255,255,255,0.3)">Votre compte sera mis à jour après paiement. Contactez-nous si besoin : <a href="https://calendly.com/fl-synqio/30min" target="_blank" style="color:#a78bfa">prendre un RDV</a></p>
   </div>
 </div>
 
 <!-- ═══════════════════ CHAT VIEW ═══════════════════ -->
-<div id="chatView" class="hidden fixed inset-0 z-[250] bg-gray-50 flex flex-col" style="font-family:'Inter',sans-serif">
+<div id="chatView" class="hidden fixed inset-0 z-[250] flex flex-col" style="background:#f0eeff;font-family:'Inter',sans-serif">
 
   <!-- Chat Header -->
-  <div class="gradient-bg text-white shadow-lg flex-shrink-0">
-    <div class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+  <div class="app-header text-white flex-shrink-0">
+    <div class="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
       <div class="flex items-center gap-3">
-        <button onclick="closeChatView()" class="flex items-center gap-2 bg-white/10 hover:bg-white/20 rounded-lg px-3 py-2 text-sm transition">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+        <button onclick="closeChatView()" class="flex items-center gap-2 rounded-xl px-3 py-1.5 text-sm font-medium transition" style="background:rgba(255,255,255,0.07);color:rgba(255,255,255,0.7);border:1px solid rgba(255,255,255,0.1)">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
           <span>Tableau de bord</span>
         </button>
-        <div class="w-px h-5 bg-white/20"></div>
-        <div class="flex items-center gap-2">
-          <div class="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        <div class="w-px h-5" style="background:rgba(255,255,255,0.1)"></div>
+        <div class="flex items-center gap-2.5">
+          <div class="w-8 h-8 rounded-xl flex items-center justify-center" style="background:linear-gradient(135deg,rgba(124,58,237,0.5),rgba(79,70,229,0.5));border:1px solid rgba(255,255,255,0.15)">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
           </div>
           <div>
-            <h1 class="font-bold text-base">Assistant IA Amazon</h1>
-            <p class="text-purple-200 text-xs">Décris tes produits, partage tes catalogues, génère tes fiches</p>
+            <h1 class="font-bold text-sm text-white">Assistant IA Amazon</h1>
+            <p class="text-[10px] font-medium tracking-wide" style="color:rgba(196,181,253,0.6)">Décris tes produits, partage tes catalogues, génère tes fiches</p>
           </div>
         </div>
       </div>
-      <button onclick="newChatSession()" class="flex items-center gap-2 bg-white/15 hover:bg-white/25 border border-white/20 rounded-lg px-3 py-2 text-sm transition">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      <button onclick="newChatSession()" class="flex items-center gap-2 rounded-xl px-3 py-1.5 text-sm font-medium transition" style="background:rgba(255,255,255,0.07);color:rgba(255,255,255,0.7);border:1px solid rgba(255,255,255,0.1)">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
         Nouvelle conversation
       </button>
     </div>
@@ -8173,14 +8200,14 @@ renderSegmentPresets();
 
     <!-- Sessions sidebar -->
     <div class="w-64 flex-shrink-0 flex flex-col gap-2">
-      <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide px-1 mb-1">Conversations</p>
+      <p class="text-xs font-semibold uppercase tracking-wide px-1 mb-1" style="color:rgba(124,58,237,0.6)">Conversations</p>
       <div id="chatSessionsList" class="flex-1 overflow-y-auto space-y-1 pr-1">
-        <p class="text-gray-400 text-sm px-2 py-3">Chargement…</p>
+        <p class="text-sm px-2 py-3" style="color:rgba(107,114,128,0.7)">Chargement…</p>
       </div>
     </div>
 
     <!-- Chat area -->
-    <div class="flex-1 flex flex-col bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+    <div class="flex-1 flex flex-col overflow-hidden" style="background:white;border-radius:20px;border:1px solid rgba(124,58,237,0.1);box-shadow:0 2px 8px rgba(0,0,0,0.04),0 12px 40px rgba(124,58,237,0.07)">
 
       <!-- Messages -->
       <div id="chatMessages" class="flex-1 overflow-y-auto px-6 py-5 space-y-4">
