@@ -254,6 +254,13 @@ async def sitemap():
         return Response(content=f.read(), media_type="application/xml")
 
 
+# ── CoBrowse config ───────────────────────────────────────────────────────────
+
+@app.get("/api/cobrowse-config")
+async def cobrowse_config(request: Request):
+    return {"license_key": os.getenv("COBROWSE_LICENSE_KEY", "")}
+
+
 # ── Health ────────────────────────────────────────────────────────────────────
 
 @app.get("/health")
