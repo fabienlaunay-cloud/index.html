@@ -108,6 +108,7 @@ def _collect_files(service, folder_id: str, images_only: bool, depth: int = 0) -
             q=query, spaces="drive",
             fields="nextPageToken, files(id,name,mimeType,size,webViewLink)",
             pageToken=page_token, pageSize=500,
+            includeItemsFromAllDrives=True, supportsAllDrives=True,
         ).execute()
         results.extend(resp.get("files", []))
         page_token = resp.get("nextPageToken")
@@ -121,6 +122,7 @@ def _collect_files(service, folder_id: str, images_only: bool, depth: int = 0) -
             q=sub_q, spaces="drive",
             fields="nextPageToken, files(id,name)",
             pageToken=page_token, pageSize=200,
+            includeItemsFromAllDrives=True, supportsAllDrives=True,
         ).execute()
         for subfolder in resp.get("files", []):
             results.extend(_collect_files(service, subfolder["id"], images_only, depth + 1))
@@ -205,10 +207,10 @@ def get_image_bytes(file_id: str) -> tuple[bytes, str]:
     """Download a Drive file and return (bytes, mime_type)."""
     from googleapiclient.http import MediaIoBaseDownload
     service = _get_service()
-    meta = service.files().get(fileId=file_id, fields="mimeType").execute()
+    meta = service.files().get(fileId=file_id, fields="mimeType", supportsAllDrives=True).execute()
     mime = meta.get("mimeType", "image/jpeg")
     buf = io.BytesIO()
-    req = service.files().get_media(fileId=file_id)
+    req = service.files().get_media(fileId=file_id, supportsAllDrives=True)
     dl = MediaIoBaseDownload(buf, req)
     done = False
     while not done:
