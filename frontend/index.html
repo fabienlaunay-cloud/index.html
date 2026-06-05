@@ -12103,19 +12103,20 @@ async function _initCobrowse(email) {
     window.CobrowseIO.license = cfg.license_key;
     window.CobrowseIO.customData = { user_email: email, user_name: email };
 
+    // Show button immediately — don't wait for SDK onload
+    document.getElementById('cobrowseFloatBtn').style.display = 'flex';
+
     const s = document.createElement('script');
     s.src = 'https://js.cobrowse.io/CobrowseIO.js';
-    s.onload = () => {
-      _cobrowseReady = true;
-      document.getElementById('cobrowseFloatBtn').style.display = 'flex';
-    };
+    s.onload = () => { _cobrowseReady = true; };
+    s.onerror = () => { console.warn('[cobrowse] SDK script failed to load'); };
     document.head.appendChild(s);
-  } catch { /* license not configured — silent fail */ }
+  } catch(e) { console.warn('[cobrowse] init error:', e); }
 }
 
 async function _startCobrowse() {
-  if (!_cobrowseReady || !window.CobrowseIO) {
-    showToast('⚠️', 'Support en direct non configuré');
+  if (!window.CobrowseIO) {
+    showToast('⚠️', 'SDK en cours de chargement, réessayez dans 2s');
     return;
   }
   const codeEl   = document.getElementById('cobrowseCode');
