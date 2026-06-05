@@ -9417,15 +9417,32 @@ function escHtml(s) {
   <!-- Overlay (click to close) -->
   <div id="helpOverlay" onclick="_helpClose()" style="position:fixed;inset:0;background:rgba(0,0,0,0.25);z-index:9997;opacity:0;pointer-events:none;transition:opacity 0.25s"></div>
 
-  <!-- Pull-tab (always visible when logged in) -->
-  <button id="helpTab" onclick="_helpOpen()" title="Aide & règles Amazon"
-    style="position:fixed;right:0;top:50%;transform:translateY(-50%);z-index:9999;
-           background:linear-gradient(180deg,#7c3aed,#6d28d9);color:#fff;border:none;
-           border-radius:10px 0 0 10px;padding:14px 8px;cursor:pointer;
-           display:flex;flex-direction:column;align-items:center;gap:6px;
-           box-shadow:-2px 0 12px rgba(124,58,237,0.35);transition:padding 0.15s">
-    <span style="writing-mode:vertical-rl;text-orientation:mixed;transform:rotate(180deg);font-size:0.7rem;font-weight:700;letter-spacing:0.05em;white-space:nowrap">Aide</span>
-  </button>
+  <!-- Right-side tab group -->
+  <div style="position:fixed;right:0;top:50%;transform:translateY(-50%);z-index:9999;display:flex;flex-direction:column;align-items:flex-end;gap:3px">
+
+    <!-- Pull-tab Aide -->
+    <button id="helpTab" onclick="_helpOpen()" title="Aide & règles Amazon"
+      style="background:linear-gradient(180deg,#7c3aed,#6d28d9);color:#fff;border:none;
+             border-radius:10px 0 0 10px;padding:14px 8px;cursor:pointer;
+             display:flex;flex-direction:column;align-items:center;gap:6px;
+             box-shadow:-2px 0 12px rgba(124,58,237,0.35);transition:padding 0.15s">
+      <span style="writing-mode:vertical-rl;text-orientation:mixed;transform:rotate(180deg);font-size:0.7rem;font-weight:700;letter-spacing:0.05em;white-space:nowrap">Aide</span>
+    </button>
+
+    <!-- CoBrowse mini-tab (hidden until license key loaded) -->
+    <button id="cobrowseFloatBtn" onclick="_startCobrowse()" title="Aide en direct"
+      style="display:none;background:linear-gradient(180deg,#0284c7,#0369a1);color:#fff;border:none;
+             border-radius:8px 0 0 8px;padding:9px 8px;cursor:pointer;
+             flex-direction:column;align-items:center;justify-content:center;
+             box-shadow:-2px 0 10px rgba(2,132,199,0.35);transition:background 0.15s"
+      onmouseover="this.style.filter='brightness(1.12)'" onmouseout="this.style.filter=''">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M3 18v-6a9 9 0 0 1 18 0v6"/>
+        <path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/>
+      </svg>
+    </button>
+
+  </div>
 
   <!-- Drawer panel -->
   <div id="helpDrawer"
@@ -12042,16 +12059,6 @@ function _agentMic() {
 </style>
 
 <!-- ── CoBrowse — Aide en direct ─────────────────────────────────────────── -->
-
-<!-- Floating button (hidden until license key configured) -->
-<button id="cobrowseFloatBtn" onclick="_startCobrowse()" title="Aide en direct"
-  style="display:none;position:fixed;bottom:86px;right:24px;width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#0284c7,#0369a1);color:white;box-shadow:0 3px 16px rgba(2,132,199,0.4);z-index:300;border:none;cursor:pointer;align-items:center;justify-content:center;transition:transform .15s,box-shadow .15s"
-  onmouseover="this.style.transform='scale(1.08)'" onmouseout="this.style.transform=''">
-  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M3 18v-6a9 9 0 0 1 18 0v6"/>
-    <path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/>
-  </svg>
-</button>
 
 <!-- CoBrowse modal -->
 <div id="cobrowseModal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[600] p-4">
