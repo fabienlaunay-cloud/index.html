@@ -1875,6 +1875,97 @@
         </div>
       </div>
 
+      <!-- ── Google Drive Import ─────────────────────────────────────────── -->
+      <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+        <button onclick="_toggleDrivePanel()" class="w-full flex items-center justify-between px-6 py-4 hover:bg-gray-50 transition">
+          <h2 class="font-semibold text-gray-800 flex items-center gap-2 text-sm">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+            Import Google Drive
+          </h2>
+          <div class="flex items-center gap-2">
+            <span id="driveStatusDot" class="w-2 h-2 rounded-full bg-gray-300"></span>
+            <svg id="drivePanelChevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="transition-transform"><polyline points="6 9 12 15 18 9"/></svg>
+          </div>
+        </button>
+        <div id="drivePanel" class="hidden px-6 pb-6 space-y-4 border-t border-gray-50">
+
+          <!-- Service account status -->
+          <div id="driveStatusBanner" class="hidden mt-4 text-xs px-3 py-2 rounded-lg"></div>
+
+          <!-- Folder URL -->
+          <div>
+            <label class="text-xs font-medium text-gray-600 block mb-1.5">URL ou ID du dossier Drive</label>
+            <input id="driveFolderUrl" type="text" placeholder="https://drive.google.com/drive/folders/…"
+              class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-purple-300 outline-none">
+          </div>
+
+          <!-- Brand / Client -->
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="text-xs font-medium text-gray-600 block mb-1.5">Préfixe marque</label>
+              <input id="driveBrand" type="text" placeholder="ex: BC"
+                class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-purple-300 outline-none">
+            </div>
+            <div>
+              <label class="text-xs font-medium text-gray-600 block mb-1.5">Nom client</label>
+              <input id="driveClient" type="text" placeholder="ex: Bande de Canailles"
+                class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-purple-300 outline-none">
+            </div>
+          </div>
+
+          <!-- Keywords -->
+          <div>
+            <label class="text-xs font-medium text-gray-600 block mb-1.5">Filtrer par mot-clé <span class="text-gray-400">(optionnel)</span></label>
+            <div class="flex gap-2">
+              <input id="driveKwInput" type="text" placeholder="ex: léopard"
+                class="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-purple-300 outline-none"
+                onkeydown="if(event.key==='Enter')_addDriveKw()">
+              <button onclick="_addDriveKw()" class="bg-purple-50 hover:bg-purple-100 text-purple-700 rounded-lg px-3 py-2 text-sm font-medium transition">+</button>
+            </div>
+            <div id="driveKwTags" class="flex flex-wrap gap-1.5 mt-2"></div>
+          </div>
+
+          <!-- Product type filter -->
+          <div>
+            <label class="text-xs font-medium text-gray-600 block mb-1.5">Type produit <span class="text-gray-400">(optionnel)</span></label>
+            <select id="driveTypeFilter" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-purple-300 outline-none bg-white">
+              <option value="">Tous les types</option>
+              <option value="collier">Collier</option>
+              <option value="laisse">Laisse</option>
+              <option value="harnais">Harnais</option>
+              <option value="bandana">Bandana</option>
+              <option value="manteau">Manteau</option>
+              <option value="peluche">Peluche</option>
+              <option value="jouet">Jouet</option>
+              <option value="gamelle">Gamelle</option>
+              <option value="accessoire">Accessoire</option>
+            </select>
+          </div>
+
+          <!-- Extract button -->
+          <button id="driveExtractBtn" onclick="extractDrive()"
+            class="w-full gradient-bg text-white rounded-lg py-2.5 text-sm font-semibold hover:opacity-90 transition flex items-center justify-center gap-2">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+            Extraire depuis Drive
+          </button>
+
+          <!-- Results -->
+          <div id="driveResults" class="hidden space-y-3">
+            <div id="driveSummary" class="bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 text-xs text-gray-600 space-y-1"></div>
+            <div id="driveThumbsWrap" class="hidden">
+              <p class="text-xs font-medium text-gray-500 mb-2">Aperçu</p>
+              <div id="driveThumbs" class="grid grid-cols-4 gap-1.5 max-h-48 overflow-y-auto"></div>
+            </div>
+            <button onclick="exportDriveCSV()" id="driveCsvBtn"
+              class="w-full bg-green-50 hover:bg-green-100 text-green-700 border border-green-200 rounded-lg py-2 text-sm font-semibold transition flex items-center justify-center gap-2">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              Télécharger CSV
+            </button>
+          </div>
+
+        </div>
+      </div>
+
       <div class="bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
         <h2 class="font-semibold text-gray-800 mb-4 flex items-center gap-2"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg> Paramètres IA</h2>
         <div class="space-y-4">
@@ -5769,6 +5860,153 @@ function toggleScMenu() {
 function toggleDlMenu() {
   document.getElementById('dlExportDropdown').classList.toggle('hidden');
   document.getElementById('scExportDropdown')?.classList.add('hidden');
+}
+
+// ── Google Drive panel ─────────────────────────────────────────────────────
+
+let _driveFiles = [];
+let _driveKws = [];
+
+function _toggleDrivePanel() {
+  const panel = document.getElementById('drivePanel');
+  const chevron = document.getElementById('drivePanelChevron');
+  const open = panel.classList.toggle('hidden');
+  chevron.style.transform = open ? '' : 'rotate(180deg)';
+  if (!open) _checkDriveStatus();
+}
+
+async function _checkDriveStatus() {
+  try {
+    const r = await authFetch('/api/drive/status');
+    const d = await r.json();
+    const dot = document.getElementById('driveStatusDot');
+    const banner = document.getElementById('driveStatusBanner');
+    if (d.configured) {
+      dot.className = 'w-2 h-2 rounded-full bg-green-400';
+      banner.className = 'mt-4 text-xs px-3 py-2 rounded-lg bg-green-50 text-green-700 border border-green-100';
+      banner.textContent = `Service Account configuré — ${d.service_account_email || ''}`;
+    } else {
+      dot.className = 'w-2 h-2 rounded-full bg-red-400';
+      banner.className = 'mt-4 text-xs px-3 py-2 rounded-lg bg-amber-50 text-amber-700 border border-amber-100';
+      banner.textContent = 'Service Account non configuré — ajoute GOOGLE_SERVICE_ACCOUNT_JSON dans les variables Railway.';
+    }
+    banner.classList.remove('hidden');
+  } catch {}
+}
+
+function _addDriveKw() {
+  const inp = document.getElementById('driveKwInput');
+  const kw = inp.value.trim();
+  if (!kw || _driveKws.includes(kw)) { inp.value = ''; return; }
+  _driveKws.push(kw);
+  inp.value = '';
+  _renderDriveKwTags();
+}
+
+function _renderDriveKwTags() {
+  const el = document.getElementById('driveKwTags');
+  el.innerHTML = _driveKws.map((k, i) => `
+    <span class="inline-flex items-center gap-1 bg-purple-100 text-purple-700 text-xs font-medium px-2.5 py-1 rounded-full">
+      ${_escHtml(k)}
+      <button onclick="_removeDriveKw(${i})" class="hover:text-purple-900 font-bold leading-none">×</button>
+    </span>`).join('');
+}
+
+function _removeDriveKw(i) {
+  _driveKws.splice(i, 1);
+  _renderDriveKwTags();
+}
+
+async function extractDrive() {
+  const url = document.getElementById('driveFolderUrl').value.trim();
+  if (!url) { showToast('⚠️', 'Colle l\'URL du dossier Drive'); return; }
+
+  const btn = document.getElementById('driveExtractBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<svg class="animate-spin" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> Extraction…';
+  document.getElementById('driveResults').classList.add('hidden');
+
+  try {
+    const r = await authFetch('/api/drive/extract', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        folder_url: url,
+        brand: document.getElementById('driveBrand').value.trim(),
+        client_name: document.getElementById('driveClient').value.trim(),
+        keywords: [..._driveKws],
+        product_type_filter: document.getElementById('driveTypeFilter').value || null,
+        images_only: true,
+      }),
+    });
+    if (!r.ok) {
+      const e = await r.json();
+      showToast('❌', e.detail || 'Erreur Drive', true);
+      return;
+    }
+    const data = await r.json();
+    _driveFiles = data.files || [];
+    _renderDriveResults(data);
+  } catch (e) {
+    showToast('❌', `Erreur : ${e.message}`, true);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg> Extraire depuis Drive';
+  }
+}
+
+function _renderDriveResults(data) {
+  const summary = document.getElementById('driveSummary');
+  const byType = data.by_type || {};
+  const typeLines = Object.entries(byType)
+    .sort((a, b) => b[1] - a[1])
+    .map(([t, n]) => `<span class="font-semibold text-gray-800">${t.charAt(0).toUpperCase()+t.slice(1)}</span> ${n}`)
+    .join(' &nbsp;·&nbsp; ');
+  summary.innerHTML = `<div class="font-semibold text-gray-800 mb-1">${data.total} fichier${data.total > 1 ? 's' : ''} trouvé${data.total > 1 ? 's' : ''}</div>${typeLines ? `<div class="text-gray-500">${typeLines}</div>` : ''}`;
+
+  // Thumbnails (images only)
+  const imgs = _driveFiles.filter(f => f.is_image).slice(0, 16);
+  const thumbsWrap = document.getElementById('driveThumbsWrap');
+  const thumbs = document.getElementById('driveThumbs');
+  if (imgs.length) {
+    thumbs.innerHTML = imgs.map(f => `
+      <div class="aspect-square bg-gray-100 rounded-lg overflow-hidden border border-gray-200">
+        <img src="/api/drive/image/${_escHtml(f.file_id)}" alt="${_escHtml(f.name)}"
+          class="w-full h-full object-cover"
+          onerror="this.parentElement.innerHTML='<div class=\'w-full h-full flex items-center justify-center text-gray-300 text-xs\'>?</div>'">
+      </div>`).join('');
+    thumbsWrap.classList.remove('hidden');
+  } else {
+    thumbsWrap.classList.add('hidden');
+  }
+
+  document.getElementById('driveResults').classList.remove('hidden');
+  if (data.total > 0) showToast('✅', `${data.total} fichiers extraits depuis Drive`);
+  else showToast('⚠️', 'Aucun fichier trouvé — vérifie l\'URL et les mots-clés');
+}
+
+async function exportDriveCSV() {
+  if (!_driveFiles.length) { showToast('⚠️', 'Lance d\'abord une extraction'); return; }
+  const btn = document.getElementById('driveCsvBtn');
+  btn.disabled = true;
+  try {
+    const r = await authFetch('/api/drive/export/csv', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ files: _driveFiles }),
+    });
+    if (!r.ok) throw new Error((await r.json()).detail);
+    const blob = await r.blob();
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'synqio_drive_export.csv';
+    a.click();
+    showToast('✅', 'CSV téléchargé — prêt à importer dans SynqIO');
+  } catch (e) {
+    showToast('❌', `Erreur export : ${e.message}`, true);
+  } finally {
+    btn.disabled = false;
+  }
 }
 document.addEventListener('click', e => {
   if (!document.getElementById('scExportMenu')?.contains(e.target))

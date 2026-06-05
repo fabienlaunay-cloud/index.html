@@ -1,0 +1,191 @@
+"""
+Google Drive extraction service.
+Uses a Service Account (GOOGLE_SERVICE_ACCOUNT_JSON env var) to list, classify,
+and proxy files from a shared Drive folder.
+"""
+import os
+import io
+import re
+import csv
+import json
+from typing import Optional
+
+_PRODUCT_TYPES: dict[str, list[str]] = {
+    "collier":    ["collier", "collar"],
+    "laisse":     ["laisse", "leash", "lead"],
+    "harnais":    ["harnais", "harness"],
+    "bandana":    ["bandana", "foulard"],
+    "manteau":    ["manteau", "veste", "jacket", "coat", "imperméable"],
+    "peluche":    ["peluche", "stuffed"],
+    "jouet":      ["jouet", "toy", "balle", "corde"],
+    "gamelle":    ["gamelle", "bowl", "mangeoire", "abreuvoir"],
+    "accessoire": ["accessoire", "acces"],
+}
+
+_PATTERNS: dict[str, list[str]] = {
+    "léopard":  ["leopard", "leo", "léopard"],
+    "zèbre":    ["zebre", "zeb", "zèbre", "zebra"],
+    "tigre":    ["tigre", "tiger", "tig"],
+    "vichy":    ["vichy", "carreaux", "check"],
+    "rayures":  ["rayure", "stripe", "raie"],
+    "fleuri":   ["fleuri", "fleur", "floral"],
+    "écossais": ["ecossais", "écossais", "tartan", "plaid"],
+    "damier":   ["damier", "checkerboard"],
+    "pois":     ["pois", "polka", "dots"],
+    "uni":      ["uni", "plain", "solid"],
+}
+
+IMAGE_MIMETYPES = frozenset({
+    "image/jpeg", "image/jpg", "image/png", "image/webp", "image/gif", "image/bmp",
+})
+ALL_MIMETYPES = IMAGE_MIMETYPES | frozenset({
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "application/vnd.ms-excel",
+    "text/csv",
+    "text/plain",
+    "application/json",
+})
+
+_TYPE_CODES = {
+    "collier": "COL", "laisse": "LAI", "harnais": "HAR",
+    "bandana": "BAN", "manteau": "MAN", "peluche": "PEL",
+    "jouet": "JOU",  "gamelle": "GAM", "accessoire": "ACC",
+}
+
+
+def _get_service():
+    """Build an authenticated Google Drive API v3 service."""
+    sa_json = os.environ.get("GOOGLE_SERVICE_ACCOUNT_JSON", "").strip()
+    if not sa_json:
+        raise ValueError("GOOGLE_SERVICE_ACCOUNT_JSON non configuré")
+    from google.oauth2 import service_account
+    from googleapiclient.discovery import build
+    info = json.loads(sa_json)
+    creds = service_account.Credentials.from_service_account_info(
+        info, scopes=["https://www.googleapis.com/auth/drive.readonly"]
+    )
+    return build("drive", "v3", credentials=creds, cache_discovery=False)
+
+
+def extract_folder_id(url_or_id: str) -> str:
+    m = re.search(r"/folders/([a-zA-Z0-9_-]+)", url_or_id)
+    if m:
+        return m.group(1)
+    clean = url_or_id.strip()
+    if re.match(r"^[a-zA-Z0-9_-]{20,}$", clean):
+        return clean
+    raise ValueError(f"Impossible d'extraire l'ID Drive depuis : {url_or_id}")
+
+
+def _classify(name: str) -> tuple[Optional[str], Optional[str]]:
+    low = name.lower()
+    ptype = next((t for t, kws in _PRODUCT_TYPES.items() if any(k in low for k in kws)), None)
+    pattern = next((p for p, kws in _PATTERNS.items() if any(k in low for k in kws)), None)
+    return ptype, pattern
+
+
+def _make_sku(brand: str, ptype: Optional[str], idx: int) -> str:
+    prefix = re.sub(r"[^A-Z0-9]", "", (brand or "XX").upper())[:4]
+    code = _TYPE_CODES.get(ptype or "", "ART")
+    return f"{prefix}-{code}-{idx:03d}"
+
+
+def list_files(
+    folder_url: str,
+    brand: str = "",
+    client_name: str = "",
+    keywords: list[str] | None = None,
+    product_type_filter: Optional[str] = None,
+    images_only: bool = True,
+) -> dict:
+    service = _get_service()
+    folder_id = extract_folder_id(folder_url)
+
+    mimes = IMAGE_MIMETYPES if images_only else ALL_MIMETYPES
+    mime_q = " or ".join(f"mimeType='{m}'" for m in sorted(mimes))
+    query = f"'{folder_id}' in parents and trashed=false and ({mime_q})"
+
+    raw: list[dict] = []
+    page_token = None
+    while True:
+        resp = service.files().list(
+            q=query, spaces="drive",
+            fields="nextPageToken, files(id,name,mimeType,size,webViewLink)",
+            pageToken=page_token, pageSize=500,
+        ).execute()
+        raw.extend(resp.get("files", []))
+        page_token = resp.get("nextPageToken")
+        if not page_token:
+            break
+
+    # Keyword filter
+    kws = [k.lower().strip() for k in (keywords or []) if k.strip()]
+    if kws:
+        raw = [f for f in raw if any(k in f["name"].lower() for k in kws)]
+
+    results = []
+    type_counts: dict[str, int] = {}
+    for i, f in enumerate(raw, 1):
+        ptype, pattern = _classify(f["name"])
+        if product_type_filter and ptype != product_type_filter:
+            continue
+        bucket = ptype or "autre"
+        type_counts[bucket] = type_counts.get(bucket, 0) + 1
+        results.append({
+            "file_id":    f["id"],
+            "name":       f["name"],
+            "mime_type":  f["mimeType"],
+            "sku":        _make_sku(brand, ptype, i),
+            "product_type": bucket,
+            "pattern":    pattern or "",
+            "brand":      brand,
+            "client":     client_name,
+            "is_image":   f["mimeType"] in IMAGE_MIMETYPES,
+            "web_view_link": f.get("webViewLink", ""),
+        })
+
+    return {"files": results, "total": len(results), "by_type": type_counts, "folder_id": folder_id}
+
+
+def build_csv(files: list[dict], proxy_base: str = "") -> str:
+    out = io.StringIO()
+    writer = csv.DictWriter(out, fieldnames=["sku", "nom", "marque", "catégorie", "motif", "image_url", "description"])
+    writer.writeheader()
+    for f in files:
+        if not f.get("is_image"):
+            continue
+        image_url = (
+            f"{proxy_base}/api/drive/image/{f['file_id']}"
+            if proxy_base else f.get("web_view_link", "")
+        )
+        parts = [p for p in [
+            f["product_type"].capitalize() if f["product_type"] != "autre" else None,
+            f["pattern"].capitalize() if f["pattern"] else None,
+            f["brand"] if f["brand"] else None,
+        ] if p]
+        nom = " ".join(parts) or f["name"].rsplit(".", 1)[0]
+        writer.writerow({
+            "sku":       f["sku"],
+            "nom":       nom,
+            "marque":    f["brand"],
+            "catégorie": f["product_type"],
+            "motif":     f["pattern"],
+            "image_url": image_url,
+            "description": f"Photo {nom}" + (f" — {f['client']}" if f["client"] else ""),
+        })
+    return out.getvalue()
+
+
+def get_image_bytes(file_id: str) -> tuple[bytes, str]:
+    """Download a Drive file and return (bytes, mime_type)."""
+    from googleapiclient.http import MediaIoBaseDownload
+    service = _get_service()
+    meta = service.files().get(fileId=file_id, fields="mimeType").execute()
+    mime = meta.get("mimeType", "image/jpeg")
+    buf = io.BytesIO()
+    req = service.files().get_media(fileId=file_id)
+    dl = MediaIoBaseDownload(buf, req)
+    done = False
+    while not done:
+        _, done = dl.next_chunk()
+    return buf.getvalue(), mime
