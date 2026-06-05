@@ -6448,11 +6448,11 @@ async function _driveBrowserLoad(folderId) {
     }
     list.innerHTML = files.map(f => {
       const isFolder = f.mimeType === 'application/vnd.google-apps.folder';
-      const isSelectableFile = !isFolder && _driveBrowserTarget === 'file' && (
-        _DRIVE_FILE_MIMES.has(f.mimeType) || f.name.match(/\.(xlsx?|csv|ods)$/i)
-      );
+      const isDocFile = _DRIVE_FILE_MIMES.has(f.mimeType) || f.name.match(/\.(xlsx?|csv|ods)$/i);
+      // Selectable in 'file' mode always, and in 'folder' mode too for doc files
+      const isSelectableFile = !isFolder && isDocFile;
       const isImage = !isFolder && f.mimeType.startsWith('image/');
-      const dimmed = !isFolder && _driveBrowserTarget === 'file' && !isSelectableFile;
+      const dimmed = !isFolder && !isSelectableFile && !isImage;
       let icon = '📄';
       if (isFolder) icon = '📁';
       else if (isImage) icon = '🖼️';
@@ -11920,8 +11920,13 @@ async function _agentExec(name, input) {
       if (typeof connectDrive === 'function') connectDrive();
       break;
     case 'open_drive_browser': {
-      const inputId = input.target === 'documents' ? 'driveFolderUrl' : 'drivePhotoFolderUrl';
-      if (typeof _openDriveBrowser === 'function') _openDriveBrowser('folder', inputId);
+      if (input.target === 'documents') {
+        // File mode: let user click directly on xlsx/csv/ods
+        if (typeof _openDriveBrowser === 'function') _openDriveBrowser('file', 'driveDataFileUrl');
+      } else {
+        // Folder mode: let user navigate and pick a photo folder
+        if (typeof _openDriveBrowser === 'function') _openDriveBrowser('folder', 'drivePhotoFolderUrl');
+      }
       break;
     }
     case 'set_drive_folder': {
@@ -11988,19 +11993,45 @@ function _agentMic() {
   micBtn.style.background = 'rgba(239,68,68,0.12)';
   micBtn.style.color = '#ef4444';
 
+  const inputEl = document.getElementById('agentInput');
+  let _finalTranscript = '';
+
+  _agentRecognition.interimResults = true;
+
   _agentRecognition.onresult = e => {
-    document.getElementById('agentInput').value = e.results[0][0].transcript;
+    let interim = '';
+    _finalTranscript = '';
+    for (const r of e.results) {
+      if (r.isFinal) _finalTranscript += r[0].transcript;
+      else interim += r[0].transcript;
+    }
+    inputEl.value = _finalTranscript || interim;
+    inputEl.style.height = 'auto';
+    inputEl.style.height = Math.min(inputEl.scrollHeight, 120) + 'px';
   };
+
   _agentRecognition.onend = () => {
     _agentListening = false;
     micBtn.style.background = 'rgba(124,58,237,0.1)';
     micBtn.style.color = '#7c3aed';
+    micBtn.innerHTML = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/></svg>';
+    // Auto-send if we got a final transcript
+    if (_finalTranscript.trim()) {
+      setTimeout(() => _agentSend(), 300);
+    }
   };
-  _agentRecognition.onerror = () => {
+
+  _agentRecognition.onerror = e => {
     _agentListening = false;
     micBtn.style.background = 'rgba(124,58,237,0.1)';
     micBtn.style.color = '#7c3aed';
+    micBtn.innerHTML = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/></svg>';
+    if (e.error !== 'aborted') showToast('🎤', 'Micro non disponible — utilisez Chrome avec HTTPS');
   };
+
+  // Pulse animation while listening
+  micBtn.innerHTML = '<svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="6"><animate attributeName="r" from="6" to="10" dur=".8s" repeatCount="indefinite" /><animate attributeName="opacity" from="1" to="0" dur=".8s" repeatCount="indefinite"/></circle><circle cx="12" cy="12" r="5"/></svg>';
+
   _agentRecognition.start();
 }
 </script>
