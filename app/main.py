@@ -74,9 +74,10 @@ from app.routes.chat import router as chat_router
 from app.routes.stripe_webhook import router as stripe_router
 from app.routes.insights import router as insights_router
 from app.routes.drive import router as drive_router
+from app.routes.drive_oauth import router as drive_oauth_router
 
 # Routes sans authentification
-PUBLIC_PATHS = {"/", "/health", "/api/auth/login", "/api/auth/setup", "/api/auth/needs-setup", "/api/marketplaces", "/api/amazon/callback", "/api/template", "/api/auth/unsubscribe", "/api/auth/forgot-password", "/api/auth/reset-password", "/api/stripe/webhook"}
+PUBLIC_PATHS = {"/", "/health", "/api/auth/login", "/api/auth/setup", "/api/auth/needs-setup", "/api/marketplaces", "/api/amazon/callback", "/api/drive/oauth/callback", "/api/template", "/api/auth/unsubscribe", "/api/auth/forgot-password", "/api/auth/reset-password", "/api/stripe/webhook"}
 # Invite paths are public (token-based auth)
 PUBLIC_PREFIX_PATHS = ("/api/auth/invite/", "/api/photos/", "/api/auth/reset-password/")
 
@@ -142,6 +143,7 @@ app.include_router(chat_router)
 app.include_router(stripe_router)
 app.include_router(insights_router)
 app.include_router(drive_router)
+app.include_router(drive_oauth_router)
 
 
 @app.on_event("startup")

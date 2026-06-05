@@ -276,6 +276,24 @@ def _init_db_pg():
         )
     """)
 
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS google_drive_tokens (
+            user_email TEXT PRIMARY KEY,
+            refresh_token TEXT NOT NULL,
+            drive_email TEXT DEFAULT '',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS google_oauth_states (
+            state TEXT PRIMARY KEY,
+            user_email TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+
     # Migrate existing tables: add columns added after initial deployment
     conn.execute("ALTER TABLE saved_sessions ADD COLUMN IF NOT EXISTS data_json TEXT NOT NULL DEFAULT '{}'")
 
@@ -1034,3 +1052,39 @@ def delete_ab_experiment(exp_id: str, user_email: str) -> bool:
     conn.commit()
     conn.close()
     return cur.rowcount > 0
+
+
+# ── Google Drive OAuth helpers ────────────────────────────────────────────────
+
+def get_drive_token(user_email: str) -> dict | None:
+    conn = get_db()
+    row = conn.execute(
+        "SELECT refresh_token, drive_email FROM google_drive_tokens WHERE user_email = ?",
+        (user_email,),
+    ).fetchone()
+    conn.close()
+    if not row:
+        return None
+    return {"refresh_token": row[0], "drive_email": row[1]}
+
+
+def set_drive_token(user_email: str, refresh_token: str, drive_email: str = "") -> None:
+    conn = get_db()
+    conn.execute(
+        """INSERT INTO google_drive_tokens (user_email, refresh_token, drive_email, updated_at)
+           VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+           ON CONFLICT(user_email) DO UPDATE SET
+               refresh_token=EXCLUDED.refresh_token,
+               drive_email=EXCLUDED.drive_email,
+               updated_at=CURRENT_TIMESTAMP""",
+        (user_email, refresh_token, drive_email),
+    )
+    conn.commit()
+    conn.close()
+
+
+def delete_drive_token(user_email: str) -> None:
+    conn = get_db()
+    conn.execute("DELETE FROM google_drive_tokens WHERE user_email = ?", (user_email,))
+    conn.commit()
+    conn.close()

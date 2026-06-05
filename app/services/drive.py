@@ -55,13 +55,30 @@ _TYPE_CODES = {
 }
 
 
-def _get_service():
-    """Build an authenticated Google Drive API v3 service."""
+def _get_service(refresh_token: Optional[str] = None):
+    """Build an authenticated Drive API v3 service.
+    Uses user OAuth token if provided, otherwise falls back to service account.
+    """
+    from googleapiclient.discovery import build
+    if refresh_token:
+        from google.oauth2.credentials import Credentials
+        from google.auth.transport.requests import Request as GRequest
+        import os as _os
+        creds = Credentials(
+            token=None,
+            refresh_token=refresh_token,
+            token_uri="https://oauth2.googleapis.com/token",
+            client_id=_os.environ.get("GOOGLE_OAUTH_CLIENT_ID", ""),
+            client_secret=_os.environ.get("GOOGLE_OAUTH_CLIENT_SECRET", ""),
+            scopes=["https://www.googleapis.com/auth/drive.readonly"],
+        )
+        creds.refresh(GRequest())
+        return build("drive", "v3", credentials=creds, cache_discovery=False)
+
     sa_json = os.environ.get("GOOGLE_SERVICE_ACCOUNT_JSON", "").strip()
     if not sa_json:
-        raise ValueError("GOOGLE_SERVICE_ACCOUNT_JSON non configuré")
+        raise ValueError("Google Drive non configuré — connectez votre compte Google Drive")
     from google.oauth2 import service_account
-    from googleapiclient.discovery import build
     info = json.loads(sa_json)
     creds = service_account.Credentials.from_service_account_info(
         info, scopes=["https://www.googleapis.com/auth/drive.readonly"]
@@ -143,8 +160,9 @@ def list_files(
     product_type_filter: Optional[str] = None,
     images_only: bool = True,
     documents_only: bool = False,
+    refresh_token: Optional[str] = None,
 ) -> dict:
-    service = _get_service()
+    service = _get_service(refresh_token)
     folder_id = extract_folder_id(folder_url)
 
     raw = _collect_files(service, folder_id, images_only, documents_only)
@@ -207,10 +225,10 @@ def build_csv(files: list[dict], proxy_base: str = "") -> str:
     return out.getvalue()
 
 
-def get_file_bytes(file_id: str) -> tuple[bytes, str]:
+def get_file_bytes(file_id: str, refresh_token: Optional[str] = None) -> tuple[bytes, str]:
     """Download a Drive file and return (bytes, mime_type)."""
     from googleapiclient.http import MediaIoBaseDownload
-    service = _get_service()
+    service = _get_service(refresh_token)
     meta = service.files().get(fileId=file_id, fields="mimeType", supportsAllDrives=True).execute()
     mime = meta.get("mimeType", "application/octet-stream")
     buf = io.BytesIO()

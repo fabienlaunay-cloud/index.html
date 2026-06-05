@@ -8,6 +8,7 @@ from fastapi.responses import Response
 from pydantic import BaseModel
 
 from app.services.drive import list_files, build_csv, get_file_bytes
+from app.db import get_drive_token
 from app.logger import log
 
 router = APIRouter(prefix="/api/drive", tags=["drive"])
@@ -52,6 +53,8 @@ class ExtractRequest(BaseModel):
 @router.post("/extract")
 async def extract_drive(body: ExtractRequest, request: Request):
     email = request.state.user_email
+    token_data = get_drive_token(email)
+    refresh_token = token_data["refresh_token"] if token_data else None
     try:
         result = list_files(
             folder_url=body.folder_url,
@@ -61,6 +64,7 @@ async def extract_drive(body: ExtractRequest, request: Request):
             product_type_filter=body.product_type_filter,
             images_only=body.images_only,
             documents_only=body.documents_only,
+            refresh_token=refresh_token,
         )
         log.info(f"[drive] {email} extracted {result['total']} files from folder {result['folder_id']}")
         return result
@@ -97,11 +101,13 @@ class ExportZIPRequest(BaseModel):
 @router.post("/export/zip")
 async def export_drive_zip(body: ExportZIPRequest, request: Request):
     email = request.state.user_email
+    token_data = get_drive_token(email)
+    refresh_token = token_data["refresh_token"] if token_data else None
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
         for f in body.files:
             try:
-                data, _ = get_file_bytes(f["file_id"])
+                data, _ = get_file_bytes(f["file_id"], refresh_token)
                 zf.writestr(f.get("name", f["file_id"]), data)
             except Exception as e:
                 log.warning(f"[drive] zip skip {f.get('name')}: {e}")
@@ -118,8 +124,10 @@ async def export_drive_zip(body: ExportZIPRequest, request: Request):
 
 @router.get("/file/{file_id}")
 async def proxy_file(file_id: str, name: str = Query(default="file"), request: Request = None):
+    token_data = get_drive_token(request.state.user_email) if request else None
+    refresh_token = token_data["refresh_token"] if token_data else None
     try:
-        data, mime = get_file_bytes(file_id)
+        data, mime = get_file_bytes(file_id, refresh_token)
         safe_name = name.replace('"', '')
         return Response(
             content=data,
@@ -137,8 +145,10 @@ async def proxy_file(file_id: str, name: str = Query(default="file"), request: R
 
 @router.get("/image/{file_id}")
 async def proxy_image(file_id: str, request: Request = None):
+    token_data = get_drive_token(request.state.user_email) if request else None
+    refresh_token = token_data["refresh_token"] if token_data else None
     try:
-        data, mime = get_file_bytes(file_id)
+        data, mime = get_file_bytes(file_id, refresh_token)
         return Response(content=data, media_type=mime, headers={"Cache-Control": "max-age=3600"})
     except Exception as e:
         raise HTTPException(404, f"Image introuvable : {e}")
