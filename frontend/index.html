@@ -2274,31 +2274,23 @@
         <div class="space-y-4">
           <!-- Mots-clés collapsible -->
           <div>
-            <button onclick="toggleKwPanel()" class="w-full flex items-center justify-between mb-1.5 group">
+            <div onclick="toggleKwPanel()" class="w-full flex items-center justify-between mb-1.5 cursor-pointer select-none">
               <span class="text-sm font-medium text-gray-700 flex items-center gap-2">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
                 Mots-clés prioritaires
               </span>
               <div class="flex items-center gap-3">
                 <a href="https://sellercentral.amazon.fr/analytics#/searchQueryPerformance" target="_blank" rel="noopener" onclick="event.stopPropagation()" class="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700 hover:underline transition">
-                  <!-- Amazon logo -->
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <rect width="24" height="24" rx="4" fill="#FF9900"/>
-                    <text x="12" y="17" text-anchor="middle" font-size="14" font-weight="bold" font-family="Arial,sans-serif" fill="white">a</text>
-                  </svg>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><rect width="24" height="24" rx="4" fill="#FF9900"/><text x="12" y="17" text-anchor="middle" font-size="14" font-weight="bold" font-family="Arial,sans-serif" fill="white">a</text></svg>
                   Search Query Performance
                 </a>
                 <button onclick="event.stopPropagation();_kwSuggest('focusKeywords', selectedMarketplaces[0] || 'amazon_fr', this)" class="flex items-center gap-1 text-xs font-medium transition" style="color:#FF9900">
-                  <!-- Amazon logo -->
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <rect width="24" height="24" rx="4" fill="#FF9900"/>
-                    <text x="12" y="17" text-anchor="middle" font-size="14" font-weight="bold" font-family="Arial,sans-serif" fill="white">a</text>
-                  </svg>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><rect width="24" height="24" rx="4" fill="#FF9900"/><text x="12" y="17" text-anchor="middle" font-size="14" font-weight="bold" font-family="Arial,sans-serif" fill="white">a</text></svg>
                   Suggestions Amazon
                 </button>
                 <span id="kwPanelChevron" class="text-gray-400 text-xs transition-transform">▼</span>
               </div>
-            </button>
+            </div>
             <div id="kwPanel" class="space-y-2">
               <input id="focusKeywords" type="text" placeholder="Coller les requêtes depuis Search Query Performance…" class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-purple-300 outline-none">
               <p class="text-xs text-gray-400">Seller Central → Marque → Analytique → Search Query Performance</p>
