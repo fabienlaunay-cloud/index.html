@@ -2266,12 +2266,15 @@
         </div>
       </div>
 
-      <div class="bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
-        <h2 class="font-semibold text-gray-800 mb-4 flex items-center gap-2">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-          Mots-clés &amp; Ton
-        </h2>
-        <div class="space-y-4">
+      <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+        <button onclick="_toggleKwTonCard()" class="w-full flex items-center justify-between px-6 py-4 hover:bg-gray-50 transition">
+          <h2 class="font-semibold text-gray-700 text-sm flex items-center gap-2">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+            Mots-clés &amp; Ton
+          </h2>
+          <svg id="kwTonChevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="transition-transform" style="transform:rotate(180deg)"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <div id="kwTonContent" class="px-6 pb-4 border-t border-gray-50 pt-4 space-y-4">
           <!-- Mots-clés collapsible -->
           <div>
             <div onclick="toggleKwPanel()" class="w-full flex items-center justify-between mb-1.5 cursor-pointer select-none">
@@ -2310,10 +2313,12 @@
             </select>
           </div>
         </div>
-        <button id="generateBtn" onclick="generateListings()"
-          class="mt-5 w-full gradient-bg text-white rounded-xl py-3 font-semibold text-sm shadow-md hover:opacity-90 transition flex items-center justify-center gap-2 disabled:opacity-40" disabled>
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg> Générer les fiches
-        </button>
+        <div class="px-6 pb-6 pt-3">
+          <button id="generateBtn" onclick="generateListings()"
+            class="w-full gradient-bg text-white rounded-xl py-3 font-semibold text-sm shadow-md hover:opacity-90 transition flex items-center justify-center gap-2 disabled:opacity-40" disabled>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg> Générer les fiches
+          </button>
+        </div>
       </div>
 
       <!-- Voix de marque -->
@@ -4773,6 +4778,13 @@ function _genLoadExample() {
 
 // ── Segment keyword presets ───────────────────────────────────────────────────
 // ── Voix de marque ────────────────────────────────────────────────────────────
+function _toggleKwTonCard() {
+  const content = document.getElementById('kwTonContent');
+  const chevron = document.getElementById('kwTonChevron');
+  const hidden = content.classList.toggle('hidden');
+  if (chevron) chevron.style.transform = hidden ? '' : 'rotate(180deg)';
+}
+
 function toggleKwPanel() {
   const panel = document.getElementById('kwPanel');
   const chevron = document.getElementById('kwPanelChevron');
