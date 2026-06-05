@@ -1930,11 +1930,12 @@
           <!-- Mode toggle -->
           <div class="flex rounded-lg border border-gray-200 overflow-hidden text-xs font-semibold mt-4">
             <button id="driveModePhotosBtn" onclick="_setDriveMode('photos')" class="flex-1 py-2 gradient-bg text-white transition">Photos</button>
-            <button id="driveModeDataBtn" onclick="_setDriveMode('data')" class="flex-1 py-2 bg-white text-gray-500 hover:bg-gray-50 transition">Données produits</button>
+            <button id="driveModeDataBtn" onclick="_setDriveMode('data')" class="flex-1 py-2 bg-white text-gray-500 hover:bg-gray-50 transition">Données</button>
+            <button id="driveModeUnifiedBtn" onclick="_setDriveMode('unified')" class="flex-1 py-2 bg-white text-gray-500 hover:bg-gray-50 transition">Import unifié</button>
           </div>
 
-          <!-- Folder URL -->
-          <div>
+          <!-- Single source (photos / data modes) -->
+          <div id="driveSingleSource">
             <label class="text-xs font-medium text-gray-600 block mb-1.5">Dossier Drive</label>
             <div class="flex gap-2">
               <input id="driveFolderUrl" type="text" placeholder="https://drive.google.com/drive/folders/…"
@@ -1943,6 +1944,33 @@
                 class="hidden flex-shrink-0 border border-gray-200 rounded-lg px-3 py-2 hover:bg-gray-50 transition text-gray-500">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
               </button>
+            </div>
+          </div>
+
+          <!-- Unified sources (unified mode only) -->
+          <div id="driveUnifiedSources" class="hidden space-y-3">
+            <div>
+              <label class="text-xs font-medium text-gray-600 block mb-1.5">📁 Dossier photos</label>
+              <div class="flex gap-2">
+                <input id="drivePhotoFolderUrl" type="text" placeholder="https://drive.google.com/drive/folders/…"
+                  class="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-purple-300 outline-none">
+                <button id="drivePickerBtnUnified" onclick="openDrivePicker('unified')" title="Parcourir Drive"
+                  class="hidden flex-shrink-0 border border-gray-200 rounded-lg px-3 py-2 hover:bg-gray-50 transition text-gray-500">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+                </button>
+              </div>
+            </div>
+            <div>
+              <label class="text-xs font-medium text-gray-600 block mb-1.5">📄 Fichier données <span class="text-gray-400">(Excel / CSV)</span></label>
+              <div class="flex gap-2">
+                <input id="driveDataFileUrl" type="text" placeholder="URL ou ID du fichier Drive"
+                  class="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-purple-300 outline-none">
+                <button id="driveFilePickerBtn" onclick="openDriveFilePicker()" title="Sélectionner un fichier"
+                  class="hidden flex-shrink-0 border border-gray-200 rounded-lg px-3 py-2 hover:bg-gray-50 transition text-gray-500">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>
+                </button>
+              </div>
+              <p class="text-xs text-gray-400 mt-1.5">Conseil : nommez vos photos avec le SKU ou l'EAN pour un matching automatique.</p>
             </div>
           </div>
 
@@ -1972,31 +2000,40 @@
             <div id="driveKwTags" class="flex flex-wrap gap-1.5 mt-2"></div>
           </div>
 
-          <!-- Product type filter (photos only) -->
+          <!-- Product type filter — free text (photos only) -->
           <div id="driveTypeFilterWrap">
-            <label class="text-xs font-medium text-gray-600 block mb-1.5">Type produit <span class="text-gray-400">(optionnel)</span></label>
-            <select id="driveTypeFilter" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-purple-300 outline-none bg-white">
-              <option value="">Tous les types</option>
-              <option value="collier">Collier</option>
-              <option value="laisse">Laisse</option>
-              <option value="harnais">Harnais</option>
-              <option value="bandana">Bandana</option>
-              <option value="manteau">Manteau</option>
-              <option value="peluche">Peluche</option>
-              <option value="jouet">Jouet</option>
-              <option value="gamelle">Gamelle</option>
-              <option value="accessoire">Accessoire</option>
-            </select>
+            <label class="text-xs font-medium text-gray-600 block mb-1.5">Filtrer par type <span class="text-gray-400">(optionnel)</span></label>
+            <input id="driveTypeFilter" type="text" placeholder="ex: collier, chaussure, sac, veste…"
+              class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-purple-300 outline-none">
           </div>
 
-          <!-- Extract button -->
+          <!-- Extract / Load button -->
           <button id="driveExtractBtn" onclick="extractDrive()"
             class="w-full gradient-bg text-white rounded-lg py-2.5 text-sm font-semibold hover:opacity-90 transition flex items-center justify-center gap-2">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-            Extraire depuis Drive
+            <span id="driveExtractLabel">Extraire depuis Drive</span>
           </button>
 
-          <!-- Results -->
+          <!-- Matching preview (unified mode) -->
+          <div id="driveMatchPreview" class="hidden space-y-3">
+            <div class="flex items-center justify-between">
+              <div id="driveMatchSummary" class="text-xs font-semibold text-gray-700"></div>
+              <div class="flex items-center gap-1.5">
+                <span class="text-xs text-gray-400">Clé :</span>
+                <select id="driveMatchColumn" onchange="_rematch()" class="text-xs border border-gray-200 rounded-lg px-2 py-1 bg-white focus:outline-none">
+                  <option value="auto">Auto</option>
+                </select>
+              </div>
+            </div>
+            <div id="driveMatchTable" class="rounded-xl border border-gray-100 max-h-72 overflow-y-auto text-xs divide-y divide-gray-100"></div>
+            <button onclick="generateFromDriveMatch()" id="driveGenerateBtn"
+              class="w-full gradient-bg text-white rounded-lg py-2.5 text-sm font-semibold hover:opacity-90 transition flex items-center justify-center gap-2">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>
+              Générer les fiches
+            </button>
+          </div>
+
+          <!-- Results (photos / data modes) -->
           <div id="driveResults" class="hidden space-y-3">
             <div id="driveSummary" class="bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 text-xs text-gray-600 space-y-1"></div>
 
@@ -5940,12 +5977,19 @@ let _driveMode = 'photos';
 
 function _setDriveMode(mode) {
   _driveMode = mode;
-  const isPhotos = mode === 'photos';
-  document.getElementById('driveModePhotosBtn').className = `flex-1 py-2 transition text-xs font-semibold ${isPhotos ? 'gradient-bg text-white' : 'bg-white text-gray-500 hover:bg-gray-50'}`;
-  document.getElementById('driveModeDataBtn').className = `flex-1 py-2 transition text-xs font-semibold ${!isPhotos ? 'gradient-bg text-white' : 'bg-white text-gray-500 hover:bg-gray-50'}`;
-  document.getElementById('drivePhotosMeta').classList.toggle('hidden', !isPhotos);
-  document.getElementById('driveTypeFilterWrap').classList.toggle('hidden', !isPhotos);
+  const active = 'flex-1 py-2 transition text-xs font-semibold gradient-bg text-white';
+  const inactive = 'flex-1 py-2 transition text-xs font-semibold bg-white text-gray-500 hover:bg-gray-50';
+  document.getElementById('driveModePhotosBtn').className = mode === 'photos' ? active : inactive;
+  document.getElementById('driveModeDataBtn').className = mode === 'data' ? active : inactive;
+  document.getElementById('driveModeUnifiedBtn').className = mode === 'unified' ? active : inactive;
+  document.getElementById('drivePhotosMeta').classList.toggle('hidden', mode === 'data');
+  document.getElementById('driveTypeFilterWrap').classList.toggle('hidden', mode !== 'photos');
+  document.getElementById('driveSingleSource').classList.toggle('hidden', mode === 'unified');
+  document.getElementById('driveUnifiedSources').classList.toggle('hidden', mode !== 'unified');
   document.getElementById('driveResults').classList.add('hidden');
+  document.getElementById('driveMatchPreview').classList.add('hidden');
+  const lbl = document.getElementById('driveExtractLabel');
+  if (lbl) lbl.textContent = mode === 'unified' ? 'Charger depuis Drive' : 'Extraire depuis Drive';
 }
 
 function _toggleDrivePanel() {
@@ -5974,7 +6018,10 @@ async function _checkDriveStatus() {
       notConn.classList.add('hidden');
       conn.classList.remove('hidden');
       document.getElementById('driveConnectedEmail').textContent = d.drive_email || '';
-      document.getElementById('drivePickerBtn').classList.toggle('hidden', !d.api_key);
+      const showPicker = !!d.api_key;
+      document.getElementById('drivePickerBtn').classList.toggle('hidden', !showPicker);
+      document.getElementById('drivePickerBtnUnified').classList.toggle('hidden', !showPicker);
+      document.getElementById('driveFilePickerBtn').classList.toggle('hidden', !showPicker);
     } else {
       dot.className = 'w-2 h-2 rounded-full bg-gray-300';
       conn.classList.add('hidden');
@@ -6002,8 +6049,18 @@ async function disconnectDrive() {
 }
 
 let _pickerApiLoaded = false;
-function openDrivePicker() {
-  const loadPicker = () => {
+
+function _loadPickerApi(cb) {
+  if (_pickerApiLoaded) { cb(); return; }
+  const s = document.createElement('script');
+  s.src = 'https://apis.google.com/js/api.js';
+  s.onload = () => gapi.load('picker', () => { _pickerApiLoaded = true; cb(); });
+  document.head.appendChild(s);
+}
+
+function openDrivePicker(target) {
+  const inputId = target === 'unified' ? 'drivePhotoFolderUrl' : 'driveFolderUrl';
+  _loadPickerApi(() => {
     authFetch('/api/drive/oauth/token').then(r => r.json()).then(({ access_token }) => {
       const picker = new google.picker.PickerBuilder()
         .addView(new google.picker.DocsView(google.picker.ViewId.FOLDERS)
@@ -6011,23 +6068,37 @@ function openDrivePicker() {
         .setOAuthToken(access_token)
         .setDeveloperKey(_driveOAuthConfig.api_key)
         .setCallback(data => {
-          if (data.action === google.picker.Action.PICKED) {
-            const folder = data.docs[0];
-            document.getElementById('driveFolderUrl').value = `https://drive.google.com/drive/folders/${folder.id}`;
-          }
+          if (data.action === google.picker.Action.PICKED)
+            document.getElementById(inputId).value = `https://drive.google.com/drive/folders/${data.docs[0].id}`;
         })
         .build();
       picker.setVisible(true);
     }).catch(() => showToast('❌', 'Impossible d\'ouvrir le sélecteur Drive'));
-  };
+  });
+}
 
-  if (_pickerApiLoaded) { loadPicker(); return; }
-  const script = document.createElement('script');
-  script.src = 'https://apis.google.com/js/api.js';
-  script.onload = () => {
-    gapi.load('picker', () => { _pickerApiLoaded = true; loadPicker(); });
-  };
-  document.head.appendChild(script);
+function openDriveFilePicker() {
+  _loadPickerApi(() => {
+    authFetch('/api/drive/oauth/token').then(r => r.json()).then(({ access_token }) => {
+      const view = new google.picker.DocsView()
+        .setIncludeFolders(false)
+        .setMimeTypes([
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+          'application/vnd.ms-excel', 'text/csv',
+          'application/vnd.oasis.opendocument.spreadsheet',
+        ].join(','));
+      const picker = new google.picker.PickerBuilder()
+        .addView(view)
+        .setOAuthToken(access_token)
+        .setDeveloperKey(_driveOAuthConfig.api_key)
+        .setCallback(data => {
+          if (data.action === google.picker.Action.PICKED)
+            document.getElementById('driveDataFileUrl').value = data.docs[0].id;
+        })
+        .build();
+      picker.setVisible(true);
+    }).catch(() => showToast('❌', 'Impossible d\'ouvrir le sélecteur Drive'));
+  });
 }
 
 function _addDriveKw() {
@@ -6054,15 +6125,19 @@ function _removeDriveKw(i) {
 }
 
 async function extractDrive() {
+  if (_driveMode === 'unified') { await _extractDriveUnified(); return; }
+
   const url = document.getElementById('driveFolderUrl').value.trim();
   if (!url) { showToast('⚠️', 'Colle l\'URL du dossier Drive'); return; }
 
   const btn = document.getElementById('driveExtractBtn');
+  const lbl = document.getElementById('driveExtractLabel');
   btn.disabled = true;
-  btn.innerHTML = '<svg class="animate-spin" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> Extraction…';
+  lbl.textContent = 'Extraction…';
   document.getElementById('driveResults').classList.add('hidden');
 
   const isPhotos = _driveMode === 'photos';
+  const typeFilter = isPhotos ? document.getElementById('driveTypeFilter').value.trim() : '';
   try {
     const r = await authFetch('/api/drive/extract', {
       method: 'POST',
@@ -6071,8 +6146,8 @@ async function extractDrive() {
         folder_url: url,
         brand: isPhotos ? document.getElementById('driveBrand').value.trim() : '',
         client_name: isPhotos ? document.getElementById('driveClient').value.trim() : '',
-        keywords: [..._driveKws],
-        product_type_filter: isPhotos ? (document.getElementById('driveTypeFilter').value || null) : null,
+        keywords: [..._driveKws, ...(typeFilter ? [typeFilter] : [])],
+        product_type_filter: null,
         images_only: isPhotos,
         documents_only: !isPhotos,
       }),
@@ -6090,7 +6165,7 @@ async function extractDrive() {
     showToast('❌', `Erreur : ${e.message}`, true);
   } finally {
     btn.disabled = false;
-    btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg> Extraire depuis Drive';
+    lbl.textContent = 'Extraire depuis Drive';
   }
 }
 
@@ -6201,6 +6276,216 @@ async function importDriveFile(fileId, fileName, mimeType) {
   } catch (e) {
     showToast('❌', `Erreur import : ${e.message}`, true);
   }
+}
+
+// ── Import unifié ─────────────────────────────────────────────────────────────
+
+let _driveProducts = [];
+let _driveMatchResult = [];
+
+function _extractDriveFileId(url) {
+  url = url.trim();
+  let m = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+  if (m) return m[1];
+  m = url.match(/\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/);
+  if (m) return m[1];
+  if (/^[a-zA-Z0-9_-]{20,}$/.test(url)) return url;
+  return null;
+}
+
+function _blobToBase64(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(reader.result.split(',')[1]);
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
+
+async function _extractDriveUnified() {
+  const photoUrl = document.getElementById('drivePhotoFolderUrl').value.trim();
+  const dataUrl  = document.getElementById('driveDataFileUrl').value.trim();
+  if (!photoUrl) { showToast('⚠️', 'Renseigne l\'URL du dossier photos'); return; }
+  if (!dataUrl)  { showToast('⚠️', 'Renseigne l\'URL du fichier données (Excel/CSV)'); return; }
+
+  const btn = document.getElementById('driveExtractBtn');
+  const lbl = document.getElementById('driveExtractLabel');
+  btn.disabled = true;
+  document.getElementById('driveMatchPreview').classList.add('hidden');
+
+  try {
+    // Étape 1 — Photos
+    lbl.textContent = 'Photos en cours…';
+    const pr = await authFetch('/api/drive/extract', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        folder_url: photoUrl, images_only: true, documents_only: false,
+        brand: document.getElementById('driveBrand').value.trim(),
+        client_name: document.getElementById('driveClient').value.trim(),
+        keywords: [..._driveKws],
+      }),
+    });
+    if (!pr.ok) { const e = await pr.json().catch(()=>({})); throw new Error(e.detail || 'Erreur chargement photos'); }
+    const pdata = await pr.json();
+    _driveFiles = pdata.files || [];
+
+    // Étape 2 — Fichier données
+    lbl.textContent = 'Données en cours…';
+    const fileId = _extractDriveFileId(dataUrl);
+    if (!fileId) throw new Error('URL/ID du fichier données invalide');
+    const fr = await authFetch(`/api/drive/file/${encodeURIComponent(fileId)}`);
+    if (!fr.ok) throw new Error('Impossible de télécharger le fichier données');
+    const blob = await fr.blob();
+    const cd = fr.headers.get('content-disposition') || '';
+    const nm = cd.match(/filename="([^"]+)"/);
+    const mime = blob.type || 'application/octet-stream';
+    const fileName = nm ? nm[1] : (mime.includes('csv') ? 'data.csv' : 'data.xlsx');
+
+    // Ingest via pipeline existant (met à jour parsedProducts dans l'UI)
+    const file = new File([blob], fileName, { type: mime });
+    await handleFile(file);
+    await new Promise(r => setTimeout(r, 200));
+    _driveProducts = Array.isArray(parsedProducts) ? [...parsedProducts] : [];
+    if (!_driveProducts.length) throw new Error('Aucun produit trouvé dans le fichier données');
+
+    // Étape 3 — Matching
+    _renderMatchPreview();
+    showToast('✅', `${_driveFiles.length} photos · ${_driveProducts.length} produits chargés`);
+  } catch (e) {
+    showToast('❌', `Erreur : ${e.message}`, true);
+  } finally {
+    btn.disabled = false;
+    lbl.textContent = 'Charger depuis Drive';
+  }
+}
+
+function _matchPhotosToProducts(photos, products, matchColumn) {
+  const idx = {};
+  for (const p of photos) {
+    const stem = p.name.replace(/\.[^.]+$/i, '').toLowerCase().trim();
+    idx[stem] = p;
+    idx[p.name.toLowerCase().trim()] = p;
+  }
+  const used = new Set();
+
+  const tryKey = (key) => {
+    if (!key) return null;
+    const k = String(key).toLowerCase().trim();
+    const ks = k.replace(/\.[^.]+$/i, '');
+    let hit = idx[ks] || idx[k];
+    if (hit && !used.has(hit.file_id)) return hit;
+    // partial match: photo stem contains key or vice-versa
+    for (const [pk, photo] of Object.entries(idx)) {
+      if (used.has(photo.file_id)) continue;
+      if (pk.length > 2 && ks.length > 2 && (pk.includes(ks) || ks.includes(pk))) return photo;
+    }
+    return null;
+  };
+
+  const results = products.map(product => {
+    let photo = null, matchedOn = null;
+    const col = matchColumn || 'auto';
+    if ((col === 'auto' || col === 'image_file') && product.image_file) {
+      photo = tryKey(product.image_file); if (photo) matchedOn = 'Image_Fichier';
+    }
+    if (!photo && (col === 'auto' || col === 'sku') && product.sku) {
+      photo = tryKey(product.sku); if (photo) matchedOn = 'SKU';
+    }
+    if (!photo && (col === 'auto' || col === 'ean') && product.ean) {
+      photo = tryKey(product.ean); if (photo) matchedOn = 'EAN';
+    }
+    if (!photo && col === 'auto' && product.name) {
+      photo = tryKey(product.name); if (photo) matchedOn = 'Nom';
+    }
+    if (photo) used.add(photo.file_id);
+    return { product, photo, matchedOn };
+  });
+
+  const usedIds = new Set(results.filter(r => r.photo).map(r => r.photo.file_id));
+  const unmatchedPhotos = photos.filter(p => !usedIds.has(p.file_id));
+  return { results, unmatchedPhotos };
+}
+
+function _renderMatchPreview() {
+  const col = document.getElementById('driveMatchColumn').value;
+  const { results, unmatchedPhotos } = _matchPhotosToProducts(_driveFiles, _driveProducts, col);
+  _driveMatchResult = results;
+
+  const matched = results.filter(r => r.photo).length;
+  document.getElementById('driveMatchSummary').innerHTML =
+    `<span class="text-green-700">${matched}</span> / ${results.length} produits avec photo` +
+    (unmatchedPhotos.length ? ` · <span class="text-amber-600">${unmatchedPhotos.length} photo${unmatchedPhotos.length > 1 ? 's' : ''} sans produit</span>` : '');
+
+  // Rebuild column selector options
+  const sel = document.getElementById('driveMatchColumn');
+  const prev = sel.value;
+  sel.innerHTML = '<option value="auto">Auto</option>';
+  if (_driveProducts.length) {
+    const p0 = _driveProducts[0];
+    if (p0.image_file !== undefined) sel.innerHTML += '<option value="image_file">Image_Fichier</option>';
+    if (p0.sku)  sel.innerHTML += '<option value="sku">SKU</option>';
+    if (p0.ean)  sel.innerHTML += '<option value="ean">EAN</option>';
+    if (p0.name) sel.innerHTML += '<option value="name">Nom</option>';
+  }
+  if ([...sel.options].some(o => o.value === prev)) sel.value = prev;
+
+  // Build rows
+  const rows = results.map(r => {
+    const p = r.product;
+    const bg = r.photo ? 'bg-green-50' : 'bg-red-50 opacity-70';
+    const badge = r.photo
+      ? `<span class="text-green-600 font-semibold">✓ ${_escHtml(r.matchedOn||'')}</span>`
+      : `<span class="text-red-400">sans photo</span>`;
+    const thumb = r.photo
+      ? `<img src="/api/drive/image/${r.photo.file_id}" class="w-9 h-9 object-cover rounded-lg flex-shrink-0" loading="lazy" onerror="this.style.display='none'">`
+      : `<div class="w-9 h-9 bg-gray-200 rounded-lg flex-shrink-0 flex items-center justify-center text-gray-400 text-base">?</div>`;
+    return `<div class="flex items-center gap-2 px-3 py-2 ${bg}">
+      ${thumb}
+      <div class="flex-1 min-w-0">
+        <div class="font-medium text-gray-800 truncate">${_escHtml(p.name || p.sku || '—')}</div>
+        <div class="text-gray-400 truncate">${p.sku ? _escHtml(p.sku) : ''}${p.ean ? ` · ${_escHtml(p.ean)}` : ''}</div>
+      </div>
+      <div class="flex-shrink-0 text-right">${badge}</div>
+    </div>`;
+  });
+
+  unmatchedPhotos.slice(0, 5).forEach(up => {
+    rows.push(`<div class="flex items-center gap-2 px-3 py-2 bg-amber-50">
+      <img src="/api/drive/image/${up.file_id}" class="w-9 h-9 object-cover rounded-lg flex-shrink-0" loading="lazy" onerror="this.style.display='none'">
+      <div class="flex-1 min-w-0">
+        <div class="font-medium text-gray-800 truncate">${_escHtml(up.name)}</div>
+        <div class="text-amber-600">Photo sans produit</div>
+      </div>
+      <div class="flex-shrink-0 text-amber-500">⚠</div>
+    </div>`);
+  });
+
+  document.getElementById('driveMatchTable').innerHTML = rows.length
+    ? rows.join('')
+    : '<p class="text-xs text-gray-400 text-center py-4">Aucun résultat</p>';
+
+  const genBtn = document.getElementById('driveGenerateBtn');
+  genBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg> Générer ${matched || results.length} fiche${(matched || results.length) > 1 ? 's' : ''}`;
+
+  document.getElementById('driveMatchPreview').classList.remove('hidden');
+}
+
+function _rematch() { if (_driveProducts.length) _renderMatchPreview(); }
+
+function generateFromDriveMatch() {
+  if (!_driveProducts.length) { showToast('⚠️', 'Lance d\'abord un import unifié'); return; }
+  // Les données sont déjà chargées dans l'interface via handleFile()
+  // On ferme le panneau Drive et on dirige l'utilisateur vers la génération
+  const panel = document.getElementById('drivePanel');
+  const chevron = document.getElementById('drivePanelChevron');
+  if (panel && !panel.classList.contains('hidden')) {
+    panel.classList.add('hidden');
+    chevron.style.transform = '';
+  }
+  // Scroll vers la section génération
+  const genSection = document.querySelector('[onclick="generateAll()"]') || document.getElementById('generateBtn');
+  if (genSection) genSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  showToast('✅', `${_driveProducts.length} produits prêts — paramétrez et lancez la génération`);
 }
 document.addEventListener('click', e => {
   if (!document.getElementById('scExportMenu')?.contains(e.target))
