@@ -2264,26 +2264,44 @@
       </div>
 
       <div class="bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
-        <h2 class="font-semibold text-gray-800 mb-4 flex items-center gap-2"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg> Paramètres IA</h2>
+        <h2 class="font-semibold text-gray-800 mb-4 flex items-center gap-2">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+          Mots-clés &amp; Ton
+        </h2>
         <div class="space-y-4">
+          <!-- Mots-clés collapsible -->
           <div>
-            <div class="flex items-center justify-between mb-1.5">
-              <label class="text-sm font-medium text-gray-700">Mots-clés prioritaires</label>
+            <button onclick="toggleKwPanel()" class="w-full flex items-center justify-between mb-1.5 group">
+              <span class="text-sm font-medium text-gray-700 flex items-center gap-2">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
+                Mots-clés prioritaires
+              </span>
               <div class="flex items-center gap-3">
-                <a href="https://sellercentral.amazon.fr/analytics#/searchQueryPerformance" target="_blank" rel="noopener" class="flex items-center gap-1 text-xs text-purple-600 hover:text-purple-800 hover:underline transition">
-                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+                <a href="https://sellercentral.amazon.fr/analytics#/searchQueryPerformance" target="_blank" rel="noopener" onclick="event.stopPropagation()" class="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700 hover:underline transition">
+                  <!-- Amazon logo -->
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <rect width="24" height="24" rx="4" fill="#FF9900"/>
+                    <text x="12" y="17" text-anchor="middle" font-size="14" font-weight="bold" font-family="Arial,sans-serif" fill="white">a</text>
+                  </svg>
                   Search Query Performance
                 </a>
-                <button onclick="_kwSuggest('focusKeywords', selectedMarketplaces[0] || 'amazon_fr', this)" class="flex items-center gap-1 text-xs text-purple-600 hover:text-purple-800 font-medium transition">
-                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a10 10 0 1 0 10 10"/><path d="M12 6v6l4 2"/><path d="M22 2 12 12"/></svg>
-                  Suggestions IA
+                <button onclick="event.stopPropagation();_kwSuggest('focusKeywords', selectedMarketplaces[0] || 'amazon_fr', this)" class="flex items-center gap-1 text-xs font-medium transition" style="color:#FF9900">
+                  <!-- Amazon logo -->
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <rect width="24" height="24" rx="4" fill="#FF9900"/>
+                    <text x="12" y="17" text-anchor="middle" font-size="14" font-weight="bold" font-family="Arial,sans-serif" fill="white">a</text>
+                  </svg>
+                  Suggestions Amazon
                 </button>
+                <span id="kwPanelChevron" class="text-gray-400 text-xs transition-transform">▼</span>
               </div>
-            </div>
-            <input id="focusKeywords" type="text" placeholder="coller les requêtes depuis Search Query Performance..." class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-purple-300 outline-none">
-            <p class="text-xs text-gray-400 mt-1.5">Seller Central → Marque → Analytique → Search Query Performance</p>
-            <div class="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-xs text-amber-700 mt-2">
-              Ces mots-clés s'appliquent à toutes les fiches du lot — à utiliser sur une seule segmentation à la fois.
+            </button>
+            <div id="kwPanel" class="space-y-2">
+              <input id="focusKeywords" type="text" placeholder="Coller les requêtes depuis Search Query Performance…" class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-purple-300 outline-none">
+              <p class="text-xs text-gray-400">Seller Central → Marque → Analytique → Search Query Performance</p>
+              <div class="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-xs text-amber-700">
+                Ces mots-clés s'appliquent à toutes les fiches du lot — à utiliser sur une seule segmentation à la fois.
+              </div>
             </div>
           </div>
           <div>
@@ -4723,6 +4741,13 @@ function _genLoadExample() {
 
 // ── Segment keyword presets ───────────────────────────────────────────────────
 // ── Voix de marque ────────────────────────────────────────────────────────────
+function toggleKwPanel() {
+  const panel = document.getElementById('kwPanel');
+  const chevron = document.getElementById('kwPanelChevron');
+  const hidden = panel.classList.toggle('hidden');
+  if (chevron) chevron.style.transform = hidden ? '' : 'rotate(180deg)';
+}
+
 function toggleBrandVoicePanel() {
   const panel = document.getElementById('brandVoicePanel');
   const chevron = document.getElementById('brandVoiceChevron');
