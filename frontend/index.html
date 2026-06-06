@@ -6452,8 +6452,8 @@ async function _driveBrowserLoad(folderId) {
     list.innerHTML = files.map(f => {
       const isFolder = f.mimeType === 'application/vnd.google-apps.folder';
       const isDocFile = _DRIVE_FILE_MIMES.has(f.mimeType) || f.name.match(/\.(xlsx?|csv|ods)$/i);
-      // Selectable in 'file' mode always, and in 'folder' mode too for doc files
-      const isSelectableFile = !isFolder && isDocFile;
+      // Only selectable in 'file' mode (not in folder-picker mode)
+      const isSelectableFile = _driveBrowserTarget === 'file' && !isFolder && isDocFile;
       const isImage = !isFolder && f.mimeType.startsWith('image/');
       const dimmed = !isFolder && !isSelectableFile && !isImage;
       let icon = '📄';
