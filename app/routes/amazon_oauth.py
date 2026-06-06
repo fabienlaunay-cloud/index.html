@@ -14,6 +14,15 @@ router = APIRouter(prefix="/api/amazon")
 REDIRECT_URI = os.getenv("AMAZON_REDIRECT_URI", "https://synqio.io/api/amazon/callback")
 
 
+def _lwa_credentials() -> tuple[str, str]:
+    """Read LWA credentials from env or config DB at call time."""
+    client_id = os.getenv("LWA_CLIENT_ID", "").strip() or get_config("LWA_CLIENT_ID", "").strip()
+    client_secret = os.getenv("LWA_CLIENT_SECRET", "").strip() or get_config("LWA_CLIENT_SECRET", "").strip()
+    if not client_id or not client_secret:
+        raise HTTPException(503, "LWA_CLIENT_ID / LWA_CLIENT_SECRET non configurés dans l'admin SynqIO")
+    return client_id, client_secret
+
+
 
 
 @router.get("/connect")
@@ -64,6 +73,7 @@ async def amazon_callback(
     conn.commit()
     conn.close()
 
+    lwa_client_id, lwa_client_secret = _lwa_credentials()
     async with httpx.AsyncClient(timeout=30) as client:
         resp = await client.post(
             "https://api.amazon.com/auth/o2/token",
@@ -71,8 +81,8 @@ async def amazon_callback(
                 "grant_type": "authorization_code",
                 "code": spapi_oauth_code,
                 "redirect_uri": REDIRECT_URI,
-                "client_id": LWA_CLIENT_ID,
-                "client_secret": LWA_CLIENT_SECRET,
+                "client_id": lwa_client_id,
+                "client_secret": lwa_client_secret,
             },
         )
         if not resp.is_success:
