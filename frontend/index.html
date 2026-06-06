@@ -4064,6 +4064,7 @@ function authFetch(url, options = {}) {
 async function checkHealth() {
   try {
     const r = await fetch(`${API}/health`);
+    if (!r.ok) throw new Error(r.status);
     const data = await r.json();
     const badge = document.getElementById('healthBadge');
     badge.innerHTML = data.ai_ready
@@ -4073,6 +4074,7 @@ async function checkHealth() {
     document.getElementById('healthBadge').innerHTML = '<div class="w-2 h-2 rounded-full bg-red-400"></div><span>Hors ligne</span>';
   }
 }
+setInterval(checkHealth, 30_000);
 
 // ── User menu ─────────────────────────────────────────────────────────────────
 function toggleUserMenu() {
