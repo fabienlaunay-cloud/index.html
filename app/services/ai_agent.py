@@ -128,7 +128,7 @@ CONTENU INTERDIT dans le titre :
 - Pas de marque, pas de doublons
 
 ══ DESCRIPTION ══
-- 1500-2000 caractères — format storytelling optimisé scan mobile
+- 800-1200 caractères — format storytelling optimisé scan mobile
 - Pose le contexte d'usage, répond aux objections, crée le désir
 - Les 4 dimensions COSMO doivent être présentes dans la narrative
 - HTML simple autorisé : <b>, <br>, <ul>, <li> uniquement
@@ -136,8 +136,7 @@ CONTENU INTERDIT dans le titre :
 
 ══ CONTENU A+ ══
 - Headline accrocheur, 60 caractères max
-- 3 modules :
-    brand_story → valeurs / histoire de la marque
+- 2 modules (2-3 phrases chacun, concis) :
     comparison  → avantages concrets vs alternatives du marché
     lifestyle   → ancrage dans un contexte de vie et d'achat réels (pour qui, quand, pourquoi maintenant)
 
@@ -277,7 +276,6 @@ Génère la fiche produit optimisée au format JSON exact suivant :
   "a_plus_content": {{
     "headline": "...",
     "modules": [
-      {{"type": "brand_story", "title": "...", "body": "..."}},
       {{"type": "comparison", "title": "...", "body": "..."}},
       {{"type": "lifestyle", "title": "...", "body": "..."}}
     ]
@@ -441,7 +439,7 @@ async def generate_listings_batch(
     focus_keywords: List[str],
     style_tone: str,
     brand_voice: Optional[BrandVoice] = None,
-    concurrency: int = 10,
+    concurrency: int = 15,
     on_progress=None,  # callable(done: int, total: int)
 ) -> tuple:  # (listings, failed, {"input_tokens": int, "output_tokens": int})
     semaphore = asyncio.Semaphore(concurrency)
