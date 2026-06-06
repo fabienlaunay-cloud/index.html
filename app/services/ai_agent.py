@@ -386,7 +386,7 @@ async def generate_listing(
         try:
             response = await get_client().messages.create(
                 model="claude-sonnet-4-6",
-                max_tokens=8192,
+                max_tokens=2500,
                 system=[{"type": "text", "text": system, "cache_control": {"type": "ephemeral"}}],
                 messages=[{"role": "user", "content": user}],
             )
@@ -441,7 +441,7 @@ async def generate_listings_batch(
     focus_keywords: List[str],
     style_tone: str,
     brand_voice: Optional[BrandVoice] = None,
-    concurrency: int = 5,
+    concurrency: int = 10,
     on_progress=None,  # callable(done: int, total: int)
 ) -> tuple:  # (listings, failed, {"input_tokens": int, "output_tokens": int})
     semaphore = asyncio.Semaphore(concurrency)
