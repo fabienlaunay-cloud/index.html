@@ -132,6 +132,46 @@ async def amazon_disconnect(request: Request):
     return {"disconnected": True}
 
 
+class ManualTokenBody(BaseModel):
+    refresh_token: str
+    seller_id: str = ""
+    target_email: str = ""  # admin only: store for another user
+
+
+@router.post("/manual-token")
+async def amazon_manual_token(body: ManualTokenBody, request: Request):
+    """Admin endpoint — stores a manually generated SP-API refresh token."""
+    requester = request.state.user_email
+    conn = get_db()
+    row = conn.execute("SELECT is_admin FROM users WHERE email = ?", (requester,)).fetchone()
+    is_admin = row and row["is_admin"]
+    conn.close()
+
+    email = (body.target_email.strip() or requester) if is_admin else requester
+    if body.target_email and body.target_email != requester and not is_admin:
+        raise HTTPException(403, "Réservé aux admins")
+
+    token = body.refresh_token.strip()
+    if not token.startswith("Atzr|"):
+        raise HTTPException(400, "Le refresh token doit commencer par 'Atzr|'")
+
+    conn = get_db()
+    conn.execute(
+        """
+        INSERT INTO amazon_credentials (user_email, seller_id, refresh_token)
+        VALUES (?, ?, ?)
+        ON CONFLICT(user_email) DO UPDATE SET
+            seller_id = excluded.seller_id,
+            refresh_token = excluded.refresh_token,
+            updated_at = CURRENT_TIMESTAMP
+        """,
+        (email, body.seller_id.strip(), token),
+    )
+    conn.commit()
+    conn.close()
+    return {"ok": True, "email": email}
+
+
 # ── Catalog sync & SKU resolution ─────────────────────────────────────────────
 
 class CatalogSyncBody(BaseModel):
