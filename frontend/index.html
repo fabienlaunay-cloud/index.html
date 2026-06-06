@@ -12122,8 +12122,8 @@ async function _initCobrowse(email) {
 }
 
 async function _startCobrowse() {
-  if (!window.CobrowseIO) {
-    showToast('⚠️', 'SDK en cours de chargement, réessayez dans 2s');
+  if (!_cobrowseReady) {
+    showToast('⚠️', 'Chargement en cours, réessayez dans 2s');
     return;
   }
   const codeEl   = document.getElementById('cobrowseCode');
@@ -12135,7 +12135,8 @@ async function _startCobrowse() {
 
   try {
     await window.CobrowseIO.start();
-    const code = await window.CobrowseIO.createSessionCode();
+    const session = await window.CobrowseIO.createSessionCode();
+    const code = session && typeof session === 'object' ? (session.code || session.full_code || JSON.stringify(session)) : session;
     codeEl.textContent   = code;
     statusEl.textContent = '⏳ En attente de connexion support…';
 
