@@ -6457,8 +6457,7 @@ async function _driveBrowserLoad(folderId) {
     list.innerHTML = files.map(f => {
       const isFolder = f.mimeType === 'application/vnd.google-apps.folder';
       const isDocFile = _DRIVE_FILE_MIMES.has(f.mimeType) || f.name.match(/\.(xlsx?|csv|ods)$/i);
-      // Only selectable in 'file' mode (not in folder-picker mode)
-      const isSelectableFile = _driveBrowserTarget === 'file' && !isFolder && isDocFile;
+      const isSelectableFile = !isFolder && isDocFile;
       const isImage = !isFolder && f.mimeType.startsWith('image/');
       const dimmed = !isFolder && !isSelectableFile && !isImage;
       let icon = '📄';
@@ -6517,7 +6516,9 @@ function _driveBrowserSelectFolder() {
 }
 
 function _driveBrowserSelectFile(id, name) {
-  const input = document.getElementById(_driveBrowserInputId);
+  // In folder mode, a doc file click should fill the DATA FILE input, not the folder input
+  const targetId = _driveBrowserTarget === 'folder' ? 'driveDataFileUrl' : _driveBrowserInputId;
+  const input = document.getElementById(targetId);
   if (input) input.value = id;
   _closeDriveBrowser();
   showToast('✅', `Fichier sélectionné : ${name}`);
