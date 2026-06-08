@@ -275,7 +275,9 @@ async def favicon_ico():
 
 @app.get("/api/cobrowse-config")
 async def cobrowse_config(request: Request):
-    return {"license_key": os.getenv("COBROWSE_LICENSE_KEY", "")}
+    from app.db import get_config
+    key = os.getenv("COBROWSE_LICENSE_KEY", "").strip() or get_config("COBROWSE_LICENSE_KEY", "").strip()
+    return {"license_key": key}
 
 
 # ── Health ────────────────────────────────────────────────────────────────────
