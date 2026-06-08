@@ -6411,6 +6411,7 @@ const _DRIVE_FILE_MIMES = new Set([
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
   'application/vnd.ms-excel', 'text/csv',
   'application/vnd.oasis.opendocument.spreadsheet',
+  'application/zip', 'application/x-zip-compressed', 'application/octet-stream',
 ]);
 
 async function _openDriveBrowser(target, inputId) {
@@ -6456,13 +6457,14 @@ async function _driveBrowserLoad(folderId) {
     }
     list.innerHTML = files.map(f => {
       const isFolder = f.mimeType === 'application/vnd.google-apps.folder';
-      const isDocFile = _DRIVE_FILE_MIMES.has(f.mimeType) || f.name.match(/\.(xlsx?|csv|ods)$/i);
+      const isDocFile = _DRIVE_FILE_MIMES.has(f.mimeType) || f.name.match(/\.(xlsx?|csv|ods|zip)$/i);
       const isSelectableFile = !isFolder && isDocFile;
       const isImage = !isFolder && f.mimeType.startsWith('image/');
       const dimmed = !isFolder && !isSelectableFile && !isImage;
       let icon = '📄';
       if (isFolder) icon = '📁';
       else if (isImage) icon = '🖼️';
+      else if (f.name.match(/\.zip$/i)) icon = '🗜️';
       else if (isSelectableFile) icon = '📊';
       const date = f.modifiedTime
         ? new Date(f.modifiedTime).toLocaleDateString('fr-FR', {day:'2-digit',month:'short',year:'numeric'})
