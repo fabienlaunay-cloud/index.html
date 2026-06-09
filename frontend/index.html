@@ -7360,9 +7360,11 @@ function showPublishReport(result, dryRun) {
     </tr>`;
   }).join('');
 
-  const errors = (result.errors || []).map(e =>
-    `<div class="text-xs text-red-600 bg-red-50 rounded px-3 py-1.5">⚠️ ${e.sku || ''} — ${e.error || e.detail || JSON.stringify(e)}</div>`
-  ).join('');
+  const errors = (result.errors || []).map(e => {
+    const _s = v => v == null ? '' : (typeof v === 'object' ? JSON.stringify(v) : String(v));
+    const errMsg = _s(e.error) || _s(e.detail) || _s(e.message) || JSON.stringify(e);
+    return `<div class="text-xs text-red-600 bg-red-50 rounded px-3 py-1.5">⚠️ ${e.sku || ''} — ${errMsg}</div>`;
+  }).join('');
 
   const modal = document.createElement('div');
   modal.id = 'publishReportModal';
