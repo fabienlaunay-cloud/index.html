@@ -395,26 +395,29 @@ async def _log_product_type_schema(
             if schema_url:
                 schema_resp = await client.get(schema_url)
                 schema = schema_resp.json()
+                # Log top-level keys to understand structure
+                top_keys = list(schema.keys())
+                _log.warning(f"[SP-API] SCHEMA top-level keys: {top_keys}")
+                # Log raw schema excerpt (first 800 chars)
+                raw = json.dumps(schema)[:800]
+                _log.warning(f"[SP-API] SCHEMA raw excerpt: {raw}")
+                # Try multiple paths for attributes node
                 attrs_node = schema.get("properties", {}).get("attributes", {})
-                # Method 1: required array on the attributes node
-                required_array = attrs_node.get("required", [])
-                # Method 2: minItems >= 1 on each property
+                # Follow $ref if present
+                ref = attrs_node.get("$ref", "")
+                if ref and not attrs_node.get("properties"):
+                    # Try definitions
+                    ref_key = ref.lstrip("#/definitions/").lstrip("#/$defs/")
+                    attrs_node = (
+                        schema.get("definitions", {}).get(ref_key)
+                        or schema.get("$defs", {}).get(ref_key)
+                        or attrs_node
+                    )
                 attrs_props = attrs_node.get("properties", {})
-                required_minitems = [
-                    k for k, v in attrs_props.items()
-                    if isinstance(v, dict) and v.get("minItems", 0) >= 1
-                ]
-                # Method 3: sellerRequired metadata
-                required_seller = [
-                    k for k, v in attrs_props.items()
-                    if isinstance(v, dict) and v.get("sellerRequired") is True
-                ]
+                required_array = attrs_node.get("required", [])
+                _log.warning(f"[SP-API] SCHEMA attrs_node keys: {list(attrs_node.keys())[:10]}")
                 _log.warning(f"[SP-API] SCHEMA required (array): {required_array}")
-                _log.warning(f"[SP-API] SCHEMA required (minItems): {required_minitems}")
-                _log.warning(f"[SP-API] SCHEMA required (sellerRequired): {required_seller}")
-                # Log first few attribute names to see structure
-                all_attr_names = list(attrs_props.keys())[:30]
-                _log.warning(f"[SP-API] SCHEMA all attributes (first 30): {all_attr_names}")
+                _log.warning(f"[SP-API] SCHEMA all attributes (first 30): {list(attrs_props.keys())[:30]}")
             else:
                 _log.warning(f"[SP-API] SCHEMA (no schema URL): {str(data)[:500]}")
     except Exception as exc:
