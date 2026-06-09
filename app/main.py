@@ -65,7 +65,8 @@ from app.db import (init_db, save_generation, list_generations, get_generation,
                     delete_snapshot, get_tracking_summary,
                     save_session, list_saved_sessions, get_saved_session, delete_saved_session,
                     save_ab_experiment, list_ab_experiments, get_ab_experiment,
-                    update_ab_experiment, delete_ab_experiment)
+                    update_ab_experiment, delete_ab_experiment,
+                    save_generated_image, get_generated_images, get_generated_images_bulk)
 from app.services.ab_testing import (generate_ab_variants, create_amazon_experiment,
                                       get_amazon_experiment_status, cancel_amazon_experiment)
 from app.routes.auth import router as auth_router, admin_router
@@ -1911,6 +1912,40 @@ async def api_delete_session(session_id: str, request: Request):
     if not delete_saved_session(session_id, request.state.user_email):
         raise HTTPException(404, "Session introuvable")
     return {"ok": True}
+
+
+# ── Generated images persistence ──────────────────────────────────────────────
+
+class SaveImagesRequest(BaseModel):
+    images: list[dict]  # [{sku, slot, data_url}]
+
+
+@app.post("/api/images/save")
+async def api_save_images(req: SaveImagesRequest, request: Request):
+    email = request.state.user_email
+    saved = 0
+    for img in req.images:
+        sku = img.get("sku", "").strip()
+        slot = img.get("slot", "").strip()
+        url = img.get("data_url", "")
+        if sku and slot and url.startswith("data:image"):
+            save_generated_image(email, sku, slot, url)
+            saved += 1
+    return {"ok": True, "saved": saved}
+
+
+@app.get("/api/images/{sku}")
+async def api_get_images(sku: str, request: Request):
+    return get_generated_images(request.state.user_email, sku)
+
+
+class BulkImagesRequest(BaseModel):
+    skus: list[str]
+
+
+@app.post("/api/images/bulk")
+async def api_get_images_bulk(req: BulkImagesRequest, request: Request):
+    return get_generated_images_bulk(request.state.user_email, req.skus)
 
 
 # ── Keyword suggestions (Amazon autocomplete proxy) ──────────────────────────

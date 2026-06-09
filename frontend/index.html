@@ -5491,6 +5491,47 @@ async function _sessDoSave() {
   }
 }
 
+// ── Image persistence helpers ─────────────────────────────────────────────────
+
+async function _saveImagesToDB(sku, imageResult) {
+  try {
+    const images = (imageResult?.images || [])
+      .filter(img => img.url && img.url.startsWith('data:image'))
+      .map(img => ({ sku, slot: img.id || img.slot || 'image', data_url: img.url }));
+    if (!images.length) return;
+    await authFetch('/api/images/save', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ images }),
+    });
+  } catch(e) { /* silent */ }
+}
+
+async function _restoreImagesFromDB(skus) {
+  if (!skus.length) return;
+  try {
+    const r = await authFetch('/api/images/bulk', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ skus }),
+    });
+    if (!r.ok) return;
+    const bysku = await r.json();
+    let restored = 0;
+    for (const [sku, imgs] of Object.entries(bysku)) {
+      if (!imgs.length) continue;
+      imagesCache[sku] = {
+        images: imgs.map(i => ({ id: i.slot, slot: i.slot, url: i.data_url, has_image: true, label: i.slot }))
+      };
+      restored++;
+    }
+    if (restored) {
+      try { localStorage.setItem('synqio_images', JSON.stringify(imagesCache)); } catch(e) {}
+    }
+    return restored;
+  } catch(e) { return 0; }
+}
+
 async function _sessLoad(sessionId) {
   if (!confirm('Charger cette session ? La session courante sera remplacée.')) return;
   try {
@@ -5507,6 +5548,14 @@ async function _sessLoad(sessionId) {
     if (d.publishedSkus)  localStorage.setItem('synqio_published_skus',   JSON.stringify(d.publishedSkus));
     if (d.abVariants)     localStorage.setItem('synqio_ab_variants',       JSON.stringify(d.abVariants));
     else                  localStorage.removeItem('synqio_ab_variants');
+
+    // Restore images from DB for all SKUs in this session
+    const skus = (d.batches || []).flatMap(b => (b.listings || []).map(l => l.sku)).filter(Boolean);
+    if (skus.length) {
+      const n = await _restoreImagesFromDB(skus);
+      if (n) showToast('🖼️', `${n} SKU avec images restaurés`);
+    }
+
     _sessClose();
     showToast('', `Session "${sess.name}" chargée — rechargement…`);
     setTimeout(() => location.reload(), 900);
@@ -6004,6 +6053,8 @@ async function _bgPollImage(sku, idx, job_id) {
     if (job.status === 'done') {
       imagesCache[sku] = job.result;
       try { localStorage.setItem('synqio_images', JSON.stringify(imagesCache)); } catch(e) {}
+      // Persist images to DB for session restore
+      _saveImagesToDB(sku, job.result);
       delete _activeImgJobs[sku];
       _imgJobDone++; _updateImgProgress();
       const cont = document.getElementById(`images-container-${idx}`);
@@ -8308,6 +8359,7 @@ async function generateImagesFromDetail() {
       if (job.status === 'done') {
         imagesCache[listing.sku] = job.result;
         try { localStorage.setItem('synqio_images', JSON.stringify(imagesCache)); } catch(e) {}
+        _saveImagesToDB(listing.sku, job.result);
         renderImages(imgDiv, job.result);
         return;
       }

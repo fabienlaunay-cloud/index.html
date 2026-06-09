@@ -259,6 +259,17 @@ def _init_db_pg():
     """)
 
     conn.execute("""
+        CREATE TABLE IF NOT EXISTS generated_images (
+            id TEXT PRIMARY KEY,
+            user_email TEXT NOT NULL,
+            sku TEXT NOT NULL,
+            slot TEXT NOT NULL,
+            data_url TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+
+    conn.execute("""
         CREATE TABLE IF NOT EXISTS ab_experiments (
             id TEXT PRIMARY KEY,
             user_email TEXT NOT NULL,
@@ -925,6 +936,44 @@ def get_tracking_summary(user_email: str) -> dict:
         "avg_conversion_improvement": round(sum(improvements) / len(improvements), 1) if improvements else None,
         "listings_with_data": len(improvements),
     }
+
+
+# ── Generated images ──────────────────────────────────────────────────────────
+
+def save_generated_image(user_email: str, sku: str, slot: str, data_url: str) -> None:
+    conn = get_db()
+    conn.execute(
+        "INSERT OR REPLACE INTO generated_images (id, user_email, sku, slot, data_url) VALUES (?, ?, ?, ?, ?)",
+        (f"{user_email}:{sku}:{slot}", user_email, sku, slot, data_url),
+    )
+    conn.commit()
+    conn.close()
+
+
+def get_generated_images(user_email: str, sku: str) -> list[dict]:
+    conn = get_db()
+    rows = conn.execute(
+        "SELECT slot, data_url FROM generated_images WHERE user_email = ? AND sku = ?",
+        (user_email, sku),
+    ).fetchall()
+    conn.close()
+    return [{"slot": r["slot"], "data_url": r["data_url"]} for r in rows]
+
+
+def get_generated_images_bulk(user_email: str, skus: list[str]) -> dict[str, list[dict]]:
+    if not skus:
+        return {}
+    conn = get_db()
+    placeholders = ",".join("?" * len(skus))
+    rows = conn.execute(
+        f"SELECT sku, slot, data_url FROM generated_images WHERE user_email = ? AND sku IN ({placeholders})",
+        [user_email] + list(skus),
+    ).fetchall()
+    conn.close()
+    result: dict[str, list] = {}
+    for r in rows:
+        result.setdefault(r["sku"], []).append({"slot": r["slot"], "data_url": r["data_url"]})
+    return result
 
 
 # ── Saved sessions ────────────────────────────────────────────────────────────
