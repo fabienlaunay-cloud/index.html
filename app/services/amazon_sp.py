@@ -353,19 +353,11 @@ def _listing_to_sp_payload(
         "country_of_origin": [{"value": getattr(listing, "country_of_origin", None) or "FR", "marketplace_id": marketplace_id}],
         "supplier_declared_dg_hz_regulation": [{"value": "not_applicable", "marketplace_id": marketplace_id}],
     }
-    # NOTE: condition_type and fulfillment_availability are NOT in the LISTING required set
-    # and for FBM products fulfillment_channel_code should be left empty per schema docs.
-    # Add price offer only when price is available
-    if listing.price:
-        attributes["purchasable_offer"] = [{
-            "marketplace_id": marketplace_id,
-            "currency": "EUR",
-            "our_price": [{"schedule": [{"value_with_tax": float(listing.price)}]}],
-        }]
-    if listing.ean:
-        attributes["externally_assigned_product_identifier"] = [
-            {"type": "EAN", "value": listing.ean}
-        ]
+    # DIAGNOSTIC: temporarily minimal payload — add optionals back one by one once base passes
+    # if listing.price:
+    #     attributes["purchasable_offer"] = [{...}]
+    # if listing.ean:
+    #     attributes["externally_assigned_product_identifier"] = [{"type": "EAN", "value": listing.ean}]
     return {
         "productType": product_type,
         "requirements": "LISTING",
