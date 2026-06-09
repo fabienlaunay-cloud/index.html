@@ -476,12 +476,23 @@ async def _publish_one(
         part_resp = await client.get(part_url, headers=part_headers)
     _log.warning(f"[SP-API] participations: {part_resp.status_code} | {part_resp.text[:800]}")
 
-    # ── DIAGNOSTIC 2: GET existing listing (no includedData, minimal params) ─
+    # ── DIAGNOSTIC 2: catalog list (no SKU) — verifies seller_id is correct ──
+    # If this returns 400, the seller_id stored in DB does not match the Merchant Token.
+    catalog_url = (
+        f"{_sp_endpoint()}/listings/2021-08-01/items/{seller_id}"
+        f"?marketplaceIds={marketplace_id}&pageSize=1"
+    )
+    catalog_headers = _sign_request("GET", catalog_url, b"", temp_creds, lwa_token)
+    async with httpx.AsyncClient(timeout=30) as client:
+        catalog_resp = await client.get(catalog_url, headers=catalog_headers)
+    _log.warning(f"[SP-API] catalog list (seller_id test): {catalog_resp.status_code} | {catalog_resp.text[:400]}")
+
+    # ── DIAGNOSTIC 3: GET existing listing (specific SKU) ────────────────────
     get_url = f"{base_url}?marketplaceIds={marketplace_id}"
     get_headers = _sign_request("GET", get_url, b"", temp_creds, lwa_token)
     async with httpx.AsyncClient(timeout=30) as client:
         get_resp = await client.get(get_url, headers=get_headers)
-    _log.warning(f"[SP-API] GET listing: {get_resp.status_code} | {get_resp.text[:1000]}")
+    _log.warning(f"[SP-API] GET listing: {get_resp.status_code} | {get_resp.text[:400]}")
 
     # ── PUT with issueLocale for localised error detail ───────────────────────
     put_url = f"{base_url}?marketplaceIds={marketplace_id}&issueLocale={language_tag.replace('_', '-')}"
