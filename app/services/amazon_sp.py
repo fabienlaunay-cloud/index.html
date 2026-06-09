@@ -286,29 +286,40 @@ _CATEGORY_TO_PRODUCT_TYPE = {
 }
 
 
+import re as _re
+
+def _strip_html(text: str) -> str:
+    return _re.sub(r'<[^>]+>', '', text or '').strip()
+
+
 def _resolve_product_type(listing) -> str:
-    """Map AI category to valid Amazon product type. Falls back to HOME."""
-    # Use explicit product_type if set on listing
+    """Map AI category to valid Amazon product type. Falls back to PET_SUPPLIES."""
+    import logging as _log
     explicit = getattr(listing, "product_type", None) or ""
     if explicit:
         return explicit.upper().replace(" ", "_")
     cat = (listing.category or "").lower()
+    _log.warning(f"[SP-API] category='{cat}' → resolving product type")
     for keyword, ptype in _CATEGORY_TO_PRODUCT_TYPE.items():
         if keyword in cat:
+            _log.warning(f"[SP-API] matched keyword '{keyword}' → {ptype}")
             return ptype
-    return "HOME"
+    _log.warning(f"[SP-API] no keyword matched, falling back to PET_SUPPLIES")
+    return "PET_SUPPLIES"
 
 
 def _listing_to_sp_payload(listing: AmazonListing, seller_id: str, marketplace_id: str) -> dict:
     product_type = _resolve_product_type(listing)
+    clean_desc = _strip_html(listing.description)
+    clean_bullets = [_strip_html(bp) for bp in listing.bullet_points]
     attributes = {
         "item_name": [{"value": listing.title, "marketplace_id": marketplace_id}],
         "brand": [{"value": listing.brand}],
-        "product_description": [{"value": listing.description, "marketplace_id": marketplace_id}],
+        "product_description": [{"value": clean_desc, "marketplace_id": marketplace_id}],
         "generic_keyword": [{"value": listing.backend_keywords, "marketplace_id": marketplace_id}],
         "bullet_point": [
             {"value": bp, "marketplace_id": marketplace_id}
-            for bp in listing.bullet_points
+            for bp in clean_bullets if bp
         ],
         "condition_type": [{"value": "new_new", "marketplace_id": marketplace_id}],
         "fulfillment_availability": [{"fulfillment_channel_code": "DEFAULT", "quantity": 1}],
