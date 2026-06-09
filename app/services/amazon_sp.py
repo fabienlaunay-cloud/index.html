@@ -341,23 +341,18 @@ def _listing_to_sp_payload(
     def _txt(value: str) -> list:
         return [{"value": value, "marketplace_id": marketplace_id, "language_tag": language_tag}]
 
+    # TRULY MINIMAL: only the 6 schema-required attributes
     attributes = {
-        "item_name":          _txt(listing.title),
-        "brand":              [{"value": listing.brand, "marketplace_id": marketplace_id}],
-        "product_description": _txt(clean_desc),
-        "generic_keyword":    _txt(listing.backend_keywords),
-        "bullet_point":       [
-            {"value": bp, "marketplace_id": marketplace_id, "language_tag": language_tag}
-            for bp in clean_bullets if bp
+        "item_name":   _txt(listing.title[:200]),
+        "brand":       [{"value": listing.brand, "marketplace_id": marketplace_id}],
+        "product_description": _txt(clean_desc[:2000]),
+        "bullet_point": [
+            {"value": bp[:500], "marketplace_id": marketplace_id, "language_tag": language_tag}
+            for bp in clean_bullets[:5] if bp
         ],
         "country_of_origin": [{"value": getattr(listing, "country_of_origin", None) or "FR", "marketplace_id": marketplace_id}],
         "supplier_declared_dg_hz_regulation": [{"value": "not_applicable", "marketplace_id": marketplace_id}],
     }
-    # DIAGNOSTIC: temporarily minimal payload — add optionals back one by one once base passes
-    # if listing.price:
-    #     attributes["purchasable_offer"] = [{...}]
-    # if listing.ean:
-    #     attributes["externally_assigned_product_identifier"] = [{"type": "EAN", "value": listing.ean}]
     return {
         "productType": product_type,
         "requirements": "LISTING",
