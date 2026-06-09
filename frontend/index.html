@@ -7700,12 +7700,12 @@ function openListingDetail(idx) {
   _attachCounter(document.getElementById('dm-edit-desc'), document.getElementById('dm-counter-desc'), 2000);
   _attachCounter(document.getElementById('dm-edit-kw'), document.getElementById('dm-counter-kw'), 249, true);
 
-  // Variations tab — show only for parent listings
+  // Variations tab — always visible
   const isParent = listing.is_parent && (listing.children || []).length > 0;
   const varTab = document.getElementById('dm-tab-variations');
-  if (varTab) varTab.classList.toggle('hidden', !isParent);
+  if (varTab) varTab.classList.remove('hidden');
+  document.getElementById('dm-content-variations').innerHTML = _buildDetailVariationsPanel(listing, idx);
   if (isParent) {
-    document.getElementById('dm-content-variations').innerHTML = _buildDetailVariationsPanel(listing, idx);
     // Parent listings have no price/EAN at top level
     document.getElementById('dm-edit-price').value = '';
     document.getElementById('dm-edit-ean').value = '';
@@ -7732,53 +7732,326 @@ function openListingDetail(idx) {
 
 function _buildDetailVariationsPanel(listing, listingIdx) {
   const children = listing.children || [];
-  if (!children.length) return '<p class="text-gray-400 text-sm py-4 text-center">Aucune déclinaison</p>';
-  const rows = children.map((c, ci) => `
-    <tr class="border-t border-gray-100 hover:bg-gray-50 transition">
-      <td class="py-2 px-3 font-mono text-xs text-purple-700 font-semibold">${_esc(c.sku)}</td>
-      <td class="py-2 px-3 text-sm text-gray-700">${_esc(c.variation_value || '')}</td>
-      <td class="py-2 px-3 text-sm text-gray-600">${_esc(c.color || '')}</td>
-      <td class="py-2 px-3 text-sm text-gray-600">${_esc(c.size || '')}</td>
-      <td class="py-2 px-3">
-        <div class="flex items-center gap-1">
-          <input type="number" step="0.01" min="0" value="${c.price || ''}" placeholder="Prix"
-            class="w-24 border border-gray-200 rounded-lg px-2 py-1 text-sm text-gray-800 font-bold focus:ring-2 focus:ring-purple-300 outline-none"
-            oninput="updateChildFromDetail(${listingIdx},${ci},'price',this.value)">
-          <span class="text-xs text-gray-400">€</span>
+
+  // ── Already a parent: show children table + add more button ──────────────
+  if (listing.is_parent && children.length > 0) {
+    const rows = children.map((c, ci) => `
+      <tr class="border-t border-gray-100 hover:bg-gray-50 transition">
+        <td class="py-2 px-3 font-mono text-xs text-purple-700 font-semibold">${_esc(c.sku)}</td>
+        <td class="py-2 px-3 text-sm text-gray-700">${_esc(c.variation_value || '')}</td>
+        <td class="py-2 px-3 text-sm text-gray-600">${_esc(c.color || '')}</td>
+        <td class="py-2 px-3 text-sm text-gray-600">${_esc(c.size || '')}</td>
+        <td class="py-2 px-3">
+          <div class="flex items-center gap-1">
+            <input type="number" step="0.01" min="0" value="${c.price || ''}" placeholder="Prix"
+              class="w-24 border border-gray-200 rounded-lg px-2 py-1 text-sm text-gray-800 font-bold focus:ring-2 focus:ring-purple-300 outline-none"
+              oninput="updateChildFromDetail(${listingIdx},${ci},'price',this.value)">
+            <span class="text-xs text-gray-400">€</span>
+          </div>
+        </td>
+        <td class="py-2 px-3">
+          <input type="text" value="${c.ean || ''}" placeholder="EAN"
+            class="w-36 border border-gray-200 rounded-lg px-2 py-1 text-xs font-mono text-gray-700 focus:ring-2 focus:ring-purple-300 outline-none"
+            oninput="updateChildFromDetail(${listingIdx},${ci},'ean',this.value)">
+        </td>
+        <td class="py-2 px-3">
+          <button onclick="removeChildFromDetail(${listingIdx},${ci})" class="text-gray-300 hover:text-red-500 transition text-xs">✕</button>
+        </td>
+      </tr>`).join('');
+    return `
+      <div class="mb-3">
+        <div class="flex items-center justify-between mb-3">
+          <div>
+            <h4 class="font-semibold text-gray-800 text-sm">Déclinaisons du groupe</h4>
+            <p class="text-xs text-gray-400 mt-0.5">Thème : <span class="font-medium text-indigo-600">${_esc(listing.variation_theme || 'Variation')}</span> — ${children.length} déclinaison${children.length > 1 ? 's' : ''}</p>
+          </div>
+          <button onclick="showAddVariantForm(${listingIdx})" class="text-xs bg-purple-50 hover:bg-purple-100 text-purple-700 font-semibold px-3 py-1.5 rounded-lg transition">+ Ajouter</button>
         </div>
-      </td>
-      <td class="py-2 px-3">
-        <input type="text" value="${c.ean || ''}" placeholder="EAN"
-          class="w-36 border border-gray-200 rounded-lg px-2 py-1 text-xs font-mono text-gray-700 focus:ring-2 focus:ring-purple-300 outline-none"
-          oninput="updateChildFromDetail(${listingIdx},${ci},'ean',this.value)">
-      </td>
-    </tr>`).join('');
+        <div class="bg-blue-50 border border-blue-100 rounded-xl px-4 py-2.5 mb-4 text-xs text-blue-800">
+          <p class="font-semibold mb-1">Fiche parent Amazon</p>
+          <p>Le contenu (titre, bullets, description, keywords) est partagé par toutes les déclinaisons. Seuls le prix, l'EAN, la couleur et la taille varient.</p>
+        </div>
+        <div id="add-variant-form-${listingIdx}" class="hidden mb-4 bg-purple-50 border border-purple-100 rounded-xl p-4">
+          <p class="text-sm font-semibold text-gray-800 mb-2">Ajouter une déclinaison</p>
+          <div class="grid grid-cols-2 gap-2 mb-2">
+            <input id="new-var-value-${listingIdx}" type="text" placeholder="Valeur (ex: XL, Rouge/L)" class="border border-purple-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-purple-300 outline-none bg-white">
+            <input id="new-var-price-${listingIdx}" type="number" step="0.01" placeholder="Prix (€)" class="border border-purple-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-purple-300 outline-none bg-white">
+          </div>
+          <input id="new-var-ean-${listingIdx}" type="text" placeholder="EAN (optionnel)" class="w-full border border-purple-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-purple-300 outline-none bg-white mb-2">
+          <div class="flex gap-2">
+            <button onclick="document.getElementById('add-variant-form-${listingIdx}').classList.add('hidden')" class="flex-1 text-sm border border-gray-200 rounded-lg py-2 text-gray-600 hover:bg-gray-50 transition">Annuler</button>
+            <button onclick="addSingleVariant(${listingIdx})" class="flex-1 text-sm gradient-bg text-white rounded-lg py-2 font-semibold transition">Ajouter</button>
+          </div>
+        </div>
+        <div class="overflow-x-auto rounded-xl border border-gray-100">
+          <table class="w-full text-left">
+            <thead><tr class="bg-gray-50 text-gray-500 text-xs uppercase tracking-wide border-b border-gray-100">
+              <th class="py-2.5 px-3 font-medium">SKU enfant</th>
+              <th class="py-2.5 px-3 font-medium">Déclinaison</th>
+              <th class="py-2.5 px-3 font-medium">Couleur</th>
+              <th class="py-2.5 px-3 font-medium">Taille</th>
+              <th class="py-2.5 px-3 font-medium">Prix</th>
+              <th class="py-2.5 px-3 font-medium">EAN</th>
+              <th class="py-2.5 px-3"></th>
+            </tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>
+      </div>`;
+  }
+
+  // ── Not yet a parent: show variation creator ──────────────────────────────
+  const themes = [
+    { value: 'SizeClass',           label: '📏 Taille',            presets: ['XXS','XS','S','M','L','XL','XXL'] },
+    { value: 'ColorName',           label: '🎨 Couleur',           presets: ['Noir','Blanc','Rouge','Bleu','Vert','Rose','Beige','Gris'] },
+    { value: 'ColorName-SizeClass', label: '🎨📏 Couleur + Taille', presets: [] },
+    { value: 'Volume',              label: '🧴 Volume/Contenance',  presets: ['50ml','100ml','250ml','500ml','1L','2L'] },
+    { value: 'PackQuantity',        label: '📦 Lot/Pack',           presets: ['Pack de 1','Pack de 2','Pack de 3','Pack de 5','Pack de 10'] },
+    { value: 'StyleName',           label: '✨ Style/Motif',        presets: ['Léopard','Zèbre','Uni','Fleuri','Rayures','Écossais'] },
+    { value: 'Custom',              label: '✏️ Personnalisé',       presets: [] },
+  ];
+
+  const themeOpts = themes.map(t =>
+    `<option value="${t.value}">${t.label}</option>`
+  ).join('');
+
+  const presetsJson = JSON.stringify(themes.reduce((acc,t) => { acc[t.value]=t.presets; return acc; }, {}));
+
   return `
-    <div class="mb-3">
-      <div class="flex items-center justify-between mb-3">
+    <div class="space-y-4">
+      <div class="bg-indigo-50 border border-indigo-100 rounded-xl px-4 py-3 text-xs text-indigo-800">
+        <p class="font-semibold mb-1">💡 Convertir en fiche parent avec déclinaisons</p>
+        <p>Cette fiche deviendra le parent. Les enfants hériteront du titre, bullets, description et keywords.</p>
+      </div>
+
+      <!-- Thème -->
+      <div>
+        <label class="block text-sm font-semibold text-gray-700 mb-2">Thème de variation</label>
+        <select id="varcreator-theme-${listingIdx}" onchange="varCreatorThemeChange(${listingIdx})" class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-purple-300 outline-none">
+          ${themeOpts}
+        </select>
+      </div>
+
+      <!-- Presets rapides -->
+      <div id="varcreator-presets-${listingIdx}" class="flex flex-wrap gap-1.5"></div>
+
+      <!-- Valeurs -->
+      <div>
+        <label class="block text-sm font-semibold text-gray-700 mb-1">
+          Valeurs des déclinaisons <span class="text-xs text-gray-400 font-normal">(une par ligne)</span>
+        </label>
+        <textarea id="varcreator-values-${listingIdx}" rows="5" placeholder="S&#10;M&#10;L&#10;XL"
+          class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-purple-300 outline-none resize-none font-mono"
+          oninput="varCreatorPreview(${listingIdx})"></textarea>
+        <p id="varcreator-hint-${listingIdx}" class="text-xs text-gray-400 mt-1">Pour Couleur+Taille : <span class="font-mono">Rouge / S</span>, <span class="font-mono">Rouge / M</span>…</p>
+      </div>
+
+      <!-- Options prix / EAN -->
+      <div class="grid grid-cols-2 gap-3">
+        <label class="flex items-center gap-2 cursor-pointer bg-gray-50 rounded-xl px-3 py-2.5 border border-gray-100 hover:border-purple-200 transition">
+          <input type="checkbox" id="varcreator-diffprice-${listingIdx}" class="w-4 h-4 accent-purple-600" onchange="varCreatorPreview(${listingIdx})">
+          <span class="text-sm text-gray-700">Prix différent par variante</span>
+        </label>
+        <label class="flex items-center gap-2 cursor-pointer bg-gray-50 rounded-xl px-3 py-2.5 border border-gray-100 hover:border-purple-200 transition">
+          <input type="checkbox" id="varcreator-diffean-${listingIdx}" class="w-4 h-4 accent-purple-600" onchange="varCreatorPreview(${listingIdx})">
+          <span class="text-sm text-gray-700">EAN différent par variante</span>
+        </label>
+      </div>
+
+      <!-- Prix par défaut -->
+      <div class="grid grid-cols-2 gap-3">
         <div>
-          <h4 class="font-semibold text-gray-800 text-sm">Déclinaisons du groupe</h4>
-          <p class="text-xs text-gray-400 mt-0.5">Thème : <span class="font-medium text-indigo-600">${_esc(listing.variation_theme || 'Variation')}</span> — ${children.length} déclinaison${children.length > 1 ? 's' : ''}</p>
+          <label class="block text-xs font-medium text-gray-600 mb-1">Prix par défaut (€)</label>
+          <input id="varcreator-price-${listingIdx}" type="number" step="0.01" min="0" placeholder="Ex: 24.90"
+            value="${listing.price || ''}"
+            class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-purple-300 outline-none">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-gray-600 mb-1">Quantité par défaut</label>
+          <input id="varcreator-qty-${listingIdx}" type="number" min="0" placeholder="Ex: 10"
+            class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-purple-300 outline-none">
         </div>
       </div>
-      <div class="bg-blue-50 border border-blue-100 rounded-xl px-4 py-2.5 mb-4 text-xs text-blue-800">
-        <p class="font-semibold mb-1">Fiche parent Amazon</p>
-        <p>Le contenu (titre, bullets, description, keywords) est partagé par toutes les déclinaisons. Seuls le prix, l'EAN, la couleur et la taille varient par déclinaison ci-dessous.</p>
+
+      <!-- Prévisualisation -->
+      <div id="varcreator-preview-${listingIdx}" class="hidden">
+        <p class="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">Aperçu des déclinaisons</p>
+        <div id="varcreator-preview-table-${listingIdx}"></div>
       </div>
-      <div class="overflow-x-auto rounded-xl border border-gray-100">
-        <table class="w-full text-left">
-          <thead><tr class="bg-gray-50 text-gray-500 text-xs uppercase tracking-wide border-b border-gray-100">
-            <th class="py-2.5 px-3 font-medium">SKU enfant</th>
-            <th class="py-2.5 px-3 font-medium">Déclinaison</th>
-            <th class="py-2.5 px-3 font-medium">Couleur</th>
-            <th class="py-2.5 px-3 font-medium">Taille</th>
-            <th class="py-2.5 px-3 font-medium">Prix</th>
-            <th class="py-2.5 px-3 font-medium">EAN</th>
-          </tr></thead>
-          <tbody>${rows}</tbody>
-        </table>
-      </div>
+
+      <!-- Bouton créer -->
+      <button onclick="applyVariations(${listingIdx})"
+        class="w-full gradient-bg text-white font-bold py-3 rounded-xl shadow-md hover:opacity-90 transition text-sm">
+        🔀 Créer les déclinaisons
+      </button>
     </div>`;
+}
+
+// ── Variation creator helpers ─────────────────────────────────────────────────
+
+const _VAR_PRESETS = {
+  SizeClass:           ['XXS','XS','S','M','L','XL','XXL','Unique'],
+  ColorName:           ['Noir','Blanc','Rouge','Bleu','Marine','Vert','Rose','Beige','Gris','Marron','Orange','Violet'],
+  'ColorName-SizeClass': [],
+  Volume:              ['50ml','100ml','150ml','250ml','500ml','750ml','1L','2L','5L'],
+  PackQuantity:        ['Pack de 1','Pack de 2','Pack de 3','Pack de 4','Pack de 5','Pack de 10'],
+  StyleName:           ['Léopard','Zèbre','Tigre','Vichy','Fleuri','Rayures','Écossais','Damier','Pois','Uni'],
+  Custom:              [],
+};
+
+function varCreatorThemeChange(idx) {
+  const theme = document.getElementById(`varcreator-theme-${idx}`).value;
+  const presetsEl = document.getElementById(`varcreator-presets-${idx}`);
+  const hint = document.getElementById(`varcreator-hint-${idx}`);
+  const presets = _VAR_PRESETS[theme] || [];
+
+  presetsEl.innerHTML = presets.map(p =>
+    `<button type="button" onclick="varCreatorAddPreset(${idx},'${p.replace(/'/g,"\\'")}')"
+      class="text-xs px-2.5 py-1 rounded-lg border border-gray-200 bg-white hover:bg-purple-50 hover:border-purple-300 hover:text-purple-700 transition text-gray-600">${p}</button>`
+  ).join('');
+
+  if (theme === 'ColorName-SizeClass') {
+    hint.innerHTML = `Couleur + taille séparés par <span class="font-mono"> / </span> — ex: <span class="font-mono">Rouge / S</span>`;
+  } else if (theme === 'Custom') {
+    hint.textContent = 'Entrez librement vos valeurs, une par ligne';
+  } else {
+    hint.textContent = 'Cliquez sur les boutons ci-dessus ou saisissez manuellement';
+  }
+  varCreatorPreview(idx);
+}
+
+function varCreatorAddPreset(idx, value) {
+  const ta = document.getElementById(`varcreator-values-${idx}`);
+  const existing = ta.value.split('\n').map(v => v.trim()).filter(Boolean);
+  if (!existing.includes(value)) {
+    ta.value = (ta.value.trim() ? ta.value.trim() + '\n' : '') + value;
+  }
+  varCreatorPreview(idx);
+}
+
+function varCreatorPreview(idx) {
+  const values = (document.getElementById(`varcreator-values-${idx}`)?.value || '')
+    .split('\n').map(v => v.trim()).filter(Boolean);
+  const diffPrice = document.getElementById(`varcreator-diffprice-${idx}`)?.checked;
+  const diffEan   = document.getElementById(`varcreator-diffean-${idx}`)?.checked;
+  const preview   = document.getElementById(`varcreator-preview-${idx}`);
+  const table     = document.getElementById(`varcreator-preview-table-${idx}`);
+  if (!values.length) { preview?.classList.add('hidden'); return; }
+  preview?.classList.remove('hidden');
+
+  const rows = values.map((v, i) => {
+    const parts = v.split('/').map(p => p.trim());
+    const color = parts.length > 1 ? parts[0] : '';
+    const size  = parts.length > 1 ? parts[1] : (parts[0] || '');
+    return `<tr class="border-t border-gray-100 text-xs">
+      <td class="py-1.5 px-2 font-mono text-purple-600">-${String(i+1).padStart(2,'0')}</td>
+      <td class="py-1.5 px-2 text-gray-700">${_esc(v)}</td>
+      ${color ? `<td class="py-1.5 px-2 text-gray-500">${_esc(color)}</td>` : `<td class="py-1.5 px-2 text-gray-400">—</td>`}
+      ${size  ? `<td class="py-1.5 px-2 text-gray-500">${_esc(size)}</td>`  : `<td class="py-1.5 px-2 text-gray-400">—</td>`}
+      ${diffPrice ? `<td class="py-1.5 px-2"><input type="number" step="0.01" placeholder="Prix" id="vc-price-${idx}-${i}" class="w-20 border border-gray-200 rounded px-1.5 py-0.5 text-xs"></td>` : ''}
+      ${diffEan   ? `<td class="py-1.5 px-2"><input type="text" placeholder="EAN" id="vc-ean-${idx}-${i}" class="w-28 border border-gray-200 rounded px-1.5 py-0.5 text-xs font-mono"></td>` : ''}
+    </tr>`;
+  }).join('');
+
+  table.innerHTML = `<div class="overflow-x-auto rounded-xl border border-gray-100">
+    <table class="w-full text-left">
+      <thead><tr class="bg-gray-50 text-gray-400 text-xs border-b border-gray-100">
+        <th class="py-2 px-2">Suffixe SKU</th>
+        <th class="py-2 px-2">Valeur</th>
+        <th class="py-2 px-2">Couleur</th>
+        <th class="py-2 px-2">Taille</th>
+        ${diffPrice ? '<th class="py-2 px-2">Prix (€)</th>' : ''}
+        ${diffEan   ? '<th class="py-2 px-2">EAN</th>' : ''}
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table></div>`;
+}
+
+function showAddVariantForm(idx) {
+  document.getElementById(`add-variant-form-${idx}`)?.classList.toggle('hidden');
+}
+
+function addSingleVariant(listingIdx) {
+  const value = document.getElementById(`new-var-value-${listingIdx}`)?.value.trim();
+  if (!value) return;
+  const price = parseFloat(document.getElementById(`new-var-price-${listingIdx}`)?.value) || null;
+  const ean   = document.getElementById(`new-var-ean-${listingIdx}`)?.value.trim() || '';
+  const listing = generatedListings[listingIdx];
+  if (!listing || !listing.children) return;
+  const idx = listing.children.length + 1;
+  const parts = value.split('/').map(p => p.trim());
+  listing.children.push({
+    sku: `${listing.sku}-${String(idx).padStart(2,'0')}`,
+    variation_value: value,
+    color: parts.length > 1 ? parts[0] : '',
+    size:  parts.length > 1 ? parts[1] : value,
+    price, ean,
+    parent_sku: listing.sku,
+    variation_theme: listing.variation_theme,
+  });
+  openListingDetail(listingIdx);
+}
+
+function removeChildFromDetail(listingIdx, childIdx) {
+  const listing = generatedListings[listingIdx];
+  if (!listing?.children) return;
+  listing.children.splice(childIdx, 1);
+  if (listing.children.length === 0) {
+    listing.is_parent = false;
+    delete listing.children;
+    delete listing.variation_theme;
+  }
+  openListingDetail(listingIdx);
+}
+
+function applyVariations(listingIdx) {
+  const listing = generatedListings[listingIdx];
+  if (!listing) return;
+  const theme   = document.getElementById(`varcreator-theme-${listingIdx}`)?.value || 'SizeClass';
+  const values  = (document.getElementById(`varcreator-values-${listingIdx}`)?.value || '')
+    .split('\n').map(v => v.trim()).filter(Boolean);
+  if (!values.length) { showToast('⚠️','Ajoutez au moins une valeur'); return; }
+
+  const defPrice  = parseFloat(document.getElementById(`varcreator-price-${listingIdx}`)?.value) || listing.price || null;
+  const defQty    = parseInt(document.getElementById(`varcreator-qty-${listingIdx}`)?.value) || 0;
+  const diffPrice = document.getElementById(`varcreator-diffprice-${listingIdx}`)?.checked;
+  const diffEan   = document.getElementById(`varcreator-diffean-${listingIdx}`)?.checked;
+
+  const children = values.map((val, i) => {
+    const parts = val.split('/').map(p => p.trim());
+    const color = parts.length > 1 ? parts[0] : '';
+    const size  = parts.length > 1 ? parts[1] : (['SizeClass','ColorName-SizeClass'].includes(theme) ? val : '');
+    const childColor = color || (['ColorName','ColorName-SizeClass'].includes(theme) && parts.length === 1 ? val : '');
+
+    const priceVal = diffPrice
+      ? (parseFloat(document.getElementById(`vc-price-${listingIdx}-${i}`)?.value) || defPrice)
+      : defPrice;
+    const eanVal = diffEan
+      ? (document.getElementById(`vc-ean-${listingIdx}-${i}`)?.value.trim() || '')
+      : '';
+
+    return {
+      sku: `${listing.sku}-${String(i+1).padStart(2,'0')}`,
+      name: listing.title || listing.name,
+      brand: listing.brand || '',
+      variation_value: val,
+      variation_theme: theme,
+      parent_sku: listing.sku,
+      color: childColor,
+      size,
+      price: priceVal,
+      ean: eanVal,
+      quantity: defQty,
+      is_variation: true,
+    };
+  });
+
+  listing.is_parent = true;
+  listing.variation_theme = theme;
+  listing.children = children;
+
+  showToast('✅', `${children.length} déclinaison${children.length>1?'s':''} créée${children.length>1?'s':''}`);
+  openListingDetail(listingIdx);
 }
 
 function updateChildFromDetail(listingIdx, childIdx, field, value) {
