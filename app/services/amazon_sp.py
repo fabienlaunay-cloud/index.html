@@ -344,8 +344,14 @@ async def _publish_one(
 
     headers = _sign_request("PUT", url, body_bytes, temp_creds, lwa_token)
 
+    import logging as _log
+    _log.warning(f"[SP-API] PUT {url}")
+    _log.warning(f"[SP-API] payload: {json.dumps(payload)[:2000]}")
+
     async with httpx.AsyncClient(timeout=30) as client:
         resp = await client.put(url, headers=headers, content=body_bytes)
+
+    _log.warning(f"[SP-API] status: {resp.status_code} | response: {resp.text[:1000]}")
 
     result = {
         "sku": listing.sku,
