@@ -929,10 +929,35 @@ async def fill_amazon_template_endpoint(request: Request):
     )
 
 
+def _get_image_urls_for_skus(skus: list) -> dict:
+    """Look up which generated images exist in storage for each SKU and return their public URLs."""
+    if not skus:
+        return {}
+    from app.services import storage as _storage
+    from app.services.image_gen import AMAZON_IMAGE_TYPES
+    base = os.getenv("PUBLIC_BASE_URL", "https://synqio.io").rstrip("/")
+    # Fetch all existing generated image keys in one call to avoid N×7 round trips
+    all_keys = set(_storage.list_keys("gen_"))
+    result: dict = {}
+    for sku in skus:
+        imgs: dict = {}
+        for img_type in AMAZON_IMAGE_TYPES:
+            img_id = img_type["id"]
+            filename = f"gen_{sku}_{img_id}.png"
+            if filename in all_keys:
+                cdn = _storage.public_url(filename)
+                imgs[img_id] = cdn if cdn else f"{base}/api/photos/{filename}"
+        if imgs:
+            result[sku] = imgs
+    return result
+
+
 @app.post("/api/export/flat-file")
-async def export_flat_file(listings: List[AmazonListing]):
+async def export_flat_file(listings: List[AmazonListing], request: Request):
+    skus = [l.sku for l in listings]
+    image_urls = _get_image_urls_for_skus(skus)
     return Response(
-        content=to_amazon_flat_file_xlsx(listings),
+        content=to_amazon_flat_file_xlsx(listings, image_urls=image_urls),
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={"Content-Disposition": "attachment; filename=amazon_nouveaux_produits.xlsx"},
     )
@@ -948,9 +973,11 @@ async def export_listing_loader(listings: List[AmazonListing]):
 
 
 @app.post("/api/export/variation-flat-file")
-async def export_variation_flat_file(listings: List[AmazonListing]):
+async def export_variation_flat_file(listings: List[AmazonListing], request: Request):
+    skus = [l.sku for l in listings if l.is_parent or not l.parent_sku]
+    image_urls = _get_image_urls_for_skus(skus)
     return Response(
-        content=to_variation_flat_file_xlsx(listings),
+        content=to_variation_flat_file_xlsx(listings, image_urls=image_urls),
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={"Content-Disposition": "attachment; filename=amazon_variations.xlsx"},
     )

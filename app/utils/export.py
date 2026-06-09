@@ -1,10 +1,21 @@
 import csv
 import json
 import io
-from typing import List
+from typing import List, Optional
 from app.models import AmazonListing
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment
+
+# Ordered image IDs matching Amazon flat file slot columns
+_IMAGE_IDS_ORDERED = [
+    "hero",        # main-image-url
+    "lifestyle_1", # other-image-url1
+    "infographic", # other-image-url2
+    "detail",      # other-image-url3
+    "dimensions",  # other-image-url4
+    "packaging",   # other-image-url5
+    "lifestyle_2", # other-image-url6
+]
 
 
 def to_csv_bytes(listings: List[AmazonListing]) -> bytes:
@@ -127,7 +138,7 @@ def _style_header_row(ws, n_cols: int):
     ws.row_dimensions[2].height = 16
 
 
-def to_amazon_flat_file_xlsx(listings: List[AmazonListing]) -> bytes:
+def to_amazon_flat_file_xlsx(listings: List[AmazonListing], image_urls: Optional[dict] = None) -> bytes:
     """Amazon flat file for NEW products — proper .xlsx, uploadable to Seller Central."""
     headers = [
         "item-sku", "update-delete", "item-name", "brand-name", "manufacturer",
@@ -135,6 +146,9 @@ def to_amazon_flat_file_xlsx(listings: List[AmazonListing]) -> bytes:
         "bullet-point1", "bullet-point2", "bullet-point3", "bullet-point4", "bullet-point5",
         "generic-keywords", "standard-price", "quantity",
         "external-product-id", "external-product-id-type", "condition-type",
+        "main-image-url",
+        "other-image-url1", "other-image-url2", "other-image-url3",
+        "other-image-url4", "other-image-url5", "other-image-url6",
     ]
     wb = openpyxl.Workbook()
     ws = wb.active
@@ -143,6 +157,9 @@ def to_amazon_flat_file_xlsx(listings: List[AmazonListing]) -> bytes:
     ws.append(["TemplateType=fptcustom", "Version=2021.1201"] + [""] * (len(headers) - 2))
     for listing in listings:
         bullets = listing.bullet_points + [""] * 5
+        sku_imgs = (image_urls or {}).get(listing.sku, {})
+        img_row = [sku_imgs.get(_IMAGE_IDS_ORDERED[0], "")]
+        img_row += [sku_imgs.get(iid, "") for iid in _IMAGE_IDS_ORDERED[1:]]
         ws.append([
             listing.sku, "a", listing.title, listing.brand, listing.brand,
             listing.category.lower().replace(" ", "_") or "home",
@@ -151,7 +168,7 @@ def to_amazon_flat_file_xlsx(listings: List[AmazonListing]) -> bytes:
             listing.backend_keywords,
             str(listing.price) if listing.price else "", "1",
             listing.ean or "", "EAN" if listing.ean else "", "New",
-        ])
+        ] + img_row)
     _style_header_row(ws, len(headers))
     for i, h in enumerate(headers, 1):
         ws.column_dimensions[openpyxl.utils.get_column_letter(i)].width = max(12, len(h) + 2)
@@ -194,7 +211,7 @@ def to_listing_loader_xlsx(listings: List[AmazonListing]) -> bytes:
     return out.getvalue()
 
 
-def to_variation_flat_file_xlsx(listings: List[AmazonListing]) -> bytes:
+def to_variation_flat_file_xlsx(listings: List[AmazonListing], image_urls: Optional[dict] = None) -> bytes:
     """
     Amazon Variation flat file for NEW products with parent-child relationships.
     Handles both regular listings and variation groups in a single sheet.
@@ -212,6 +229,9 @@ def to_variation_flat_file_xlsx(listings: List[AmazonListing]) -> bytes:
         "generic-keywords", "standard-price", "quantity",
         "external-product-id", "external-product-id-type", "condition-type",
         "color-name", "size-name",
+        "main-image-url",
+        "other-image-url1", "other-image-url2", "other-image-url3",
+        "other-image-url4", "other-image-url5", "other-image-url6",
     ]
 
     wb = openpyxl.Workbook()
@@ -221,14 +241,19 @@ def to_variation_flat_file_xlsx(listings: List[AmazonListing]) -> bytes:
     ws.append(["TemplateType=fptcustom", "Version=2021.1201"] + [""] * (len(headers) - 2))
 
     parents = {l.sku: l for l in listings if l.is_parent}
-    child_skus = {c.sku for l in listings if l.is_parent for c in l.children}
+
+    def _img_row(sku: str) -> list:
+        sku_imgs = (image_urls or {}).get(sku, {})
+        row = [sku_imgs.get(_IMAGE_IDS_ORDERED[0], "")]
+        row += [sku_imgs.get(iid, "") for iid in _IMAGE_IDS_ORDERED[1:]]
+        return row
 
     for listing in listings:
         bullets = listing.bullet_points + [""] * 5
         item_type = listing.category.lower().replace(" ", "_") or "home"
 
         if listing.is_parent:
-            # Parent row
+            # Parent row — includes images
             ws.append([
                 listing.sku, "a", "parent", "", "", listing.variation_theme or "",
                 listing.title, listing.brand, listing.brand, item_type,
@@ -236,8 +261,8 @@ def to_variation_flat_file_xlsx(listings: List[AmazonListing]) -> bytes:
                 bullets[0], bullets[1], bullets[2], bullets[3], bullets[4],
                 listing.backend_keywords, "", "", "", "", "",
                 "", "",
-            ])
-            # Child rows from children list
+            ] + _img_row(listing.sku))
+            # Child rows from children list (no images on child rows)
             for child in listing.children:
                 ws.append([
                     child.sku, "a", "child", listing.sku,
@@ -247,11 +272,10 @@ def to_variation_flat_file_xlsx(listings: List[AmazonListing]) -> bytes:
                     str(child.price) if child.price else "", "1",
                     child.ean or "", "EAN" if child.ean else "", "New",
                     child.color or "", child.size or "",
-                ])
+                ] + [""] * 7)
         elif listing.parent_sku:
-            # Child listing that was expanded (already handled by parent above if present)
+            # Orphan child — write as standalone
             if listing.parent_sku not in parents:
-                # Orphan child — write as standalone
                 ws.append([
                     listing.sku, "a", "child", listing.parent_sku,
                     "Variation", listing.variation_theme or "",
@@ -262,7 +286,7 @@ def to_variation_flat_file_xlsx(listings: List[AmazonListing]) -> bytes:
                     str(listing.price) if listing.price else "", "1",
                     listing.ean or "", "EAN" if listing.ean else "", "New",
                     listing.color or "", "",
-                ])
+                ] + _img_row(listing.sku))
         else:
             # Standalone (non-variation) listing
             ws.append([
@@ -274,7 +298,7 @@ def to_variation_flat_file_xlsx(listings: List[AmazonListing]) -> bytes:
                 str(listing.price) if listing.price else "", "1",
                 listing.ean or "", "EAN" if listing.ean else "", "New",
                 listing.color or "", "",
-            ])
+            ] + _img_row(listing.sku))
 
     _style_header_row(ws, len(headers))
     for i, h in enumerate(headers, 1):
