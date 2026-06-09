@@ -8529,76 +8529,96 @@ function closeUrlModal() {
   document.getElementById('urlImportInput').value = '';
   document.getElementById('urlImportError').classList.add('hidden');
   document.getElementById('urlImportPreview').classList.add('hidden');
+  document.getElementById('urlImportProgress').classList.add('hidden');
   document.getElementById('urlImportBtn').disabled = false;
   document.getElementById('urlImportBtn').textContent = 'Extraire et importer →';
 }
 async function importFromUrl() {
-  const url = document.getElementById('urlImportInput').value.trim();
+  const raw = document.getElementById('urlImportInput').value;
+  const urls = raw.split('\n').map(u => u.trim()).filter(u => u.startsWith('http'));
   const errEl = document.getElementById('urlImportError');
   const preview = document.getElementById('urlImportPreview');
+  const progressEl = document.getElementById('urlImportProgress');
+  const progressBar = document.getElementById('urlImportProgressBar');
+  const progressLabel = document.getElementById('urlImportProgressLabel');
+  const progressCount = document.getElementById('urlImportProgressCount');
   const btn = document.getElementById('urlImportBtn');
   errEl.classList.add('hidden');
   preview.classList.add('hidden');
-  if (!url || !url.startsWith('http')) {
-    errEl.textContent = 'Collez une URL valide (commence par https://)';
+
+  if (urls.length === 0) {
+    errEl.textContent = 'Collez au moins une URL valide (commence par https://)';
     errEl.classList.remove('hidden'); return;
   }
+
   btn.disabled = true;
-  btn.textContent = '⏳ Analyse en cours...';
-  try {
-    const r = await authFetch('/api/scrape-url', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({ url }),
-    });
-    const data = await r.json();
-    if (!r.ok) throw new Error(data.detail || 'Erreur lors de l\'extraction');
+  btn.textContent = '⏳ Extraction en cours...';
+  progressEl.classList.remove('hidden');
 
-    // Build RawProduct-compatible object
-    const product = {
-      sku: data.sku || ('URL-' + Date.now()),
-      name: data.name,
-      brand: data.brand || '',
-      description: data.description || '',
-      price: data.price || null,
-      ean: data.ean || '',
-      images: data.images || [],
-      color: data.color || '',
-      material: data.material || '',
-      category: '',
-      features: [],
-      focus_keywords: [],
-    };
+  const products = [];
+  const errors = [];
 
-    // Show confirmation preview
-    const parts = [data.name];
-    if (data.brand) parts.push(data.brand);
-    if (data.price) parts.push(data.price + ' €');
-    if (data.ean) parts.push('EAN : ' + data.ean);
-    preview.innerHTML = `<span class="font-semibold text-emerald-700">✓ Extrait</span> — ${parts.join(' · ')}`;
-    preview.classList.remove('hidden');
+  for (let i = 0; i < urls.length; i++) {
+    const url = urls[i];
+    progressLabel.textContent = `Analyse de l'URL ${i + 1}/${urls.length}…`;
+    progressCount.textContent = `${products.length} extrait(s)`;
+    progressBar.style.width = `${Math.round((i / urls.length) * 100)}%`;
+    try {
+      const r = await authFetch('/api/scrape-url', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ url }),
+      });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.detail || 'Erreur extraction');
+      products.push({
+        sku: data.sku || ('URL-' + Date.now() + '-' + i),
+        name: data.name,
+        brand: data.brand || '',
+        description: data.description || '',
+        price: data.price || null,
+        ean: data.ean || '',
+        images: data.images || [],
+        color: data.color || '',
+        material: data.material || '',
+        category: '',
+        features: [],
+        focus_keywords: [],
+      });
+    } catch(e) {
+      errors.push(url);
+    }
+  }
 
-    // Load as parsedProducts and show in list
-    setTimeout(() => {
-      closeUrlModal();
-      parsedProducts = [product];
-      activeSegmentFilter = null;
-      showProductsList(parsedProducts);
-      document.getElementById('generateBtn').disabled = false;
-      document.getElementById('fileInfo').classList.remove('hidden');
-      document.getElementById('fileIcon').textContent = '🔗';
-      document.getElementById('fileName').textContent = data.name.substring(0, 45);
-      document.getElementById('fileSize').textContent = url.substring(0, 55);
-      dropZone.classList.add('hidden');
-      setStep(2);
-      showToast('✅', `Produit extrait : ${data.name.substring(0, 40)}`);
-    }, 900);
-  } catch(e) {
-    errEl.textContent = e.message;
+  progressBar.style.width = '100%';
+  progressCount.textContent = `${products.length} extrait(s)`;
+
+  if (products.length === 0) {
+    errEl.textContent = `Aucun produit extrait. Vérifiez les URLs (${errors.length} erreur(s)).`;
     errEl.classList.remove('hidden');
     btn.disabled = false;
     btn.textContent = 'Extraire et importer →';
+    return;
   }
+
+  const msg = `✓ ${products.length} produit(s) extrait(s)` + (errors.length ? ` · ${errors.length} échec(s)` : '');
+  preview.innerHTML = `<span class="font-semibold text-emerald-700">${msg}</span>`;
+  preview.classList.remove('hidden');
+
+  setTimeout(() => {
+    closeUrlModal();
+    parsedProducts = products;
+    activeSegmentFilter = null;
+    showProductsList(parsedProducts);
+    document.getElementById('generateBtn').disabled = false;
+    document.getElementById('fileInfo').classList.remove('hidden');
+    document.getElementById('fileIcon').textContent = '🔗';
+    document.getElementById('fileName').textContent = `${products.length} produit(s) depuis URL`;
+    document.getElementById('fileSize').textContent = `${urls.length} URL(s) analysée(s)`;
+    dropZone.classList.add('hidden');
+    setStep(2);
+    showToast('✅', `${products.length} produit(s) importé(s) depuis URL`);
+  }, 800);
 }
 </script>
 
@@ -8681,17 +8701,25 @@ async function importFromUrl() {
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
       </div>
       <div>
-        <h3 class="font-semibold text-gray-800 text-base">Importer depuis une URL</h3>
-        <p class="text-xs text-gray-500">Fiche produit de votre site, fournisseur, etc.</p>
+        <h3 class="font-semibold text-gray-800 text-base">Importer depuis des URLs</h3>
+        <p class="text-xs text-gray-500">Une URL par ligne — collez jusqu'à 50 URLs d'un coup</p>
       </div>
     </div>
-    <input id="urlImportInput" type="url"
-      placeholder="https://www.monsite.fr/produit/collier-chien-premium"
-      class="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-emerald-300 outline-none mb-3"
-      onkeydown="if(event.key==='Enter')importFromUrl()">
+    <textarea id="urlImportInput" rows="6"
+      placeholder="https://www.monsite.fr/produit/collier-chien&#10;https://www.monsite.fr/produit/laisse-premium&#10;https://www.fournisseur.com/ref/ABC123&#10;..."
+      class="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-emerald-300 outline-none mb-3 resize-none font-mono"></textarea>
     <div id="urlImportError" class="hidden text-red-600 text-sm bg-red-50 rounded-lg px-3 py-2 mb-3"></div>
     <div id="urlImportPreview" class="hidden text-sm bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2 mb-3"></div>
-    <p class="text-xs text-gray-400 mb-4">Le système extrait automatiquement : nom, marque, description, prix, EAN, images. Fonctionne sur la plupart des sites (Shopify, WooCommerce, PrestaShop…).</p>
+    <div id="urlImportProgress" class="hidden mb-3">
+      <div class="flex justify-between text-xs text-gray-500 mb-1">
+        <span id="urlImportProgressLabel">Extraction en cours...</span>
+        <span id="urlImportProgressCount"></span>
+      </div>
+      <div class="w-full bg-gray-100 rounded-full h-2">
+        <div id="urlImportProgressBar" class="bg-emerald-500 h-2 rounded-full transition-all duration-300" style="width:0%"></div>
+      </div>
+    </div>
+    <p class="text-xs text-gray-400 mb-4">Extrait automatiquement : nom, marque, description, prix, EAN, images. Fonctionne sur Shopify, WooCommerce, PrestaShop…</p>
     <div class="flex gap-3">
       <button onclick="closeUrlModal()" class="flex-1 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-600 hover:bg-gray-50 transition">Annuler</button>
       <button id="urlImportBtn" onclick="importFromUrl()" class="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-medium transition">Extraire et importer →</button>
