@@ -397,16 +397,17 @@ async def _log_product_type_schema(
             if schema_url:
                 schema_resp = await client.get(schema_url)
                 schema = schema_resp.json()
-                # Amazon's schema: required[] and properties{} are at the ROOT level
                 required_array = schema.get("required", [])
                 all_props = schema.get("properties", {})
                 _log.warning(f"[SP-API] SCHEMA required: {required_array}")
-                _log.warning(f"[SP-API] SCHEMA all attributes (first 40): {list(all_props.keys())[:40]}")
-                # Also check allOf for additional required
-                for sub in schema.get("allOf", []):
-                    sub_req = sub.get("required", [])
-                    if sub_req:
-                        _log.warning(f"[SP-API] SCHEMA allOf required: {sub_req}")
+                # Log full definition of interesting attributes to see valid values
+                for attr_name in ["country_of_origin", "supplier_declared_dg_hz_regulation",
+                                   "condition_type", "fulfillment_availability", "purchasable_offer"]:
+                    defn = all_props.get(attr_name)
+                    if defn:
+                        _log.warning(f"[SP-API] ATTR {attr_name}: {json.dumps(defn)[:400]}")
+                    else:
+                        _log.warning(f"[SP-API] ATTR {attr_name}: not found in properties")
             else:
                 _log.warning(f"[SP-API] SCHEMA (no schema URL): {str(data)[:500]}")
     except Exception as exc:
