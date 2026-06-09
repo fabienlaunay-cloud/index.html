@@ -369,11 +369,13 @@ async def _generate_image_dalle3(prompt: str, image_id: str, reference_image: Op
     Si reference_image fourni → endpoint /images/edits (produit réel comme base).
     Sinon → endpoint /images/generations (text-to-image).
     Retry automatique sur rate-limit 429.
+    Hero image → medium quality. Autres → low quality (coût divisé par 3).
     """
     api_key = os.getenv("OPENAI_API_KEY", "")
     if not api_key:
         return None
 
+    quality = "medium" if image_id == "hero" else "low"
     prompt = prompt[:3500] if len(prompt) > 3500 else prompt
 
     # Quand une photo de référence est fournie, forcer gpt-image-2 à conserver
@@ -398,7 +400,7 @@ async def _generate_image_dalle3(prompt: str, image_id: str, reference_image: Op
                     "prompt": prompt,
                     "n": "1",
                     "size": "1024x1024",
-                    "quality": "medium",
+                    "quality": quality,
                 },
                 files={"image": ("product.jpg", reference_image, "image/jpeg")},
             )
@@ -406,7 +408,7 @@ async def _generate_image_dalle3(prompt: str, image_id: str, reference_image: Op
             resp = await client.post(
                 "https://api.openai.com/v1/images/generations",
                 headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
-                json={"model": "gpt-image-2", "prompt": prompt, "n": 1, "size": "1024x1024", "quality": "medium"},
+                json={"model": "gpt-image-2", "prompt": prompt, "n": 1, "size": "1024x1024", "quality": quality},
             )
 
         if resp.status_code == 429 and _retry > 0:
