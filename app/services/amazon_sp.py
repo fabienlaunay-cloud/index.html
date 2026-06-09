@@ -382,6 +382,11 @@ async def _log_product_type_schema(
         async with httpx.AsyncClient(timeout=30) as client:
             resp = await client.get(url, headers=headers)
             data = resp.json()
+            if "errors" in data:
+                _log.warning(f"[SP-API] SCHEMA NOT_FOUND for {product_type}: {data['errors']}")
+                # Search for valid product types with keyword
+                await _search_product_types(["collar", "pet", "animal"], marketplace_id, lwa_token, temp_creds)
+                return
             schema_url = data.get("schema", {}).get("link", {}).get("resource", "")
             if schema_url:
                 schema_resp = await client.get(schema_url)
@@ -397,6 +402,42 @@ async def _log_product_type_schema(
                 _log.warning(f"[SP-API] SCHEMA (no schema URL): {str(data)[:500]}")
     except Exception as exc:
         _log.warning(f"[SP-API] SCHEMA query error: {exc}")
+
+
+async def _search_product_types(keywords: list, marketplace_id: str, lwa_token: str, temp_creds: dict):
+    """Search valid product types for this marketplace and log results."""
+    import logging as _log
+    async with httpx.AsyncClient(timeout=30) as client:
+        for kw in keywords:
+            try:
+                url = f"{_sp_endpoint()}/definitions/2020-09-01/productTypes?marketplaceIds={marketplace_id}&keywords={kw}"
+                headers = _sign_request("GET", url, b"", temp_creds, lwa_token)
+                resp = await client.get(url, headers=headers)
+                data = resp.json()
+                types = [pt.get("name") for pt in data.get("productTypes", [])]
+                _log.warning(f"[SP-API] product types for keyword '{kw}': {types}")
+            except Exception as exc:
+                _log.warning(f"[SP-API] search '{kw}' error: {exc}")
+
+
+async def search_product_types_for_marketplace(
+    keywords: list,
+    marketplace: "Marketplace",
+    user_email: str,
+) -> dict:
+    """Public helper for the admin API to list valid Amazon product types."""
+    creds = _get_sp_credentials(user_email)
+    marketplace_id = MARKETPLACE_IDS.get(marketplace, MARKETPLACE_IDS[Marketplace.AMAZON_FR])
+    lwa_token = await _get_lwa_token(creds)
+    temp_creds = await _assume_role(creds)
+    results = {}
+    async with httpx.AsyncClient(timeout=30) as client:
+        for kw in keywords:
+            url = f"{_sp_endpoint()}/definitions/2020-09-01/productTypes?marketplaceIds={marketplace_id}&keywords={kw}"
+            headers = _sign_request("GET", url, b"", temp_creds, lwa_token)
+            resp = await client.get(url, headers=headers)
+            results[kw] = resp.json()
+    return results
 
 
 async def _publish_one(

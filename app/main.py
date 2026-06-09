@@ -1206,6 +1206,22 @@ async def usage_all(request: Request):
     return get_all_users_usage()
 
 
+@app.get("/api/admin/amazon-product-types")
+async def amazon_product_types_search(request: Request, keywords: str = "collar,pet,animal,dog"):
+    """Diagnostic: list valid Amazon product types for this marketplace."""
+    from app.services.auth import is_admin, _decode_token_data
+    from app.services.amazon_sp import search_product_types_for_marketplace
+    from app.models import Marketplace
+    email = getattr(request.state, "user_email", None)
+    auth = request.headers.get("Authorization", "")
+    jwt_data = _decode_token_data(auth.split(" ", 1)[1]) if auth.startswith("Bearer ") else {}
+    if not (bool((jwt_data or {}).get("adm")) or is_admin(email)):
+        raise HTTPException(403, "Accès réservé aux administrateurs")
+    kw_list = [k.strip() for k in keywords.split(",") if k.strip()]
+    results = await search_product_types_for_marketplace(kw_list, Marketplace.AMAZON_FR, email)
+    return results
+
+
 @app.get("/api/image-types")
 async def get_image_types():
     return AMAZON_IMAGE_TYPES
