@@ -187,7 +187,8 @@ async def not_found_handler(request: Request, exc):
 
 @app.exception_handler(500)
 async def server_error_handler(request: Request, exc):
-    return JSONResponse(status_code=500, content={"detail": "Erreur serveur — réessayez dans quelques instants"})
+    log.error(f"Unhandled 500 on {request.url.path}: {exc}")
+    return JSONResponse(status_code=500, content={"detail": f"Erreur serveur — {type(exc).__name__}: {str(exc)[:200]}"})
 
 @app.exception_handler(RequestValidationError)
 async def validation_error_handler(request: Request, exc: RequestValidationError):
@@ -1866,14 +1867,28 @@ class SaveSessionRequest(BaseModel):
     data: dict
 
 
+def _strip_base64_images(obj, _depth=0):
+    """Recursively remove base64 data URLs from session data to keep payload small."""
+    if _depth > 10:
+        return obj
+    if isinstance(obj, str):
+        return "" if obj.startswith("data:image") else obj
+    if isinstance(obj, list):
+        return [_strip_base64_images(i, _depth + 1) for i in obj]
+    if isinstance(obj, dict):
+        return {k: _strip_base64_images(v, _depth + 1) for k, v in obj.items()}
+    return obj
+
+
 @app.post("/api/sessions/save")
 async def api_save_session(req: SaveSessionRequest, request: Request):
     email = request.state.user_email
     session_id = str(uuid.uuid4())
     try:
-        save_session(session_id, email, req.name.strip() or "Session sans nom", req.data)
+        clean_data = _strip_base64_images(req.data)
+        save_session(session_id, email, req.name.strip() or "Session sans nom", clean_data)
     except Exception as e:
-        log.error("save_session failed", extra={"error": str(e), "email": email, "type": type(e).__name__})
+        log.error(f"save_session failed: {type(e).__name__}: {e}", extra={"email": email})
         raise HTTPException(500, f"{type(e).__name__}: {str(e)[:300]}")
     return {"ok": True, "id": session_id}
 
