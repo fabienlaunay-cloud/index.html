@@ -350,6 +350,8 @@ def _listing_to_sp_payload(
             {"value": bp, "marketplace_id": marketplace_id, "language_tag": language_tag}
             for bp in clean_bullets if bp
         ],
+        "country_of_origin": [{"value": getattr(listing, "country_of_origin", None) or "FR", "marketplace_id": marketplace_id}],
+        "supplier_declared_dg_hz_regulation": [{"value": "not_applicable", "marketplace_id": marketplace_id}],
         "condition_type": [{"value": "new_new", "marketplace_id": marketplace_id}],
         "fulfillment_availability": [{"fulfillment_channel_code": "DEFAULT", "quantity": 1}],
     }
