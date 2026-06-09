@@ -1206,6 +1206,84 @@ async def usage_all(request: Request):
     return get_all_users_usage()
 
 
+@app.get("/api/admin/amazon-credentials")
+async def amazon_credentials_check(request: Request):
+    """Show current Amazon credentials and verify seller_id against the Listings API."""
+    from app.services.auth import is_admin, _decode_token_data
+    from app.services.amazon_sp import (
+        _get_sp_credentials, _get_lwa_token, _assume_role, _sign_request,
+        _sp_endpoint, MARKETPLACE_IDS, Marketplace as _Mkt,
+    )
+    from urllib.parse import quote
+    import asyncio as _asyncio, logging as _log
+    email = getattr(request.state, "user_email", None)
+    auth = request.headers.get("Authorization", "")
+    jwt_data = _decode_token_data(auth.split(" ", 1)[1]) if auth.startswith("Bearer ") else {}
+    if not (bool((jwt_data or {}).get("adm")) or is_admin(email)):
+        raise HTTPException(403, "Accès réservé aux administrateurs")
+
+    creds = _get_sp_credentials(email)
+    marketplace_id = MARKETPLACE_IDS[_Mkt.AMAZON_FR]
+    seller_id = creds.get("seller_id", "")
+
+    result = {
+        "seller_id_in_db": seller_id,
+        "marketplace_id": marketplace_id,
+        "lwa_client_id": (creds.get("lwa_client_id") or "")[:8] + "...",
+    }
+
+    try:
+        lwa_token = await _get_lwa_token(creds)
+        loop = _asyncio.get_event_loop()
+        temp_creds = await loop.run_in_executor(None, lambda: _assume_role(creds))
+
+        # 1. Participations — proves auth works
+        part_url = f"{_sp_endpoint()}/sellers/v1/marketplaceParticipations"
+        part_h = _sign_request("GET", part_url, b"", temp_creds, lwa_token)
+        async with httpx.AsyncClient(timeout=20) as c:
+            part_resp = await c.get(part_url, headers=part_h)
+        result["participations_status"] = part_resp.status_code
+        result["participations"] = part_resp.json() if part_resp.status_code == 200 else part_resp.text[:300]
+
+        # 2. Catalog list — verifies seller_id is the correct Merchant Token
+        cat_url = f"{_sp_endpoint()}/listings/2021-08-01/items/{seller_id}?marketplaceIds={marketplace_id}&pageSize=1"
+        cat_h = _sign_request("GET", cat_url, b"", temp_creds, lwa_token)
+        async with httpx.AsyncClient(timeout=20) as c:
+            cat_resp = await c.get(cat_url, headers=cat_h)
+        result["catalog_list_status"] = cat_resp.status_code
+        result["catalog_list_seller_id_valid"] = cat_resp.status_code != 400
+        result["catalog_list_response"] = cat_resp.json() if cat_resp.content else {}
+
+    except Exception as exc:
+        result["error"] = str(exc)
+
+    return result
+
+
+@app.post("/api/admin/amazon-credentials")
+async def amazon_credentials_update(request: Request):
+    """Update the seller_id stored in amazon_credentials for this user."""
+    from app.services.auth import is_admin, _decode_token_data
+    from app.db import get_db
+    email = getattr(request.state, "user_email", None)
+    auth = request.headers.get("Authorization", "")
+    jwt_data = _decode_token_data(auth.split(" ", 1)[1]) if auth.startswith("Bearer ") else {}
+    if not (bool((jwt_data or {}).get("adm")) or is_admin(email)):
+        raise HTTPException(403, "Accès réservé aux administrateurs")
+    body = await request.json()
+    new_seller_id = (body.get("seller_id") or "").strip()
+    if not new_seller_id:
+        raise HTTPException(400, "seller_id is required")
+    conn = get_db()
+    conn.execute(
+        "UPDATE amazon_credentials SET seller_id = ? WHERE user_email = ?",
+        (new_seller_id, email),
+    )
+    conn.commit()
+    conn.close()
+    return {"updated": True, "seller_id": new_seller_id}
+
+
 @app.get("/api/admin/amazon-product-types")
 async def amazon_product_types_search(request: Request, keywords: str = "collar,pet,animal,dog"):
     """Diagnostic: list valid Amazon product types for this marketplace."""
