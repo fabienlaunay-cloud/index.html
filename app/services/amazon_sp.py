@@ -352,9 +352,10 @@ def _listing_to_sp_payload(
         ],
         "country_of_origin": [{"value": getattr(listing, "country_of_origin", None) or "FR", "marketplace_id": marketplace_id}],
         "supplier_declared_dg_hz_regulation": [{"value": "not_applicable", "marketplace_id": marketplace_id}],
-        "condition_type": [{"value": "new_new", "marketplace_id": marketplace_id}],
-        "fulfillment_availability": [{"fulfillment_channel_code": "DEFAULT", "quantity": 1}],
     }
+    # NOTE: condition_type and fulfillment_availability are NOT in the LISTING required set
+    # and for FBM products fulfillment_channel_code should be left empty per schema docs.
+    # Add price offer only when price is available
     if listing.price:
         attributes["purchasable_offer"] = [{
             "marketplace_id": marketplace_id,
