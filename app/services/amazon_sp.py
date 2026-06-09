@@ -292,33 +292,60 @@ def _strip_html(text: str) -> str:
     return _re.sub(r'<[^>]+>', '', text or '').strip()
 
 
+_SKU_PREFIX_TO_PRODUCT_TYPE = {
+    "C-COL": "PET_COLLAR_LEAD_HARNESS",
+    "COL":   "PET_COLLAR_LEAD_HARNESS",
+    "LAI":   "PET_COLLAR_LEAD_HARNESS",
+    "HAR":   "PET_COLLAR_LEAD_HARNESS",
+}
+
+
 def _resolve_product_type(listing) -> str:
-    """Map AI category to valid Amazon product type. Falls back to PET_SUPPLIES."""
+    """Map listing to a valid Amazon product type. Falls back to PET_SUPPLIES."""
     import logging as _log
     explicit = getattr(listing, "product_type", None) or ""
     if explicit:
         return explicit.upper().replace(" ", "_")
+
+    # 1. Try category keywords
     cat = (listing.category or "").lower()
-    _log.warning(f"[SP-API] category='{cat}' → resolving product type")
+    _log.warning(f"[SP-API] category='{cat}' sku='{listing.sku}' → resolving product type")
     for keyword, ptype in _CATEGORY_TO_PRODUCT_TYPE.items():
         if keyword in cat:
-            _log.warning(f"[SP-API] matched keyword '{keyword}' → {ptype}")
+            _log.warning(f"[SP-API] category match '{keyword}' → {ptype}")
             return ptype
-    _log.warning(f"[SP-API] no keyword matched, falling back to PET_SUPPLIES")
+
+    # 2. Try SKU prefix
+    sku_upper = listing.sku.upper()
+    for prefix, ptype in _SKU_PREFIX_TO_PRODUCT_TYPE.items():
+        if sku_upper.startswith(prefix):
+            _log.warning(f"[SP-API] SKU prefix match '{prefix}' → {ptype}")
+            return ptype
+
+    _log.warning(f"[SP-API] no match → PET_SUPPLIES (fallback)")
     return "PET_SUPPLIES"
 
 
-def _listing_to_sp_payload(listing: AmazonListing, seller_id: str, marketplace_id: str) -> dict:
+def _listing_to_sp_payload(
+    listing: AmazonListing,
+    seller_id: str,
+    marketplace_id: str,
+    language_tag: str = "fr_FR",
+) -> dict:
     product_type = _resolve_product_type(listing)
     clean_desc = _strip_html(listing.description)
     clean_bullets = [_strip_html(bp) for bp in listing.bullet_points]
+
+    def _txt(value: str) -> list:
+        return [{"value": value, "marketplace_id": marketplace_id, "language_tag": language_tag}]
+
     attributes = {
-        "item_name": [{"value": listing.title, "marketplace_id": marketplace_id}],
-        "brand": [{"value": listing.brand}],
-        "product_description": [{"value": clean_desc, "marketplace_id": marketplace_id}],
-        "generic_keyword": [{"value": listing.backend_keywords, "marketplace_id": marketplace_id}],
-        "bullet_point": [
-            {"value": bp, "marketplace_id": marketplace_id}
+        "item_name":          _txt(listing.title),
+        "brand":              [{"value": listing.brand, "marketplace_id": marketplace_id}],
+        "product_description": _txt(clean_desc),
+        "generic_keyword":    _txt(listing.backend_keywords),
+        "bullet_point":       [
+            {"value": bp, "marketplace_id": marketplace_id, "language_tag": language_tag}
             for bp in clean_bullets if bp
         ],
         "condition_type": [{"value": "new_new", "marketplace_id": marketplace_id}],
@@ -328,7 +355,7 @@ def _listing_to_sp_payload(listing: AmazonListing, seller_id: str, marketplace_i
         attributes["purchasable_offer"] = [{
             "marketplace_id": marketplace_id,
             "currency": "EUR",
-            "our_price": [{"schedule": [{"value_with_tax": listing.price}]}],
+            "our_price": [{"schedule": [{"value_with_tax": float(listing.price)}]}],
         }]
     if listing.ean:
         attributes["externally_assigned_product_identifier"] = [
@@ -341,6 +368,37 @@ def _listing_to_sp_payload(listing: AmazonListing, seller_id: str, marketplace_i
     }
 
 
+async def _log_product_type_schema(
+    product_type: str, marketplace_id: str, lwa_token: str, temp_creds: dict
+):
+    """Query Amazon's Product Type Definitions API and log required attributes."""
+    import logging as _log
+    try:
+        url = (
+            f"{_sp_endpoint()}/definitions/2020-09-01/productTypes/{product_type}"
+            f"?marketplaceIds={marketplace_id}&requirements=LISTING"
+        )
+        headers = _sign_request("GET", url, b"", temp_creds, lwa_token)
+        async with httpx.AsyncClient(timeout=30) as client:
+            resp = await client.get(url, headers=headers)
+            data = resp.json()
+            schema_url = data.get("schema", {}).get("link", {}).get("resource", "")
+            if schema_url:
+                schema_resp = await client.get(schema_url)
+                schema = schema_resp.json()
+                attrs = (
+                    schema.get("properties", {})
+                          .get("attributes", {})
+                          .get("properties", {})
+                )
+                required = [k for k, v in attrs.items() if isinstance(v, dict) and v.get("minItems", 0) >= 1]
+                _log.warning(f"[SP-API] SCHEMA required for {product_type}: {required}")
+            else:
+                _log.warning(f"[SP-API] SCHEMA (no schema URL): {str(data)[:500]}")
+    except Exception as exc:
+        _log.warning(f"[SP-API] SCHEMA query error: {exc}")
+
+
 async def _publish_one(
     listing: AmazonListing,
     lwa_token: str,
@@ -349,20 +407,25 @@ async def _publish_one(
     marketplace: Marketplace,
     temp_creds: dict,
 ) -> dict:
-    payload = _listing_to_sp_payload(listing, seller_id, marketplace_id)
+    import logging as _log
+    language_tag = MARKETPLACE_LOCALES.get(marketplace, "fr_FR")
+    payload = _listing_to_sp_payload(listing, seller_id, marketplace_id, language_tag)
     body_bytes = json.dumps(payload).encode("utf-8")
     url = f"{_sp_endpoint()}/listings/2021-08-01/items/{seller_id}/{listing.sku}?marketplaceIds={marketplace_id}"
 
     headers = _sign_request("PUT", url, body_bytes, temp_creds, lwa_token)
 
-    import logging as _log
     _log.warning(f"[SP-API] PUT {url}")
-    _log.warning(f"[SP-API] payload: {json.dumps(payload)[:2000]}")
+    _log.warning(f"[SP-API] productType={payload['productType']} lang={language_tag}")
+    _log.warning(f"[SP-API] payload: {json.dumps(payload)[:3000]}")
 
     async with httpx.AsyncClient(timeout=30) as client:
         resp = await client.put(url, headers=headers, content=body_bytes)
 
     _log.warning(f"[SP-API] status: {resp.status_code} | response: {resp.text[:1000]}")
+
+    if resp.status_code >= 400:
+        await _log_product_type_schema(payload["productType"], marketplace_id, lwa_token, temp_creds)
 
     result = {
         "sku": listing.sku,
