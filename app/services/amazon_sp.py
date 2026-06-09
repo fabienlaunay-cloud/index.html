@@ -461,6 +461,13 @@ async def _publish_one(
     _log.warning(f"[SP-API] productType={payload['productType']} lang={language_tag}")
     _log.warning(f"[SP-API] payload: {json.dumps(payload)[:3000]}")
 
+    # GET listing first to diagnose existing state
+    get_url = f"{_sp_endpoint()}/listings/2021-08-01/items/{seller_id}/{listing.sku}?marketplaceIds={marketplace_id}&includedData=summaries,attributes,issues"
+    get_headers = _sign_request("GET", get_url, b"", temp_creds, lwa_token)
+    async with httpx.AsyncClient(timeout=30) as client:
+        get_resp = await client.get(get_url, headers=get_headers)
+    _log.warning(f"[SP-API] GET listing status: {get_resp.status_code} | {get_resp.text[:600]}")
+
     async with httpx.AsyncClient(timeout=30) as client:
         resp = await client.put(url, headers=headers, content=body_bytes)
 
