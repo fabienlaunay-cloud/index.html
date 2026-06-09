@@ -516,15 +516,18 @@ async def generate_product_images(
     # 3. Types sélectionnés (par défaut : tous)
     types_to_generate = selected_types or [t["id"] for t in AMAZON_IMAGE_TYPES]
 
-    # 4. Génération des images (5 en parallèle — gpt-image-2 supporte 10 img/min)
-    semaphore = asyncio.Semaphore(5)
+    # 4. Génération séquentielle par paquets de 2 — rate limit OpenAI : 5 img/min
+    semaphore = asyncio.Semaphore(2)
     results = []
+    _img_counter = [0]
 
-    async def _gen_one(image_type: dict):
+    async def _gen_one(image_type: dict, idx: int):
         img_id = image_type["id"]
         if img_id not in types_to_generate:
             return
         prompt = prompts.get(img_id, "")
+        # Stagger start to avoid burst: 0s, 13s, 26s, ...
+        await asyncio.sleep(idx * 13)
         async with semaphore:
             url = None
             error = None
@@ -545,7 +548,7 @@ async def generate_product_images(
                 "has_image": url is not None,
             })
 
-    await asyncio.gather(*[_gen_one(t) for t in AMAZON_IMAGE_TYPES])
+    await asyncio.gather(*[_gen_one(t, i) for i, t in enumerate(AMAZON_IMAGE_TYPES)])
 
     # Trier dans l'ordre MAIN → PT01 → PT06
     order = {t["id"]: i for i, t in enumerate(AMAZON_IMAGE_TYPES)}
