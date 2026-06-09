@@ -256,9 +256,11 @@ async def _push_aplus(
 
 _CATEGORY_TO_PRODUCT_TYPE = {
     # Animaux
-    "collier": "PET_COLLAR_LEAD_HARNESS",
-    "laisse": "PET_COLLAR_LEAD_HARNESS",
-    "harnais": "PET_COLLAR_LEAD_HARNESS",
+    "collier": "ANIMAL_COLLAR",
+    "laisse":  "ANIMAL_COLLAR",
+    "harnais": "ANIMAL_COLLAR",
+    "muselière": "ANIMAL_MUZZLE",
+    "litière": "ANIMAL_LITTER",
     "pet": "PET_SUPPLIES",
     "chien": "PET_SUPPLIES",
     "chat": "PET_SUPPLIES",
@@ -293,10 +295,10 @@ def _strip_html(text: str) -> str:
 
 
 _SKU_PREFIX_TO_PRODUCT_TYPE = {
-    "C-COL": "PET_COLLAR_LEAD_HARNESS",
-    "COL":   "PET_COLLAR_LEAD_HARNESS",
-    "LAI":   "PET_COLLAR_LEAD_HARNESS",
-    "HAR":   "PET_COLLAR_LEAD_HARNESS",
+    "C-COL": "ANIMAL_COLLAR",
+    "COL":   "ANIMAL_COLLAR",
+    "LAI":   "ANIMAL_COLLAR",
+    "HAR":   "ANIMAL_COLLAR",
 }
 
 
