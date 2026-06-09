@@ -381,25 +381,40 @@ async def _log_product_type_schema(
             f"?marketplaceIds={marketplace_id}&requirements=LISTING"
         )
         headers = _sign_request("GET", url, b"", temp_creds, lwa_token)
-        async with httpx.AsyncClient(timeout=30) as client:
+        async with httpx.AsyncClient(timeout=60) as client:
             resp = await client.get(url, headers=headers)
             data = resp.json()
             if "errors" in data:
                 _log.warning(f"[SP-API] SCHEMA NOT_FOUND for {product_type}: {data['errors']}")
-                # Search for valid product types with keyword
                 await _search_product_types(["collar", "pet", "animal"], marketplace_id, lwa_token, temp_creds)
                 return
+            # Log requirements supported
+            _log.warning(f"[SP-API] SCHEMA requirements={data.get('requirements')} enforced={data.get('requirementsEnforced')}")
             schema_url = data.get("schema", {}).get("link", {}).get("resource", "")
+            _log.warning(f"[SP-API] SCHEMA url={schema_url[:120] if schema_url else 'none'}")
             if schema_url:
                 schema_resp = await client.get(schema_url)
                 schema = schema_resp.json()
-                attrs = (
-                    schema.get("properties", {})
-                          .get("attributes", {})
-                          .get("properties", {})
-                )
-                required = [k for k, v in attrs.items() if isinstance(v, dict) and v.get("minItems", 0) >= 1]
-                _log.warning(f"[SP-API] SCHEMA required for {product_type}: {required}")
+                attrs_node = schema.get("properties", {}).get("attributes", {})
+                # Method 1: required array on the attributes node
+                required_array = attrs_node.get("required", [])
+                # Method 2: minItems >= 1 on each property
+                attrs_props = attrs_node.get("properties", {})
+                required_minitems = [
+                    k for k, v in attrs_props.items()
+                    if isinstance(v, dict) and v.get("minItems", 0) >= 1
+                ]
+                # Method 3: sellerRequired metadata
+                required_seller = [
+                    k for k, v in attrs_props.items()
+                    if isinstance(v, dict) and v.get("sellerRequired") is True
+                ]
+                _log.warning(f"[SP-API] SCHEMA required (array): {required_array}")
+                _log.warning(f"[SP-API] SCHEMA required (minItems): {required_minitems}")
+                _log.warning(f"[SP-API] SCHEMA required (sellerRequired): {required_seller}")
+                # Log first few attribute names to see structure
+                all_attr_names = list(attrs_props.keys())[:30]
+                _log.warning(f"[SP-API] SCHEMA all attributes (first 30): {all_attr_names}")
             else:
                 _log.warning(f"[SP-API] SCHEMA (no schema URL): {str(data)[:500]}")
     except Exception as exc:
