@@ -254,7 +254,56 @@ async def _push_aplus(
     }
 
 
+_CATEGORY_TO_PRODUCT_TYPE = {
+    # Animaux
+    "collier": "PET_COLLAR_LEAD_HARNESS",
+    "laisse": "PET_COLLAR_LEAD_HARNESS",
+    "harnais": "PET_COLLAR_LEAD_HARNESS",
+    "pet": "PET_SUPPLIES",
+    "chien": "PET_SUPPLIES",
+    "chat": "PET_SUPPLIES",
+    "animal": "PET_SUPPLIES",
+    # Maison
+    "maison": "HOME",
+    "cuisine": "KITCHEN",
+    "jardin": "LAWN_AND_GARDEN",
+    # Mode
+    "vêtement": "CLOTHING",
+    "chaussure": "SHOE",
+    "sac": "BAG",
+    "bijou": "JEWELRY",
+    # Sport
+    "sport": "SPORTING_GOODS",
+    "fitness": "SPORTING_GOODS",
+    "yoga": "SPORTING_GOODS",
+    # Beauté
+    "beauté": "BEAUTY",
+    "cosmétique": "BEAUTY",
+    "soin": "BEAUTY",
+    # Électronique
+    "électronique": "CONSUMER_ELECTRONICS",
+    "informatique": "CONSUMER_ELECTRONICS",
+}
+
+
+def _resolve_product_type(listing) -> str:
+    """Map AI category to valid Amazon product type. Falls back to HOME."""
+    # Use explicit product_type if set on listing
+    explicit = getattr(listing, "product_type", None) or ""
+    if explicit:
+        return explicit.upper().replace(" ", "_")
+    cat = (listing.category or "").lower()
+    for keyword, ptype in _CATEGORY_TO_PRODUCT_TYPE.items():
+        if keyword in cat:
+            return ptype
+    return "HOME"
+
+
 def _listing_to_sp_payload(listing: AmazonListing, seller_id: str, marketplace_id: str) -> dict:
+    product_type = _resolve_product_type(listing)
+    # Use LISTING_OFFER_ONLY when EAN exists (product may already be in Amazon catalog)
+    # Use LISTING for new products without EAN
+    requirements = "LISTING_OFFER_ONLY" if listing.ean else "LISTING"
     attributes = {
         "item_name": [{"value": listing.title, "marketplace_id": marketplace_id}],
         "brand": [{"value": listing.brand}],
@@ -276,8 +325,8 @@ def _listing_to_sp_payload(listing: AmazonListing, seller_id: str, marketplace_i
             {"type": "EAN", "value": listing.ean}
         ]
     return {
-        "productType": listing.category.upper().replace(" ", "_") or "PRODUCT",
-        "requirements": "LISTING",
+        "productType": product_type,
+        "requirements": requirements,
         "attributes": attributes,
     }
 
