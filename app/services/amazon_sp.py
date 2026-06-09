@@ -405,7 +405,10 @@ async def _log_product_type_schema(
                                    "condition_type", "fulfillment_availability", "purchasable_offer"]:
                     defn = all_props.get(attr_name)
                     if defn:
-                        _log.warning(f"[SP-API] ATTR {attr_name}: {json.dumps(defn)[:400]}")
+                        raw = json.dumps(defn, ensure_ascii=False)
+                        # Log in chunks of 800 to avoid truncation
+                        for i in range(0, min(len(raw), 2400), 800):
+                            _log.warning(f"[SP-API] ATTR {attr_name}[{i}]: {raw[i:i+800]}")
                     else:
                         _log.warning(f"[SP-API] ATTR {attr_name}: not found in properties")
             else:
