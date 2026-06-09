@@ -301,9 +301,6 @@ def _resolve_product_type(listing) -> str:
 
 def _listing_to_sp_payload(listing: AmazonListing, seller_id: str, marketplace_id: str) -> dict:
     product_type = _resolve_product_type(listing)
-    # Use LISTING_OFFER_ONLY when EAN exists (product may already be in Amazon catalog)
-    # Use LISTING for new products without EAN
-    requirements = "LISTING_OFFER_ONLY" if listing.ean else "LISTING"
     attributes = {
         "item_name": [{"value": listing.title, "marketplace_id": marketplace_id}],
         "brand": [{"value": listing.brand}],
@@ -313,6 +310,8 @@ def _listing_to_sp_payload(listing: AmazonListing, seller_id: str, marketplace_i
             {"value": bp, "marketplace_id": marketplace_id}
             for bp in listing.bullet_points
         ],
+        "condition_type": [{"value": "new_new", "marketplace_id": marketplace_id}],
+        "fulfillment_availability": [{"fulfillment_channel_code": "DEFAULT", "quantity": 1}],
     }
     if listing.price:
         attributes["purchasable_offer"] = [{
@@ -326,7 +325,7 @@ def _listing_to_sp_payload(listing: AmazonListing, seller_id: str, marketplace_i
         ]
     return {
         "productType": product_type,
-        "requirements": requirements,
+        "requirements": "LISTING",
         "attributes": attributes,
     }
 
@@ -411,7 +410,12 @@ async def publish_listings(
                 if result["status"] in (200, 201):
                     report.append({"sku": listing.sku, "status": "published", **result})
                 else:
-                    errors.append({"sku": listing.sku, "status": result["status"], "detail": result})
+                    amz_errors = result.get("response", {}).get("errors", [])
+                    amz_msg = "; ".join(
+                        f"{e.get('code','?')}: {e.get('details') or e.get('message','')}"
+                        for e in amz_errors
+                    ) if amz_errors else str(result.get("response", ""))
+                    errors.append({"sku": listing.sku, "status": result["status"], "error": amz_msg})
             except Exception as e:
                 errors.append({"sku": listing.sku, "error": str(e)})
 
