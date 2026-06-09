@@ -395,29 +395,16 @@ async def _log_product_type_schema(
             if schema_url:
                 schema_resp = await client.get(schema_url)
                 schema = schema_resp.json()
-                # Log top-level keys to understand structure
-                top_keys = list(schema.keys())
-                _log.warning(f"[SP-API] SCHEMA top-level keys: {top_keys}")
-                # Log raw schema excerpt (first 800 chars)
-                raw = json.dumps(schema)[:800]
-                _log.warning(f"[SP-API] SCHEMA raw excerpt: {raw}")
-                # Try multiple paths for attributes node
-                attrs_node = schema.get("properties", {}).get("attributes", {})
-                # Follow $ref if present
-                ref = attrs_node.get("$ref", "")
-                if ref and not attrs_node.get("properties"):
-                    # Try definitions
-                    ref_key = ref.lstrip("#/definitions/").lstrip("#/$defs/")
-                    attrs_node = (
-                        schema.get("definitions", {}).get(ref_key)
-                        or schema.get("$defs", {}).get(ref_key)
-                        or attrs_node
-                    )
-                attrs_props = attrs_node.get("properties", {})
-                required_array = attrs_node.get("required", [])
-                _log.warning(f"[SP-API] SCHEMA attrs_node keys: {list(attrs_node.keys())[:10]}")
-                _log.warning(f"[SP-API] SCHEMA required (array): {required_array}")
-                _log.warning(f"[SP-API] SCHEMA all attributes (first 30): {list(attrs_props.keys())[:30]}")
+                # Amazon's schema: required[] and properties{} are at the ROOT level
+                required_array = schema.get("required", [])
+                all_props = schema.get("properties", {})
+                _log.warning(f"[SP-API] SCHEMA required: {required_array}")
+                _log.warning(f"[SP-API] SCHEMA all attributes (first 40): {list(all_props.keys())[:40]}")
+                # Also check allOf for additional required
+                for sub in schema.get("allOf", []):
+                    sub_req = sub.get("required", [])
+                    if sub_req:
+                        _log.warning(f"[SP-API] SCHEMA allOf required: {sub_req}")
             else:
                 _log.warning(f"[SP-API] SCHEMA (no schema URL): {str(data)[:500]}")
     except Exception as exc:
