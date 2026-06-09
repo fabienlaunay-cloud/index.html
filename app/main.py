@@ -1262,7 +1262,7 @@ async def amazon_credentials_check(request: Request):
 
 @app.post("/api/admin/amazon-credentials")
 async def amazon_credentials_update(request: Request):
-    """Update the seller_id stored in amazon_credentials for this user."""
+    """Update seller_id and/or refresh_token in amazon_credentials for this user."""
     from app.services.auth import is_admin, _decode_token_data
     from app.db import get_db
     email = getattr(request.state, "user_email", None)
@@ -1272,16 +1272,26 @@ async def amazon_credentials_update(request: Request):
         raise HTTPException(403, "Accès réservé aux administrateurs")
     body = await request.json()
     new_seller_id = (body.get("seller_id") or "").strip()
-    if not new_seller_id:
-        raise HTTPException(400, "seller_id is required")
+    new_refresh_token = (body.get("refresh_token") or "").strip()
+    if not new_seller_id and not new_refresh_token:
+        raise HTTPException(400, "seller_id or refresh_token required")
     conn = get_db()
-    conn.execute(
-        "UPDATE amazon_credentials SET seller_id = ? WHERE user_email = ?",
-        (new_seller_id, email),
-    )
+    updated = {}
+    if new_seller_id:
+        conn.execute(
+            "UPDATE amazon_credentials SET seller_id = ? WHERE user_email = ?",
+            (new_seller_id, email),
+        )
+        updated["seller_id"] = new_seller_id
+    if new_refresh_token:
+        conn.execute(
+            "UPDATE amazon_credentials SET refresh_token = ? WHERE user_email = ?",
+            (new_refresh_token, email),
+        )
+        updated["refresh_token"] = new_refresh_token[:12] + "..."
     conn.commit()
     conn.close()
-    return {"updated": True, "seller_id": new_seller_id}
+    return {"updated": True, **updated}
 
 
 @app.get("/api/admin/amazon-product-types")
