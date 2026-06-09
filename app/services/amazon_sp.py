@@ -341,10 +341,9 @@ def _listing_to_sp_payload(
     def _txt(value: str) -> list:
         return [{"value": value, "marketplace_id": marketplace_id, "language_tag": language_tag}]
 
-    # TRULY MINIMAL: only the 6 schema-required attributes
     attributes = {
         "item_name":   _txt(listing.title[:200]),
-        "brand":       [{"value": listing.brand, "marketplace_id": marketplace_id}],
+        "brand":       _txt(listing.brand),   # brand is localizable text → needs language_tag
         "product_description": _txt(clean_desc[:2000]),
         "bullet_point": [
             {"value": bp[:500], "marketplace_id": marketplace_id, "language_tag": language_tag}
@@ -352,7 +351,15 @@ def _listing_to_sp_payload(
         ],
         "country_of_origin": [{"value": getattr(listing, "country_of_origin", None) or "FR", "marketplace_id": marketplace_id}],
         "supplier_declared_dg_hz_regulation": [{"value": "not_applicable", "marketplace_id": marketplace_id}],
+        "condition_type": [{"value": "new_new", "marketplace_id": marketplace_id}],
     }
+
+    # EAN is required by Amazon for new ASIN creation (GTIN validation)
+    if listing.ean:
+        attributes["externally_assigned_product_identifier"] = [
+            {"value": listing.ean, "type": "EAN", "marketplace_id": marketplace_id}
+        ]
+
     return {
         "productType": product_type,
         "requirements": "LISTING",
@@ -466,10 +473,16 @@ async def _publish_one(
     get_headers = _sign_request("GET", get_url, b"", temp_creds, lwa_token)
     async with httpx.AsyncClient(timeout=30) as client:
         get_resp = await client.get(get_url, headers=get_headers)
-    _log.warning(f"[SP-API] GET listing status: {get_resp.status_code} | {get_resp.text[:600]}")
+    get_text = get_resp.text
+    _log.warning(f"[SP-API] GET listing status: {get_resp.status_code} | {get_text[:1000]}")
+    if len(get_text) > 1000:
+        _log.warning(f"[SP-API] GET listing (cont): {get_text[1000:2000]}")
 
+    # Use issueLocale for localised error detail
+    put_url = f"{url}&issueLocale={language_tag.replace('_', '-')}"
+    put_headers = _sign_request("PUT", put_url, body_bytes, temp_creds, lwa_token)
     async with httpx.AsyncClient(timeout=30) as client:
-        resp = await client.put(url, headers=headers, content=body_bytes)
+        resp = await client.put(put_url, headers=put_headers, content=body_bytes)
 
     _log.warning(f"[SP-API] status: {resp.status_code} | response: {resp.text[:1000]}")
 
