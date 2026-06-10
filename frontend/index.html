@@ -12513,12 +12513,18 @@ async function _initCobrowse(email) {
     const _cbScript = document.createElement('script');
     _cbScript.src = 'https://js.cobrowse.io/CobrowseIO.js';
     _cbScript.async = true;
-    _cbScript.onload = function() {
+    _cbScript.onload = async function() {
       window.CobrowseIO.license = cfg.license_key;
       window.CobrowseIO.customData = { user_email: email, user_name: email };
-      window.CobrowseIO.start();
-      _cobrowseReady = true;
-      console.log('[cobrowse] SDK ready');
+      try {
+        await window.CobrowseIO.start();
+        _cobrowseReady = true;
+        console.log('[cobrowse] SDK ready + started');
+      } catch(e) {
+        console.warn('[cobrowse] start() failed:', e);
+        // Still mark ready — createSessionCode may work anyway
+        _cobrowseReady = true;
+      }
     };
     document.head.appendChild(_cbScript);
 
@@ -12559,7 +12565,7 @@ async function _startCobrowse() {
   } catch(e) {
     console.error('[cobrowse] createSessionCode error:', e);
     codeEl.textContent   = '⚠';
-    statusEl.textContent = 'Impossible de démarrer la session';
+    statusEl.textContent = (e && e.message) ? e.message : 'Impossible de démarrer la session';
   }
 }
 
