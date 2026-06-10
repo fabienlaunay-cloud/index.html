@@ -12493,23 +12493,34 @@ async function _initCobrowse(email) {
     const cfg = await r.json();
     if (!cfg.license_key) return;
 
-    // Official Cobrowse.io stub — must be set BEFORE the script loads
-    (function(w,t,c,p,s){
-      p=new Promise(function(resolve){
-        w[c]={client:function(){return p},init:function(){},license:'',customData:{},
-          start:function(){},stop:function(){},end:function(){},
-          getSessionCode:function(){},createSessionCode:function(){},
-          on:function(){return w[c]},off:function(){return w[c]},loaded:resolve};
-      });
-      s=t.createElement('script');s.src='https://js.cobrowse.io/CobrowseIO.js';
-      s.async=1;
-      s.onload=function(){_cobrowseReady=true;console.log('[cobrowse] SDK ready');};
-      t.head.appendChild(s);
-    })(window,document,'CobrowseIO');
+    // Cobrowse.io stub (queues calls made before real SDK loads)
+    if (!window.CobrowseIO) {
+      (function(w,t,c,p){
+        p=new Promise(function(resolve){
+          w[c]={client:function(){return p},init:function(){},license:'',customData:{},
+            start:function(){},stop:function(){},end:function(){},
+            getSessionCode:function(){},createSessionCode:function(){},
+            on:function(){return w[c]},off:function(){return w[c]},loaded:resolve};
+        });
+      })(window,document,'CobrowseIO');
+    }
 
+    // Set config on stub so SDK reads it when it loads
     window.CobrowseIO.license = cfg.license_key;
     window.CobrowseIO.customData = { user_email: email, user_name: email };
-    window.CobrowseIO.start();
+
+    // Load real SDK; re-apply config and call start() on the real object
+    const _cbScript = document.createElement('script');
+    _cbScript.src = 'https://js.cobrowse.io/CobrowseIO.js';
+    _cbScript.async = true;
+    _cbScript.onload = function() {
+      window.CobrowseIO.license = cfg.license_key;
+      window.CobrowseIO.customData = { user_email: email, user_name: email };
+      window.CobrowseIO.start();
+      _cobrowseReady = true;
+      console.log('[cobrowse] SDK ready');
+    };
+    document.head.appendChild(_cbScript);
 
     document.getElementById('cobrowseFloatBtn').style.display = 'flex';
 
