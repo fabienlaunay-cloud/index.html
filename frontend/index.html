@@ -5437,7 +5437,7 @@ async function _sessLoadList() {
       return;
     }
     list.innerHTML = sessions.map(s => {
-      const dt = new Date(s.created_at);
+      const dt = new Date((s.created_at || '').replace(' ', 'T') + 'Z');
       const label = dt.toLocaleDateString('fr-FR', {day:'2-digit', month:'short', year:'numeric'})
                   + ' ' + dt.toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
       return `<div style="border:1px solid rgba(124,58,237,0.15);border-radius:14px;padding:12px;display:flex;align-items:center;gap:12px;cursor:pointer;transition:background 0.2s,border-color 0.2s" onmouseover="this.style.background='rgba(124,58,237,0.1)';this.style.borderColor='rgba(124,58,237,0.3)'" onmouseout="this.style.background='transparent';this.style.borderColor='rgba(124,58,237,0.15)'">
@@ -5637,7 +5637,7 @@ async function loadHistoryList() {
     }
     container.innerHTML = batches.map(b => {
       const flag = MKT_META_H[b.marketplace] || '🌐';
-      const date = new Date(b.created_at).toLocaleString('fr-FR', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' });
+      const date = new Date((b.created_at || '').replace(' ', 'T') + 'Z').toLocaleString('fr-FR', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' });
       const seoCol = b.avg_seo_score >= 70 ? '#4ade80' : b.avg_seo_score >= 40 ? '#fbbf24' : '#f87171';
       const label = b.label ? `<span style="font-size:10px;color:rgba(167,139,250,0.9);background:rgba(124,58,237,0.15);border:1px solid rgba(124,58,237,0.25);padding:2px 8px;border-radius:6px;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block">${_esc(b.label)}</span>` : '';
       return `<div style="border:1px solid rgba(124,58,237,0.15);border-radius:14px;padding:12px;transition:background 0.2s,border-color 0.2s" onmouseover="this.style.background='rgba(124,58,237,0.1)';this.style.borderColor='rgba(124,58,237,0.3)'" onmouseout="this.style.background='transparent';this.style.borderColor='rgba(124,58,237,0.15)'" id="hentry-${_esc(b.id)}">
@@ -5679,7 +5679,7 @@ async function restoreBatch(batchId) {
     const listings = batch.listings || [];
     if (!listings.length) { showToast('⚠️', 'Lot vide', true); return; }
 
-    const batchLabel = batch.label || `Historique — ${new Date(batch.created_at || Date.now()).toLocaleDateString('fr-FR')}`;
+    const batchLabel = batch.label || `Historique — ${new Date(batch.created_at ? (batch.created_at.replace(' ', 'T') + 'Z') : Date.now()).toLocaleDateString('fr-FR')}`;
     _createBatch(listings, [], batchId, batchLabel, 'history');
     _sessionFromHistory = true;
     // Restore images from server history into the new batch
