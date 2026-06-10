@@ -2028,7 +2028,11 @@ async def api_save_session(req: SaveSessionRequest, request: Request):
 
 @app.get("/api/sessions")
 async def api_list_sessions(request: Request):
-    return list_saved_sessions(request.state.user_email)
+    try:
+        return list_saved_sessions(request.state.user_email)
+    except Exception as e:
+        log.error(f"list_sessions failed: {type(e).__name__}: {e}", extra={"email": request.state.user_email})
+        raise HTTPException(500, f"{type(e).__name__}: {str(e)[:300]}")
 
 
 @app.get("/api/sessions/{session_id}")

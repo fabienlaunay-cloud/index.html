@@ -5427,7 +5427,10 @@ async function _sessLoadList() {
   list.innerHTML = '<p class="text-center text-gray-400 text-sm py-8">Chargement…</p>';
   try {
     const r = await authFetch('/api/sessions');
-    if (!r.ok) throw new Error();
+    if (!r.ok) {
+      const e = await r.json().catch(() => ({}));
+      throw new Error(e.detail || `Erreur HTTP ${r.status}`);
+    }
     const sessions = await r.json();
     if (!sessions.length) {
       list.innerHTML = '<p class="text-center text-gray-400 text-sm py-8">Aucune session sauvegardée</p>';
@@ -5449,7 +5452,7 @@ async function _sessLoadList() {
       </div>`;
     }).join('');
   } catch(e) {
-    list.innerHTML = '<p class="text-center text-red-400 text-sm py-8">Erreur de chargement</p>';
+    list.innerHTML = `<p class="text-center text-red-400 text-sm py-8">Erreur de chargement<br><span class="text-xs opacity-70">${e.message || ''}</span></p>`;
   }
 }
 
