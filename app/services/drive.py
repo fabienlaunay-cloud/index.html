@@ -225,16 +225,43 @@ def build_csv(files: list[dict], proxy_base: str = "") -> str:
     return out.getvalue()
 
 
+# Google-native files can't be downloaded directly; they must be exported
+_GOOGLE_EXPORTS = {
+    "application/vnd.google-apps.spreadsheet": (
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", ".xlsx"),
+    "application/vnd.google-apps.document": (
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document", ".docx"),
+}
+
+
 def get_file_bytes(file_id: str, refresh_token: Optional[str] = None) -> tuple[bytes, str]:
-    """Download a Drive file and return (bytes, mime_type)."""
+    data, mime, _ = get_file_with_name(file_id, refresh_token)
+    return data, mime
+
+
+def get_file_with_name(file_id: str, refresh_token: Optional[str] = None) -> tuple[bytes, str, str]:
+    """Download a Drive file and return (bytes, mime_type, name).
+    Google-native files (Sheets, Docs) are exported to their Office equivalent.
+    """
     from googleapiclient.http import MediaIoBaseDownload
     service = _get_service(refresh_token)
-    meta = service.files().get(fileId=file_id, fields="mimeType", supportsAllDrives=True).execute()
+    meta = service.files().get(fileId=file_id, fields="mimeType,name", supportsAllDrives=True).execute()
     mime = meta.get("mimeType", "application/octet-stream")
+    name = meta.get("name", "file")
+
+    export = _GOOGLE_EXPORTS.get(mime)
+    if export:
+        export_mime, ext = export
+        req = service.files().export_media(fileId=file_id, mimeType=export_mime)
+        mime = export_mime
+        if not name.lower().endswith(ext):
+            name += ext
+    else:
+        req = service.files().get_media(fileId=file_id, supportsAllDrives=True)
+
     buf = io.BytesIO()
-    req = service.files().get_media(fileId=file_id, supportsAllDrives=True)
     dl = MediaIoBaseDownload(buf, req)
     done = False
     while not done:
         _, done = dl.next_chunk()
-    return buf.getvalue(), mime
+    return buf.getvalue(), mime, name

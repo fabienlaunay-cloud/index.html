@@ -7,7 +7,7 @@ from fastapi import APIRouter, Request, HTTPException, Query
 from fastapi.responses import Response
 from pydantic import BaseModel
 
-from app.services.drive import list_files, build_csv, get_file_bytes
+from app.services.drive import list_files, build_csv, get_file_bytes, get_file_with_name
 from app.db import get_drive_token
 from app.logger import log
 
@@ -123,12 +123,12 @@ async def export_drive_zip(body: ExportZIPRequest, request: Request):
 # ── File proxy (for product data import) ──────────────────────────────────────
 
 @router.get("/file/{file_id}")
-async def proxy_file(file_id: str, name: str = Query(default="file"), request: Request = None):
+async def proxy_file(file_id: str, name: str = Query(default=""), request: Request = None):
     token_data = get_drive_token(request.state.user_email) if request else None
     refresh_token = token_data["refresh_token"] if token_data else None
     try:
-        data, mime = get_file_bytes(file_id, refresh_token)
-        safe_name = name.replace('"', '')
+        data, mime, real_name = get_file_with_name(file_id, refresh_token)
+        safe_name = (name or real_name or "file").replace('"', '')
         return Response(
             content=data,
             media_type=mime,
