@@ -5986,6 +5986,23 @@ function saveEdit(idx) {
     listing.bullet_points = Array.from(bulletsContainer.querySelectorAll('textarea'))
       .map(t => t.value.trim()).filter(Boolean);
   }
+  // Collect children price/ean from DOM in case oninput hasn't fired yet
+  const childPriceInputs = document.querySelectorAll(`#card-${idx} input[data-field="price"]`);
+  const childEanInputs   = document.querySelectorAll(`#card-${idx} input[data-field="ean"]`);
+  childPriceInputs.forEach(el => {
+    const ci = parseInt(el.dataset.ci, 10);
+    if (!isNaN(ci) && listing.children && listing.children[ci] !== undefined) {
+      const v = parseFloat(el.value);
+      listing.children[ci].price = isNaN(v) ? null : v;
+    }
+  });
+  childEanInputs.forEach(el => {
+    const ci = parseInt(el.dataset.ci, 10);
+    if (!isNaN(ci) && listing.children && listing.children[ci] !== undefined) {
+      listing.children[ci].ean = el.value.trim() || null;
+    }
+  });
+  try { localStorage.setItem('synqio_listings', JSON.stringify(generatedListings)); } catch(e) {}
   const card = document.getElementById(`card-${idx}`);
   if (card) {
     card.innerHTML = buildCardHTML(listing, idx, false);
