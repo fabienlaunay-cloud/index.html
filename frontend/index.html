@@ -5554,6 +5554,9 @@ async function _restoreImagesFromDB(skus) {
     for (const [sku, imgs] of Object.entries(bysku)) {
       if (!imgs.length) continue;
       imagesCache[sku] = {
+        sku,
+        openai_configured: true,
+        images_generated: true,
         images: imgs.map(i => ({ id: i.slot, slot: i.slot, url: i.data_url, has_image: true, label: i.slot }))
       };
       restored++;
@@ -5682,10 +5685,21 @@ async function restoreBatch(batchId) {
     const batchLabel = batch.label || `Historique — ${new Date(batch.created_at ? (batch.created_at.replace(' ', 'T') + 'Z') : Date.now()).toLocaleDateString('fr-FR')}`;
     _createBatch(listings, [], batchId, batchLabel, 'history');
     _sessionFromHistory = true;
-    // Restore images from server history into the new batch
-    const savedImages = batch.images || {};
+    // Restore images from server history into the new batch.
+    // History stores sku -> [list of images]; imagesCache expects sku -> { images: [...] }.
+    const savedImages = {};
+    for (const [sku, v] of Object.entries(batch.images || {})) {
+      const imgs = Array.isArray(v) ? v : (v && v.images) || [];
+      if (!imgs.length) continue;
+      savedImages[sku] = Array.isArray(v)
+        ? { sku, images: imgs, openai_configured: true, images_generated: true, total: imgs.length }
+        : v;
+    }
     Object.assign(imagesCache, savedImages);
     if (_batches[_activeBatchIdx]) Object.assign(_batches[_activeBatchIdx].images, savedImages);
+    // Fallback: pull any missing images from the DB-backed store
+    const missingSkus = listings.filter(l => !l.parent_sku && !imagesCache[l.sku]).map(l => l.sku);
+    if (missingSkus.length) await _restoreImagesFromDB(missingSkus);
 
     const parentOnly = listings.filter(l => !l.parent_sku);
     const fakeResult = {
@@ -5697,7 +5711,7 @@ async function restoreBatch(batchId) {
     };
     showResults(fakeResult);
     closeHistoryPanel();
-    const imgCount = Object.keys(savedImages).length;
+    const imgCount = listings.filter(l => !l.parent_sku && imagesCache[l.sku]).length;
     showToast('✅', `Lot restauré — ${listings.length} fiche(s)${imgCount ? `, ${imgCount} SKU avec images` : ''}`);
   } catch(e) {
     console.error('[history] restoreBatch failed:', e);
@@ -6235,7 +6249,7 @@ function renderImages(container, data) {
     : `<div class="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-4 text-xs text-amber-800 flex items-center gap-2"><span>⚠️</span><span><strong>Génération sans photo de référence</strong> — vérifiez que la colonne <code class="bg-amber-100 px-1 rounded">Image_URL</code> est remplie et que le lien Google Drive est <strong>public</strong>. Vous pouvez aussi importer un ZIP avec les photos nommées par SKU.</span></div>`)
     : '';
   const notice = hasImages ? '' : `<div class="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-4 text-sm text-blue-800"><p class="font-semibold mb-1">Prompts générés — Images non générées</p><p>Ajoutez <code class="bg-blue-100 px-1 rounded">OPENAI_API_KEY</code> dans Railway pour générer les images. En attendant, copiez les prompts dans Midjourney ou Canva IA.</p></div>`;
-  const cards = data.images.map(img => {
+  const cards = (data.images || []).map(img => {
     const imgHtml = img.url
       ? `<div class="relative group cursor-zoom-in" onclick="openLightbox(this.querySelector('img').src)"><img src="${_esc(img.url)}" alt="${_esc(img.label)}" class="w-full h-48 object-cover"><div class="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition flex items-center justify-center"><span class="hidden group-hover:flex bg-white/90 rounded-lg px-3 py-1.5 text-xs font-medium gap-1 items-center shadow">🔍 Agrandir</span></div></div>`
       : `<div class="h-36 bg-gradient-to-br from-gray-100 to-gray-50 flex items-center justify-center"><span class="text-4xl">${img.id==='hero'?'📸':img.id.includes('lifestyle')?'🌅':img.id==='infographic'?'📊':img.id==='detail'?'🔍':img.id==='dimensions'?'📐':img.id==='packaging'?'📦':'🖼️'}</span></div>`;
