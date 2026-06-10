@@ -3735,8 +3735,15 @@ function _syncActiveBatch() {
   if (_activeBatchIdx < 0 || !_batches[_activeBatchIdx]) return;
   const b = _batches[_activeBatchIdx];
   b.listings = generatedListings;
-  b.products  = parsedProducts;
-  const skus = new Set(generatedListings.map(l => l.sku));
+  // Only update products if they match this batch (same SKUs), preventing a
+  // parsedProducts swap mid-flight from corrupting an unrelated batch.
+  const batchSkus = new Set(b.listings.map(l => l.sku));
+  const currentSkus = new Set(parsedProducts.map(p => p.sku));
+  const overlap = [...batchSkus].filter(s => currentSkus.has(s)).length;
+  if (!b.products.length || overlap > 0 || batchSkus.size === 0) {
+    b.products = parsedProducts;
+  }
+  const skus = batchSkus;
   for (const [sku, imgs] of Object.entries(imagesCache)) {
     if (skus.has(sku)) b.images[sku] = imgs;
   }
@@ -9802,6 +9809,11 @@ function triggerChatGeneration() {
   _genSource = 'chat';
   _genLabel  = 'Chat IA';
 
+  // Sync current batch NOW, before parsedProducts is replaced — otherwise
+  // _syncActiveBatch() inside _createBatch() would overwrite the existing
+  // batch's products with the chat products.
+  _syncActiveBatch();
+
   // Normalise products to RawProduct shape
   const normalized = _chatReadyProducts.map(p => ({
     sku: p.sku || `CHAT-${Date.now()}`,
@@ -12446,6 +12458,13 @@ async function _agentExec(name, input) {
       break;
     }
     case 'generate_listings':
+      // Close the agent panel first so the user sees the loading progress
+      _closeAgentPanel();
+      await new Promise(r => setTimeout(r, 350));
+      // Navigate to main app (in case user was in admin view)
+      if (document.getElementById('adminView') && !document.getElementById('adminView').classList.contains('hidden')) {
+        showMainApp();
+      }
       if (typeof generateListings === 'function') generateListings();
       break;
     case 'export_results':
