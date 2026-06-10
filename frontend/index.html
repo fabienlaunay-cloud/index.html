@@ -2510,6 +2510,12 @@
                 </div>
               </div>
               <input type="file" id="amazonTemplateInput" accept=".xlsm,.xlsx" class="hidden" onchange="fillAmazonTemplate(this)">
+              <!-- Clear all listings -->
+              <button onclick="clearAllListings()" title="Supprimer toutes les fiches générées"
+                class="bg-red-50 hover:bg-red-100 text-red-600 border border-red-100 rounded-lg px-3 py-1.5 text-sm font-medium transition flex items-center gap-1.5">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                Tout effacer
+              </button>
             </div>
           </div>
           <div class="grid grid-cols-4 gap-3">
@@ -3789,6 +3795,30 @@ function _saveBatches() {
     localStorage.setItem('synqio_active_batch', String(_activeBatchIdx));
     if (generatedListings.length) localStorage.setItem('synqio_listings', JSON.stringify(generatedListings));
   } catch(e) {}
+}
+
+function clearAllListings() {
+  const n = generatedListings.filter(l => !l.parent_sku).length || generatedListings.length;
+  if (!n && !_batches.length) { showToast('ℹ️', 'Aucune fiche à supprimer'); return; }
+  if (!confirm(`Supprimer toutes les fiches générées (${n}) ?\nLes produits importés restent chargés pour relancer une génération.`)) return;
+  _batches = [];
+  _activeBatchIdx = -1;
+  generatedListings = [];
+  currentBatchId = null;
+  activeResultsFilter = null;
+  activeMarketplaceFilter = null;
+  for (const k of Object.keys(imagesCache)) delete imagesCache[k];
+  try {
+    localStorage.removeItem('synqio_listings');
+    localStorage.removeItem('synqio_images');
+    localStorage.removeItem('synqio_batches');
+    localStorage.removeItem('synqio_active_batch');
+  } catch(e) {}
+  _renderBatchSelector();
+  document.getElementById('resultsState').classList.add('hidden');
+  document.getElementById('emptyState').classList.remove('hidden');
+  setStep(parsedProducts.length ? 2 : 1);
+  showToast('🗑️', 'Toutes les fiches ont été supprimées — vous pouvez relancer une génération');
 }
 
 function _deleteBatch(idx) {
