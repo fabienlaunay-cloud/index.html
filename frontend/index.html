@@ -12510,8 +12510,10 @@ async function _initCobrowse(email) {
 
     document.getElementById('cobrowseFloatBtn').style.display = 'flex';
 
-    // start() queues init on the stub; resolves when real SDK is ready
-    window.CobrowseIO.start().then(() => {
+    // start() on the stub returns undefined — use client() which returns
+    // the Promise that resolves once the real SDK script has loaded.
+    window.CobrowseIO.start();
+    window.CobrowseIO.client().then(() => {
       _cobrowseReady = true;
       console.log('[cobrowse] SDK ready');
     }).catch(e => console.warn('[cobrowse] start error:', e));
