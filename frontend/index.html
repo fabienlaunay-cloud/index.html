@@ -12502,21 +12502,16 @@ async function _initCobrowse(email) {
           on:function(){return w[c]},off:function(){return w[c]},loaded:resolve};
       });
       s=t.createElement('script');s.src='https://js.cobrowse.io/CobrowseIO.js';
-      s.async=1;t.head.appendChild(s);
+      s.async=1;
+      s.onload=function(){_cobrowseReady=true;console.log('[cobrowse] SDK ready');};
+      t.head.appendChild(s);
     })(window,document,'CobrowseIO');
 
     window.CobrowseIO.license = cfg.license_key;
     window.CobrowseIO.customData = { user_email: email, user_name: email };
+    window.CobrowseIO.start();
 
     document.getElementById('cobrowseFloatBtn').style.display = 'flex';
-
-    // start() on the stub returns undefined — use client() which returns
-    // the Promise that resolves once the real SDK script has loaded.
-    window.CobrowseIO.start();
-    window.CobrowseIO.client().then(() => {
-      _cobrowseReady = true;
-      console.log('[cobrowse] SDK ready');
-    }).catch(e => console.warn('[cobrowse] start error:', e));
 
   } catch(e) { console.warn('[cobrowse] init error:', e); }
 }
