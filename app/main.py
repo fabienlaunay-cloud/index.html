@@ -1329,7 +1329,11 @@ async def get_history(request: Request):
 @app.get("/api/history/{batch_id}")
 async def get_history_batch(batch_id: str, request: Request):
     email = request.state.user_email
-    batch = get_generation(batch_id, email)
+    try:
+        batch = get_generation(batch_id, email)
+    except Exception as e:
+        log.error(f"get_generation failed: {type(e).__name__}: {e}", extra={"email": email})
+        raise HTTPException(500, f"{type(e).__name__}: {str(e)[:300]}")
     if not batch:
         raise HTTPException(status_code=404, detail="Lot introuvable")
     return batch

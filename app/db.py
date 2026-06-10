@@ -640,8 +640,8 @@ def get_generation(batch_id: str, user_email: str):
     if not row:
         return None
     d = dict(row)
-    d["listings"] = _json.loads(d.pop("listings_json", "[]"))
-    d["images"] = _json.loads(d.pop("images_json", "{}"))
+    d["listings"] = _json.loads(d.pop("listings_json", None) or "[]")
+    d["images"] = _json.loads(d.pop("images_json", None) or "{}")
     return d
 
 
