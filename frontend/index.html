@@ -6537,15 +6537,24 @@ async function _driveBrowserLoad(folderId) {
       const date = f.modifiedTime
         ? new Date(f.modifiedTime).toLocaleDateString('fr-FR', {day:'2-digit',month:'short',year:'numeric'})
         : '';
+      const escId = f.id.replace(/'/g,"\\'");
+      const escName = f.name.replace(/'/g,"\\'");
       const click = isFolder
-        ? `_driveBrowserEnter('${f.id.replace(/'/g,"\\'")}','${f.name.replace(/'/g,"\\'")}')`
-        : isSelectableFile ? `_driveBrowserSelectFile('${f.id.replace(/'/g,"\\'")}','${f.name.replace(/'/g,"\\'")}')` : '';
+        ? `_driveBrowserEnter('${escId}','${escName}')`
+        : isSelectableFile ? `_driveBrowserSelectFile('${escId}','${escName}')` : '';
+      const folderSelectBtn = (isFolder && _driveBrowserTarget === 'folder')
+        ? `<span onclick="event.stopPropagation();_driveBrowserSelectFolderDirect('${escId}','${escName}')"
+             style="font-size:10px;font-weight:600;padding:2px 8px;border-radius:4px;flex-shrink:0;background:rgba(124,58,237,0.25);color:rgba(196,181,253,1);cursor:pointer"
+             onmouseover="this.style.background='rgba(124,58,237,0.5)'"
+             onmouseout="this.style.background='rgba(124,58,237,0.25)'">Sélectionner</span>`
+        : '';
       return `<div onclick="${click}" style="display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:10px;cursor:${click?'pointer':'default'};transition:background 0.15s;opacity:${dimmed?'0.35':'1'}"
         onmouseover="${click?`this.style.background='rgba(124,58,237,0.12)'`:''}"
         onmouseout="${click?`this.style.background='transparent'`:''}">
         <span style="font-size:17px;flex-shrink:0;width:22px;text-align:center">${icon}</span>
         <span style="flex:1;font-size:13px;color:rgba(255,255,255,0.85);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${_escHtml(f.name)}</span>
         ${date?`<span style="font-size:11px;color:rgba(255,255,255,0.28);flex-shrink:0">${date}</span>`:''}
+        ${folderSelectBtn}
         ${isFolder?'<span style="color:rgba(124,58,237,0.7);font-size:13px;flex-shrink:0;margin-left:2px">›</span>':''}
         ${isSelectableFile?'<span style="font-size:10px;font-weight:600;padding:2px 6px;border-radius:4px;flex-shrink:0;background:rgba(124,58,237,0.2);color:rgba(167,139,250,0.9)">Sélectionner</span>':''}
       </div>`;
@@ -6583,6 +6592,13 @@ function _driveBrowserSelectFolder() {
   if (input) input.value = `https://drive.google.com/drive/folders/${current.id}`;
   _closeDriveBrowser();
   showToast('✅', `Dossier sélectionné : ${current.name}`);
+}
+
+function _driveBrowserSelectFolderDirect(id, name) {
+  const input = document.getElementById(_driveBrowserInputId);
+  if (input) input.value = `https://drive.google.com/drive/folders/${id}`;
+  _closeDriveBrowser();
+  showToast('✅', `Dossier sélectionné : ${name}`);
 }
 
 function _driveBrowserSelectFile(id, name) {
