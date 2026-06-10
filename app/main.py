@@ -4,6 +4,7 @@ import json
 import time
 import asyncio
 import base64
+import uuid
 import httpx
 from uuid import uuid4
 from dotenv import load_dotenv
