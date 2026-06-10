@@ -2098,7 +2098,7 @@
             <div>
               <label class="text-xs font-medium text-gray-600 block mb-1.5">📁 Dossier photos</label>
               <div class="flex gap-2">
-                <input id="drivePhotoFolderUrl" type="text" placeholder="https://drive.google.com/drive/folders/…"
+                <input id="drivePhotoFolderUrl" type="text" placeholder="URL dossier Drive ou fichier ZIP"
                   class="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-purple-300 outline-none">
                 <button id="drivePickerBtnUnified" onclick="openDrivePicker('unified')" title="Parcourir Drive"
                   class="hidden flex-shrink-0 flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-lg transition" style="background:rgba(26,115,232,0.1);color:#1a73e8;border:1px solid rgba(26,115,232,0.25)">
@@ -6448,7 +6448,7 @@ async function _openDriveBrowser(target, inputId) {
   const selectBtn = document.getElementById('driveBrowserSelectFolderBtn');
   selectBtn.classList.toggle('hidden', target === 'file');
   document.getElementById('driveBrowserHint').textContent =
-    target === 'file' ? 'Cliquez sur un fichier pour le sélectionner' : 'Naviguez et sélectionnez un dossier';
+    target === 'file' ? 'Cliquez sur un fichier pour le sélectionner' : 'Sélectionnez un dossier ou un fichier ZIP de photos';
   try {
     const r = await authFetch('/api/drive/oauth/token');
     const { access_token } = await r.json();
@@ -6560,12 +6560,48 @@ function _driveBrowserSelectFolderDirect(id, name) {
 }
 
 function _driveBrowserSelectFile(id, name) {
+  // ZIP picked as photo source → import its photos via the existing zip pipeline
+  if (_driveBrowserTarget === 'folder' && /\.zip$/i.test(name)) {
+    _closeDriveBrowser();
+    _importDriveZipPhotos(id, name);
+    return;
+  }
   // In folder mode, a doc file click should fill the DATA FILE input, not the folder input
   const targetId = _driveBrowserTarget === 'folder' ? 'driveDataFileUrl' : _driveBrowserInputId;
   const input = document.getElementById(targetId);
   if (input) input.value = id;
   _closeDriveBrowser();
   showToast('✅', `Fichier sélectionné : ${name}`);
+}
+
+let _driveZipPhotos = [];
+
+async function _importDriveZipPhotos(fileId, fileName) {
+  showToast('⏳', `Téléchargement de ${fileName}…`);
+  try {
+    const r = await authFetch(`/api/drive/file/${encodeURIComponent(fileId)}`);
+    if (!r.ok) throw new Error('Téléchargement du ZIP impossible');
+    const buffer = await r.arrayBuffer();
+    showToast('⏳', 'Analyse des photos du ZIP…');
+    const up = await authFetch('/api/upload-photos-zip', {
+      method: 'POST', headers: { 'Content-Type': 'application/octet-stream' }, body: buffer,
+    });
+    if (!up.ok) { const e = await up.json().catch(()=>({})); throw new Error(e.detail || 'ZIP invalide'); }
+    const data = await up.json();
+    if (!data.count) { showToast('⚠️', 'Aucune image trouvée dans le ZIP — nommez les photos avec le SKU', true); return; }
+    for (const item of data.matched) photoMap[item.sku] = item.url;
+    _driveZipPhotos = data.matched.map(m => ({
+      file_id: 'zip:' + m.filename, name: m.filename, url: m.url, is_image: true,
+    }));
+    const input = document.getElementById('drivePhotoFolderUrl');
+    if (input) input.value = `zip:${fileName}`;
+    const pt = document.getElementById('photosText');
+    if (pt) pt.textContent = `${data.count} photo(s) associée(s) par SKU`;
+    document.getElementById('photosBadge')?.classList.remove('hidden');
+    showToast('📸', `${data.count} photo(s) importée(s) depuis ${fileName}`);
+  } catch(e) {
+    showToast('❌', `Erreur ZIP : ${e.message}`, true);
+  }
 }
 
 function _closeDriveBrowser() {
@@ -6789,6 +6825,12 @@ async function _extractDriveUnified() {
 
   try {
     // Étape 1 — Photos
+    if (photoUrl.startsWith('zip:')) {
+      // Photos already imported from a Drive ZIP via _importDriveZipPhotos
+      lbl.textContent = 'Photos (ZIP)…';
+      _driveFiles = [..._driveZipPhotos];
+      if (!_driveFiles.length) throw new Error('Re-sélectionnez le fichier ZIP de photos');
+    } else {
     lbl.textContent = 'Photos en cours…';
     const pr = await authFetch('/api/drive/extract', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -6802,6 +6844,7 @@ async function _extractDriveUnified() {
     if (!pr.ok) { const e = await pr.json().catch(()=>({})); throw new Error(e.detail || 'Erreur chargement photos'); }
     const pdata = await pr.json();
     _driveFiles = pdata.files || [];
+    }
 
     // Étape 2 — Fichier données
     lbl.textContent = 'Données en cours…';
@@ -6911,7 +6954,7 @@ function _renderMatchPreview() {
       ? `<span class="text-green-600 font-semibold">✓ ${_escHtml(r.matchedOn||'')}</span>`
       : `<span class="text-red-400">sans photo</span>`;
     const thumb = r.photo
-      ? `<img src="/api/drive/image/${r.photo.file_id}" class="w-9 h-9 object-cover rounded-lg flex-shrink-0" loading="lazy" onerror="this.style.display='none'">`
+      ? `<img src="${_drivePhotoSrc(r.photo)}" class="w-9 h-9 object-cover rounded-lg flex-shrink-0" loading="lazy" onerror="this.style.display='none'">`
       : `<div class="w-9 h-9 bg-gray-200 rounded-lg flex-shrink-0 flex items-center justify-center text-gray-400 text-base">?</div>`;
     return `<div class="flex items-center gap-2 px-3 py-2 ${bg}">
       ${thumb}
@@ -6925,7 +6968,7 @@ function _renderMatchPreview() {
 
   unmatchedPhotos.slice(0, 5).forEach(up => {
     rows.push(`<div class="flex items-center gap-2 px-3 py-2 bg-amber-50">
-      <img src="/api/drive/image/${up.file_id}" class="w-9 h-9 object-cover rounded-lg flex-shrink-0" loading="lazy" onerror="this.style.display='none'">
+      <img src="${_drivePhotoSrc(up)}" class="w-9 h-9 object-cover rounded-lg flex-shrink-0" loading="lazy" onerror="this.style.display='none'">
       <div class="flex-1 min-w-0">
         <div class="font-medium text-gray-800 truncate">${_escHtml(up.name)}</div>
         <div class="text-amber-600">Photo sans produit</div>
@@ -6942,6 +6985,10 @@ function _renderMatchPreview() {
   genBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg> Générer ${matched || results.length} fiche${(matched || results.length) > 1 ? 's' : ''}`;
 
   document.getElementById('driveMatchPreview').classList.remove('hidden');
+}
+
+function _drivePhotoSrc(p) {
+  return p.url ? p.url : `/api/drive/image/${p.file_id}`;
 }
 
 function _rematch() { if (_driveProducts.length) _renderMatchPreview(); }
