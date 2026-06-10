@@ -6419,56 +6419,14 @@ function _loadPickerApi(cb) {
 
 function openDrivePicker(target) {
   const inputId = target === 'unified' ? 'drivePhotoFolderUrl' : 'driveFolderUrl';
-  if (_driveOAuthConfig.api_key) {
-    _loadPickerApi(() => {
-      authFetch('/api/drive/oauth/token').then(r => r.json()).then(({ access_token }) => {
-        const picker = new google.picker.PickerBuilder()
-          .addView(new google.picker.DocsView(google.picker.ViewId.FOLDERS)
-            .setIncludeFolders(true).setSelectFolderEnabled(true).setMimeTypes('application/vnd.google-apps.folder'))
-          .setOAuthToken(access_token)
-          .setDeveloperKey(_driveOAuthConfig.api_key)
-          .setCallback(data => {
-            if (data.action === google.picker.Action.PICKED)
-              document.getElementById(inputId).value = `https://drive.google.com/drive/folders/${data.docs[0].id}`;
-          })
-          .build();
-        picker.setVisible(true);
-      }).catch(() => showToast('❌', 'Impossible d\'ouvrir le sélecteur Drive'));
-    });
-  } else {
-    _openDriveBrowser('folder', inputId);
-  }
+  _openDriveBrowser('folder', inputId);
 }
 
 function openDriveFilePicker() {
-  if (_driveOAuthConfig.api_key) {
-    _loadPickerApi(() => {
-      authFetch('/api/drive/oauth/token').then(r => r.json()).then(({ access_token }) => {
-        const view = new google.picker.DocsView()
-          .setIncludeFolders(false)
-          .setMimeTypes([
-            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-            'application/vnd.ms-excel', 'text/csv',
-            'application/vnd.oasis.opendocument.spreadsheet',
-          ].join(','));
-        const picker = new google.picker.PickerBuilder()
-          .addView(view)
-          .setOAuthToken(access_token)
-          .setDeveloperKey(_driveOAuthConfig.api_key)
-          .setCallback(data => {
-            if (data.action === google.picker.Action.PICKED)
-              document.getElementById('driveDataFileUrl').value = data.docs[0].id;
-          })
-          .build();
-        picker.setVisible(true);
-      }).catch(() => showToast('❌', 'Impossible d\'ouvrir le sélecteur Drive'));
-    });
-  } else {
-    _openDriveBrowser('file', 'driveDataFileUrl');
-  }
+  _openDriveBrowser('file', 'driveDataFileUrl');
 }
 
-// ── Custom Drive Browser (fallback when no GOOGLE_API_KEY) ──────────────────
+// ── Custom Drive Browser ─────────────────────────────────────────────────────
 
 let _driveBrowserTarget = null; // 'folder' | 'file'
 let _driveBrowserInputId = null;
@@ -6538,7 +6496,7 @@ async function _driveBrowserLoad(folderId) {
         ? new Date(f.modifiedTime).toLocaleDateString('fr-FR', {day:'2-digit',month:'short',year:'numeric'})
         : '';
       const escId = f.id.replace(/'/g,"\\'");
-      const escName = f.name.replace(/'/g,"\\'");
+      const escName = f.name.replace(/'/g,"\\'").replace(/"/g,'&quot;');
       const click = isFolder
         ? `_driveBrowserEnter('${escId}','${escName}')`
         : isSelectableFile ? `_driveBrowserSelectFile('${escId}','${escName}')` : '';
