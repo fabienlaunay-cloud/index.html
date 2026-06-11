@@ -258,21 +258,35 @@ async def sitemap():
         return Response(content=f.read(), media_type="application/xml")
 
 
-# ── Favicon (Google Search requires a real URL, not a data URI) ───────────────
+# ── Favicon (Google Search needs a real PNG/ICO ≥48px, with correct MIME) ─────
 
 _FAVICON_SVG = b"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="6" fill="#764BA2"/><path d="M16 4L5 9.5l11 5.5 11-5.5L16 4z" stroke="white" stroke-width="1.8" stroke-linejoin="round" fill="none"/><path d="M5 22l11 5.5 11-5.5M5 16l11 5.5 11-5.5" stroke="white" stroke-width="1.8" stroke-linejoin="round" fill="none"/></svg>"""
 
+def _serve_static_icon(path: str, media_type: str):
+    try:
+        with open(path, "rb") as f:
+            return Response(content=f.read(), media_type=media_type,
+                            headers={"Cache-Control": "public, max-age=86400"})
+    except FileNotFoundError:
+        return Response(content=_FAVICON_SVG, media_type="image/svg+xml",
+                        headers={"Cache-Control": "public, max-age=86400"})
+
 @app.get("/favicon.svg", include_in_schema=False)
 async def favicon_svg():
-    from fastapi.responses import Response
     return Response(content=_FAVICON_SVG, media_type="image/svg+xml",
                     headers={"Cache-Control": "public, max-age=86400"})
 
 @app.get("/favicon.ico", include_in_schema=False)
 async def favicon_ico():
-    from fastapi.responses import Response
-    return Response(content=_FAVICON_SVG, media_type="image/svg+xml",
-                    headers={"Cache-Control": "public, max-age=86400"})
+    return _serve_static_icon("frontend/favicon.ico", "image/x-icon")
+
+@app.get("/favicon-96.png", include_in_schema=False)
+async def favicon_png96():
+    return _serve_static_icon("frontend/favicon-96.png", "image/png")
+
+@app.get("/favicon-192.png", include_in_schema=False)
+async def favicon_png192():
+    return _serve_static_icon("frontend/favicon-192.png", "image/png")
 
 
 # ── CoBrowse config ───────────────────────────────────────────────────────────
