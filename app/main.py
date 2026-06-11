@@ -2127,10 +2127,36 @@ ITEM HIGHLIGHTS ACTUEL : {item_highlights or "(vide)"}"""
         system=[{"type": "text", "text": _REFORMAT_SYSTEM, "cache_control": {"type": "ephemeral"}}],
         messages=[{"role": "user", "content": prompt}],
     )
-    raw = resp.content[0].text.strip()
+    # Extract text from first text block (skip thinking blocks if any)
+    raw = ""
+    for block in (resp.content or []):
+        txt = getattr(block, "text", None)
+        if txt and txt.strip():
+            raw = txt.strip()
+            break
+
+    # Strip markdown code fences if present
     raw = _re_rf.sub(r'^```(?:json)?\s*', '', raw, flags=_re_rf.MULTILINE)
-    raw = _re_rf.sub(r'\s*```$', '', raw, flags=_re_rf.MULTILINE).strip()
-    data = _json.loads(raw)
+    raw = _re_rf.sub(r'\s*```\s*$', '', raw, flags=_re_rf.MULTILINE).strip()
+
+    # Try direct JSON parse; if it fails, extract first {...} block from the text
+    data = None
+    try:
+        data = _json.loads(raw)
+    except _json.JSONDecodeError:
+        log.warning("[reformat_title] JSON parse failed. raw=%r", raw[:300])
+        m = _re_rf.search(r'\{[^{}]*"title"[^{}]*\}', raw, _re_rf.DOTALL)
+        if m:
+            try:
+                data = _json.loads(m.group())
+            except _json.JSONDecodeError:
+                pass
+
+    if not data:
+        # Last resort: truncate original title intelligently at word boundary
+        short = title[:75].rsplit(" ", 1)[0] if len(title) > 75 else title
+        return _scored(short, (item_highlights or "")[:125])
+
     # Enforce hard limits server-side regardless of model output
     return _scored(
         str(data.get("title", title))[:75],
