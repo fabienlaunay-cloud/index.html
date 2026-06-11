@@ -3856,7 +3856,7 @@ function _renderBatchSelector() {
       const active = i === _activeBatchIdx;
       return `<button onclick="_switchBatch(${i})" class="group flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium border transition-all ${active ? 'bg-purple-600 text-white border-purple-600 shadow-sm' : 'bg-white text-gray-600 border-gray-200 hover:border-purple-300 hover:text-purple-700'}">
         <span>${srcIcon[b.source]||'📄'}</span>
-        <span class="max-w-[110px] truncate">${b.label}</span>
+        <span class="max-w-[110px] truncate">${_esc(b.label)}</span>
         <span class="${active?'opacity-70':'text-gray-400'}">${n} fiche${n>1?'s':''}</span>
         <span onclick="event.stopPropagation();_deleteBatch(${i})" class="ml-0.5 ${active?'text-white/60 hover:text-white':'text-gray-300 hover:text-red-500'} font-bold cursor-pointer transition-colors" title="Fermer cette session">✕</span>
       </button>`;
@@ -4406,35 +4406,36 @@ function renderUsers(users) {
     const activeClass = u.is_active
       ? 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100'
       : 'bg-gray-100 text-gray-400 border-gray-200 hover:bg-gray-200';
+    const ea = _escAttr(u.email);
     const amazonBadge = u.has_amazon
       ? `<span title="Seller Central connecté" class="text-xs px-2 py-1 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 font-medium shrink-0 flex items-center gap-1"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Amazon</span>`
-      : `<span title="Seller Central non connecté — relancer l'onboarding" class="text-xs px-2 py-1 rounded-lg bg-amber-50 text-amber-600 border border-amber-200 font-medium shrink-0 cursor-pointer hover:bg-amber-100 transition" onclick="resendInvite('${u.email}')">⚠ Amazon</span>`;
+      : `<span title="Seller Central non connecté — relancer l'onboarding" class="text-xs px-2 py-1 rounded-lg bg-amber-50 text-amber-600 border border-amber-200 font-medium shrink-0 cursor-pointer hover:bg-amber-100 transition" onclick="resendInvite('${ea}')">⚠ Amazon</span>`;
     return `
     <div class="flex items-center gap-2 p-4 bg-gray-50 rounded-xl border border-gray-100 hover:bg-white transition flex-wrap">
       <div class="w-9 h-9 rounded-full ${u.is_active ? 'bg-purple-100' : 'bg-gray-200'} flex items-center justify-center font-bold text-sm ${u.is_active ? 'text-purple-700' : 'text-gray-400'} shrink-0">
-        ${(u.name || u.email).charAt(0).toUpperCase()}
+        ${_esc(u.name || u.email).charAt(0).toUpperCase()}
       </div>
       <div class="flex-1 min-w-0">
-        <p class="font-medium text-gray-800 text-sm truncate">${u.name || '—'}</p>
-        <p class="text-gray-400 text-xs truncate">${u.email}</p>
+        <p class="font-medium text-gray-800 text-sm truncate">${_esc(u.name || '—')}</p>
+        <p class="text-gray-400 text-xs truncate">${_esc(u.email)}</p>
       </div>
       ${amazonBadge}
-      <select onchange="changePlan('${u.email}', this.value)" class="text-xs border border-gray-200 rounded-lg px-2 py-1.5 ${pc} font-medium cursor-pointer shrink-0">
+      <select onchange="changePlan('${ea}', this.value)" class="text-xs border border-gray-200 rounded-lg px-2 py-1.5 ${pc} font-medium cursor-pointer shrink-0">
         <option value="starter" ${plan === 'starter' ? 'selected' : ''}>Starter</option>
         <option value="business" ${plan === 'business' ? 'selected' : ''}>Business</option>
         <option value="scale" ${plan === 'scale' ? 'selected' : ''}>Scale</option>
         <option value="maintenance" ${plan === 'maintenance' ? 'selected' : ''}>Pro / Maintenance</option>
       </select>
-      <button onclick="toggleUser('${u.email}', ${u.is_active ? 0 : 1})" class="text-xs px-3 py-1.5 rounded-lg border font-medium transition shrink-0 ${activeClass}">
+      <button onclick="toggleUser('${ea}', ${u.is_active ? 0 : 1})" class="text-xs px-3 py-1.5 rounded-lg border font-medium transition shrink-0 ${activeClass}">
         ${u.is_active ? '✓ Actif' : '✗ Inactif'}
       </button>
-      <button onclick="toggleAdmin('${u.email}', ${u.is_admin ? 0 : 1})" title="${u.is_admin ? 'Révoquer le rôle admin' : 'Promouvoir en admin'}" class="text-xs px-2 py-1.5 rounded-lg border transition shrink-0 ${u.is_admin ? 'bg-amber-50 text-amber-600 border-amber-200 hover:bg-amber-100' : 'bg-gray-50 text-gray-400 border-gray-200 hover:bg-amber-50 hover:text-amber-500'}">
+      <button onclick="toggleAdmin('${ea}', ${u.is_admin ? 0 : 1})" title="${u.is_admin ? 'Révoquer le rôle admin' : 'Promouvoir en admin'}" class="text-xs px-2 py-1.5 rounded-lg border transition shrink-0 ${u.is_admin ? 'bg-amber-50 text-amber-600 border-amber-200 hover:bg-amber-100' : 'bg-gray-50 text-gray-400 border-gray-200 hover:bg-amber-50 hover:text-amber-500'}">
         ${u.is_admin ? '👑 Admin' : '👑'}
       </button>
-      <button onclick="resendInvite('${u.email}')" title="Renvoyer le lien d'invitation" class="text-purple-400 hover:text-purple-600 hover:bg-purple-50 text-xs px-2 py-1.5 rounded-lg transition shrink-0">
+      <button onclick="resendInvite('${ea}')" title="Renvoyer le lien d'invitation" class="text-purple-400 hover:text-purple-600 hover:bg-purple-50 text-xs px-2 py-1.5 rounded-lg transition shrink-0">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
       </button>
-      <button onclick="deleteUser('${u.email}')" class="text-red-400 hover:text-red-600 hover:bg-red-50 text-xs px-2 py-1.5 rounded-lg transition shrink-0"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg></button>
+      <button onclick="deleteUser('${ea}')" class="text-red-400 hover:text-red-600 hover:bg-red-50 text-xs px-2 py-1.5 rounded-lg transition shrink-0"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg></button>
     </div>`;
   }).join('');
 }
@@ -5449,7 +5450,7 @@ async function _sessLoadList() {
                   + ' ' + dt.toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
       return `<div style="border:1px solid rgba(124,58,237,0.15);border-radius:14px;padding:12px;display:flex;align-items:center;gap:12px;cursor:pointer;transition:background 0.2s,border-color 0.2s" onmouseover="this.style.background='rgba(124,58,237,0.1)';this.style.borderColor='rgba(124,58,237,0.3)'" onmouseout="this.style.background='transparent';this.style.borderColor='rgba(124,58,237,0.15)'">
         <div class="flex-1 min-w-0">
-          <p style="font-weight:600;font-size:13px;color:rgba(255,255,255,0.9)" class="truncate">${s.name}</p>
+          <p style="font-weight:600;font-size:13px;color:rgba(255,255,255,0.9)" class="truncate">${_esc(s.name)}</p>
           <p style="font-size:11px;color:rgba(255,255,255,0.4);margin-top:2px">${label}</p>
         </div>
         <button onclick="_sessLoad('${s.id}')" style="flex-shrink:0;font-size:11px;font-weight:600;color:rgba(167,139,250,0.9);background:rgba(124,58,237,0.15);border:1px solid rgba(124,58,237,0.3);border-radius:8px;padding:6px 12px;transition:background 0.2s" onmouseover="this.style.background='rgba(124,58,237,0.28)'" onmouseout="this.style.background='rgba(124,58,237,0.15)'">Charger</button>
@@ -6246,6 +6247,11 @@ function deleteListing(idx) {
 }
 
 function _esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+// For HTML attribute values (title="", class="" etc.) — encodes ' as &#39;
+function _escAttr(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+// For values inside onclick="func('${_escOnclick(val)}')" — backslash-escapes ' for JS,
+// then encodes " and & < > so the HTML attribute itself can't be broken.
+function _escOnclick(s) { return String(s||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
 function renderImages(container, data) {
   const hasImages = data.openai_configured;
@@ -6553,8 +6559,8 @@ async function _driveBrowserLoad(folderId) {
       const date = f.modifiedTime
         ? new Date(f.modifiedTime).toLocaleDateString('fr-FR', {day:'2-digit',month:'short',year:'numeric'})
         : '';
-      const escId = f.id.replace(/'/g,"\\'");
-      const escName = f.name.replace(/'/g,"\\'").replace(/"/g,'&quot;');
+      const escId = _escOnclick(f.id);
+      const escName = _escOnclick(f.name);
       const click = isFolder
         ? `_driveBrowserEnter('${escId}','${escName}')`
         : isSelectableFile ? `_driveBrowserSelectFile('${escId}','${escName}')` : '';
@@ -6597,7 +6603,7 @@ function _driveBrowserRenderBreadcrumb() {
     const isLast = i === _driveBrowserStack.length - 1;
     return isLast
       ? `<span style="color:rgba(255,255,255,0.75);font-weight:600">${_escHtml(s.name)}</span>`
-      : `<button onclick="_driveBrowserNavigate('${s.id.replace(/'/g,"\\'")}','${s.name.replace(/'/g,"\\'")}')" style="color:rgba(124,58,237,0.75)" class="hover:underline">${_escHtml(s.name)}</button><span style="color:rgba(255,255,255,0.2);margin:0 3px">/</span>`;
+      : `<button onclick="_driveBrowserNavigate('${_escOnclick(s.id)}','${_escOnclick(s.name)}')" style="color:rgba(124,58,237,0.75)" class="hover:underline">${_escHtml(s.name)}</button><span style="color:rgba(255,255,255,0.2);margin:0 3px">/</span>`;
   }).join('');
 }
 
@@ -6776,7 +6782,7 @@ function _renderDriveResults(data) {
             <span class="text-base flex-shrink-0">${extIcon(f.mime_type)}</span>
             <span class="text-xs text-gray-700 truncate font-medium">${_escHtml(f.name)}</span>
           </div>
-          <button onclick="importDriveFile('${_escHtml(f.file_id)}','${_escHtml(f.name.replace(/'/g,''))}','${_escHtml(f.mime_type)}')"
+          <button onclick="importDriveFile('${_escOnclick(f.file_id)}','${_escOnclick(f.name)}','${_escOnclick(f.mime_type)}')"
             class="flex-shrink-0 text-xs bg-purple-600 hover:bg-purple-700 text-white rounded-lg px-2.5 py-1 font-semibold transition">
             Importer
           </button>
