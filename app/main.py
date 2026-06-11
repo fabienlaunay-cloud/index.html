@@ -1,5 +1,6 @@
 import os
 import io
+import re
 import json
 import time
 import asyncio
@@ -2174,10 +2175,31 @@ _TM_CAT_COLS    = ("product-type", "product_type", "category", "catégorie", "ca
 
 def _tm_find_col(headers: list, candidates: tuple) -> Optional[int]:
     low = [str(h or "").strip().lower() for h in headers]
+    # Exact match first
     for cand in candidates:
         if cand in low:
             return low.index(cand)
+    # Fallback: tolerate punctuation/space variants (e.g. "item name", "item_name",
+    # "nom de l'article") by normalising separators to '-'.
+    def _norm(s: str) -> str:
+        return re.sub(r"[\s_]+", "-", s.strip().lower()).strip("-")
+    low_n = [_norm(h) for h in low]
+    for cand in candidates:
+        cn = _norm(cand)
+        if cn in low_n:
+            return low_n.index(cn)
     return None
+
+
+def _tm_find_header_row(data_rows: list) -> int:
+    """Amazon reports & category templates often carry metadata/label rows before
+    the real header (e.g. row 1 = 'TemplateType=...', then technical field names a
+    few rows down). Scan the first rows and return the index of the one that holds
+    a recognisable title column — falling back to row 0."""
+    for i, row in enumerate(data_rows[:15]):
+        if _tm_find_col(list(row), _TM_TITLE_COLS) is not None:
+            return i
+    return 0
 
 
 @app.post("/api/title-migration/parse")
@@ -2214,18 +2236,22 @@ async def title_migration_parse(payload: TitleMigrationParseRequest, request: Re
     if not data_rows:
         raise HTTPException(422, "Fichier vide")
 
-    headers = [str(h or "") for h in data_rows[0]]
+    # Amazon files may carry metadata/label rows before the real header — locate it.
+    header_idx = _tm_find_header_row(data_rows)
+    headers = [str(h or "") for h in data_rows[header_idx]]
     sku_i   = _tm_find_col(headers, _TM_SKU_COLS)
     title_i = _tm_find_col(headers, _TM_TITLE_COLS)
     if title_i is None:
+        preview = ", ".join(h for h in headers[:12] if h.strip()) or "(aucune colonne lisible)"
         raise HTTPException(422, "Colonne titre introuvable — le fichier doit contenir une colonne "
-                                 "'item-name' (rapport Seller Central) ou 'titre'/'title'")
+                                 "'item-name' (rapport Seller Central) ou 'titre'/'title'. "
+                                 f"Colonnes détectées : {preview}")
     asin_i  = _tm_find_col(headers, _TM_ASIN_COLS)
     brand_i = _tm_find_col(headers, _TM_BRAND_COLS)
     cat_i   = _tm_find_col(headers, _TM_CAT_COLS)
 
     MAX_ROWS = 2000
-    for r in data_rows[1:]:
+    for r in data_rows[header_idx + 1:]:
         if len(rows) >= MAX_ROWS:
             break
         def _cell(i):
