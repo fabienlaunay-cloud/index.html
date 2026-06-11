@@ -23,7 +23,8 @@ def to_csv_bytes(listings: List[AmazonListing]) -> bytes:
     if not listings:
         return b""
     fieldnames = [
-        "sku", "marketplace", "title", "bullet_point_1", "bullet_point_2",
+        "sku", "marketplace", "title", "item_highlights",
+        "bullet_point_1", "bullet_point_2",
         "bullet_point_3", "bullet_point_4", "bullet_point_5",
         "description", "backend_keywords", "brand", "category",
         "price", "ean", "seo_score",
@@ -36,6 +37,7 @@ def to_csv_bytes(listings: List[AmazonListing]) -> bytes:
             "sku": listing.sku,
             "marketplace": listing.marketplace.value,
             "title": listing.title,
+            "item_highlights": getattr(listing, "item_highlights", "") or "",
             "bullet_point_1": bullets[0],
             "bullet_point_2": bullets[1],
             "bullet_point_3": bullets[2],
@@ -78,6 +80,7 @@ def to_amazon_flat_file_bytes(listings: List[AmazonListing]) -> bytes:
         "item-sku",
         "update-delete",
         "item-name",
+        "item-highlights",
         "brand-name",
         "manufacturer",
         "item-type",
@@ -105,6 +108,7 @@ def to_amazon_flat_file_bytes(listings: List[AmazonListing]) -> bytes:
             listing.sku,
             "a",                                        # add / partial-update
             listing.title,
+            getattr(listing, "item_highlights", "") or "",
             listing.brand,
             listing.brand,
             listing.category.lower().replace(" ", "_") or "home",

@@ -140,7 +140,7 @@ Réponds UNIQUEMENT en JSON valide (pas de markdown, pas de texte avant/après) 
     {{"term": "[mot-clé]", "type": "principale|longue_traine|LSI", "impact": "haute|moyenne|faible"}},
     {{"term": "...", "type": "...", "impact": "..."}}
   ],
-  "title_tip": "[1 conseil concret pour améliorer ce titre — avec exemple de reformulation]",
+  "title_tip": "[1 conseil concret pour améliorer ce titre. NOUVELLE POLITIQUE AMAZON (27/07/2026) : titre ≤ 75 caractères obligatoire. Si le titre dépasse 75 car., propose une version raccourcie ≤ 75 car. et suggère de déplacer le surplus vers le champ Item Highlights (125 car.)]",
   "bullets_analysis": [
     {{"index": 0, "status": "ok|improve", "comment": "[feedback court si improve]"}}
   ],

@@ -101,6 +101,7 @@ _EXACT_MAP = {
     "manufacturer":                           lambda l: l.brand,
     "part_number":                            lambda l: l.sku,
     "item_name":                              lambda l: l.title,
+    "item_highlights":                        lambda l: getattr(l, "item_highlights", "") or "",
     "product_description":                    lambda l: _strip_html(l.description),
     "bullet_point1":                          lambda l: l.bullet_points[0] if len(l.bullet_points) > 0 else "",
     "bullet_point2":                          lambda l: l.bullet_points[1] if len(l.bullet_points) > 1 else "",

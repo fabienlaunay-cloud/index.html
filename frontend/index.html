@@ -673,7 +673,7 @@
               <td class="py-4 px-6 text-center text-purple-700 font-semibold bg-purple-50">✓ Intégré nativement</td>
             </tr>
             <tr>
-              <td class="py-4 pr-6 text-gray-700 font-medium">Structure titre ≤ 200 car., 5 bullets, keywords ≤ 249 car.</td>
+              <td class="py-4 pr-6 text-gray-700 font-medium">Titre ≤ 75 car. + Item Highlights ≤ 125 car. (norme Amazon 27/07/2026), 5 bullets, keywords ≤ 249 car.</td>
               <td class="py-4 px-4 text-center text-gray-400">✗ Non vérifiée</td>
               <td class="py-4 px-6 text-center text-purple-700 font-semibold bg-purple-50">✓ Contrôlée automatiquement</td>
             </tr>
@@ -1349,9 +1349,9 @@
           <div>
             <div class="flex items-center justify-between mb-1">
               <label class="text-xs font-medium text-gray-500 uppercase tracking-wide">Titre</label>
-              <span id="auditTitleLen" class="text-xs text-gray-400">0/200</span>
+              <span id="auditTitleLen" class="text-xs text-gray-400">0/75</span>
             </div>
-            <textarea id="auditTitle" rows="2" oninput="document.getElementById('auditTitleLen').textContent=this.value.length+'/200';document.getElementById('auditTitleLen').className='text-xs '+(this.value.length>200?'text-red-500':this.value.length>150?'text-green-600':'text-gray-400')"
+            <textarea id="auditTitle" rows="2" oninput="document.getElementById('auditTitleLen').textContent=this.value.length+'/75';document.getElementById('auditTitleLen').className='text-xs '+(this.value.length>75?'text-red-500':this.value.length>=45?'text-green-600':'text-gray-400')"
               class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm resize-none focus:outline-none focus:border-purple-400"
               placeholder="Copiez-collez le titre Amazon complet…"></textarea>
           </div>
@@ -3272,7 +3272,8 @@ let _pendingPreviewData = null; // preview API response held while modal is open
 let _savedMappings = JSON.parse(localStorage.getItem('synqio_col_mappings') || '{}');
 
 // ── Amazon limits & live validation ──────────────────────────────────────────
-const _AMZ = { title: 200, bullet: 500, desc: 2000, kw: 249 }; // kw in bytes
+// Amazon policy (effective 2026-07-27): title ≤ 75 chars, new Item Highlights field ≤ 125 chars
+const _AMZ = { title: 75, highlights: 125, bullet: 500, desc: 2000, kw: 249 }; // kw in bytes
 
 // Patterns forbidden in Amazon titles
 const _AMZ_FORBIDDEN = [
@@ -3286,15 +3287,35 @@ const _AMZ_FORBIDDEN = [
 
 function _byteLen(str) { return new TextEncoder().encode(str || '').length; }
 
+function _updateTitleCounter(idx) {
+  const el = document.getElementById(`edit-title-${idx}`);
+  const c  = document.getElementById(`title-count-${idx}`);
+  if (!el || !c) return;
+  c.textContent = el.value.length;
+  c.parentElement.className = 'text-[11px] mt-0.5 ' + (el.value.length > _AMZ.title ? 'text-red-500' : 'text-gray-400');
+}
+
+function _updateHighlightsCounter(idx) {
+  const el = document.getElementById(`edit-highlights-${idx}`);
+  const c  = document.getElementById(`highlights-count-${idx}`);
+  if (!el || !c) return;
+  c.textContent = el.value.length;
+  c.parentElement.className = 'text-[11px] mt-0.5 ' + (el.value.length > _AMZ.highlights ? 'text-red-500' : 'text-gray-400');
+}
+
 function _validateListing(listing) {
   const issues = [];
   const title = listing.title || '';
+  const highlights = listing.item_highlights || '';
   const kw    = listing.backend_keywords || '';
-  // Title length
+  // Title length (new Amazon limit: 75 chars from 2026-07-27)
   if (title.length > _AMZ.title)
-    issues.push({ level:'error', field:'title', msg:`Titre trop long : ${title.length}/${_AMZ.title} car.` });
-  else if (title.length > 150)
-    issues.push({ level:'warn',  field:'title', msg:`Titre long : ${title.length}/${_AMZ.title} car.` });
+    issues.push({ level:'error', field:'title', msg:`Titre trop long : ${title.length}/${_AMZ.title} car. (limite Amazon 27/07/2026)` });
+  else if (title.length > _AMZ.title * 0.93)
+    issues.push({ level:'warn',  field:'title', msg:`Titre proche de la limite : ${title.length}/${_AMZ.title} car.` });
+  // Item Highlights length
+  if (highlights.length > _AMZ.highlights)
+    issues.push({ level:'error', field:'highlights', msg:`Item Highlights trop long : ${highlights.length}/${_AMZ.highlights} car.` });
   // Forbidden words in title
   for (const { re, label } of _AMZ_FORBIDDEN) {
     const m = title.match(re);
@@ -5877,8 +5898,22 @@ function buildCardHTML(listing, idx, editMode) {
             ${editMode ? '<span class="text-xs text-purple-600 font-medium">Mode édition</span>' : ''}
           </div>
           ${editMode
-            ? `<input id="edit-title-${idx}" value="${listing.title.replace(/"/g,'&quot;')}" class="w-full border border-purple-200 rounded-lg px-3 py-1.5 text-sm font-semibold text-gray-900 focus:ring-2 focus:ring-purple-300 outline-none">`
-            : `<h3 class="font-semibold text-gray-900 text-sm">${listing.title}</h3>`}
+            ? `<input id="edit-title-${idx}" value="${(listing.title||'').replace(/"/g,'&quot;')}" maxlength="75" oninput="_updateTitleCounter(${idx})" class="w-full border border-purple-200 rounded-lg px-3 py-1.5 text-sm font-semibold text-gray-900 focus:ring-2 focus:ring-purple-300 outline-none">
+               <p class="text-[11px] mt-0.5 ${(listing.title||'').length > 75 ? 'text-red-500' : 'text-gray-400'}"><span id="title-count-${idx}">${(listing.title||'').length}</span>/75 caractères (titre)</p>`
+            : `<h3 class="font-semibold text-gray-900 text-sm">${_esc(listing.title)}</h3>
+               <p class="text-[11px] text-gray-400 mt-0.5">${(listing.title||'').length}/75 car.${(listing.title||'').length > 75 ? ' <span class="text-red-500 font-medium">⚠ dépasse la limite Amazon</span>' : ''}</p>`}
+          ${editMode
+            ? `<div class="mt-2">
+                 <label class="text-[11px] font-medium text-purple-600">Item Highlights <span class="text-gray-400 font-normal">(nouveau champ Amazon — 125 car.)</span></label>
+                 <textarea id="edit-highlights-${idx}" rows="2" maxlength="125" oninput="_updateHighlightsCounter(${idx})" placeholder="Bénéfices clés en texte continu, sans puces — indexé par Amazon" class="w-full border border-purple-200 rounded-lg px-3 py-1.5 text-xs text-gray-800 resize-none focus:ring-2 focus:ring-purple-300 outline-none">${_esc(listing.item_highlights||'')}</textarea>
+                 <p class="text-[11px] mt-0.5 ${(listing.item_highlights||'').length > 125 ? 'text-red-500' : 'text-gray-400'}"><span id="highlights-count-${idx}">${(listing.item_highlights||'').length}</span>/125 caractères</p>
+               </div>`
+            : (listing.item_highlights
+                ? `<div class="mt-1.5 bg-amber-50 border border-amber-100 rounded-lg px-2.5 py-1.5">
+                     <p class="text-[10px] font-semibold text-amber-700 uppercase tracking-wide mb-0.5">Item Highlights</p>
+                     <p class="text-xs text-gray-700 leading-snug">${_esc(listing.item_highlights)}</p>
+                   </div>`
+                : '')}
         </div>
         <div class="flex flex-col items-center gap-2 flex-shrink-0">
           <button onclick="event.stopPropagation();deleteListing(${idx})" class="delete-listing-btn w-6 h-6 flex items-center justify-center rounded-full text-gray-300 hover:text-red-500 hover:bg-red-50 transition text-sm font-bold leading-none" title="Supprimer cette fiche">✕</button>
@@ -6063,12 +6098,14 @@ function saveEdit(idx) {
   const listing = generatedListings[idx];
   const skuEl   = document.getElementById(`edit-sku-${idx}`);
   const titleEl = document.getElementById(`edit-title-${idx}`);
+  const highlightsEl = document.getElementById(`edit-highlights-${idx}`);
   const descEl  = document.getElementById(`edit-desc-${idx}`);
   const kwEl    = document.getElementById(`edit-kw-${idx}`);
   const priceEl = document.getElementById(`edit-price-${idx}`);
   const eanEl   = document.getElementById(`edit-ean-${idx}`);
   if (skuEl  && skuEl.value.trim())  listing.sku   = skuEl.value.trim();
   if (titleEl) listing.title = titleEl.value.trim();
+  if (highlightsEl) listing.item_highlights = highlightsEl.value.trim();
   if (descEl)  listing.description = descEl.value.trim();
   if (kwEl)    listing.backend_keywords = kwEl.value.trim();
   if (priceEl) { const v = parseFloat(priceEl.value); listing.price = isNaN(v) ? listing.price : v; }
@@ -7852,6 +7889,7 @@ function openListingDetail(idx) {
   catEl.textContent = listing.category || '';
   catEl.className = listing.category ? 'text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded' : 'hidden';
   document.getElementById('dm-edit-title').value = listing.title || '';
+  document.getElementById('dm-edit-highlights').value = listing.item_highlights || '';
   document.getElementById('dm-edit-price').value = listing.price || '';
   document.getElementById('dm-edit-ean').value = listing.ean || '';
 
@@ -7885,7 +7923,8 @@ function openListingDetail(idx) {
   imgContainer.appendChild(imgDiv);
 
   // Attach live counters
-  _attachCounter(document.getElementById('dm-edit-title'), document.getElementById('dm-counter-title'), 200);
+  _attachCounter(document.getElementById('dm-edit-title'), document.getElementById('dm-counter-title'), _AMZ.title);
+  _attachCounter(document.getElementById('dm-edit-highlights'), document.getElementById('dm-counter-highlights'), _AMZ.highlights);
   (listing.bullet_points || []).forEach((_, bi) => {
     _attachCounter(document.getElementById(`dm-bullet-ta-${bi}`), document.getElementById(`dm-counter-bullet-${bi}`), 500);
   });
@@ -8401,11 +8440,13 @@ function _saveDetailToListing(idx) {
   const listing = generatedListings[idx];
   if (!listing) return;
   const titleEl = document.getElementById('dm-edit-title');
+  const highlightsEl = document.getElementById('dm-edit-highlights');
   const descEl  = document.getElementById('dm-edit-desc');
   const kwEl    = document.getElementById('dm-edit-kw');
   const priceEl = document.getElementById('dm-edit-price');
   const eanEl   = document.getElementById('dm-edit-ean');
   if (titleEl) listing.title = titleEl.value.trim();
+  if (highlightsEl) listing.item_highlights = highlightsEl.value.trim();
   if (descEl)  listing.description = descEl.value.trim();
   if (kwEl)    listing.backend_keywords = kwEl.value.trim();
   // Price/EAN only for non-parent listings
@@ -9103,9 +9144,12 @@ async function importFromUrl() {
           <span id="dm-marketplace" class="text-xs text-gray-400"></span>
           <span id="dm-category" class="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded hidden"></span>
         </div>
-        <label class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1 block">Titre</label>
-        <input id="dm-edit-title" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-semibold text-gray-900 focus:ring-2 focus:ring-purple-300 outline-none">
+        <label class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1 block">Titre <span class="text-gray-300 normal-case font-normal">(75 car. max — Amazon 27/07/2026)</span></label>
+        <input id="dm-edit-title" maxlength="75" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-semibold text-gray-900 focus:ring-2 focus:ring-purple-300 outline-none">
         <div id="dm-counter-title" class="text-xs text-right mt-0.5 text-gray-400"></div>
+        <label class="text-xs font-semibold text-purple-500 uppercase tracking-wide mt-2 mb-1 block">Item Highlights <span class="text-gray-300 normal-case font-normal">(nouveau champ Amazon — 125 car.)</span></label>
+        <textarea id="dm-edit-highlights" rows="2" maxlength="125" placeholder="Bénéfices clés en texte continu, sans puces — indexé par Amazon" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-xs text-gray-800 resize-none focus:ring-2 focus:ring-purple-300 outline-none"></textarea>
+        <div id="dm-counter-highlights" class="text-xs text-right mt-0.5 text-gray-400"></div>
       </div>
       <div class="flex items-center gap-3 flex-shrink-0">
         <div class="text-center">
@@ -10529,8 +10573,8 @@ function _auditApplyPrefillData(data, url) {
     document.getElementById('auditTitle').value = data.title;
     const tl = data.title.length;
     const lenEl = document.getElementById('auditTitleLen');
-    lenEl.textContent = tl + '/200';
-    lenEl.className = 'text-xs ' + (tl > 200 ? 'text-red-500' : tl > 150 ? 'text-green-600' : 'text-gray-400');
+    lenEl.textContent = tl + '/75';
+    lenEl.className = 'text-xs ' + (tl > 75 ? 'text-red-500' : tl >= 45 ? 'text-green-600' : 'text-gray-400');
   }
   // Clear all bullets first, then fill
   [0,1,2,3,4].forEach(i => { document.getElementById('auditB'+i).value = ''; });
@@ -10586,8 +10630,8 @@ function _auditLoadExample() {
   document.getElementById('auditTitle').value = ex.title;
   const tl = ex.title.length;
   const lenEl = document.getElementById('auditTitleLen');
-  lenEl.textContent = tl + '/200';
-  lenEl.className = 'text-xs ' + (tl > 150 ? 'text-green-600' : 'text-gray-400');
+  lenEl.textContent = tl + '/75';
+  lenEl.className = 'text-xs ' + (tl > 75 ? 'text-red-500' : tl >= 45 ? 'text-green-600' : 'text-gray-400');
   ex.bullets.forEach((b, i) => { document.getElementById('auditB'+i).value = b; });
   document.getElementById('auditKw').value = ex.backend_keywords;
   _auditKwCount(document.getElementById('auditKw'));
@@ -10823,8 +10867,8 @@ function _auditApply(field) {
     document.getElementById('auditTitle').value = value;
     const tl = String(value).length;
     const lenEl = document.getElementById('auditTitleLen');
-    lenEl.textContent = tl + '/200';
-    lenEl.className = 'text-xs ' + (tl > 200 ? 'text-red-500' : tl > 150 ? 'text-green-600' : 'text-gray-400');
+    lenEl.textContent = tl + '/75';
+    lenEl.className = 'text-xs ' + (tl > 75 ? 'text-red-500' : tl >= 45 ? 'text-green-600' : 'text-gray-400');
   } else if (field === 'bullets' && Array.isArray(value)) {
     value.forEach((b, i) => { if (i < 5) document.getElementById('auditB'+i).value = b; });
   } else if (field === 'keywords') {
@@ -11061,7 +11105,7 @@ function _abRenderComparison(data) {
   document.getElementById('abSkuBadge').textContent = sku || '';
   const titleA = va.title || '';
   document.getElementById('abTitleA').textContent = titleA;
-  document.getElementById('abTitleLenA').textContent = titleA.length + '/200 chars';
+  document.getElementById('abTitleLenA').textContent = titleA.length + '/75 chars';
   document.getElementById('abBulletsA').innerHTML = (va.bullet_points || []).map(b =>
     '<li class="flex gap-1.5"><span class="text-amber-400 flex-shrink-0 mt-0.5">&#x2022;</span><span>' + b + '</span></li>'
   ).join('');
@@ -11070,7 +11114,7 @@ function _abRenderComparison(data) {
   document.getElementById('abScoreA').textContent = 'Score ' + sA + '/100';
   const titleB = vb.title || '';
   document.getElementById('abTitleB').textContent = titleB;
-  document.getElementById('abTitleLenB').textContent = titleB.length + '/200 chars';
+  document.getElementById('abTitleLenB').textContent = titleB.length + '/75 chars';
   document.getElementById('abBulletsB').innerHTML = (vb.bullet_points || []).map(b =>
     '<li class="flex gap-1.5"><span class="text-blue-400 flex-shrink-0 mt-0.5">&#x2022;</span><span>' + b + '</span></li>'
   ).join('');

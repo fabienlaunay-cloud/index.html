@@ -90,11 +90,13 @@ async def generate_ab_variants(
                         raw = raw[start:end]
                 data = json.loads(raw)
                 data.setdefault("title", "")
+                data.setdefault("item_highlights", "")
                 data.setdefault("bullet_points", [])
                 data.setdefault("description", "")
                 data.setdefault("backend_keywords", "")
                 data["seo_score"] = _compute_seo_score(data, constraints)
                 data["title"] = str(data["title"])[: constraints["title_max"]]
+                data["item_highlights"] = str(data.get("item_highlights", ""))[: constraints.get("item_highlights_max", 125)]
                 data["bullet_points"] = list(data["bullet_points"])[: constraints["bullets"]]
                 if constraints["keywords_max"] > 0:
                     data["backend_keywords"] = str(data.get("backend_keywords", ""))[: constraints["keywords_max"]]

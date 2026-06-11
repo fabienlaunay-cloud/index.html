@@ -19,63 +19,72 @@ def get_client() -> anthropic.AsyncAnthropic:
 MARKETPLACE_CONSTRAINTS = {
     Marketplace.AMAZON_FR: {
         "lang": "français",
-        "title_max": 200,
+        "title_max": 75,
+        "item_highlights_max": 125,
         "bullets": 5,
         "keywords_max": 249,
         "platform": "Amazon.fr",
     },
     Marketplace.AMAZON_DE: {
         "lang": "allemand",
-        "title_max": 200,
+        "title_max": 75,
+        "item_highlights_max": 125,
         "bullets": 5,
         "keywords_max": 249,
         "platform": "Amazon.de",
     },
     Marketplace.AMAZON_IT: {
         "lang": "italien",
-        "title_max": 200,
+        "title_max": 75,
+        "item_highlights_max": 125,
         "bullets": 5,
         "keywords_max": 249,
         "platform": "Amazon.it",
     },
     Marketplace.AMAZON_ES: {
         "lang": "espagnol",
-        "title_max": 200,
+        "title_max": 75,
+        "item_highlights_max": 125,
         "bullets": 5,
         "keywords_max": 249,
         "platform": "Amazon.es",
     },
     Marketplace.AMAZON_UK: {
         "lang": "anglais",
-        "title_max": 200,
+        "title_max": 75,
+        "item_highlights_max": 125,
         "bullets": 5,
         "keywords_max": 249,
         "platform": "Amazon.co.uk",
     },
     Marketplace.AMAZON_NL: {
         "lang": "néerlandais",
-        "title_max": 200,
+        "title_max": 75,
+        "item_highlights_max": 125,
         "bullets": 5,
         "keywords_max": 249,
         "platform": "Amazon.nl",
     },
     Marketplace.AMAZON_SE: {
         "lang": "suédois",
-        "title_max": 200,
+        "title_max": 75,
+        "item_highlights_max": 125,
         "bullets": 5,
         "keywords_max": 249,
         "platform": "Amazon.se",
     },
     Marketplace.AMAZON_PL: {
         "lang": "polonais",
-        "title_max": 200,
+        "title_max": 75,
+        "item_highlights_max": 125,
         "bullets": 5,
         "keywords_max": 249,
         "platform": "Amazon.pl",
     },
     Marketplace.AMAZON_BE: {
         "lang": "français",
-        "title_max": 200,
+        "title_max": 75,
+        "item_highlights_max": 125,
         "bullets": 5,
         "keywords_max": 249,
         "platform": "Amazon.com.be",
@@ -88,13 +97,17 @@ def _build_system_prompt(constraints: dict) -> str:
 Ton objectif n'est PAS d'écrire du joli texte : c'est de communiquer une CONNAISSANCE PRODUIT STRUCTURÉE qu'Amazon peut interpréter — quoi, pour qui, quel problème, dans quel contexte d'achat.
 Tu génères du contenu en {constraints['lang']}, strictement conforme aux règles officielles Amazon.
 
-══ TITRE — RÈGLES OBLIGATOIRES ══
-Longueur : maximum {constraints['title_max']} caractères espaces compris. Viser ≤ 80 caractères (recommandation Amazon pour mobiles).
+══ TITRE — RÈGLES OBLIGATOIRES (NOUVELLE POLITIQUE AMAZON 27/07/2026) ══
+Longueur : MAXIMUM {constraints['title_max']} caractères espaces compris — limite STRICTE et non négociable.
+Le titre DOIT tenir en {constraints['title_max']} caractères. Compte les caractères avant de répondre. Un titre plus long sera tronqué.
 Front-load : le mot-clé principal doit apparaître en tête de titre.
 
-Ordre des informations :
-  Marque → Type de produit → Attribut clé → Couleur → Taille/Nb d'emballages → Numéro de modèle
-  Exemple : « Café Amazon Fresh Décaféiné Colombie Grains Entiers, Torréfié Moyen, 12 oz (Lot de 3) »
+Ordre des informations (en restant ≤ {constraints['title_max']} caractères, ne garder que l'essentiel) :
+  Marque → Type de produit → Attribut clé → Couleur → Taille/Contenance
+  Exemple (72 car.) : « Revlon Professional UniqOne - Masque Spray Sans Rinçage Rouge 150ml »
+
+Comme le titre est court, déplace les bénéfices secondaires et qualificatifs (vegan, nourrissant,
+multi-usages, public cible…) vers le champ "Item Highlights" ci-dessous — JAMAIS dans le titre.
 
 Caractères INTERDITS : ! $ ? _ {{ }} ^ ¬ ¦
 Ponctuation autorisée : tiret (-), barre oblique (/), virgule (,), esperluette (&), point (.)
@@ -105,6 +118,15 @@ Un même mot : maximum 2 occurrences (hors prépositions/articles/conjonctions).
 CONTENU INTERDIT dans le titre :
 - Mentions promotionnelles, superlatifs, commentaires subjectifs (N°1, best-seller, etc.)
 - HTML, caractères ASCII non-linguistiques (★, ©, ®, ™, Æ, Š…), URL, coordonnées
+
+══ ITEM HIGHLIGHTS — NOUVEAU CHAMP OBLIGATOIRE (politique 27/07/2026) ══
+Longueur : MAXIMUM {constraints['item_highlights_max']} caractères espaces compris — limite STRICTE.
+Format : texte continu, fluide, SANS puces ni listes. 1 à 3 phrases courtes.
+Rôle : champ INDEXABLE par le moteur de recherche, affiché sous le titre dans les résultats et sur la page produit.
+Il récupère les bénéfices et qualificatifs qui ne tiennent plus dans le titre court.
+Contenu : bénéfices clés + mots-clés secondaires intégrés naturellement + public/usage.
+Exemple (124 car.) : « Soin cheveux nourrissant et réparateur à formule vegan. Convient à tous types de cheveux. Traitement multi-bénéfices complet. »
+Interdit : prix, promotions, superlatifs (« meilleur », « unique »), HTML, caractères spéciaux interdits du titre.
 
 ══ BULLET POINTS ══
 - Exactement {constraints['bullets']} bullet points
@@ -243,8 +265,9 @@ Plateforme cible : {constraints['platform']}{bv_section}{improvement_section}
 
 CHECKLIST AVANT DE GÉNÉRER :
 — Amazon —
-1. Titre : mot-clé principal en tête (front-load), ≤ 80 chars si possible, aucun char interdit (! $ ? _ {{ }} ^)
-2. Titre : ordre Marque → Type → Attribut → Couleur → Taille/Modèle ; jamais tout en majuscules
+1. Titre : mot-clé principal en tête (front-load), ≤ {constraints['title_max']} chars OBLIGATOIRE (compter), aucun char interdit (! $ ? _ {{ }} ^)
+2. Titre : ordre Marque → Type → Attribut → Couleur → Taille ; jamais tout en majuscules
+2b. Item Highlights : ≤ {constraints['item_highlights_max']} chars, texte continu sans puces, bénéfices + mots-clés secondaires repris du titre raccourci
 3. Bullets : format BÉNÉFICE EN CAPITALES — preuve factuelle + 1 mot-clé secondaire naturel
 4. Backend keywords : zéro doublon avec titre/bullets, tout en minuscules, ≤ {constraints['keywords_max']} chars
 5. Aucun superlatif ni badge interdit dans aucun champ
@@ -263,7 +286,8 @@ Avant de rédiger, effectue mentalement l'analyse COSMO (intentions d'achat, att
 
 Génère la fiche produit optimisée au format JSON exact suivant :
 {{
-  "title": "...",
+  "title": "... (≤ {constraints['title_max']} caractères)",
+  "item_highlights": "... (texte continu, ≤ {constraints['item_highlights_max']} caractères)",
   "bullet_points": [
     "BÉNÉFICE 1 — preuve factuelle + mot-clé secondaire...",
     "BÉNÉFICE 2 — ...",
@@ -296,20 +320,33 @@ _STOP_WORDS = {"le","la","les","un","une","des","de","du","en","dans","sur","ave
 def _compute_seo_score(listing_data: dict, constraints: dict) -> int:
     score = 0
     title = listing_data.get("title", "")
+    highlights = listing_data.get("item_highlights", "")
     bullets = listing_data.get("bullet_points", [])
     desc = listing_data.get("description", "")
     kw = listing_data.get("backend_keywords", "")
+    title_max = constraints["title_max"]
+    highlights_max = constraints.get("item_highlights_max", 125)
 
-    # ── Titre (35 pts) ──────────────────────────────────────────────
+    # ── Titre (25 pts) ──────────────────────────────────────────────
     title_len = len(title)
     if title_len > 0:
         score += 5
-    if title_len <= constraints["title_max"]:
+    if title_len <= title_max:
+        score += 15   # conforme à la nouvelle limite stricte (75 car.)
+    elif title_len <= title_max + 25:
         score += 5
-    if title_len <= 80:
-        score += 10   # recommandation Amazon mobile
-    elif title_len <= 150:
+    # Bonus : exploite bien l'espace disponible sans le gaspiller
+    if title_max * 0.6 <= title_len <= title_max:
         score += 5
+
+    # ── Item Highlights (10 pts) ────────────────────────────────────
+    h_len = len(highlights)
+    if h_len > 0:
+        score += 4
+    if 0 < h_len <= highlights_max:
+        score += 4
+    if highlights_max * 0.6 <= h_len <= highlights_max:
+        score += 2
 
     # Pénalités titre
     if any(c in title for c in _FORBIDDEN_CHARS):
@@ -407,6 +444,8 @@ async def generate_listing(
 
             # Enforce hard limits
             data["title"] = data["title"][: constraints["title_max"]]
+            if data.get("item_highlights"):
+                data["item_highlights"] = data["item_highlights"][: constraints.get("item_highlights_max", 125)]
             data["bullet_points"] = data["bullet_points"][: constraints["bullets"]]
             if constraints["keywords_max"] > 0:
                 data["backend_keywords"] = data["backend_keywords"][: constraints["keywords_max"]]

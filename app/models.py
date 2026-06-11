@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from typing import Optional, List
 from enum import Enum
 
@@ -49,12 +49,32 @@ class VariationChild(BaseModel):
     variation_value: str = ""  # ex: "Rouge / L"
 
 
+# Amazon policy (effective 2026-07-27): titles ≤ 75 chars for all categories
+# except media; new indexable "Item highlights" field ≤ 125 chars.
+TITLE_MAX = 75
+ITEM_HIGHLIGHTS_MAX = 125
+
+
 class AmazonListing(BaseModel):
     sku: str
-    title: str = Field(..., max_length=200)
+    title: str
+    # New "Item highlights" field — continuous text (no bullets), indexable,
+    # shown under the title in search results and on the detail page.
+    item_highlights: str = ""
     bullet_points: List[str] = Field(..., min_length=1, max_length=5)
     description: str
     backend_keywords: str = Field(..., max_length=249)
+
+    @field_validator("title")
+    @classmethod
+    def _truncate_title(cls, v: str) -> str:
+        # Truncate rather than reject so older 200-char listings still publish.
+        return (v or "")[:TITLE_MAX]
+
+    @field_validator("item_highlights")
+    @classmethod
+    def _truncate_highlights(cls, v: str) -> str:
+        return (v or "")[:ITEM_HIGHLIGHTS_MAX]
     brand: str
     category: str
     price: Optional[float] = None
