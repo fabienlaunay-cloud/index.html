@@ -1,0 +1,685 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Effeuille — Un mot. Une muse. Devine pour dévoiler.</title>
+<meta name="description" content="Le jeu quotidien qui a du charme : devine le mot du jour, chaque essai défloute un peu plus la photo de la muse. Réservé aux adultes.">
+<meta property="og:title" content="Effeuille — devine pour dévoiler 🌹">
+<meta property="og:description" content="Un mot par jour, une muse par jour. Chaque essai défloute la photo. Sauras-tu la dévoiler ?">
+<meta property="og:type" content="website">
+<meta name="theme-color" content="#150810">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🌹</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,700;1,500&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #150810;
+    --bg-soft: #1f0d18;
+    --panel: #261020;
+    --line: #3d1c30;
+    --ink: #f3e3ea;
+    --ink-dim: #b08a9c;
+    --rose: #d33f5d;
+    --rose-deep: #a52745;
+    --gold: #d4a05f;
+    --gold-soft: #e8c697;
+    --ok: #4cae6e;
+    --tile: 52px;
+    font-size: 16px;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body {
+    background:
+      radial-gradient(1200px 600px at 50% -10%, #2b1022 0%, transparent 60%),
+      radial-gradient(900px 500px at 100% 100%, #1d0a16 0%, transparent 55%),
+      var(--bg);
+    color: var(--ink);
+    font-family: 'Jost', system-ui, sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  .wrap { width: 100%; max-width: 560px; padding: 0 14px 60px; }
+
+  /* ---------- Header ---------- */
+  header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 2px 10px; border-bottom: 1px solid var(--line); margin-bottom: 14px;
+  }
+  .logo { font-family: 'Playfair Display', serif; font-size: 1.7rem; font-weight: 700; letter-spacing: .04em; }
+  .logo em { color: var(--rose); font-style: normal; }
+  .logo small { display: block; font-family: 'Jost'; font-weight: 300; font-size: .68rem; letter-spacing: .14em; color: var(--ink-dim); text-transform: uppercase; }
+  .icons button {
+    background: none; border: 1px solid var(--line); color: var(--ink-dim);
+    width: 36px; height: 36px; border-radius: 50%; font-size: 1rem; cursor: pointer; margin-left: 8px;
+    transition: all .2s;
+  }
+  .icons button:hover { color: var(--gold); border-color: var(--gold); }
+
+  .meta { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 12px; color: var(--ink-dim); font-size: .85rem; letter-spacing: .05em; }
+  .meta b { color: var(--gold); font-weight: 500; }
+
+  /* ---------- Photo ---------- */
+  .photo-frame {
+    position: relative; width: min(100%, 400px); aspect-ratio: 4/4.6; margin: 0 auto 18px;
+    border-radius: 14px; overflow: hidden;
+    border: 1px solid var(--line);
+    box-shadow: 0 18px 50px -18px rgba(0,0,0,.8), 0 0 0 6px rgba(212,160,95,.05);
+    background: #000;
+  }
+  .photo {
+    position: absolute; inset: 0;
+    filter: blur(26px) saturate(.9);
+    transform: scale(1.12);
+    transition: filter 1.1s cubic-bezier(.22,.8,.3,1), transform 1.1s cubic-bezier(.22,.8,.3,1);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .photo.revealed { filter: blur(0) saturate(1.08); transform: scale(1); }
+  .photo-art { position: absolute; inset: 0; }
+  .photo .rose { font-size: 5.5rem; opacity: .85; text-shadow: 0 10px 40px rgba(0,0,0,.5); }
+  .photo-dim {
+    position: absolute; inset: 0; background: #0c0309; opacity: .5; pointer-events: none;
+    transition: opacity 1.1s ease;
+  }
+  .demo-badge {
+    position: absolute; top: 10px; left: 10px; z-index: 3;
+    background: rgba(12,3,9,.72); border: 1px solid var(--line); backdrop-filter: blur(4px);
+    color: var(--ink-dim); font-size: .62rem; letter-spacing: .12em; text-transform: uppercase;
+    padding: 4px 9px; border-radius: 20px;
+  }
+  .photo-overlay {
+    position: absolute; inset: 0; z-index: 2; display: none;
+    flex-direction: column; align-items: center; justify-content: flex-end;
+    padding: 18px; text-align: center; gap: 10px;
+    background: linear-gradient(to top, rgba(12,3,9,.85) 0%, transparent 55%);
+  }
+  .photo-overlay.show { display: flex; }
+  .reveal-badge {
+    font-family: 'Playfair Display', serif; font-size: 1.5rem; color: var(--gold-soft);
+    text-shadow: 0 2px 18px rgba(0,0,0,.8); animation: pop .7s cubic-bezier(.2,1.6,.4,1);
+  }
+  @keyframes pop { 0% { transform: scale(.6); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+  .veil-cta {
+    display: inline-block; background: linear-gradient(135deg, var(--rose), var(--rose-deep));
+    color: #fff; text-decoration: none; font-weight: 500; font-size: .95rem;
+    padding: 11px 20px; border-radius: 30px; box-shadow: 0 8px 24px -6px rgba(211,63,93,.55);
+    transition: transform .15s;
+  }
+  .veil-cta:hover { transform: translateY(-2px); }
+  .veil-note { color: var(--ink-dim); font-size: .78rem; }
+
+  /* ---------- Grid ---------- */
+  .grid { display: flex; flex-direction: column; gap: 6px; align-items: center; margin-bottom: 16px; }
+  .row { display: flex; gap: 6px; }
+  .row.shake { animation: shake .4s; }
+  @keyframes shake { 0%,100%{transform:translateX(0)} 20%{transform:translateX(-7px)} 40%{transform:translateX(7px)} 60%{transform:translateX(-5px)} 80%{transform:translateX(5px)} }
+  .tile {
+    width: var(--tile); height: var(--tile);
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Playfair Display', serif; font-size: min(1.45rem, calc(var(--tile) * 0.52)); font-weight: 700;
+    background: var(--bg-soft); border: 1px solid var(--line); border-radius: 8px;
+    color: var(--ink); text-transform: uppercase;
+    transition: background .35s, border-color .35s, transform .35s, border-radius .35s;
+  }
+  .tile.typed { border-color: var(--ink-dim); transform: scale(1.04); }
+  .tile.hint { color: var(--ink-dim); }
+  .tile.correct { background: linear-gradient(150deg, var(--rose), var(--rose-deep)); border-color: var(--rose); color: #fff; }
+  .tile.present { background: linear-gradient(150deg, var(--gold), #b5803f); border-color: var(--gold); color: #2a1505; border-radius: 50%; }
+  .tile.absent { background: #1a0b14; border-color: #2a1320; color: #6b4a59; }
+
+  /* ---------- Keyboard ---------- */
+  .kb { display: flex; flex-direction: column; gap: 7px; margin-bottom: 22px; }
+  .kb-row { display: flex; gap: 5px; justify-content: center; }
+  .key {
+    flex: 1; max-width: 46px; height: 52px; border-radius: 7px; border: none; cursor: pointer;
+    background: var(--panel); color: var(--ink); font-family: 'Jost'; font-size: .95rem; font-weight: 500;
+    transition: background .2s, color .2s;
+  }
+  .key:active { background: var(--line); }
+  .key.wide { max-width: 72px; font-size: .78rem; letter-spacing: .03em; }
+  .key.correct { background: var(--rose-deep); color: #fff; }
+  .key.present { background: #8a6230; color: #fff; }
+  .key.absent { background: #1a0b14; color: #5d4150; }
+
+  /* ---------- Muse card ---------- */
+  .muse-card {
+    background: linear-gradient(165deg, var(--panel), #1c0c17);
+    border: 1px solid var(--line); border-radius: 16px; padding: 22px 20px; text-align: center;
+    animation: rise .5s ease; margin-bottom: 20px;
+  }
+  @keyframes rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+  .muse-kicker { color: var(--gold); font-size: .7rem; letter-spacing: .22em; text-transform: uppercase; margin-bottom: 6px; }
+  .muse-card h2 { font-family: 'Playfair Display', serif; font-size: 1.5rem; }
+  .muse-card h2 span { display: block; font-family: 'Jost'; font-size: .85rem; font-weight: 400; color: var(--ink-dim); margin-top: 2px; }
+  .muse-bio { color: var(--ink-dim); font-size: .9rem; margin: 10px 0 16px; font-weight: 300; }
+  .answer-line { font-size: .9rem; color: var(--ink-dim); margin-bottom: 12px; }
+  .answer-line b { color: var(--gold-soft); font-family: 'Playfair Display', serif; letter-spacing: .08em; }
+  .muse-links { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+  .btn {
+    text-decoration: none; padding: 11px 22px; border-radius: 30px; font-weight: 500; font-size: .92rem;
+    transition: transform .15s; display: inline-block; cursor: pointer; border: none; font-family: 'Jost';
+  }
+  .btn:hover { transform: translateY(-2px); }
+  .btn-mym { background: linear-gradient(135deg, var(--rose), var(--rose-deep)); color: #fff; box-shadow: 0 8px 24px -8px rgba(211,63,93,.5); }
+  .btn-ghost { background: transparent; color: var(--ink); border: 1px solid var(--line); }
+  .micro { color: #7d5a6b; font-size: .68rem; margin-top: 12px; }
+  .after { border-top: 1px solid var(--line); margin-top: 18px; padding-top: 16px; }
+  .btn-share { background: linear-gradient(135deg, var(--gold), #b5803f); color: #2a1505; font-weight: 600; }
+  .next { color: var(--ink-dim); font-size: .85rem; margin-top: 12px; }
+  .next b { color: var(--gold-soft); font-variant-numeric: tabular-nums; }
+
+  /* ---------- Modals ---------- */
+  .modal-bg {
+    position: fixed; inset: 0; background: rgba(10,2,7,.82); backdrop-filter: blur(6px);
+    display: none; align-items: center; justify-content: center; z-index: 50; padding: 18px;
+  }
+  .modal-bg.show { display: flex; }
+  .modal {
+    background: linear-gradient(165deg, #2a1222, #1c0c17);
+    border: 1px solid var(--line); border-radius: 18px; padding: 28px 24px;
+    max-width: 420px; width: 100%; text-align: center; position: relative;
+    animation: rise .35s ease;
+  }
+  .modal h3 { font-family: 'Playfair Display', serif; font-size: 1.4rem; margin-bottom: 14px; }
+  .modal p { color: var(--ink-dim); font-size: .92rem; line-height: 1.55; margin-bottom: 12px; font-weight: 300; }
+  .modal .close {
+    position: absolute; top: 12px; right: 14px; background: none; border: none;
+    color: var(--ink-dim); font-size: 1.3rem; cursor: pointer;
+  }
+  .rules-line { display: flex; align-items: center; gap: 12px; text-align: left; margin-bottom: 12px; }
+  .rules-line .mini {
+    min-width: 38px; height: 38px; border-radius: 7px; display: flex; align-items: center; justify-content: center;
+    font-family: 'Playfair Display', serif; font-weight: 700; font-size: 1.1rem;
+  }
+  .rules-line p { margin: 0; font-size: .85rem; }
+
+  /* ---------- Age gate ---------- */
+  #ageGate { z-index: 100; }
+  #ageGate .rose-big { font-size: 3rem; margin-bottom: 10px; }
+  #ageGate .age-actions { display: flex; gap: 10px; justify-content: center; margin-top: 18px; flex-wrap: wrap; }
+
+  /* ---------- Stats ---------- */
+  .stats-grid { display: flex; justify-content: space-around; margin: 18px 0; }
+  .stat b { font-family: 'Playfair Display', serif; font-size: 1.8rem; display: block; color: var(--gold-soft); }
+  .stat span { font-size: .68rem; color: var(--ink-dim); text-transform: uppercase; letter-spacing: .1em; }
+  .dist { text-align: left; }
+  .dist-row { display: flex; align-items: center; gap: 8px; margin-bottom: 5px; font-size: .8rem; color: var(--ink-dim); }
+  .dist-bar { background: var(--rose-deep); height: 18px; border-radius: 4px; min-width: 22px; display: flex; align-items: center; justify-content: flex-end; padding-right: 6px; font-size: .72rem; color: #fff; }
+
+  /* ---------- Footer ---------- */
+  footer { border-top: 1px solid var(--line); margin-top: 8px; padding: 18px 4px 0; text-align: center; }
+  footer p { color: #7d5a6b; font-size: .72rem; line-height: 1.6; margin-bottom: 10px; font-weight: 300; }
+  footer a { color: var(--ink-dim); }
+  .join {
+    background: linear-gradient(165deg, var(--panel), #1c0c17); border: 1px solid var(--line);
+    border-radius: 14px; padding: 18px; margin: 22px 0; text-align: center;
+  }
+  .join h4 { font-family: 'Playfair Display', serif; font-size: 1.1rem; margin-bottom: 6px; }
+  .join p { color: var(--ink-dim); font-size: .82rem; margin-bottom: 12px; font-weight: 300; }
+
+  .toast {
+    position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%) translateY(80px);
+    background: var(--gold); color: #2a1505; padding: 10px 22px; border-radius: 30px;
+    font-weight: 600; font-size: .88rem; transition: transform .35s cubic-bezier(.2,1.4,.4,1); z-index: 60;
+  }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+
+  .hidden { display: none !important; }
+  @media (max-width: 420px) { :root { --tile: 44px; } .key { height: 48px; } }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <div class="logo">Effeu<em>i</em>lle <small>un mot · une muse · chaque jour</small></div>
+    <div class="icons">
+      <button id="btnRules" title="Règles">?</button>
+      <button id="btnStats" title="Statistiques">♛</button>
+    </div>
+  </header>
+
+  <div class="meta">
+    <span>N° <b id="dayNum">1</b> · <span id="dayDate"></span></span>
+    <span>Essai <b id="tryNum">1</b>/6</span>
+  </div>
+
+  <div class="photo-frame">
+    <span class="demo-badge">démo · photo de la muse ici</span>
+    <div class="photo" id="photo">
+      <div class="photo-art" id="photoArt"></div>
+      <span class="rose">🌹</span>
+    </div>
+    <div class="photo-dim" id="photoDim"></div>
+    <div class="photo-overlay" id="photoOverlay"></div>
+  </div>
+
+  <div class="grid" id="grid"></div>
+
+  <div class="kb" id="kb"></div>
+
+  <section id="museCard" class="muse-card hidden">
+    <p class="muse-kicker">🌹 La muse du jour</p>
+    <h2 id="museName">—<span id="musePseudo"></span></h2>
+    <p class="muse-bio" id="museBio"></p>
+    <p class="answer-line hidden" id="answerLine">Le mot était <b id="answerWord"></b></p>
+    <div class="muse-links">
+      <a class="btn btn-mym" id="museMym" target="_blank" rel="noopener nofollow">Son MYM 🔥</a>
+      <a class="btn btn-ghost" id="museInsta" target="_blank" rel="noopener nofollow">Instagram</a>
+    </div>
+    <p class="micro">Liens partenaires — en t'abonnant via ces liens, tu soutiens le jeu et la muse. 💝</p>
+    <div class="after">
+      <button class="btn btn-share" id="btnShare">Partager mon score 💋</button>
+      <p class="next">Nouvelle muse dans <b id="countdown">--:--:--</b></p>
+    </div>
+  </section>
+
+  <div class="join">
+    <h4>Tu es créatrice ? 📸</h4>
+    <p>Deviens la muse d'un jour : tu fournis une photo de charme (soft uniquement), on envoie notre audience découvrir ton univers. Gratuit, gagnant-gagnant.</p>
+    <a class="btn btn-ghost" href="mailto:contact@VOTRE-DOMAINE.fr?subject=Devenir%20muse%20sur%20Effeuille">Rejoins-nous 💌</a>
+  </div>
+
+  <footer>
+    <p>Toutes les photos sont fournies et publiées avec l'accord écrit des créatrices, qui conservent l'intégralité de leurs droits.
+    Contenu de charme uniquement — aucune nudité explicite. Site réservé aux adultes (18+).</p>
+    <p><a href="#" id="lnkLegal">Mentions légales</a> · <a href="#" id="lnkRules2">Comment jouer</a> · © <span id="year"></span> Effeuille</p>
+  </footer>
+</div>
+
+<!-- ===== Age gate ===== -->
+<div class="modal-bg show" id="ageGate">
+  <div class="modal">
+    <div class="rose-big">🌹</div>
+    <h3>Avant d'entrer…</h3>
+    <p>Effeuille est un jeu réservé aux adultes : les photos sont des contenus de charme (lingerie, suggestif — jamais explicite),
+    fournies par des créatrices partenaires consentantes.</p>
+    <p><b style="color:var(--gold-soft)">As-tu 18 ans ou plus ?</b></p>
+    <div class="age-actions">
+      <button class="btn btn-mym" id="ageYes">Oui, j'entre ✨</button>
+      <a class="btn btn-ghost" href="https://www.google.com">Non, je sors</a>
+    </div>
+  </div>
+</div>
+
+<!-- ===== Rules ===== -->
+<div class="modal-bg" id="rulesModal">
+  <div class="modal">
+    <button class="close" data-close="rulesModal">✕</button>
+    <h3>Comment jouer</h3>
+    <p>Devine le <b style="color:var(--gold-soft)">mot du jour</b> en 6 essais. La première lettre t'est offerte.</p>
+    <div class="rules-line"><span class="mini" style="background:linear-gradient(150deg,var(--rose),var(--rose-deep));color:#fff">E</span><p>Lettre <b>bien placée</b></p></div>
+    <div class="rules-line"><span class="mini" style="background:linear-gradient(150deg,var(--gold),#b5803f);color:#2a1505;border-radius:50%">E</span><p>Lettre <b>présente</b>, mais ailleurs</p></div>
+    <div class="rules-line"><span class="mini" style="background:#1a0b14;color:#6b4a59;border:1px solid #2a1320">E</span><p>Lettre <b>absente</b> du mot</p></div>
+    <p style="margin-top:14px">Chaque essai <b style="color:var(--gold-soft)">défloute un peu plus</b> la photo de la muse du jour.
+    Trouve le mot pour la dévoiler entièrement… ou reviens demain. 😏</p>
+  </div>
+</div>
+
+<!-- ===== Stats ===== -->
+<div class="modal-bg" id="statsModal">
+  <div class="modal">
+    <button class="close" data-close="statsModal">✕</button>
+    <h3>Tes statistiques</h3>
+    <div class="stats-grid">
+      <div class="stat"><b id="stPlayed">0</b><span>parties</span></div>
+      <div class="stat"><b id="stWin">0%</b><span>dévoilées</span></div>
+      <div class="stat"><b id="stStreak">0</b><span>série</span></div>
+      <div class="stat"><b id="stBest">0</b><span>record</span></div>
+    </div>
+    <div class="dist" id="dist"></div>
+  </div>
+</div>
+
+<!-- ===== Legal ===== -->
+<div class="modal-bg" id="legalModal">
+  <div class="modal">
+    <button class="close" data-close="legalModal">✕</button>
+    <h3>Mentions légales</h3>
+    <p style="text-align:left">Éditeur : [À COMPLÉTER — nom, structure, SIREN]<br>
+    Hébergeur : [Netlify, Inc. / autre]<br>
+    Contact : contact@VOTRE-DOMAINE.fr</p>
+    <p style="text-align:left">Les photos publiées le sont avec l'accord écrit et révocable des modèles, majeures,
+    qui conservent leurs droits. Aucune donnée personnelle n'est collectée : les statistiques de jeu
+    sont stockées uniquement dans votre navigateur. Les liens vers les plateformes externes sont des liens partenaires.</p>
+  </div>
+</div>
+
+<div class="toast" id="toast">Score copié ! 💋</div>
+
+<script>
+/* =====================================================================
+   EFFEUILLE — prototype v1
+   Données de démo : remplacer les muses fictives par de vraies
+   créatrices partenaires (voir README.md du dossier).
+   ===================================================================== */
+
+const PUZZLES = [
+  { mot: "DENTELLE",  muse: { nom: "Louve",   pseudo: "@louve.demo",   bio: "Modèle lingerie à Lyon — profil de démonstration.", mym: "https://mym.fans/VOTRE_CREATRICE?utm_source=effeuille", insta: "https://instagram.com/VOTRE_CREATRICE" }, art: ["#43102b","#8c1d40","#d4a05f"] },
+  { mot: "BOUDOIR",   muse: { nom: "Anaïs V.", pseudo: "@anais.demo",   bio: "Photographie boudoir & autoportraits — profil de démonstration.", mym: "https://mym.fans/VOTRE_CREATRICE?utm_source=effeuille", insta: "https://instagram.com/VOTRE_CREATRICE" }, art: ["#2b1043","#5d2d8c","#d4a05f"] },
+  { mot: "VOLUPTE",   muse: { nom: "Carmen",  pseudo: "@carmen.demo",  bio: "Danseuse burlesque parisienne — profil de démonstration.", mym: "https://mym.fans/VOTRE_CREATRICE?utm_source=effeuille", insta: "https://instagram.com/VOTRE_CREATRICE" }, art: ["#431019","#8c1d2c","#e8c697"] },
+  { mot: "FRISSON",   muse: { nom: "Nina K.",  pseudo: "@nina.demo",    bio: "Cosplay & charme rétro — profil de démonstration.", mym: "https://mym.fans/VOTRE_CREATRICE?utm_source=effeuille", insta: "https://instagram.com/VOTRE_CREATRICE" }, art: ["#102b43","#1d5d8c","#d4a05f"] },
+  { mot: "NUISETTE",  muse: { nom: "Éva",     pseudo: "@eva.demo",     bio: "Modèle photo à Bordeaux — profil de démonstration.", mym: "https://mym.fans/VOTRE_CREATRICE?utm_source=effeuille", insta: "https://instagram.com/VOTRE_CREATRICE" }, art: ["#3a1043","#7a2d8c","#e8c697"] },
+  { mot: "CAMBRURE",  muse: { nom: "Saskia",  pseudo: "@saskia.demo",  bio: "Pole dance & art du corps — profil de démonstration.", mym: "https://mym.fans/VOTRE_CREATRICE?utm_source=effeuille", insta: "https://instagram.com/VOTRE_CREATRICE" }, art: ["#431c10","#8c4a1d","#d4a05f"] },
+  { mot: "EFFEUILLE", muse: { nom: "Rose",    pseudo: "@rose.demo",    bio: "L'effeuillage est un art — profil de démonstration.", mym: "https://mym.fans/VOTRE_CREATRICE?utm_source=effeuille", insta: "https://instagram.com/VOTRE_CREATRICE" }, art: ["#43102b","#c2185b","#e8c697"] },
+  { mot: "GUIPURE",   muse: { nom: "Maëlle",  pseudo: "@maelle.demo",  bio: "Créatrice lingerie artisanale — profil de démonstration.", mym: "https://mym.fans/VOTRE_CREATRICE?utm_source=effeuille", insta: "https://instagram.com/VOTRE_CREATRICE" }, art: ["#10433a","#1d8c74","#d4a05f"] },
+  { mot: "LIBERTINE", muse: { nom: "Joséphine", pseudo: "@josephine.demo", bio: "Esprit Belle Époque — profil de démonstration.", mym: "https://mym.fans/VOTRE_CREATRICE?utm_source=effeuille", insta: "https://instagram.com/VOTRE_CREATRICE" }, art: ["#2b0d20","#a52745","#e8c697"] },
+  { mot: "VELOURS",   muse: { nom: "Stella",  pseudo: "@stella.demo",  bio: "Modèle charme vintage — profil de démonstration.", mym: "https://mym.fans/VOTRE_CREATRICE?utm_source=effeuille", insta: "https://instagram.com/VOTRE_CREATRICE" }, art: ["#1c1043","#3d2d8c","#d4a05f"] },
+];
+
+const MAX_TRIES = 6;
+const LAUNCH = new Date(2026, 5, 11);          // 11 juin 2026
+const BLUR  = [26, 21, 16.5, 12.5, 9.5, 7.5, 6]; // px selon essais joués
+const DIM   = [.5, .42, .34, .27, .21, .16, .12];
+
+/* ---------- Jour & puzzle ---------- */
+function todayIdx() {
+  const n = new Date();
+  const d0 = new Date(n.getFullYear(), n.getMonth(), n.getDate());
+  return Math.max(0, Math.round((d0 - LAUNCH) / 864e5));
+}
+const DAY = todayIdx();
+const PZ  = PUZZLES[DAY % PUZZLES.length];
+const WORD = PZ.mot;
+const N = WORD.length;
+
+/* ---------- État ---------- */
+let guesses = [];                 // essais validés
+let cur = [WORD[0]];              // saisie en cours (1re lettre offerte)
+let status = "playing";           // playing | won | lost
+let busy = false;
+const keyState = {};              // lettre -> correct|present|absent
+
+const $ = id => document.getElementById(id);
+
+/* ---------- Construction UI ---------- */
+function buildArt() {
+  const [a, b, c] = PZ.art;
+  $("photoArt").style.background =
+    `radial-gradient(60% 50% at 30% 25%, ${b} 0%, transparent 70%),` +
+    `radial-gradient(50% 60% at 75% 70%, ${c}33 0%, transparent 75%),` +
+    `radial-gradient(80% 80% at 60% 40%, ${b}88 0%, transparent 70%),` +
+    `linear-gradient(160deg, ${a} 0%, #0c0309 100%)`;
+}
+
+function buildGrid() {
+  const g = $("grid");
+  g.style.setProperty("--cols", N);
+  document.documentElement.style.setProperty("--tile", `min(52px, calc((100vw - 40px - ${(N-1)*6}px) / ${N}))`);
+  for (let r = 0; r < MAX_TRIES; r++) {
+    const row = document.createElement("div");
+    row.className = "row"; row.id = "row" + r;
+    for (let c = 0; c < N; c++) {
+      const t = document.createElement("div");
+      t.className = "tile"; t.id = `t${r}-${c}`;
+      row.appendChild(t);
+    }
+    g.appendChild(row);
+  }
+}
+
+const KB_ROWS = [ "AZERTYUIOP".split(""), "QSDFGHJKLM".split(""), ["OK", ..."WXCVBN".split(""), "⌫"] ];
+function buildKb() {
+  const kb = $("kb");
+  KB_ROWS.forEach(rw => {
+    const r = document.createElement("div");
+    r.className = "kb-row";
+    rw.forEach(k => {
+      const b = document.createElement("button");
+      b.className = "key" + (k.length > 1 ? " wide" : "");
+      b.textContent = k; b.dataset.k = k;
+      b.addEventListener("click", () => press(k));
+      r.appendChild(b);
+    });
+    kb.appendChild(r);
+  });
+}
+
+/* ---------- Logique ---------- */
+function evaluate(guess, target) {
+  const res = Array(N).fill("absent"), left = {};
+  for (let i = 0; i < N; i++) {
+    if (guess[i] === target[i]) res[i] = "correct";
+    else left[target[i]] = (left[target[i]] || 0) + 1;
+  }
+  for (let i = 0; i < N; i++) {
+    if (res[i] !== "correct" && left[guess[i]] > 0) { res[i] = "present"; left[guess[i]]--; }
+  }
+  return res;
+}
+
+function paintCur() {
+  const r = guesses.length;
+  for (let c = 0; c < N; c++) {
+    const t = $(`t${r}-${c}`);
+    t.textContent = cur[c] || (c === 0 ? WORD[0] : "");
+    t.className = "tile" + (c === 0 ? " hint" : cur[c] ? " typed" : "");
+  }
+}
+
+function press(k) {
+  if (busy || status !== "playing") return;
+  if (k === "⌫" || k === "BACKSPACE") { if (cur.length > 1) cur.pop(); paintCur(); return; }
+  if (k === "OK" || k === "ENTER") { submit(); return; }
+  if (/^[A-Z]$/.test(k) && cur.length < N) { cur.push(k); paintCur(); }
+}
+
+function submit() {
+  if (cur.length < N) {
+    const row = $("row" + guesses.length);
+    row.classList.add("shake");
+    setTimeout(() => row.classList.remove("shake"), 450);
+    return;
+  }
+  busy = true;
+  const guess = cur.join("");
+  const r = guesses.length;
+  const ev = evaluate(guess, WORD);
+
+  ev.forEach((st, c) => {
+    setTimeout(() => {
+      const t = $(`t${r}-${c}`);
+      t.className = "tile " + st;
+      const cs = keyState[guess[c]];
+      if (st === "correct" || (st === "present" && cs !== "correct") || (!cs && st === "absent")) {
+        keyState[guess[c]] = (cs === "correct") ? cs : (cs === "present" && st === "absent") ? cs : st;
+      }
+    }, c * 130);
+  });
+
+  setTimeout(() => {
+    guesses.push(guess);
+    paintKb();
+    setBlur();
+    if (guess === WORD) finish("won");
+    else if (guesses.length >= MAX_TRIES) finish("lost");
+    else { cur = [WORD[0]]; paintCur(); $("tryNum").textContent = guesses.length + 1; saveState(); }
+    busy = false;
+  }, N * 130 + 320);
+}
+
+function paintKb() {
+  document.querySelectorAll(".key").forEach(b => {
+    const st = keyState[b.dataset.k];
+    b.className = "key" + (b.dataset.k.length > 1 ? " wide" : "") + (st ? " " + st : "");
+  });
+}
+
+function setBlur() {
+  const i = Math.min(guesses.length, BLUR.length - 1);
+  if (status === "won") {
+    $("photo").classList.add("revealed");
+    $("photo").style.filter = "";
+    $("photo").style.transform = "";
+    $("photoDim").style.opacity = 0;
+  } else {
+    $("photo").style.filter = `blur(${BLUR[i]}px) saturate(.9)`;
+    $("photo").style.transform = `scale(${1.12 - i * 0.012})`;
+    $("photoDim").style.opacity = DIM[i];
+  }
+}
+
+function finish(st) {
+  status = st;
+  updateStats(st === "won");
+  saveState();
+  showResult(false);
+}
+
+function showResult(restored) {
+  $("tryNum").textContent = Math.min(guesses.length, MAX_TRIES);
+  const ov = $("photoOverlay");
+  ov.classList.add("show");
+  if (status === "won") {
+    setBlur();
+    ov.innerHTML = `<div class="reveal-badge">✨ Dévoilée en ${guesses.length}/6</div>`;
+  } else {
+    ov.innerHTML =
+      `<div class="reveal-badge" style="font-size:1.1rem">Restée voilée… 🙈</div>` +
+      `<a class="veil-cta" href="${PZ.muse.mym}" target="_blank" rel="noopener nofollow">La découvrir en entier 🔥</a>` +
+      `<span class="veil-note">sur son espace, sans le flou</span>`;
+    $("answerLine").classList.remove("hidden");
+    $("answerWord").textContent = "« " + WORD + " »";
+  }
+  $("museCard").classList.remove("hidden");
+  if (!restored) $("museCard").scrollIntoView({ behavior: "smooth", block: "center" });
+}
+
+/* ---------- Persistance ---------- */
+function saveState() {
+  localStorage.setItem("effeuille_state", JSON.stringify({ day: DAY, guesses, status }));
+}
+function restore() {
+  try {
+    const s = JSON.parse(localStorage.getItem("effeuille_state") || "null");
+    if (!s || s.day !== DAY) return;
+    s.guesses.forEach((g, r) => {
+      const ev = evaluate(g, WORD);
+      ev.forEach((st, c) => {
+        const t = $(`t${r}-${c}`);
+        t.textContent = g[c]; t.className = "tile " + st;
+        const cs = keyState[g[c]];
+        keyState[g[c]] = (cs === "correct" || (cs === "present" && st === "absent")) ? cs : st;
+      });
+    });
+    guesses = s.guesses; status = s.status;
+    paintKb(); setBlur();
+    if (status !== "playing") showResult(true);
+    else { cur = [WORD[0]]; paintCur(); $("tryNum").textContent = guesses.length + 1; }
+  } catch (e) { /* état corrompu : on repart à zéro */ }
+}
+
+function updateStats(won) {
+  const st = JSON.parse(localStorage.getItem("effeuille_stats") || '{"played":0,"won":0,"streak":0,"best":0,"lastWin":-9,"dist":{}}');
+  st.played++;
+  if (won) {
+    st.won++;
+    st.streak = (st.lastWin === DAY - 1) ? st.streak + 1 : 1;
+    st.best = Math.max(st.best, st.streak);
+    st.lastWin = DAY;
+    st.dist[guesses.length] = (st.dist[guesses.length] || 0) + 1;
+  } else st.streak = 0;
+  localStorage.setItem("effeuille_stats", JSON.stringify(st));
+}
+
+/* ---------- Partage ---------- */
+function shareText() {
+  const head = status === "won"
+    ? `Effeuille n°${DAY + 1} — ${PZ.muse.nom} dévoilée en ${guesses.length}/6 💋`
+    : `Effeuille n°${DAY + 1} — restée voilée 🙈`;
+  const lines = guesses.map(g => evaluate(g, WORD).map(s => s === "correct" ? "🟥" : s === "present" ? "🟡" : "⬛").join(""));
+  const url = (location.origin && location.origin !== "null") ? location.origin : "effeuille.fr";
+  return head + "\n" + lines.join("\n") + "\n" + url;
+}
+async function share() {
+  const txt = shareText();
+  if (navigator.share) { try { await navigator.share({ text: txt }); return; } catch (e) {} }
+  try { await navigator.clipboard.writeText(txt); } catch (e) {}
+  const t = $("toast");
+  t.classList.add("show");
+  setTimeout(() => t.classList.remove("show"), 2200);
+}
+
+/* ---------- Stats modal ---------- */
+function openStats() {
+  const st = JSON.parse(localStorage.getItem("effeuille_stats") || '{"played":0,"won":0,"streak":0,"best":0,"dist":{}}');
+  $("stPlayed").textContent = st.played;
+  $("stWin").textContent = st.played ? Math.round(100 * st.won / st.played) + "%" : "0%";
+  $("stStreak").textContent = st.streak;
+  $("stBest").textContent = st.best;
+  const max = Math.max(1, ...Object.values(st.dist || {}));
+  $("dist").innerHTML = "<p style='font-size:.78rem;color:var(--ink-dim);margin-bottom:8px'>Dévoilées en…</p>" +
+    Array.from({ length: 6 }, (_, i) => {
+      const v = (st.dist || {})[i + 1] || 0;
+      return `<div class="dist-row"><span>${i + 1}</span><div class="dist-bar" style="width:${Math.round(100 * v / max)}%">${v || ""}</div></div>`;
+    }).join("");
+  $("statsModal").classList.add("show");
+}
+
+/* ---------- Compte à rebours ---------- */
+function tick() {
+  const n = new Date();
+  const mid = new Date(n.getFullYear(), n.getMonth(), n.getDate() + 1);
+  const s = Math.floor((mid - n) / 1000);
+  const p = x => String(x).padStart(2, "0");
+  $("countdown").textContent = `${p(Math.floor(s / 3600))}:${p(Math.floor(s % 3600 / 60))}:${p(s % 60)}`;
+}
+
+/* ---------- Init ---------- */
+function init() {
+  $("dayNum").textContent = DAY + 1;
+  $("dayDate").textContent = new Date().toLocaleDateString("fr-FR", { day: "numeric", month: "long" });
+  $("year").textContent = new Date().getFullYear();
+  $("museName").innerHTML = PZ.muse.nom + `<span id="musePseudo">${PZ.muse.pseudo}</span>`;
+  $("museBio").textContent = PZ.muse.bio;
+  $("museMym").href = PZ.muse.mym;
+  $("museInsta").href = PZ.muse.insta;
+
+  buildArt(); buildGrid(); buildKb();
+  setBlur(); paintCur();
+  restore();
+
+  document.addEventListener("keydown", e => {
+    if (document.querySelector(".modal-bg.show")) return;
+    if (e.key === "Enter") press("ENTER");
+    else if (e.key === "Backspace") press("BACKSPACE");
+    else if (/^[a-zA-Z]$/.test(e.key)) press(e.key.toUpperCase());
+  });
+
+  $("btnRules").addEventListener("click", () => $("rulesModal").classList.add("show"));
+  $("lnkRules2").addEventListener("click", e => { e.preventDefault(); $("rulesModal").classList.add("show"); });
+  $("btnStats").addEventListener("click", openStats);
+  $("lnkLegal").addEventListener("click", e => { e.preventDefault(); $("legalModal").classList.add("show"); });
+  $("btnShare").addEventListener("click", share);
+  document.querySelectorAll("[data-close]").forEach(b =>
+    b.addEventListener("click", () => $(b.dataset.close).classList.remove("show")));
+  document.querySelectorAll(".modal-bg").forEach(m =>
+    m.addEventListener("click", e => { if (e.target === m && m.id !== "ageGate") m.classList.remove("show"); }));
+
+  // Age gate + première visite
+  if (localStorage.getItem("effeuille_age_ok") === "1") {
+    $("ageGate").classList.remove("show");
+    if (!localStorage.getItem("effeuille_seen")) {
+      $("rulesModal").classList.add("show");
+      localStorage.setItem("effeuille_seen", "1");
+    }
+  }
+  $("ageYes").addEventListener("click", () => {
+    localStorage.setItem("effeuille_age_ok", "1");
+    $("ageGate").classList.remove("show");
+    if (!localStorage.getItem("effeuille_seen")) {
+      $("rulesModal").classList.add("show");
+      localStorage.setItem("effeuille_seen", "1");
+    }
+  });
+
+  tick(); setInterval(tick, 1000);
+}
+
+init();
+</script>
+</body>
+</html>
