@@ -50,8 +50,12 @@ class VariationChild(BaseModel):
 
 
 # Amazon policy (effective 2026-07-27): titles ≤ 75 chars for all categories
-# except media; new indexable "Item highlights" field ≤ 125 chars.
+# except media (which keep 200); new indexable "Item highlights" field ≤ 125.
+# The model enforces only the absolute ceiling (200) so media titles survive and
+# old listings are never rejected — the 75-char rule for non-media is applied in
+# the generation layer (ai_agent.constraints_for_category).
 TITLE_MAX = 75
+TITLE_ABSOLUTE_MAX = 200
 ITEM_HIGHLIGHTS_MAX = 125
 
 
@@ -68,8 +72,10 @@ class AmazonListing(BaseModel):
     @field_validator("title")
     @classmethod
     def _truncate_title(cls, v: str) -> str:
-        # Truncate rather than reject so older 200-char listings still publish.
-        return (v or "")[:TITLE_MAX]
+        # Cap at the absolute ceiling so media titles (≤200) survive and old
+        # listings are never rejected; the 75-char non-media rule is enforced
+        # during generation, not here.
+        return (v or "")[:TITLE_ABSOLUTE_MAX]
 
     @field_validator("item_highlights")
     @classmethod

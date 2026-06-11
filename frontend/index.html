@@ -2510,6 +2510,12 @@
                 </div>
               </div>
               <input type="file" id="amazonTemplateInput" accept=".xlsm,.xlsx" class="hidden" onchange="fillAmazonTemplate(this)">
+              <!-- Reformat long titles to the 2026-07-27 Amazon policy -->
+              <button id="reformatTitlesBtn" onclick="reformatLongTitles()" title="Raccourcir les titres >75 car. et générer les Item Highlights (norme Amazon 27/07/2026)"
+                class="hidden bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 rounded-lg px-3 py-1.5 text-sm font-medium transition flex items-center gap-1.5">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+                <span id="reformatTitlesLabel">Conformité titres</span>
+              </button>
               <!-- Clear all listings -->
               <button onclick="clearAllListings()" title="Supprimer toutes les fiches générées"
                 class="bg-red-50 hover:bg-red-100 text-red-600 border border-red-100 rounded-lg px-3 py-1.5 text-sm font-medium transition flex items-center gap-1.5">
@@ -3273,7 +3279,18 @@ let _savedMappings = JSON.parse(localStorage.getItem('synqio_col_mappings') || '
 
 // ── Amazon limits & live validation ──────────────────────────────────────────
 // Amazon policy (effective 2026-07-27): title ≤ 75 chars, new Item Highlights field ≤ 125 chars
-const _AMZ = { title: 75, highlights: 125, bullet: 500, desc: 2000, kw: 249 }; // kw in bytes
+const _AMZ = { title: 75, titleMedia: 200, highlights: 125, bullet: 500, desc: 2000, kw: 249 }; // kw in bytes
+
+// Media categories (books, music, video, games, software) are exempt from the 75-char cap
+const _MEDIA_KW = ['livre','book','ebook','e-book','roman','bd','manga','musique','music','cd','vinyle','vinyl','disque','album','dvd','blu-ray','bluray','film','movie','video','vidéo','jeu vidéo','jeux vidéo','jeu video','jeux video','video game','console','logiciel','software','magazine','revue','presse'];
+function _isMediaCategory(cat) {
+  if (!cat) return false;
+  const low = String(cat).toLowerCase();
+  return _MEDIA_KW.some(kw => low.includes(kw));
+}
+function _titleMax(listing) {
+  return _isMediaCategory(listing && listing.category) ? _AMZ.titleMedia : _AMZ.title;
+}
 
 // Patterns forbidden in Amazon titles
 const _AMZ_FORBIDDEN = [
@@ -3291,8 +3308,9 @@ function _updateTitleCounter(idx) {
   const el = document.getElementById(`edit-title-${idx}`);
   const c  = document.getElementById(`title-count-${idx}`);
   if (!el || !c) return;
+  const max = parseInt(el.dataset.titlemax, 10) || _AMZ.title;
   c.textContent = el.value.length;
-  c.parentElement.className = 'text-[11px] mt-0.5 ' + (el.value.length > _AMZ.title ? 'text-red-500' : 'text-gray-400');
+  c.parentElement.className = 'text-[11px] mt-0.5 ' + (el.value.length > max ? 'text-red-500' : 'text-gray-400');
 }
 
 function _updateHighlightsCounter(idx) {
@@ -3308,11 +3326,12 @@ function _validateListing(listing) {
   const title = listing.title || '';
   const highlights = listing.item_highlights || '';
   const kw    = listing.backend_keywords || '';
-  // Title length (new Amazon limit: 75 chars from 2026-07-27)
-  if (title.length > _AMZ.title)
-    issues.push({ level:'error', field:'title', msg:`Titre trop long : ${title.length}/${_AMZ.title} car. (limite Amazon 27/07/2026)` });
-  else if (title.length > _AMZ.title * 0.93)
-    issues.push({ level:'warn',  field:'title', msg:`Titre proche de la limite : ${title.length}/${_AMZ.title} car.` });
+  const titleMax = _titleMax(listing);
+  // Title length (new Amazon limit: 75 chars from 2026-07-27; media keep 200)
+  if (title.length > titleMax)
+    issues.push({ level:'error', field:'title', msg:`Titre trop long : ${title.length}/${titleMax} car. (limite Amazon 27/07/2026)` });
+  else if (title.length > titleMax * 0.93)
+    issues.push({ level:'warn',  field:'title', msg:`Titre proche de la limite : ${title.length}/${titleMax} car.` });
   // Item Highlights length
   if (highlights.length > _AMZ.highlights)
     issues.push({ level:'error', field:'highlights', msg:`Item Highlights trop long : ${highlights.length}/${_AMZ.highlights} car.` });
@@ -3881,6 +3900,83 @@ function clearAllListings() {
   document.getElementById('emptyState').classList.remove('hidden');
   setStep(parsedProducts.length ? 2 : 1);
   showToast('🗑️', 'Toutes les fiches ont été supprimées — vous pouvez relancer une génération');
+}
+
+// ── Title compliance migration (Amazon 2026-07-27 ≤75-char policy) ────────────
+function _nonCompliantTitleIdxs() {
+  const out = [];
+  generatedListings.forEach((l, i) => {
+    if (l.is_parent) return; // parents carry no own offer title
+    if ((l.title || '').length > _titleMax(l)) out.push(i);
+  });
+  return out;
+}
+
+function _updateReformatBtn() {
+  const btn = document.getElementById('reformatTitlesBtn');
+  if (!btn) return;
+  const n = _nonCompliantTitleIdxs().length;
+  if (n > 0) {
+    btn.classList.remove('hidden');
+    document.getElementById('reformatTitlesLabel').textContent = `Conformité titres (${n})`;
+  } else {
+    btn.classList.add('hidden');
+  }
+}
+
+async function reformatLongTitles() {
+  const idxs = _nonCompliantTitleIdxs();
+  if (!idxs.length) { showToast('✅', 'Tous les titres sont déjà conformes (≤ 75 car.)'); return; }
+  if (!confirm(`Mettre ${idxs.length} titre(s) en conformité avec la nouvelle norme Amazon (≤ 75 caractères) ?\nLe surplus sera déplacé vers le champ Item Highlights. Les titres seront réécrits par l'IA.`)) return;
+
+  const btn = document.getElementById('reformatTitlesBtn');
+  const label = document.getElementById('reformatTitlesLabel');
+  if (btn) btn.disabled = true;
+  let done = 0, failed = 0;
+
+  // Small concurrency to keep the UI responsive without hammering the API
+  const queue = idxs.slice();
+  async function worker() {
+    while (queue.length) {
+      const idx = queue.shift();
+      const l = generatedListings[idx];
+      if (!l) continue;
+      try {
+        const r = await authFetch('/api/reformat-title', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            title: l.title || '',
+            brand: l.brand || '',
+            category: l.category || '',
+            bullets: l.bullet_points || [],
+            item_highlights: l.item_highlights || '',
+            backend_keywords: l.backend_keywords || '',
+            marketplace: l.marketplace || 'amazon_fr',
+          }),
+        });
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        const data = await r.json();
+        if (data.title) l.title = data.title;
+        if (data.item_highlights) l.item_highlights = data.item_highlights;
+        if (typeof data.seo_score === 'number') l.seo_score = data.seo_score;
+        done++;
+      } catch (e) {
+        console.error('[reformat] failed for', l.sku, e);
+        failed++;
+      }
+      if (label) label.textContent = `Conformité… ${done}/${idxs.length}`;
+    }
+  }
+  await Promise.all([worker(), worker(), worker()]);
+
+  if (btn) btn.disabled = false;
+  _syncActiveBatch();
+  _saveBatches();
+  renderListingsContainer();
+  _updateReformatBtn();
+  if (failed) showToast('⚠️', `${done} titre(s) mis en conformité, ${failed} échec(s) — réessayez`, true);
+  else showToast('✅', `${done} titre(s) raccourci(s) ≤ 75 car. + Item Highlights générés`);
 }
 
 function _deleteBatch(idx) {
@@ -5186,6 +5282,7 @@ function showResults(result) {
 function renderListingsContainer() {
   const c = document.getElementById('listingsContainer');
   if (!c) return;
+  _updateReformatBtn();
   if (resultsViewMode === 'kanban') { renderKanbanBoard(); _renderGlobalProgress(); return; }
   const visible = generatedListings.filter((l) => {
     // Child listings are displayed inside their parent card
@@ -5866,6 +5963,7 @@ function createGridCard(listing, idx) {
 function buildCardHTML(listing, idx, editMode) {
   const col = listing.seo_score >= 70 ? 'green' : listing.seo_score >= 40 ? 'yellow' : 'red';
   const isParent = listing.is_parent && (listing.children || []).length > 0;
+  const titleMax = _titleMax(listing);
   const _issues = _validateListing(listing);
   const _errs = _issues.filter(i=>i.level==='error').length, _warns = _issues.filter(i=>i.level==='warn').length;
   const _badge = editMode ? '' : _errs > 0
@@ -5898,10 +5996,10 @@ function buildCardHTML(listing, idx, editMode) {
             ${editMode ? '<span class="text-xs text-purple-600 font-medium">Mode édition</span>' : ''}
           </div>
           ${editMode
-            ? `<input id="edit-title-${idx}" value="${(listing.title||'').replace(/"/g,'&quot;')}" maxlength="75" oninput="_updateTitleCounter(${idx})" class="w-full border border-purple-200 rounded-lg px-3 py-1.5 text-sm font-semibold text-gray-900 focus:ring-2 focus:ring-purple-300 outline-none">
-               <p class="text-[11px] mt-0.5 ${(listing.title||'').length > 75 ? 'text-red-500' : 'text-gray-400'}"><span id="title-count-${idx}">${(listing.title||'').length}</span>/75 caractères (titre)</p>`
+            ? `<input id="edit-title-${idx}" value="${(listing.title||'').replace(/"/g,'&quot;')}" maxlength="${titleMax}" data-titlemax="${titleMax}" oninput="_updateTitleCounter(${idx})" class="w-full border border-purple-200 rounded-lg px-3 py-1.5 text-sm font-semibold text-gray-900 focus:ring-2 focus:ring-purple-300 outline-none">
+               <p class="text-[11px] mt-0.5 ${(listing.title||'').length > titleMax ? 'text-red-500' : 'text-gray-400'}"><span id="title-count-${idx}">${(listing.title||'').length}</span>/${titleMax} caractères (titre)</p>`
             : `<h3 class="font-semibold text-gray-900 text-sm">${_esc(listing.title)}</h3>
-               <p class="text-[11px] text-gray-400 mt-0.5">${(listing.title||'').length}/75 car.${(listing.title||'').length > 75 ? ' <span class="text-red-500 font-medium">⚠ dépasse la limite Amazon</span>' : ''}</p>`}
+               <p class="text-[11px] text-gray-400 mt-0.5">${(listing.title||'').length}/${titleMax} car.${(listing.title||'').length > titleMax ? ' <span class="text-red-500 font-medium">⚠ dépasse la limite Amazon</span>' : ''}</p>`}
           ${editMode
             ? `<div class="mt-2">
                  <label class="text-[11px] font-medium text-purple-600">Item Highlights <span class="text-gray-400 font-normal">(nouveau champ Amazon — 125 car.)</span></label>
@@ -7888,7 +7986,9 @@ function openListingDetail(idx) {
   const catEl = document.getElementById('dm-category');
   catEl.textContent = listing.category || '';
   catEl.className = listing.category ? 'text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded' : 'hidden';
-  document.getElementById('dm-edit-title').value = listing.title || '';
+  const dmTitleEl = document.getElementById('dm-edit-title');
+  dmTitleEl.value = listing.title || '';
+  dmTitleEl.maxLength = _titleMax(listing);
   document.getElementById('dm-edit-highlights').value = listing.item_highlights || '';
   document.getElementById('dm-edit-price').value = listing.price || '';
   document.getElementById('dm-edit-ean').value = listing.ean || '';
@@ -7923,7 +8023,7 @@ function openListingDetail(idx) {
   imgContainer.appendChild(imgDiv);
 
   // Attach live counters
-  _attachCounter(document.getElementById('dm-edit-title'), document.getElementById('dm-counter-title'), _AMZ.title);
+  _attachCounter(document.getElementById('dm-edit-title'), document.getElementById('dm-counter-title'), _titleMax(listing));
   _attachCounter(document.getElementById('dm-edit-highlights'), document.getElementById('dm-counter-highlights'), _AMZ.highlights);
   (listing.bullet_points || []).forEach((_, bi) => {
     _attachCounter(document.getElementById(`dm-bullet-ta-${bi}`), document.getElementById(`dm-counter-bullet-${bi}`), 500);

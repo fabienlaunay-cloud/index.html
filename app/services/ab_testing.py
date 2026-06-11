@@ -37,7 +37,8 @@ async def generate_ab_variants(
     """Generate 2 variant listings in parallel. Returns {variant_a, variant_b, tokens, sku}."""
     from app.models import RawProduct, Marketplace
     from app.services.ai_agent import (
-        get_client, MARKETPLACE_CONSTRAINTS, _build_user_prompt, _build_system_prompt, _compute_seo_score
+        get_client, MARKETPLACE_CONSTRAINTS, _build_user_prompt, _build_system_prompt,
+        _compute_seo_score, constraints_for_category
     )
 
     try:
@@ -45,6 +46,7 @@ async def generate_ab_variants(
     except ValueError:
         mkt = Marketplace.AMAZON_FR
     constraints = MARKETPLACE_CONSTRAINTS.get(mkt, MARKETPLACE_CONSTRAINTS[Marketplace.AMAZON_FR])
+    constraints = constraints_for_category(constraints, listing_data.get("category", ""))
 
     product = RawProduct(
         sku=listing_data.get("sku", "ab-test"),

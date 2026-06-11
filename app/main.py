@@ -2043,6 +2043,98 @@ KEYWORDS : {req.backend_keywords or "(vide)"}"""
     except Exception:
         raise HTTPException(500, "Erreur d'amélioration — réessayez")
 
+# ── Title reformat (Amazon 2026-07-27 ≤75-char migration) ────────────────────
+
+class ReformatTitleRequest(BaseModel):
+    title: str
+    brand: str = ""
+    category: str = ""
+    bullets: list[str] = []
+    item_highlights: str = ""
+    backend_keywords: str = ""
+    marketplace: str = "amazon_fr"
+
+
+_REFORMAT_SYSTEM = """Tu es un expert en conformité des fiches Amazon.
+Nouvelle politique Amazon (27/07/2026) : le titre doit faire 75 caractères MAXIMUM (espaces compris),
+et un nouveau champ "Item Highlights" de 125 caractères MAXIMUM (texte continu, sans puces, indexable)
+récupère les bénéfices et qualificatifs retirés du titre raccourci.
+
+À partir de la fiche fournie, tu produis :
+1. Un titre conforme ≤ 75 caractères : Marque → Type produit → Attribut clé → Couleur → Taille. Mot-clé
+   principal en tête. Aucun caractère interdit (! $ ? _ {} ^), jamais tout en majuscules, pas de superlatif.
+2. Un champ item_highlights ≤ 125 caractères : texte fluide, 1-3 phrases, bénéfices + mots-clés secondaires
+   issus de l'ancien titre/bullets, sans puces, sans prix ni promotion.
+
+Conserve la langue d'origine de la fiche. Compte les caractères avant de répondre.
+Réponds UNIQUEMENT en JSON valide : {"title": "...", "item_highlights": "..."}"""
+
+
+@app.post("/api/reformat-title")
+async def reformat_title(req: ReformatTitleRequest, request: Request):
+    """Shorten an existing title to ≤75 chars and produce the Item Highlights field.
+    Media categories keep the 200-char allowance (returned mostly unchanged)."""
+    if not os.getenv("ANTHROPIC_API_KEY"):
+        raise HTTPException(503, "Service indisponible")
+    from app.services.ai_agent import (
+        get_client, is_media_category, MEDIA_TITLE_MAX,
+        constraints_for_category, MARKETPLACE_CONSTRAINTS, _compute_seo_score,
+    )
+    from app.models import Marketplace
+    import json as _json
+
+    try:
+        mkt = Marketplace(req.marketplace)
+    except ValueError:
+        mkt = Marketplace.AMAZON_FR
+    base_constraints = MARKETPLACE_CONSTRAINTS.get(mkt, MARKETPLACE_CONSTRAINTS[Marketplace.AMAZON_FR])
+    constraints = constraints_for_category(base_constraints, req.category)
+
+    def _scored(title: str, highlights: str) -> dict:
+        seo = _compute_seo_score({
+            "title": title, "item_highlights": highlights,
+            "bullet_points": req.bullets or [],
+            "backend_keywords": req.backend_keywords or "",
+            "description": "",
+        }, constraints)
+        return {"title": title, "item_highlights": highlights, "seo_score": seo}
+
+    # Media categories are exempt from the 75-char rule
+    if is_media_category(req.category):
+        return {**_scored(req.title[:MEDIA_TITLE_MAX], (req.item_highlights or "")[:125]),
+                "media_exempt": True}
+
+    bullets_text = "\n".join(f"• {b}" for b in req.bullets if b and b.strip()) or "(aucun)"
+    prompt = f"""Marketplace : {req.marketplace}
+Marque : {req.brand or "(non précisée)"}
+Catégorie : {req.category or "(non précisée)"}
+Mots-clés backend : {(req.backend_keywords or "(vides)")[:300]}
+
+TITRE ACTUEL ({len(req.title)} car.) : {req.title}
+BULLETS :
+{bullets_text}
+ITEM HIGHLIGHTS ACTUEL : {req.item_highlights or "(vide)"}"""
+
+    resp = await get_client().messages.create(
+        model="claude-sonnet-4-6",
+        max_tokens=600,
+        system=[{"type": "text", "text": _REFORMAT_SYSTEM, "cache_control": {"type": "ephemeral"}}],
+        messages=[{"role": "user", "content": prompt}],
+    )
+    raw = resp.content[0].text.strip()
+    import re as _re_rf
+    raw = _re_rf.sub(r'^```(?:json)?\s*', '', raw, flags=_re_rf.MULTILINE)
+    raw = _re_rf.sub(r'\s*```$', '', raw, flags=_re_rf.MULTILINE).strip()
+    try:
+        data = _json.loads(raw)
+    except Exception:
+        raise HTTPException(500, "Erreur de reformatage — réessayez")
+    # Enforce hard limits server-side regardless of model output
+    new_title = str(data.get("title", req.title))[:75]
+    new_highlights = str(data.get("item_highlights", req.item_highlights or ""))[:125]
+    return _scored(new_title, new_highlights)
+
+
 # ── Saved sessions ────────────────────────────────────────────────────────────
 
 class SaveSessionRequest(BaseModel):

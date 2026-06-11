@@ -91,6 +91,32 @@ MARKETPLACE_CONSTRAINTS = {
     },
 }
 
+# Amazon's 75-char title cap (2026-07-27) excludes media categories, which keep
+# the historical 200-char allowance.
+MEDIA_TITLE_MAX = 200
+_MEDIA_KEYWORDS = frozenset({
+    "livre", "livres", "book", "books", "ebook", "e-book", "roman", "bd", "manga",
+    "musique", "music", "cd", "vinyle", "vinyl", "disque", "album",
+    "dvd", "blu-ray", "bluray", "film", "films", "movie", "movies", "video", "vidéo",
+    "jeu vidéo", "jeux vidéo", "jeu video", "jeux video", "video game", "video games",
+    "console", "logiciel", "software", "magazine", "revue", "presse",
+})
+
+
+def is_media_category(category: Optional[str]) -> bool:
+    """True if the category falls under Amazon's media exception (no 75-char cap)."""
+    if not category:
+        return False
+    low = category.lower()
+    return any(kw in low for kw in _MEDIA_KEYWORDS)
+
+
+def constraints_for_category(constraints: dict, category: Optional[str]) -> dict:
+    """Return constraints adjusted for the media title exception."""
+    if is_media_category(category):
+        return {**constraints, "title_max": MEDIA_TITLE_MAX}
+    return constraints
+
 
 def _build_system_prompt(constraints: dict) -> str:
     return f"""Tu es un expert en optimisation de fiches produit Amazon travaillant sous l'algorithme COSMO pour {constraints['platform']}.
@@ -410,6 +436,8 @@ async def generate_listing(
     retries: int = 2,
 ) -> tuple:  # (AmazonListing, {"input_tokens": int, "output_tokens": int})
     constraints = MARKETPLACE_CONSTRAINTS.get(marketplace, MARKETPLACE_CONSTRAINTS[Marketplace.AMAZON_FR])
+    # Media categories keep the 200-char title allowance
+    constraints = constraints_for_category(constraints, product.category)
     # Per-product keywords take priority; global keywords fill in after (deduped)
     product_kw = list(product.focus_keywords or [])
     merged_kw = product_kw + [k for k in (focus_keywords or []) if k not in product_kw]
