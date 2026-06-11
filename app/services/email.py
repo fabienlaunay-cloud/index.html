@@ -9,7 +9,7 @@ SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
 SMTP_USER = os.getenv("SMTP_USER", "")
 SMTP_PASS = os.getenv("SMTP_PASS", "")
 SMTP_FROM = os.getenv("SMTP_FROM", "hello@synqio.com")
-APP_URL   = os.getenv("APP_URL", "https://synqio.com")
+APP_URL   = os.getenv("APP_URL", "https://synqio.io")
 
 
 def _can_send() -> bool:
@@ -333,6 +333,13 @@ Statut : {status}
 
 Accédez à l'admin : {APP_URL}
 """
+    # Backslashes are not allowed inside f-string expressions before Python 3.12
+    warning_block = (
+        '<div style="background:#fef9c3;border:1px solid #fde047;border-radius:10px;padding:14px;margin-top:16px">'
+        '<p style="font-size:13px;color:#713f12;margin:0">'
+        "L'utilisateur n'existe pas encore en DB. Envoyez-lui une invitation depuis le panel admin."
+        '</p></div>'
+    ) if not found_in_db else ''
     html = f"""<!DOCTYPE html>
 <html><head><meta charset="utf-8"></head>
 <body style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:24px;color:#1f2937">
@@ -345,7 +352,7 @@ Accédez à l'admin : {APP_URL}
     <tr><td style="padding:8px 0;color:#6b7280">Montant</td><td style="padding:8px 0;font-weight:600">{amount_eur} €</td></tr>
     <tr><td style="padding:8px 0;color:#6b7280">Statut</td><td style="padding:8px 0;font-weight:600">{status}</td></tr>
   </table>
-  {'<div style="background:#fef9c3;border:1px solid #fde047;border-radius:10px;padding:14px;margin-top:16px"><p style="font-size:13px;color:#713f12;margin:0">L\'utilisateur n\'existe pas encore en DB. Envoyez-lui une invitation depuis le panel admin.</p></div>' if not found_in_db else ''}
+  {warning_block}
   <div style="text-align:center;margin-top:24px">
     <a href="{APP_URL}" style="display:inline-block;background:linear-gradient(135deg,#7c3aed,#4f46e5);color:white;padding:12px 28px;border-radius:12px;font-weight:700;text-decoration:none;font-size:14px">
       Ouvrir l'admin →

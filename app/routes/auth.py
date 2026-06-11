@@ -259,7 +259,7 @@ async def forgot_password(req: ForgotPasswordRequest, request: Request):
         try:
             from app.services.email import send_password_reset
             import asyncio
-            app_url = os.getenv("APP_URL", "https://synqio.com").rstrip("/")
+            app_url = os.getenv("APP_URL", "https://synqio.io").rstrip("/")
             reset_url = f"{app_url}/?reset={token}"
             asyncio.get_event_loop().run_in_executor(None, send_password_reset, email, reset_url)
         except Exception:
@@ -385,7 +385,7 @@ def _send_invite_email(email: str, invite_token: str, name: str = ""):
     try:
         from app.services.email import send_invite
         import asyncio
-        app_url = os.getenv("APP_URL", "https://synqio.com").rstrip("/")
+        app_url = os.getenv("APP_URL", "https://synqio.io").rstrip("/")
         invite_url = f"{app_url}/?invite={invite_token}"
         asyncio.get_event_loop().run_in_executor(None, send_invite, email, invite_url, name)
     except Exception:
@@ -554,7 +554,7 @@ async def unsubscribe(req: UnsubscribeRequest):
 
 @router.get("/unsubscribe", response_class=HTMLResponse)
 async def unsubscribe_page(email: str = "", token: str = ""):
-    app_url = os.getenv("APP_URL", "https://synqio.com").rstrip("/")
+    app_url = os.getenv("APP_URL", "https://synqio.io").rstrip("/")
     if email and token:
         # Process the unsubscribe automatically if params are provided
         email_lower = email.lower().strip()
