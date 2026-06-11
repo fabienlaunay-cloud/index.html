@@ -2070,50 +2070,55 @@ Conserve la langue d'origine de la fiche. Compte les caractères avant de répon
 Réponds UNIQUEMENT en JSON valide : {"title": "...", "item_highlights": "..."}"""
 
 
-@app.post("/api/reformat-title")
-async def reformat_title(req: ReformatTitleRequest, request: Request):
-    """Shorten an existing title to ≤75 chars and produce the Item Highlights field.
-    Media categories keep the 200-char allowance (returned mostly unchanged)."""
-    if not os.getenv("ANTHROPIC_API_KEY"):
-        raise HTTPException(503, "Service indisponible")
+async def _reformat_title_core(
+    title: str, brand: str = "", category: str = "", bullets: list = None,
+    item_highlights: str = "", backend_keywords: str = "", marketplace: str = "amazon_fr",
+) -> dict:
+    """Shorten a title to ≤75 chars + produce Item Highlights via Claude.
+    Returns {title, item_highlights, seo_score[, media_exempt]}. Raises on AI failure."""
     from app.services.ai_agent import (
         get_client, is_media_category, MEDIA_TITLE_MAX,
         constraints_for_category, MARKETPLACE_CONSTRAINTS, _compute_seo_score,
     )
     from app.models import Marketplace
     import json as _json
+    import re as _re_rf
 
+    bullets = bullets or []
     try:
-        mkt = Marketplace(req.marketplace)
+        mkt = Marketplace(marketplace)
     except ValueError:
         mkt = Marketplace.AMAZON_FR
     base_constraints = MARKETPLACE_CONSTRAINTS.get(mkt, MARKETPLACE_CONSTRAINTS[Marketplace.AMAZON_FR])
-    constraints = constraints_for_category(base_constraints, req.category)
+    constraints = constraints_for_category(base_constraints, category)
 
-    def _scored(title: str, highlights: str) -> dict:
+    def _scored(t: str, h: str, **extra) -> dict:
         seo = _compute_seo_score({
-            "title": title, "item_highlights": highlights,
-            "bullet_points": req.bullets or [],
-            "backend_keywords": req.backend_keywords or "",
+            "title": t, "item_highlights": h,
+            "bullet_points": bullets,
+            "backend_keywords": backend_keywords or "",
             "description": "",
         }, constraints)
-        return {"title": title, "item_highlights": highlights, "seo_score": seo}
+        return {"title": t, "item_highlights": h, "seo_score": seo, **extra}
 
     # Media categories are exempt from the 75-char rule
-    if is_media_category(req.category):
-        return {**_scored(req.title[:MEDIA_TITLE_MAX], (req.item_highlights or "")[:125]),
-                "media_exempt": True}
+    if is_media_category(category):
+        return _scored(title[:MEDIA_TITLE_MAX], (item_highlights or "")[:125], media_exempt=True)
 
-    bullets_text = "\n".join(f"• {b}" for b in req.bullets if b and b.strip()) or "(aucun)"
-    prompt = f"""Marketplace : {req.marketplace}
-Marque : {req.brand or "(non précisée)"}
-Catégorie : {req.category or "(non précisée)"}
-Mots-clés backend : {(req.backend_keywords or "(vides)")[:300]}
+    # Already compliant with a filled highlights field → nothing to do
+    if len(title) <= 75 and item_highlights:
+        return _scored(title, item_highlights[:125])
 
-TITRE ACTUEL ({len(req.title)} car.) : {req.title}
+    bullets_text = "\n".join(f"• {b}" for b in bullets if b and str(b).strip()) or "(aucun)"
+    prompt = f"""Marketplace : {marketplace}
+Marque : {brand or "(non précisée)"}
+Catégorie : {category or "(non précisée)"}
+Mots-clés backend : {(backend_keywords or "(vides)")[:300]}
+
+TITRE ACTUEL ({len(title)} car.) : {title}
 BULLETS :
 {bullets_text}
-ITEM HIGHLIGHTS ACTUEL : {req.item_highlights or "(vide)"}"""
+ITEM HIGHLIGHTS ACTUEL : {item_highlights or "(vide)"}"""
 
     resp = await get_client().messages.create(
         model="claude-sonnet-4-6",
@@ -2122,17 +2127,239 @@ ITEM HIGHLIGHTS ACTUEL : {req.item_highlights or "(vide)"}"""
         messages=[{"role": "user", "content": prompt}],
     )
     raw = resp.content[0].text.strip()
-    import re as _re_rf
     raw = _re_rf.sub(r'^```(?:json)?\s*', '', raw, flags=_re_rf.MULTILINE)
     raw = _re_rf.sub(r'\s*```$', '', raw, flags=_re_rf.MULTILINE).strip()
+    data = _json.loads(raw)
+    # Enforce hard limits server-side regardless of model output
+    return _scored(
+        str(data.get("title", title))[:75],
+        str(data.get("item_highlights", item_highlights or ""))[:125],
+    )
+
+
+@app.post("/api/reformat-title")
+async def reformat_title(req: ReformatTitleRequest, request: Request):
+    """Shorten an existing title to ≤75 chars and produce the Item Highlights field.
+    Media categories keep the 200-char allowance (returned mostly unchanged)."""
+    if not os.getenv("ANTHROPIC_API_KEY"):
+        raise HTTPException(503, "Service indisponible")
     try:
-        data = _json.loads(raw)
+        return await _reformat_title_core(
+            title=req.title, brand=req.brand, category=req.category,
+            bullets=req.bullets, item_highlights=req.item_highlights,
+            backend_keywords=req.backend_keywords, marketplace=req.marketplace,
+        )
+    except HTTPException:
+        raise
     except Exception:
         raise HTTPException(500, "Erreur de reformatage — réessayez")
-    # Enforce hard limits server-side regardless of model output
-    new_title = str(data.get("title", req.title))[:75]
-    new_highlights = str(data.get("item_highlights", req.item_highlights or ""))[:125]
-    return _scored(new_title, new_highlights)
+
+
+# ── Catalog title migration (bulk, for existing Amazon listings) ─────────────
+
+class TitleMigrationParseRequest(BaseModel):
+    filename: str
+    content_b64: str
+
+
+# Column aliases found in Seller Central "All Listings" reports (FR/EN) and
+# generic catalog exports.
+_TM_SKU_COLS    = ("seller-sku", "sku", "item_sku", "item-sku", "sku vendeur", "seller_sku")
+_TM_TITLE_COLS  = ("item-name", "item_name", "title", "titre", "product-name", "product_name",
+                   "nom", "nom du produit", "item-description", "name")
+_TM_ASIN_COLS   = ("asin1", "asin", "asin 1")
+_TM_BRAND_COLS  = ("brand", "brand-name", "brand_name", "marque")
+_TM_CAT_COLS    = ("product-type", "product_type", "category", "catégorie", "categorie", "item-type", "type")
+
+
+def _tm_find_col(headers: list, candidates: tuple) -> Optional[int]:
+    low = [str(h or "").strip().lower() for h in headers]
+    for cand in candidates:
+        if cand in low:
+            return low.index(cand)
+    return None
+
+
+@app.post("/api/title-migration/parse")
+async def title_migration_parse(payload: TitleMigrationParseRequest, request: Request):
+    """Parse a Seller Central listings report (CSV/TSV/XLSX) or any file with
+    SKU + title columns. Returns rows annotated with compliance status."""
+    content = _decode_upload(payload.filename, payload.content_b64)
+    fname = (payload.filename or "report.csv").lower()
+    from app.services.ai_agent import is_media_category
+
+    rows = []
+    if fname.endswith((".xlsx", ".xlsm", ".xls")):
+        import openpyxl
+        wb = openpyxl.load_workbook(io.BytesIO(content), read_only=True, data_only=True)
+        ws = wb.active
+        data_rows = [[c if c is not None else "" for c in r] for r in ws.iter_rows(values_only=True)]
+        wb.close()
+    else:
+        # Seller Central reports are TSV (.txt); also accept ; and , CSV
+        text = None
+        for enc in ("utf-8-sig", "utf-8", "cp1252", "latin-1"):
+            try:
+                text = content.decode(enc)
+                break
+            except UnicodeDecodeError:
+                continue
+        if text is None:
+            raise HTTPException(400, "Encodage de fichier non reconnu")
+        first_line = text.splitlines()[0] if text.splitlines() else ""
+        delim = "\t" if "\t" in first_line else (";" if first_line.count(";") > first_line.count(",") else ",")
+        import csv as _csv
+        data_rows = list(_csv.reader(io.StringIO(text), delimiter=delim))
+
+    if not data_rows:
+        raise HTTPException(422, "Fichier vide")
+
+    headers = [str(h or "") for h in data_rows[0]]
+    sku_i   = _tm_find_col(headers, _TM_SKU_COLS)
+    title_i = _tm_find_col(headers, _TM_TITLE_COLS)
+    if title_i is None:
+        raise HTTPException(422, "Colonne titre introuvable — le fichier doit contenir une colonne "
+                                 "'item-name' (rapport Seller Central) ou 'titre'/'title'")
+    asin_i  = _tm_find_col(headers, _TM_ASIN_COLS)
+    brand_i = _tm_find_col(headers, _TM_BRAND_COLS)
+    cat_i   = _tm_find_col(headers, _TM_CAT_COLS)
+
+    MAX_ROWS = 2000
+    for r in data_rows[1:]:
+        if len(rows) >= MAX_ROWS:
+            break
+        def _cell(i):
+            return str(r[i]).strip() if i is not None and i < len(r) and r[i] is not None else ""
+        title = _cell(title_i)
+        if not title:
+            continue
+        sku = _cell(sku_i)
+        category = _cell(cat_i)
+        media = is_media_category(category)
+        limit = 200 if media else 75
+        rows.append({
+            "sku": sku or _cell(asin_i) or f"ROW-{len(rows)+1}",
+            "asin": _cell(asin_i),
+            "brand": _cell(brand_i),
+            "category": category,
+            "title": title,
+            "title_len": len(title),
+            "media_exempt": media,
+            "compliant": len(title) <= limit,
+        })
+
+    if not rows:
+        raise HTTPException(422, "Aucune ligne exploitable trouvée dans le fichier")
+    non_compliant = sum(1 for x in rows if not x["compliant"])
+    return {"rows": rows, "total": len(rows), "non_compliant": non_compliant,
+            "truncated": len(data_rows) - 1 > MAX_ROWS}
+
+
+class TitleMigrationRow(BaseModel):
+    sku: str
+    asin: str = ""
+    title: str
+    brand: str = ""
+    category: str = ""
+
+
+class TitleMigrationRunRequest(BaseModel):
+    rows: list[TitleMigrationRow]
+    marketplace: str = "amazon_fr"
+
+
+async def _run_title_migration_job(job_id: str, rows: list, marketplace: str, email: str):
+    _jobs[job_id]["status"] = "running"
+    results = []
+    sem = asyncio.Semaphore(8)
+    done = 0
+
+    async def _one(row: TitleMigrationRow):
+        nonlocal done
+        async with sem:
+            out = {"sku": row.sku, "asin": row.asin, "old_title": row.title,
+                   "brand": row.brand, "category": row.category}
+            try:
+                res = await _reformat_title_core(
+                    title=row.title, brand=row.brand, category=row.category,
+                    marketplace=marketplace,
+                )
+                out.update(res)
+                out["ok"] = True
+            except Exception as e:
+                out.update({"ok": False, "error": str(e)[:200],
+                            "title": row.title, "item_highlights": ""})
+            results.append(out)
+            done += 1
+            _jobs[job_id]["progress"] = done
+
+    await asyncio.gather(*[_one(r) for r in rows])
+    ok_count = sum(1 for r in results if r.get("ok"))
+    if email:
+        try:
+            log_usage(email, "title_migration", ok_count)
+        except Exception:
+            pass
+    # Preserve input order for the before/after table
+    order = {r.sku: i for i, r in enumerate(rows)}
+    results.sort(key=lambda x: order.get(x["sku"], 1_000_000))
+    _jobs[job_id].update({"status": "done", "result": {"rows": results, "ok": ok_count,
+                                                       "failed": len(results) - ok_count}})
+
+
+@app.post("/api/title-migration/run")
+async def title_migration_run(req: TitleMigrationRunRequest, request: Request):
+    if not os.getenv("ANTHROPIC_API_KEY"):
+        raise HTTPException(503, "Service indisponible")
+    if not req.rows:
+        raise HTTPException(400, "Aucune ligne à traiter")
+    if len(req.rows) > 2000:
+        raise HTTPException(413, "Maximum 2000 titres par migration — divisez le fichier")
+    email = request.state.user_email
+    job_id = str(uuid4())
+    _jobs[job_id] = {"status": "pending", "progress": 0, "total": len(req.rows),
+                     "created_at": time.time()}
+    _cleanup_jobs()
+    try:
+        save_job(job_id, email, "title_migration", len(req.rows))
+    except Exception:
+        pass
+    asyncio.create_task(_run_title_migration_job(job_id, req.rows, req.marketplace, email))
+    return {"job_id": job_id, "total": len(req.rows)}
+
+
+class TitleMigrationExportRequest(BaseModel):
+    rows: list[dict]  # [{sku, title, item_highlights}]
+
+
+@app.post("/api/title-migration/export")
+async def title_migration_export(req: TitleMigrationExportRequest, request: Request):
+    """Build a Seller Central partial-update flat file (TSV) with the new titles
+    and Item Highlights — ready to upload in 'Ajouter des produits via fichier'."""
+    out = io.StringIO()
+    headers = ["item-sku", "update-delete", "item-name", "item-highlights"]
+    out.write("\t".join(headers) + "\n")
+    out.write("\t".join(["TemplateType=fptcustom", "Version=2021.1201", "", ""]) + "\n")
+    count = 0
+    for r in req.rows:
+        sku = str(r.get("sku", "")).strip()
+        title = str(r.get("title", "")).strip()
+        if not sku or not title:
+            continue
+        out.write("\t".join([
+            sku.replace("\t", " "),
+            "PartialUpdate",
+            title.replace("\t", " ")[:200],
+            str(r.get("item_highlights", "")).replace("\t", " ")[:125],
+        ]) + "\n")
+        count += 1
+    if not count:
+        raise HTTPException(400, "Aucune ligne valide à exporter")
+    return Response(
+        content=out.getvalue().encode("utf-8-sig"),
+        media_type="text/tab-separated-values",
+        headers={"Content-Disposition": 'attachment; filename="synqio_migration_titres_amazon.txt"'},
+    )
 
 
 # ── Saved sessions ────────────────────────────────────────────────────────────

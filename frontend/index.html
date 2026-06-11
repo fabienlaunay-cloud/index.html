@@ -1158,6 +1158,11 @@
         class="w-8 h-8 flex items-center justify-center rounded-lg text-white/60 hover:text-white hover:bg-white/15 transition flex-shrink-0">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
       </button>
+      <button onclick="openTitleMigration()" title="Migration titres Amazon — norme ≤75 car. du 27/07/2026"
+        class="w-8 h-8 flex items-center justify-center rounded-lg text-amber-300/80 hover:text-amber-200 hover:bg-white/15 transition flex-shrink-0 relative">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+        <span class="absolute -top-0.5 -right-0.5 w-2 h-2 bg-amber-400 rounded-full"></span>
+      </button>
 
       <!-- Divider -->
       <div class="w-px h-5 bg-white/15 mx-1"></div>
@@ -3977,6 +3982,215 @@ async function reformatLongTitles() {
   _updateReformatBtn();
   if (failed) showToast('⚠️', `${done} titre(s) mis en conformité, ${failed} échec(s) — réessayez`, true);
   else showToast('✅', `${done} titre(s) raccourci(s) ≤ 75 car. + Item Highlights générés`);
+}
+
+// ── Catalog title migration modal (existing Amazon listings) ─────────────────
+let _tmRows = [];      // parsed source rows
+let _tmResults = [];   // reformatted rows
+
+function openTitleMigration() {
+  document.getElementById('titleMigrationModal').classList.remove('hidden');
+  tmReset();
+}
+function closeTitleMigration() {
+  document.getElementById('titleMigrationModal').classList.add('hidden');
+}
+function tmReset() {
+  _tmRows = []; _tmResults = [];
+  document.getElementById('tmStepSource').classList.remove('hidden');
+  document.getElementById('tmStepPreview').classList.add('hidden');
+  document.getElementById('tmStepResults').classList.add('hidden');
+  document.getElementById('tmSourceError').classList.add('hidden');
+  document.getElementById('tmProgress').classList.add('hidden');
+  const fi = document.getElementById('tmFileInput');
+  if (fi) fi.value = '';
+}
+function _tmError(msg) {
+  const el = document.getElementById('tmSourceError');
+  el.textContent = '❌ ' + msg;
+  el.classList.remove('hidden');
+}
+
+async function tmParseFile(input) {
+  const file = input.files && input.files[0];
+  if (!file) return;
+  document.getElementById('tmSourceError').classList.add('hidden');
+  try {
+    const b64 = await new Promise((res, rej) => {
+      const fr = new FileReader();
+      fr.onload = () => res(String(fr.result).split(',')[1]);
+      fr.onerror = rej;
+      fr.readAsDataURL(file);
+    });
+    const r = await authFetch('/api/title-migration/parse', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ filename: file.name, content_b64: b64 }),
+    });
+    if (!r.ok) {
+      const err = await r.json().catch(() => ({}));
+      throw new Error(err.detail || `Erreur HTTP ${r.status}`);
+    }
+    const data = await r.json();
+    _tmShowPreview(data.rows);
+    if (data.truncated) showToast('⚠️', 'Fichier limité aux 2000 premières lignes');
+  } catch (e) {
+    _tmError(e.message);
+  }
+}
+
+async function tmLoadFromCatalog() {
+  document.getElementById('tmSourceError').classList.add('hidden');
+  try {
+    const mkt = (typeof selectedMarketplaces !== 'undefined' && selectedMarketplaces[0]) || 'amazon_fr';
+    const r = await authFetch(`/api/amazon/catalog?marketplace=${encodeURIComponent(mkt)}`);
+    if (!r.ok) throw new Error('Catalogue inaccessible — connectez votre compte Seller Central dans les réglages');
+    const data = await r.json();
+    const items = data.items || [];
+    if (!items.length) throw new Error('Catalogue vide pour ce marché — lancez d\'abord une synchronisation (ou le compte n\'est pas connecté)');
+    const rows = items.filter(i => (i.title || '').trim()).map(i => ({
+      sku: i.sku || i.asin || '', asin: i.asin || '', brand: '', category: '',
+      title: i.title, title_len: (i.title || '').length,
+      media_exempt: _isMediaCategory(''), compliant: (i.title || '').length <= 75,
+    }));
+    if (!rows.length) throw new Error('Aucun titre exploitable dans le catalogue synchronisé');
+    _tmShowPreview(rows);
+  } catch (e) {
+    _tmError(e.message);
+  }
+}
+
+function _tmShowPreview(rows) {
+  _tmRows = rows;
+  const bad = rows.filter(r => !r.compliant);
+  document.getElementById('tmStepSource').classList.add('hidden');
+  document.getElementById('tmStepResults').classList.add('hidden');
+  document.getElementById('tmStepPreview').classList.remove('hidden');
+  document.getElementById('tmStatTotal').textContent = rows.length;
+  document.getElementById('tmStatBad').textContent = bad.length;
+  document.getElementById('tmRunCount').textContent = bad.length;
+  document.getElementById('tmRunBtn').disabled = !bad.length;
+  document.getElementById('tmPreviewBody').innerHTML = rows.slice(0, 400).map(r => {
+    const status = r.compliant
+      ? '<span class="text-green-600 font-medium">✓ Conforme</span>'
+      : r.media_exempt
+        ? '<span class="text-blue-500 font-medium">Média (200 car.)</span>'
+        : `<span class="text-amber-600 font-medium">⚠ À raccourcir</span>`;
+    return `<tr class="border-t border-gray-50 ${r.compliant ? 'opacity-60' : ''}">
+      <td class="py-1.5 px-3 font-mono text-gray-600 whitespace-nowrap">${_esc(r.sku)}</td>
+      <td class="py-1.5 px-3 text-gray-700">${_esc(r.title)}</td>
+      <td class="py-1.5 px-3 text-center ${r.compliant ? 'text-gray-400' : 'text-amber-600 font-bold'}">${r.title_len}</td>
+      <td class="py-1.5 px-3 whitespace-nowrap">${status}</td>
+    </tr>`;
+  }).join('') + (rows.length > 400 ? `<tr><td colspan="4" class="py-2 px-3 text-center text-gray-400">… et ${rows.length - 400} autre(s)</td></tr>` : '');
+}
+
+async function tmRun() {
+  const bad = _tmRows.filter(r => !r.compliant);
+  if (!bad.length) return;
+  const btn = document.getElementById('tmRunBtn');
+  btn.disabled = true;
+  document.getElementById('tmProgress').classList.remove('hidden');
+  const mkt = (typeof selectedMarketplaces !== 'undefined' && selectedMarketplaces[0]) || 'amazon_fr';
+  try {
+    const r = await authFetch('/api/title-migration/run', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        marketplace: mkt,
+        rows: bad.map(x => ({ sku: x.sku, asin: x.asin || '', title: x.title, brand: x.brand || '', category: x.category || '' })),
+      }),
+    });
+    if (!r.ok) {
+      const err = await r.json().catch(() => ({}));
+      throw new Error(err.detail || `Erreur HTTP ${r.status}`);
+    }
+    const { job_id, total } = await r.json();
+    let missed = 0;
+    while (true) {
+      await new Promise(res => setTimeout(res, 1500));
+      const jr = await authFetch(`/api/jobs/${job_id}`).catch(() => null);
+      if (!jr || !jr.ok) { if (++missed >= 4) throw new Error('Le serveur a redémarré — relancez la migration'); continue; }
+      missed = 0;
+      const job = await jr.json();
+      const pct = total ? Math.round((job.progress / total) * 100) : 0;
+      document.getElementById('tmProgressBar').style.width = pct + '%';
+      document.getElementById('tmProgressText').textContent = `Reformatage IA… ${job.progress}/${total}`;
+      if (job.status === 'done') { _tmShowResults(job.result); break; }
+      if (job.status === 'failed') throw new Error(job.error || 'Erreur de migration');
+    }
+  } catch (e) {
+    showToast('❌', e.message, true);
+    document.getElementById('tmProgress').classList.add('hidden');
+    btn.disabled = false;
+  }
+}
+
+function _tmShowResults(result) {
+  _tmResults = result.rows || [];
+  document.getElementById('tmStepPreview').classList.add('hidden');
+  document.getElementById('tmStepResults').classList.remove('hidden');
+  document.getElementById('tmResOk').textContent = result.ok || 0;
+  const failWrap = document.getElementById('tmResFailWrap');
+  if (result.failed > 0) {
+    failWrap.classList.remove('hidden');
+    document.getElementById('tmResFail').textContent = result.failed;
+  } else failWrap.classList.add('hidden');
+  document.getElementById('tmResultsBody').innerHTML = _tmResults.map((r, i) => `
+    <tr class="border-t border-gray-50 ${r.ok ? '' : 'bg-red-50/50'}">
+      <td class="py-1.5 px-3 font-mono text-gray-600 whitespace-nowrap align-top">${_esc(r.sku)}</td>
+      <td class="py-1.5 px-3 text-gray-400 align-top">${_esc(r.old_title)} <span class="text-gray-300">(${(r.old_title||'').length})</span></td>
+      <td class="py-1.5 px-3 align-top">
+        ${r.ok
+          ? `<textarea data-tm-title="${i}" rows="2" maxlength="${r.media_exempt ? 200 : 75}" oninput="_tmEditRow(${i})" class="w-full border border-gray-200 rounded px-2 py-1 text-xs resize-none focus:border-purple-400 outline-none">${_esc(r.title)}</textarea>
+             <span class="text-[10px] text-gray-400"><span data-tm-tlen="${i}">${(r.title||'').length}</span>/${r.media_exempt ? 200 : 75}</span>`
+          : `<span class="text-red-500 text-xs">Échec : ${_esc(r.error || 'erreur')}</span>`}
+      </td>
+      <td class="py-1.5 px-3 align-top">
+        ${r.ok
+          ? `<textarea data-tm-hl="${i}" rows="2" maxlength="125" oninput="_tmEditRow(${i})" class="w-full border border-gray-200 rounded px-2 py-1 text-xs resize-none focus:border-purple-400 outline-none">${_esc(r.item_highlights || '')}</textarea>
+             <span class="text-[10px] text-gray-400"><span data-tm-hlen="${i}">${(r.item_highlights||'').length}</span>/125</span>`
+          : ''}
+      </td>
+    </tr>`).join('');
+}
+
+function _tmEditRow(i) {
+  const t = document.querySelector(`[data-tm-title="${i}"]`);
+  const h = document.querySelector(`[data-tm-hl="${i}"]`);
+  if (t) { _tmResults[i].title = t.value; const c = document.querySelector(`[data-tm-tlen="${i}"]`); if (c) c.textContent = t.value.length; }
+  if (h) { _tmResults[i].item_highlights = h.value; const c = document.querySelector(`[data-tm-hlen="${i}"]`); if (c) c.textContent = h.value.length; }
+}
+
+async function tmDownloadFlatFile() {
+  const rows = _tmResults.filter(r => r.ok && (r.title || '').trim());
+  if (!rows.length) { showToast('⚠️', 'Aucun titre valide à exporter'); return; }
+  try {
+    const r = await authFetch('/api/title-migration/export', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ rows: rows.map(x => ({ sku: x.sku, title: x.title, item_highlights: x.item_highlights || '' })) }),
+    });
+    if (!r.ok) throw new Error(`Erreur HTTP ${r.status}`);
+    const blob = await r.blob();
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'synqio_migration_titres_amazon.txt';
+    a.click();
+    showToast('✅', `Fichier Seller Central téléchargé — ${rows.length} titre(s)`);
+  } catch (e) {
+    showToast('❌', e.message, true);
+  }
+}
+
+function tmDownloadCsv() {
+  const rows = _tmResults.filter(r => r.ok);
+  if (!rows.length) { showToast('⚠️', 'Aucun résultat à exporter'); return; }
+  const esc = v => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
+  const csv = ['sku;asin;ancien_titre;nouveau_titre;longueur;item_highlights']
+    .concat(rows.map(r => [r.sku, r.asin || '', r.old_title, r.title, (r.title||'').length, r.item_highlights || ''].map(esc).join(';')))
+    .join('\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' }));
+  a.download = 'synqio_migration_titres_controle.csv';
+  a.click();
 }
 
 function _deleteBatch(idx) {
@@ -9232,6 +9446,108 @@ async function importFromUrl() {
   }, 800);
 }
 </script>
+
+<!-- ═══════════════════ TITLE MIGRATION MODAL (Amazon 27/07/2026) ═══════════════════ -->
+<div id="titleMigrationModal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-[300] flex items-center justify-center p-4" onclick="if(event.target===this)closeTitleMigration()">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-5xl max-h-[92vh] flex flex-col">
+    <div class="px-6 py-4 border-b border-gray-100 flex items-start justify-between gap-4">
+      <div>
+        <h2 class="font-bold text-gray-900 text-lg flex items-center gap-2">
+          <span class="w-8 h-8 rounded-lg bg-amber-100 text-amber-600 flex items-center justify-center"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></span>
+          Migration titres Amazon — norme du 27 juillet 2026
+        </h2>
+        <p class="text-sm text-gray-500 mt-1">Raccourcissez en masse les titres de votre catalogue existant (≤ 75 car.) et générez le champ Item Highlights. Vos fiches Amazon ne sont pas touchées tant que vous n'uploadez pas le fichier final dans Seller Central.</p>
+      </div>
+      <button onclick="closeTitleMigration()" class="w-9 h-9 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500 transition text-lg leading-none flex-shrink-0">✕</button>
+    </div>
+
+    <div class="flex-1 overflow-y-auto px-6 py-5">
+      <!-- Step 1: source -->
+      <div id="tmStepSource">
+        <p class="text-sm font-semibold text-gray-700 mb-3">1. Récupérez vos titres actuels</p>
+        <div class="grid sm:grid-cols-2 gap-3 mb-4">
+          <label for="tmFileInput" class="border-2 border-dashed border-purple-200 hover:border-purple-400 hover:bg-purple-50/50 rounded-xl p-5 cursor-pointer transition block">
+            <p class="font-semibold text-gray-800 text-sm flex items-center gap-2">📄 Rapport Seller Central</p>
+            <p class="text-xs text-gray-500 mt-1.5 leading-relaxed">Dans Seller Central : <b>Stocks → Rapports sur les stocks → Tous les listings (rapport)</b>, puis déposez le fichier .txt/.csv ici. Fonctionne aussi avec tout fichier Excel/CSV contenant les colonnes SKU + titre.</p>
+            <input id="tmFileInput" type="file" accept=".txt,.csv,.tsv,.xlsx,.xlsm,.xls" class="hidden" onchange="tmParseFile(this)">
+          </label>
+          <button onclick="tmLoadFromCatalog()" class="border-2 border-dashed border-emerald-200 hover:border-emerald-400 hover:bg-emerald-50/50 rounded-xl p-5 text-left transition">
+            <p class="font-semibold text-gray-800 text-sm flex items-center gap-2">☁️ Catalogue Amazon connecté</p>
+            <p class="text-xs text-gray-500 mt-1.5 leading-relaxed">Si votre compte Seller Central est connecté à SynqIO, chargez directement vos titres synchronisés (SKU, ASIN, titre) — sans fichier.</p>
+          </button>
+        </div>
+        <p class="text-xs text-gray-400">💡 Pour un produit isolé, vous pouvez aussi utiliser l'import par URL depuis l'écran principal — mais pour migrer tout un catalogue, le rapport Seller Central ou le catalogue connecté sont les bonnes sources.</p>
+        <p id="tmSourceError" class="hidden text-sm text-red-500 mt-3"></p>
+      </div>
+
+      <!-- Step 2: preview + run -->
+      <div id="tmStepPreview" class="hidden">
+        <div class="flex items-center justify-between flex-wrap gap-3 mb-3">
+          <div>
+            <p class="text-sm font-semibold text-gray-700">2. Aperçu — <span id="tmStatTotal">0</span> produit(s), <span id="tmStatBad" class="text-amber-600 font-bold">0</span> titre(s) à raccourcir</p>
+            <p class="text-xs text-gray-400 mt-0.5">Seuls les titres non conformes (hors catégories médias) seront réécrits par l'IA.</p>
+          </div>
+          <div class="flex gap-2">
+            <button onclick="tmReset()" class="text-xs text-gray-500 hover:text-gray-700 border border-gray-200 rounded-lg px-3 py-2 transition">← Changer de source</button>
+            <button id="tmRunBtn" onclick="tmRun()" class="gradient-bg text-white rounded-lg px-4 py-2 text-sm font-semibold hover:opacity-90 transition">✨ Reformater <span id="tmRunCount"></span> titre(s)</button>
+          </div>
+        </div>
+        <div id="tmProgress" class="hidden mb-3">
+          <div class="bg-gray-100 rounded-full h-2"><div id="tmProgressBar" class="gradient-bg h-2 rounded-full transition-all" style="width:0%"></div></div>
+          <p id="tmProgressText" class="text-xs text-gray-500 mt-1.5">Reformatage en cours…</p>
+        </div>
+        <div class="border border-gray-100 rounded-xl overflow-hidden">
+          <div class="overflow-x-auto max-h-[45vh] overflow-y-auto">
+            <table class="w-full text-xs">
+              <thead class="bg-gray-50 sticky top-0">
+                <tr class="text-left text-gray-500">
+                  <th class="py-2 px-3 font-medium">SKU</th>
+                  <th class="py-2 px-3 font-medium">Titre actuel</th>
+                  <th class="py-2 px-3 font-medium text-center">Long.</th>
+                  <th class="py-2 px-3 font-medium">Statut</th>
+                </tr>
+              </thead>
+              <tbody id="tmPreviewBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 3: results -->
+      <div id="tmStepResults" class="hidden">
+        <div class="flex items-center justify-between flex-wrap gap-3 mb-3">
+          <div>
+            <p class="text-sm font-semibold text-gray-700">3. Résultat — <span id="tmResOk" class="text-green-600 font-bold">0</span> titre(s) conformes générés<span id="tmResFailWrap" class="hidden">, <span id="tmResFail" class="text-red-500 font-bold">0</span> échec(s)</span></p>
+            <p class="text-xs text-gray-400 mt-0.5">Vérifiez, modifiez si besoin, puis téléchargez le fichier à uploader dans Seller Central.</p>
+          </div>
+          <div class="flex gap-2">
+            <button onclick="tmReset()" class="text-xs text-gray-500 hover:text-gray-700 border border-gray-200 rounded-lg px-3 py-2 transition">↺ Recommencer</button>
+            <button onclick="tmDownloadCsv()" class="text-xs text-gray-600 hover:text-gray-800 border border-gray-200 rounded-lg px-3 py-2 transition">⬇ CSV de contrôle</button>
+            <button onclick="tmDownloadFlatFile()" class="gradient-bg text-white rounded-lg px-4 py-2 text-sm font-semibold hover:opacity-90 transition">📦 Fichier Seller Central</button>
+          </div>
+        </div>
+        <div class="bg-blue-50 border border-blue-100 rounded-xl px-4 py-3 mb-3 text-xs text-blue-800 leading-relaxed">
+          <b>Comment appliquer sur Amazon :</b> Seller Central → <b>Catalogue → Ajouter des produits via un fichier</b> → onglet <b>Téléverser votre fichier</b> → déposez le fichier téléchargé. Le mode <b>PartialUpdate</b> ne modifie que le titre et les Item Highlights — bullets, description, images et prix restent intacts.
+        </div>
+        <div class="border border-gray-100 rounded-xl overflow-hidden">
+          <div class="overflow-x-auto max-h-[42vh] overflow-y-auto">
+            <table class="w-full text-xs">
+              <thead class="bg-gray-50 sticky top-0">
+                <tr class="text-left text-gray-500">
+                  <th class="py-2 px-3 font-medium">SKU</th>
+                  <th class="py-2 px-3 font-medium w-1/3">Avant</th>
+                  <th class="py-2 px-3 font-medium w-1/3">Nouveau titre (modifiable)</th>
+                  <th class="py-2 px-3 font-medium w-1/4">Item Highlights (modifiable)</th>
+                </tr>
+              </thead>
+              <tbody id="tmResultsBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
 
 <!-- ═══════════════════ LISTING DETAIL MODAL ═══════════════════ -->
 <div id="listingDetailModal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-[300] flex items-center justify-center p-4" onclick="if(event.target===this)closeListingDetail()">
