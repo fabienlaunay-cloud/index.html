@@ -24,6 +24,13 @@ LOCAL_DIR = os.getenv("PHOTOS_DIR", os.path.join(_PROJECT_ROOT, "data", "photos"
 _s3 = None  # lazily initialized
 
 
+def _safe_key(key: str) -> str:
+    """Reject path-traversal attempts. Keys are flat filenames, never paths."""
+    if not key or key != os.path.basename(key) or key in (".", ".."):
+        raise ValueError(f"Clé de fichier invalide : {key!r}")
+    return key
+
+
 def _get_s3():
     global _s3
     if _s3 is None:
@@ -47,6 +54,7 @@ def public_url(key: str) -> Optional[str]:
 
 def put(key: str, data: bytes, content_type: str = "application/octet-stream") -> None:
     """Upload a file to R2 or save to local disk."""
+    key = _safe_key(key)
     if USE_R2:
         _get_s3().put_object(Bucket=_R2_BUCKET, Key=key, Body=data, ContentType=content_type)
     else:
@@ -57,6 +65,10 @@ def put(key: str, data: bytes, content_type: str = "application/octet-stream") -
 
 def get(key: str) -> Optional[bytes]:
     """Retrieve file bytes from R2 or local disk."""
+    try:
+        key = _safe_key(key)
+    except ValueError:
+        return None
     if USE_R2:
         try:
             resp = _get_s3().get_object(Bucket=_R2_BUCKET, Key=key)
@@ -74,6 +86,10 @@ def get(key: str) -> Optional[bytes]:
 
 def exists(key: str) -> bool:
     """Return True if the file exists."""
+    try:
+        key = _safe_key(key)
+    except ValueError:
+        return False
     if USE_R2:
         try:
             _get_s3().head_object(Bucket=_R2_BUCKET, Key=key)

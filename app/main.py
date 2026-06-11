@@ -547,7 +547,19 @@ async def upload_photos_zip(request: Request):
 
 
 @app.get("/api/photos/list")
-async def list_photos():
+async def list_photos(request: Request):
+    # This endpoint lives under the public /api/photos/ prefix (so images load in
+    # <img> tags without auth), but it leaks every user's filenames/SKUs — gate it
+    # behind an admin JWT explicitly.
+    from app.services.auth import is_admin, _decode_token_data
+    auth = request.headers.get("Authorization", "")
+    token = auth.split(" ", 1)[1] if auth.startswith("Bearer ") else ""
+    email = verify_token(token) if token else None
+    if not email:
+        raise HTTPException(401, "Non authentifié")
+    jwt_data = _decode_token_data(token) or {}
+    if not (bool(jwt_data.get("adm")) or is_admin(email)):
+        raise HTTPException(403, "Accès réservé aux administrateurs")
     from app.services.storage import USE_R2, LOCAL_DIR
     files = storage.list_keys()
     image_exts = set(_IMAGE_EXTS)
@@ -575,6 +587,28 @@ async def serve_photo(filename: str):
 
 # ── URL Scraping ──────────────────────────────────────────────────────────────
 
+def _reject_internal_url(url: str) -> None:
+    """SSRF guard: block requests to private / loopback / link-local addresses
+    (e.g. cloud metadata at 169.254.169.254, localhost, internal services)."""
+    import ipaddress
+    import socket
+    from urllib.parse import urlparse
+    parsed = urlparse(url)
+    if parsed.scheme not in ("http", "https"):
+        raise HTTPException(400, "URL invalide — utilisez http:// ou https://")
+    host = parsed.hostname
+    if not host:
+        raise HTTPException(400, "URL invalide")
+    try:
+        infos = socket.getaddrinfo(host, None)
+    except Exception:
+        raise HTTPException(502, "Nom de domaine introuvable")
+    for info in infos:
+        ip = ipaddress.ip_address(info[4][0])
+        if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved or ip.is_multicast:
+            raise HTTPException(400, "URL non autorisée (adresse interne)")
+
+
 @app.post("/api/scrape-url")
 async def scrape_url_endpoint(request: Request):
     """Fetch a product URL and extract name, brand, price, EAN, images, etc."""
@@ -582,17 +616,29 @@ async def scrape_url_endpoint(request: Request):
     url = (body.get("url") or "").strip()
     if not url.startswith("http"):
         raise HTTPException(400, "URL invalide — elle doit commencer par http:// ou https://")
+    _reject_internal_url(url)
+    # Follow redirects manually so each hop is re-validated against the SSRF guard
+    # (a public site could otherwise 302 to an internal address).
     try:
         async with httpx.AsyncClient(
-            follow_redirects=True, timeout=15.0,
+            follow_redirects=False, timeout=15.0,
             headers={"User-Agent": (
                 "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
                 "AppleWebKit/537.36 (KHTML, like Gecko) "
                 "Chrome/124.0.0.0 Safari/537.36"
             )},
         ) as client:
-            resp = await client.get(url)
+            current = url
+            for _ in range(6):
+                resp = await client.get(current)
+                if resp.is_redirect and resp.headers.get("location"):
+                    current = str(resp.next_request.url) if resp.next_request else resp.headers["location"]
+                    _reject_internal_url(current)
+                    continue
+                break
             resp.raise_for_status()
+    except HTTPException:
+        raise
     except httpx.TimeoutException:
         raise HTTPException(504, "Le site met trop de temps à répondre (délai 15s dépassé)")
     except httpx.HTTPStatusError as e:
