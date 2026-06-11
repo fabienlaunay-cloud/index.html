@@ -3705,6 +3705,11 @@ function _restoreSession() {
         showResults(result);
         setStep(3);
         _renderBatchSelector();
+        // Heavy base64 images were stripped from localStorage — re-fetch from DB
+        const needImgs = generatedListings.filter(l => !l.parent_sku && !imagesCache[l.sku]).map(l => l.sku);
+        if (needImgs.length) {
+          _restoreImagesFromDB(needImgs).then(n => { if (n) renderListingsContainer(); });
+        }
         const msg = _batches.length > 1 ? `${_batches.length} sessions restaurées` : `Session restaurée — ${generatedListings.length} fiche(s)`;
         showToast('🔄', msg);
         return;
@@ -3795,13 +3800,42 @@ function _switchBatch(idx) {
   _saveBatches();
 }
 
+// Strip heavy base64 data-URL images before persisting — they blow the ~5MB
+// localStorage quota and are re-fetched from the DB on reload anyway. Small
+// path-based URLs (/api/photos/...) are kept so images show instantly.
+function _slimBatchesForStorage() {
+  return _batches.map(b => {
+    const images = {};
+    for (const [sku, v] of Object.entries(b.images || {})) {
+      const imgs = (v && v.images) || [];
+      const light = imgs.filter(i => !String(i.url || '').startsWith('data:'));
+      if (light.length) images[sku] = { ...v, images: light };
+    }
+    return { ...b, images };
+  });
+}
+
 function _saveBatches() {
   _syncActiveBatch();
   try {
-    localStorage.setItem('synqio_batches', JSON.stringify(_batches));
+    localStorage.setItem('synqio_batches', JSON.stringify(_slimBatchesForStorage()));
     localStorage.setItem('synqio_active_batch', String(_activeBatchIdx));
-    if (generatedListings.length) localStorage.setItem('synqio_listings', JSON.stringify(generatedListings));
-  } catch(e) {}
+    if (generatedListings.length) {
+      const slimListings = generatedListings;
+      try { localStorage.setItem('synqio_listings', JSON.stringify(slimListings)); }
+      catch(e) { /* listings alone may also exceed quota — non-fatal */ }
+    }
+  } catch(e) {
+    // Quota exceeded even after slimming — drop the bulky key so at least the
+    // batch metadata round-trips, and warn instead of failing silently.
+    try {
+      localStorage.removeItem('synqio_listings');
+      localStorage.setItem('synqio_batches', JSON.stringify(_slimBatchesForStorage()));
+      localStorage.setItem('synqio_active_batch', String(_activeBatchIdx));
+    } catch(e2) {
+      console.warn('[batches] localStorage quota exceeded — session not persisted', e2);
+    }
+  }
 }
 
 function clearAllListings() {
