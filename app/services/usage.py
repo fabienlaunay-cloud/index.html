@@ -14,6 +14,24 @@ PLAN_QUOTAS = {
 # initiale (lot complet) n'est pas comptée.
 MAX_IMAGE_REGENS = 3
 
+# Plan suivant proposé quand le quota est atteint (None = contacter l'équipe)
+NEXT_PLAN = {
+    "maintenance": "starter",
+    "starter": "business",
+    "business": "scale",
+    "scale": None,
+}
+
+
+def get_upgrade_suggestion(plan: str) -> dict | None:
+    """Retourne {plan, label, skus, price_monthly} du plan supérieur, ou None."""
+    nxt = NEXT_PLAN.get(plan)
+    if not nxt:
+        return None
+    q = PLAN_QUOTAS[nxt]
+    return {"plan": nxt, "label": q["label"], "skus": q["skus"],
+            "price_monthly": q["price_monthly"]}
+
 # Tarifs Claude Sonnet + gpt-image-1
 _COST_PER_M_IN  = 3.0    # USD / million tokens input
 _COST_PER_M_OUT = 15.0   # USD / million tokens output
@@ -100,13 +118,16 @@ def get_user_usage(user_email: str, month: str = None) -> dict:
     tokens_out  = usage.get("tokens_out", 0)
     images_used = usage.get("image_generated", 0)
 
+    skus_used = usage.get("sku_generated", 0)
     return {
         "month": period_label,
         "plan": plan,
         "plan_label": quota["label"],
         "annual_pool": quota.get("annual_pool", False),
-        "skus_used": usage.get("sku_generated", 0),
+        "skus_used": skus_used,
         "skus_quota": quota["skus"],
+        "quota_reached": bool(quota["skus"]) and skus_used >= quota["skus"],
+        "upgrade": get_upgrade_suggestion(plan),
         "images_used": images_used,
         "images_quota": quota["images"],
         "tokens_in": tokens_in,

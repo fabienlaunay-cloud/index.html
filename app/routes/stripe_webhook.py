@@ -27,7 +27,7 @@ def _set_user_plan(email: str, plan: str) -> bool:
     try:
         conn = get_db()
         result = conn.execute(
-            "UPDATE users SET plan = ?, quota_alert_sent = 0 WHERE email = ?",
+            "UPDATE users SET plan = ?, quota_alert_sent = 0, quota_full_period = '' WHERE email = ?",
             (plan, email.lower().strip()),
         )
         conn.close()

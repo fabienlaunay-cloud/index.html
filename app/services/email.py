@@ -317,6 +317,59 @@ Accédez à votre espace : {APP_URL}
     _send(to_email, subject, text, html)
 
 
+def send_quota_reached(to_email: str, total: int, plan_label: str, upgrade: dict | None):
+    """Sent once per period when the user hits 100% of their SKU quota —
+    proposes the next plan up (or a contact link on the top plan)."""
+    if _is_unsubscribed(to_email):
+        return
+    period_word = "cette année" if "an" in (plan_label or "").lower() else "ce mois-ci"
+    if upgrade:
+        offer_text = (f"Passez au plan {upgrade['label']} ({upgrade['skus']} SKU/mois, "
+                      f"{upgrade['price_monthly']} €/mois) pour continuer sans attendre.")
+        cta_label = f"Passer au plan {upgrade['label']} →"
+        cta_url = f"{APP_URL}/#pricing"
+    else:
+        offer_text = ("Vous êtes sur notre plus grand plan — contactez-nous pour une "
+                      "offre sur mesure adaptée à votre volume.")
+        cta_label = "Demander une offre sur mesure →"
+        cta_url = "https://calendly.com/fl-synqio/30min"
+    subject = "🚀 SynqIO — quota atteint : continuez sans interruption"
+    text = f"""Bonjour,
+
+Bonne nouvelle : vous avez utilisé l'intégralité de vos {total} SKU ({plan_label}) — votre catalogue avance vite !
+
+{offer_text}
+
+{cta_url}
+
+— L'équipe SynqIO
+{_unsubscribe_footer_text(to_email)}"""
+    html = f"""<!DOCTYPE html>
+<html><head><meta charset="utf-8"></head>
+<body style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:24px;color:#1f2937">
+  <div style="background:linear-gradient(135deg,#7c3aed,#4f46e5);border-radius:16px;padding:32px;text-align:center;margin-bottom:28px">
+    <h1 style="color:white;margin:0;font-size:26px;font-weight:800">SynqIO</h1>
+    <p style="color:rgba(255,255,255,0.85);margin-top:8px;font-size:16px">🚀 Quota atteint</p>
+  </div>
+  <p style="font-size:15px;margin-bottom:16px">Bonjour,</p>
+  <p style="font-size:15px;color:#374151;margin-bottom:24px">
+    Bonne nouvelle : vous avez utilisé l'intégralité de vos <strong>{total} SKU</strong> {period_word}
+    sur votre plan <strong>{plan_label}</strong> — votre catalogue avance vite !
+  </p>
+  <div style="background:#f5f3ff;border:1px solid #ddd6fe;border-radius:12px;padding:16px;margin-bottom:24px">
+    <p style="font-size:14px;color:#5b21b6;margin:0">{offer_text}</p>
+  </div>
+  <div style="text-align:center;margin-top:24px">
+    <a href="{cta_url}" style="display:inline-block;background:linear-gradient(135deg,#7c3aed,#4f46e5);color:white;padding:14px 32px;border-radius:12px;font-weight:700;text-decoration:none;font-size:15px">
+      {cta_label}
+    </a>
+  </div>
+  <p style="color:#9ca3af;font-size:13px;margin-top:32px;text-align:center">— L'équipe SynqIO</p>
+  {_unsubscribe_footer_html(to_email)}
+</body></html>"""
+    _send(to_email, subject, text, html)
+
+
 def send_admin_new_payment(client_email: str, plan: str, amount_eur: int, found_in_db: bool):
     """Notify admin when a Stripe payment is received."""
     admin_email = os.getenv("ADMIN_EMAIL", "")

@@ -824,6 +824,32 @@ async def _run_generation_job(job_id: str, request: GenerationRequest, email: st
                         )
                         _conn2.commit()
                         _conn2.close()
+                # Quota 100% : email upsell (1 seul envoi par période)
+                if skus_quota and skus_used >= skus_quota:
+                    from datetime import datetime as _dt2
+                    _annual2 = usage_data.get("annual_pool", False)
+                    period2 = _dt2.utcnow().strftime("%Y" if _annual2 else "%Y-%m")
+                    _c3 = _get_db()
+                    _r3 = _c3.execute(
+                        "SELECT quota_full_period FROM users WHERE email = ?", (email,)
+                    ).fetchone()
+                    full_period = (_r3["quota_full_period"] if _r3 else None) or ""
+                    _c3.close()
+                    if full_period != period2:
+                        from app.services.email import send_quota_reached
+                        from app.services.usage import get_upgrade_suggestion
+                        asyncio.get_event_loop().run_in_executor(
+                            None, send_quota_reached, email, skus_quota,
+                            usage_data.get("plan_label", ""),
+                            get_upgrade_suggestion(usage_data.get("plan", "")),
+                        )
+                        _c4 = _get_db()
+                        _c4.execute(
+                            "UPDATE users SET quota_full_period = ? WHERE email = ?",
+                            (period2, email),
+                        )
+                        _c4.commit()
+                        _c4.close()
             except Exception:
                 pass
 

@@ -4277,6 +4277,12 @@ function updateQuotaBanner(u, pct) {
     const btn = document.getElementById('quotaBannerBtn');
     btn.textContent = `Passer au plan ${upgrade.nextName} →`;
     btn.className = 'flex-shrink-0 font-semibold px-4 py-1.5 rounded-lg text-sm transition gradient-bg text-white shadow';
+    // Popup upsell automatique à la connexion — une seule fois par session
+    const popKey = `quotaPopup:${u.plan}:${u.month}`;
+    if (!sessionStorage.getItem(popKey)) {
+      sessionStorage.setItem(popKey, '1');
+      setTimeout(() => showUpgradeModal(), 800);
+    }
   } else if (pct >= 80) {
     banner.classList.remove('hidden');
     inner.className = 'rounded-xl px-5 py-3 flex items-center gap-4 text-sm bg-amber-50 border border-amber-200 text-amber-800';
