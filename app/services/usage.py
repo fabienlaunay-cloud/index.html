@@ -2,12 +2,17 @@ from datetime import datetime
 from app.db import get_db
 
 PLAN_QUOTAS = {
-    # skus = quota mensuel sauf maintenance (annual_pool=True → quota annuel de 300)
+    # skus = quota mensuel sauf maintenance (annual_pool=True → quota annuel de 100)
     "starter":     {"skus": 200,  "images": 50,  "label": "Starter",          "commitment_months": 0,  "price_monthly": 390,  "price_setup": 490,  "annual_pool": False},
     "business":    {"skus": 600,  "images": 200, "label": "Business",         "commitment_months": 3,  "price_monthly": 790,  "price_setup": 990,  "annual_pool": False},
     "scale":       {"skus": 1500, "images": 500, "label": "Scale",            "commitment_months": 6,  "price_monthly": 1490, "price_setup": 1990, "annual_pool": False},
-    "maintenance": {"skus": 300,  "images": 100, "label": "Pro / Maintenance","commitment_months": 12, "price_monthly": 99,   "price_setup": 0,    "annual_pool": True},
+    "maintenance": {"skus": 100,  "images": 100, "label": "Pro / Maintenance","commitment_months": 12, "price_monthly": 99,   "price_setup": 0,    "annual_pool": True},
 }
+
+# Limite de régénération par visuel : chaque image d'une fiche (sku + image_id)
+# peut être régénérée au maximum N fois, tous plans confondus — la génération
+# initiale (lot complet) n'est pas comptée.
+MAX_IMAGE_REGENS = 3
 
 # Tarifs Claude Sonnet + gpt-image-1
 _COST_PER_M_IN  = 3.0    # USD / million tokens input
@@ -32,6 +37,25 @@ def _current_year_months() -> list[str]:
     """Retourne les 12 mois de l'année courante (pour le pool annuel maintenance)."""
     year = datetime.utcnow().strftime("%Y")
     return [f"{year}-{m:02d}" for m in range(1, 13)]
+
+
+def _regen_action(sku: str, image_id: str) -> str:
+    return f"img_regen:{(sku or '')[:80]}:{(image_id or '')[:40]}"
+
+
+def get_image_regen_count(user_email: str, sku: str, image_id: str) -> int:
+    """Nombre total de régénérations de ce visuel (cumul à vie, tous mois)."""
+    conn = get_db()
+    row = conn.execute(
+        "SELECT SUM(count) as total FROM usage WHERE user_email = ? AND action = ?",
+        (user_email, _regen_action(sku, image_id)),
+    ).fetchone()
+    conn.close()
+    return int((row["total"] if row else 0) or 0)
+
+
+def log_image_regen(user_email: str, sku: str, image_id: str):
+    log_usage(user_email, _regen_action(sku, image_id), 1)
 
 
 def log_usage(user_email: str, action: str, count: int = 1):

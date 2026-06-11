@@ -1186,6 +1186,11 @@ async def _run_single_image_job(job_id: str, req: SingleImageRequest, email: str
         openai_ok = bool(os.getenv("OPENAI_API_KEY"))
         if url and email:
             log_usage(email, "image_generated", 1)
+            try:
+                from app.services.usage import log_image_regen
+                log_image_regen(email, req.sku, req.image_id)
+            except Exception:
+                pass
         # Persist to disk
         if url:
             persisted = await _persist_images(req.sku, [{"id": req.image_id, "url": url, "has_image": True}])
@@ -1217,8 +1222,22 @@ async def generate_image_single(req: SingleImageRequest, request: Request):
     if not os.getenv("OPENAI_API_KEY"):
         raise HTTPException(503, "OPENAI_API_KEY manquante — impossible de régénérer l'image")
     email = getattr(request.state, "user_email", None)
-    if email and not _rate_limit(f"{email}:images", limit=10, window=3600):
-        raise HTTPException(429, "Trop de générations d'images — maximum 10/heure.")
+    if email:
+        from app.services.usage import get_image_regen_count, MAX_IMAGE_REGENS
+        # Quota mensuel d'images du plan (les régénérations le consomment aussi)
+        usage = get_user_usage(email)
+        if usage.get("images_used", 0) >= usage.get("images_quota", 200):
+            raise HTTPException(429,
+                f"Quota d'images atteint ce mois (plan {usage['plan_label']}). "
+                "Contactez-nous pour augmenter votre quota.")
+        # Plafond de régénération par visuel : 3 max par image d'une fiche
+        regens = get_image_regen_count(email, req.sku, req.image_id)
+        if regens >= MAX_IMAGE_REGENS:
+            raise HTTPException(429,
+                f"Limite de régénération atteinte pour ce visuel ({MAX_IMAGE_REGENS} max par image). "
+                "Modifiez le prompt d'un autre visuel ou contactez-nous si besoin.")
+        if not _rate_limit(f"{email}:images", limit=10, window=3600):
+            raise HTTPException(429, "Trop de générations d'images — maximum 10/heure.")
     job_id = str(uuid4())
     _jobs[job_id] = {"status": "pending", "progress": 0, "total": 1, "created_at": time.time()}
     _cleanup_jobs()
