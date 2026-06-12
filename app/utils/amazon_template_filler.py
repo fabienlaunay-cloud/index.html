@@ -308,17 +308,21 @@ def fill_amazon_template(template_bytes: bytes, listings: List[AmazonListing],
                     break
     pt_col = col_index.get("product_type#1.value") or fpt_col
 
-    # 5. Capture the example/reference row that Amazon pre-fills in the template.
-    #    These values (packaging dimensions, country of origin, warranty, battery
-    #    info, dangerous-goods rules, safety instructions, shipping channel…) are
-    #    inherited by every row we write, so clients don't have to re-enter
-    #    compliance data for each variation child.
-    #    We use ws[data_row] instead of range(1, max_column+1) because openpyxl
-    #    often underestimates max_column for large Amazon templates (336 cols).
+    # 5. Capture the example/reference row (ABC123) that Amazon pre-fills in every
+    #    template.  In MODERN templates (feedType=256) the metadata says dataRow=7
+    #    but the ABC123 example row sits at data_row - 1 (row 6 here); row 7 is the
+    #    first *blank* row we should write into.  In LEGACY templates data_row
+    #    immediately follows attr_row so we fall back to data_row itself.
+    example_row = data_row - 1 if data_row - 1 > attr_row else data_row
     example_defaults: dict[int, object] = {}
-    for cell in ws[data_row]:
+    for cell in ws[example_row]:
         if cell.value is not None:
             example_defaults[cell.column] = cell.value
+    # If the computed example_row was empty, try data_row as a legacy fallback.
+    if not example_defaults and example_row != data_row:
+        for cell in ws[data_row]:
+            if cell.value is not None:
+                example_defaults[cell.column] = cell.value
 
     # 6. Identify "managed" columns — content fields our mapping knows about.
     #    Compliance columns (NOT in this set) inherit from the example row.
@@ -339,14 +343,29 @@ def fill_amazon_template(template_bytes: bytes, listings: List[AmazonListing],
         managed_cols.add(pt_col)
 
     # 6b. Auto-generate parent row when variation children are exported without one.
-    #     Only triggers when ALL listings declare a variation_theme (unambiguous
-    #     signal) and none is already a parent or has a parent_sku set.
+    #     Triggers when (a) all listings declare a variation_theme, OR (b) their
+    #     SKUs share a non-trivial common prefix AND suffix (≥2 chars each after
+    #     stripping separators), which is a reliable signal for variation siblings
+    #     even when variation_theme was not set by the generation layer.
     has_parent = any(l.is_parent for l in listings)
     has_parent_sku = any(l.parent_sku for l in listings)
     if not has_parent and not has_parent_sku and len(listings) > 1:
+        skus = [l.sku for l in listings]
         themes = [l.variation_theme for l in listings if l.variation_theme]
-        if len(themes) == len(listings):
-            skus = [l.sku for l in listings]
+        all_have_theme = len(themes) == len(listings)
+        # SKU pattern: compute common prefix and suffix
+        _pfx = skus[0]
+        for s in skus[1:]:
+            while _pfx and not s.startswith(_pfx):
+                _pfx = _pfx[:-1]
+        _pfx = _pfx.rstrip("-_.")
+        _sfx = skus[0]
+        for s in skus[1:]:
+            while _sfx and not s.endswith(_sfx):
+                _sfx = _sfx[1:]
+        _sfx = _sfx.lstrip("-_.")
+        sku_pattern_clear = len(_pfx) >= 2 and len(_sfx) >= 2 and _pfx != _sfx
+        if all_have_theme or sku_pattern_clear:
             parent_sku = _derive_parent_sku(skus)
             parent_listing = _make_parent_listing(list(listings), parent_sku)
             listings = [parent_listing] + [
