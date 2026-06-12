@@ -94,6 +94,7 @@ class AmazonListing(BaseModel):
     # Variation fields
     parent_sku: Optional[str] = None           # Renseigné pour les enfants
     variation_theme: Optional[str] = None      # ex: "ColorName-SizeClass"
+    variation_value: Optional[str] = None      # Valeur de la déclinaison (ex: "Rouge / L")
     is_parent: bool = False                    # True = fiche parent (pas de contenu propre)
     children: List[VariationChild] = []        # Déclinaisons (renseigné sur le parent)
 

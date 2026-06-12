@@ -133,7 +133,7 @@ _EXACT_MAP = {
     "update_delete":                          lambda l: "Update",
     "standard_price":                         lambda l: str(l.price) if l.price else "",
     "quantity":                               lambda l: "1",
-    "color_name":                             lambda l: l.color or l.variation_value or "",
+    "color_name":                             lambda l: l.color or (l.variation_value or "") or "",
     "material_type":                          lambda l: l.material or "",
     "item_weight":                            lambda l: str(l.weight_kg) if l.weight_kg else "",
     "item_weight_unit_of_measure":            lambda l: "KG" if l.weight_kg else "",
@@ -160,8 +160,8 @@ _EXACT_MAP = {
     "bullet_point#4.value":                   lambda l: _bullet(l, 3),
     "bullet_point#5.value":                   lambda l: _bullet(l, 4),
     "generic_keyword#1.value":                lambda l: l.backend_keywords,
-    "color#1.value":                          lambda l: l.color or l.variation_value or "",
-    "dominant_color#1.value":                 lambda l: l.color or l.variation_value or "",
+    "color#1.value":                          lambda l: l.color or (l.variation_value or "") or "",
+    "dominant_color#1.value":                 lambda l: l.color or (l.variation_value or "") or "",
     "material#1.value":                       lambda l: l.material or "",
     "amzn1.volt.ca.product_id_type":          lambda l: "EAN" if l.ean else "",
     "amzn1.volt.ca.product_id_value":         lambda l: l.ean or "",
@@ -196,6 +196,58 @@ _PATTERN_RULES = [
     (lambda attr: 'our_price' in attr and 'value_with_tax' in attr and 'b2b' not in attr.lower(),
      lambda l: str(l.price) if l.price else ""),
 ]
+
+
+def _derive_parent_sku(skus: list) -> str:
+    """Derive a parent SKU from variation child SKUs by extracting the
+    common prefix+suffix wrapper (e.g. ['C-COL-ROSE-TU','C-COL-BLEU-TU']
+    → 'C-COL-TU'). Falls back to first SKU + '-PARENT'."""
+    if len(skus) < 2:
+        return f"{skus[0]}-PARENT" if skus else "PARENT"
+    # Common prefix
+    prefix = skus[0]
+    for s in skus[1:]:
+        while prefix and not s.startswith(prefix):
+            prefix = prefix[:-1]
+    prefix = prefix.rstrip("-_.")
+    # Common suffix
+    suffix = skus[0]
+    for s in skus[1:]:
+        while suffix and not s.endswith(suffix):
+            suffix = suffix[1:]
+    suffix = suffix.lstrip("-_.")
+    if prefix and suffix and prefix != suffix:
+        candidate = f"{prefix}-{suffix}"
+    elif prefix:
+        candidate = prefix
+    else:
+        candidate = f"{skus[0]}-PARENT"
+    # Ensure it differs from all children
+    return candidate if candidate not in skus else f"{candidate}-P"
+
+
+def _make_parent_listing(children: list, parent_sku: str) -> AmazonListing:
+    """Build a minimal parent listing from variation children."""
+    ref = children[0]
+    return AmazonListing(
+        sku=parent_sku,
+        title=ref.title,
+        item_highlights=ref.item_highlights,
+        bullet_points=ref.bullet_points,
+        description=ref.description,
+        backend_keywords=ref.backend_keywords,
+        brand=ref.brand,
+        category=ref.category,
+        price=None,
+        ean=None,
+        color=None,
+        material=ref.material,
+        variation_theme=ref.variation_theme,
+        variation_value=None,
+        is_parent=True,
+        parent_sku=None,
+        children=[],
+    )
 
 
 def get_product_type_from_bytes(template_bytes: bytes) -> str:
@@ -285,6 +337,21 @@ def fill_amazon_template(template_bytes: bytes, listings: List[AmazonListing],
                 managed_cols.add(c)
     if pt_col:
         managed_cols.add(pt_col)
+
+    # 6b. Auto-generate parent row when variation children are exported without one.
+    #     Only triggers when ALL listings declare a variation_theme (unambiguous
+    #     signal) and none is already a parent or has a parent_sku set.
+    has_parent = any(l.is_parent for l in listings)
+    has_parent_sku = any(l.parent_sku for l in listings)
+    if not has_parent and not has_parent_sku and len(listings) > 1:
+        themes = [l.variation_theme for l in listings if l.variation_theme]
+        if len(themes) == len(listings):
+            skus = [l.sku for l in listings]
+            parent_sku = _derive_parent_sku(skus)
+            parent_listing = _make_parent_listing(list(listings), parent_sku)
+            listings = [parent_listing] + [
+                l.model_copy(update={"parent_sku": parent_sku}) for l in listings
+            ]
 
     # 7. Write listing data starting at data_row
     for i, listing in enumerate(listings):
