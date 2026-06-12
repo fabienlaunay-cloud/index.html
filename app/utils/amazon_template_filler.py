@@ -90,12 +90,14 @@ def _find_template_worksheet(wb: openpyxl.Workbook, attr_row: int) -> Optional[o
 
 def _build_col_index(ws, attr_row: int) -> dict[str, int]:
     """Map attribute_name → column number. Both the raw name and its
-    qualifier-stripped normalization are indexed (first occurrence wins)."""
+    qualifier-stripped normalization are indexed (first occurrence wins).
+    Uses ws[attr_row] to iterate ALL cells (avoids max_column undercount)."""
     index = {}
-    for col in range(1, ws.max_column + 1):
-        val = str(ws.cell(attr_row, col).value or '').strip()
+    for cell in ws[attr_row]:
+        val = str(cell.value or '').strip()
         if not val:
             continue
+        col = cell.column
         if val not in index:
             index[val] = col
         norm = _normalize_attr(val)
@@ -131,8 +133,7 @@ _EXACT_MAP = {
     "update_delete":                          lambda l: "Update",
     "standard_price":                         lambda l: str(l.price) if l.price else "",
     "quantity":                               lambda l: "1",
-    "condition_type":                         lambda l: "New",
-    "color_name":                             lambda l: l.color or "",
+    "color_name":                             lambda l: l.color or l.variation_value or "",
     "material_type":                          lambda l: l.material or "",
     "item_weight":                            lambda l: str(l.weight_kg) if l.weight_kg else "",
     "item_weight_unit_of_measure":            lambda l: "KG" if l.weight_kg else "",
@@ -159,13 +160,15 @@ _EXACT_MAP = {
     "bullet_point#4.value":                   lambda l: _bullet(l, 3),
     "bullet_point#5.value":                   lambda l: _bullet(l, 4),
     "generic_keyword#1.value":                lambda l: l.backend_keywords,
-    "color#1.value":                          lambda l: l.color or "",
+    "color#1.value":                          lambda l: l.color or l.variation_value or "",
+    "dominant_color#1.value":                 lambda l: l.color or l.variation_value or "",
     "material#1.value":                       lambda l: l.material or "",
     "amzn1.volt.ca.product_id_type":          lambda l: "EAN" if l.ean else "",
     "amzn1.volt.ca.product_id_value":         lambda l: l.ean or "",
     "externally_assigned_product_identifier#1.type":  lambda l: "ean" if l.ean else "",
     "externally_assigned_product_identifier#1.value": lambda l: l.ean or "",
-    "condition_type#1.value":                 lambda l: "new",
+    # condition_type intentionally omitted — let the template's example row provide
+    # the locale-correct value (e.g. "Neuf" for FR) instead of hardcoding "new"
     "fulfillment_availability#1.quantity":    lambda l: "1",
     "item_package_quantity#1.value":          lambda l: "1",
     "number_of_items#1.value":                lambda l: "1",
@@ -255,14 +258,15 @@ def fill_amazon_template(template_bytes: bytes, listings: List[AmazonListing],
 
     # 5. Capture the example/reference row that Amazon pre-fills in the template.
     #    These values (packaging dimensions, country of origin, warranty, battery
-    #    info, dangerous-goods rules, safety instructions…) are inherited by every
-    #    row we write, so clients don't have to re-enter compliance data for each
-    #    variation child.
+    #    info, dangerous-goods rules, safety instructions, shipping channel…) are
+    #    inherited by every row we write, so clients don't have to re-enter
+    #    compliance data for each variation child.
+    #    We use ws[data_row] instead of range(1, max_column+1) because openpyxl
+    #    often underestimates max_column for large Amazon templates (336 cols).
     example_defaults: dict[int, object] = {}
-    for col in range(1, ws.max_column + 1):
-        val = ws.cell(data_row, col).value
-        if val is not None:
-            example_defaults[col] = val
+    for cell in ws[data_row]:
+        if cell.value is not None:
+            example_defaults[cell.column] = cell.value
 
     # 6. Identify "managed" columns — content fields our mapping knows about.
     #    Compliance columns (NOT in this set) inherit from the example row.
