@@ -1035,9 +1035,8 @@ async def fill_amazon_template_endpoint(request: Request):
         raise HTTPException(422, f"Erreur lors du remplissage : {e}")
     # Auto-save to library if this product type isn't there yet
     try:
-        from app.utils.amazon_template_filler import _parse_template_settings
-        meta = _parse_template_settings(template_bytes)
-        pt = (meta.get("productType") or "").upper()
+        from app.utils.amazon_template_filler import get_product_type_from_bytes
+        pt = get_product_type_from_bytes(template_bytes)
         if pt and not amazon_template_exists(pt):
             fname = getattr(template_file, "filename", None) or f"{pt}.xlsm"
             data_b64 = base64.b64encode(template_bytes).decode()

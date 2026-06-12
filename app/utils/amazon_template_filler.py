@@ -195,12 +195,27 @@ _PATTERN_RULES = [
 ]
 
 
+def get_product_type_from_bytes(template_bytes: bytes) -> str:
+    """Extract the Amazon product type code from template bytes (e.g. 'ANIMAL_COLLAR')."""
+    try:
+        wb = openpyxl.load_workbook(io.BytesIO(template_bytes), keep_vba=True, data_only=True)
+        settings, _ = _parse_template_settings(wb)
+        return (settings.get('productType') or '').upper()
+    except Exception:
+        return ''
+
+
 def fill_amazon_template(template_bytes: bytes, listings: List[AmazonListing],
                          image_urls: Optional[dict] = None) -> bytes:
     """
     Read an Amazon category template (.xlsm/.xlsx), detect its structure,
     fill it with listing data, and return the result as bytes.
     image_urls: optional {sku: {slot_id: public_url}} to fill image columns.
+
+    Compliance/logistics columns (packaging dimensions, country of origin,
+    warranty, battery info, dangerous-goods regulation, safety instructions…)
+    are inherited from the example row that Amazon ships inside every template,
+    so clients never have to re-enter them for each variation.
     """
     wb = openpyxl.load_workbook(io.BytesIO(template_bytes), keep_vba=True, data_only=True)
 
@@ -218,8 +233,7 @@ def fill_amazon_template(template_bytes: bytes, listings: List[AmazonListing],
     # 3. Build column index (raw + normalized names)
     col_index = _build_col_index(ws, attr_row)
 
-    # 4. Product type: legacy templates store it in feed_product_type data rows /
-    #    TemplateSignature; modern ones in the ptds settings param.
+    # 4. Product type detection
     fpt_col = col_index.get("feed_product_type")
     if fpt_col and not product_type:
         for r in range(attr_row + 1, attr_row + 5):
@@ -239,22 +253,57 @@ def fill_amazon_template(template_bytes: bytes, listings: List[AmazonListing],
                     break
     pt_col = col_index.get("product_type#1.value") or fpt_col
 
-    # 5. Write listing data starting at data_row
+    # 5. Capture the example/reference row that Amazon pre-fills in the template.
+    #    These values (packaging dimensions, country of origin, warranty, battery
+    #    info, dangerous-goods rules, safety instructions…) are inherited by every
+    #    row we write, so clients don't have to re-enter compliance data for each
+    #    variation child.
+    example_defaults: dict[int, object] = {}
+    for col in range(1, ws.max_column + 1):
+        val = ws.cell(data_row, col).value
+        if val is not None:
+            example_defaults[col] = val
+
+    # 6. Identify "managed" columns — content fields our mapping knows about.
+    #    Compliance columns (NOT in this set) inherit from the example row.
+    managed_cols: set[int] = set()
+    for attr in _EXACT_MAP:
+        c = col_index.get(attr)
+        if c:
+            managed_cols.add(c)
+    for modern_key, legacy_key in _IMAGE_COLUMN_KEYS:
+        c = col_index.get(modern_key) or col_index.get(legacy_key)
+        if c:
+            managed_cols.add(c)
+    for pattern_fn, _ in _PATTERN_RULES:
+        for attr, c in col_index.items():
+            if pattern_fn(attr):
+                managed_cols.add(c)
+    if pt_col:
+        managed_cols.add(pt_col)
+
+    # 7. Write listing data starting at data_row
     for i, listing in enumerate(listings):
         row_num = data_row + i
 
+        # 7a. Inherit compliance/logistics from example row (unmanaged cols only)
+        for col, val in example_defaults.items():
+            if col not in managed_cols:
+                ws.cell(row_num, col).value = val
+
+        # 7b. product_type
         if product_type and pt_col:
             ws.cell(row_num, pt_col).value = product_type
 
-        # Exact-match attributes (legacy + normalized modern)
+        # 7c. Exact-match attributes (legacy + normalized modern)
+        #     Write even empty string to clear any inherited example value.
         for attr, getter in _EXACT_MAP.items():
             col = col_index.get(attr)
             if col:
                 value = getter(listing)
-                if value:
-                    ws.cell(row_num, col).value = value
+                ws.cell(row_num, col).value = value if value else None
 
-        # Images (skip for parent rows of variations: children carry the offer)
+        # 7d. Images
         sku_imgs = (image_urls or {}).get(listing.sku, {})
         if sku_imgs:
             for slot_id, (modern_key, legacy_key) in zip(_IMAGE_IDS_ORDERED, _IMAGE_COLUMN_KEYS):
@@ -265,7 +314,7 @@ def fill_amazon_template(template_bytes: bytes, listings: List[AmazonListing],
                 if col:
                     ws.cell(row_num, col).value = url
 
-        # Pattern-match attributes (e.g. price with marketplace ID in name)
+        # 7e. Pattern-match attributes (e.g. price column with marketplace ID)
         for (pattern_fn, value_fn) in _PATTERN_RULES:
             for attr, col in col_index.items():
                 if pattern_fn(attr):
@@ -274,7 +323,7 @@ def fill_amazon_template(template_bytes: bytes, listings: List[AmazonListing],
                         ws.cell(row_num, col).value = value
                     break  # fill only first matching price column
 
-    # 6. Save preserving macros if the source was .xlsm
+    # 8. Save preserving macros if the source was .xlsm
     out = io.BytesIO()
     wb.save(out)
     return out.getvalue()
