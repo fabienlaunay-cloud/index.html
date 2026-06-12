@@ -308,21 +308,13 @@ def fill_amazon_template(template_bytes: bytes, listings: List[AmazonListing],
                     break
     pt_col = col_index.get("product_type#1.value") or fpt_col
 
-    # 5. Capture the example/reference row (ABC123) that Amazon pre-fills in every
-    #    template.  In MODERN templates (feedType=256) the metadata says dataRow=7
-    #    but the ABC123 example row sits at data_row - 1 (row 6 here); row 7 is the
-    #    first *blank* row we should write into.  In LEGACY templates data_row
-    #    immediately follows attr_row so we fall back to data_row itself.
-    example_row = data_row - 1 if data_row - 1 > attr_row else data_row
+    # 5. (No example-row inheritance: the ABC123 row in Amazon templates contains
+    #    demo/fictitious values that fail validation for real products.  Compliance
+    #    and logistics fields — packaging dimensions, dangerous-goods classification,
+    #    battery info, REP material, B2B pricing tiers, etc. — must be entered by
+    #    the user in Excel after export, or provided via the extra{} dict on each
+    #    listing when the caller supplies real values.)
     example_defaults: dict[int, object] = {}
-    for cell in ws[example_row]:
-        if cell.value is not None:
-            example_defaults[cell.column] = cell.value
-    # If the computed example_row was empty, try data_row as a legacy fallback.
-    if not example_defaults and example_row != data_row:
-        for cell in ws[data_row]:
-            if cell.value is not None:
-                example_defaults[cell.column] = cell.value
 
     # 6. Identify "managed" columns — content fields our mapping knows about.
     #    Compliance columns (NOT in this set) inherit from the example row.
