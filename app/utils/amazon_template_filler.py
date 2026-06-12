@@ -165,7 +165,7 @@ _EXACT_MAP = {
     "material#1.value":                       lambda l: l.material or "",
     "amzn1.volt.ca.product_id_type":          lambda l: "EAN" if l.ean else "",
     "amzn1.volt.ca.product_id_value":         lambda l: l.ean or "",
-    "externally_assigned_product_identifier#1.type":  lambda l: "ean" if l.ean else "",
+    "externally_assigned_product_identifier#1.type":  lambda l: "EAN" if l.ean else "",
     "externally_assigned_product_identifier#1.value": lambda l: l.ean or "",
     # condition_type intentionally omitted — let the template's example row provide
     # the locale-correct value (e.g. "Neuf" for FR) instead of hardcoding "new"
@@ -428,8 +428,12 @@ def fill_amazon_template(template_bytes: bytes, listings: List[AmazonListing],
 
         # 7f. Per-export compliance values (country_of_origin, packaging dims, batteries, etc.)
         #     Applied after _EXACT_MAP so user-provided values take precedence.
+        #     variation_theme is parent-only — never write it to child rows from compliance_data.
         if compliance_data:
+            _parent_only_attrs = {"variation_theme#1.name"}
             for attr, value in compliance_data.items():
+                if attr in _parent_only_attrs and listing.parent_sku:
+                    continue
                 col = col_index.get(attr)
                 if col and value not in (None, ""):
                     ws.cell(row_num, col).value = value
