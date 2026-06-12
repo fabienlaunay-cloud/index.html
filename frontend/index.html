@@ -7875,6 +7875,14 @@ function _updateComplianceSummary(data) {
   el.textContent = parts.length ? parts.join(' · ') : 'Pays, emballage, piles, garantie…';
 }
 
+// Clean timestamped filename — Amazon's spreadsheet uploader can fail (BAD_JSON_0)
+// on names with spaces/parentheses like "amazon template rempli (14).xlsm"
+function _amazonExportFilename() {
+  const d = new Date();
+  const p = n => String(n).padStart(2, '0');
+  return `synqio_amazon_${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}.xlsm`;
+}
+
 async function fillFromLibrary(tplId, label) {
   closeTemplateLibrary();
   showToast('⏳', `Remplissage du template "${label}"…`);
@@ -7891,7 +7899,7 @@ async function fillFromLibrary(tplId, label) {
     }
     const a = document.createElement('a');
     a.href = URL.createObjectURL(await r.blob());
-    a.download = 'amazon_template_rempli.xlsm';
+    a.download = _amazonExportFilename();
     a.click();
     showToast('✅', `Template "${label}" rempli — prêt à uploader sur Seller Central`);
   } catch(e) {
@@ -7992,7 +8000,7 @@ async function fillAmazonTemplate(input) {
     const blob = await r.blob();
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = file.name;
+    a.download = _amazonExportFilename();
     a.click();
     showToast('✅', `Template rempli et sauvegardé dans la bibliothèque — prêt à uploader`);
     _templateLibCache = null; // refresh library cache next open
