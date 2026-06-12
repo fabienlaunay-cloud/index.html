@@ -77,13 +77,13 @@ def to_amazon_flat_file_bytes(listings: List[AmazonListing]) -> bytes:
     """
     output = io.StringIO()
     headers = [
-        "item-sku",
+        "sku",
         "update-delete",
         "item-name",
         "item-highlights",
-        "brand-name",
+        "brand_name",
         "manufacturer",
-        "item-type",
+        "item_type",
         "product-description",
         "bullet-point1",
         "bullet-point2",
@@ -145,8 +145,8 @@ def _style_header_row(ws, n_cols: int):
 def to_amazon_flat_file_xlsx(listings: List[AmazonListing], image_urls: Optional[dict] = None) -> bytes:
     """Amazon flat file for NEW products — proper .xlsx, uploadable to Seller Central."""
     headers = [
-        "item-sku", "update-delete", "item-name", "brand-name", "manufacturer",
-        "item-type", "product-description",
+        "sku", "update-delete", "item-name", "brand_name", "manufacturer",
+        "item_type", "product-description",
         "bullet-point1", "bullet-point2", "bullet-point3", "bullet-point4", "bullet-point5",
         "generic-keywords", "standard-price", "quantity",
         "external-product-id", "external-product-id-type", "condition-type",
@@ -225,9 +225,9 @@ def to_variation_flat_file_xlsx(listings: List[AmazonListing], image_urls: Optio
     Standalone rows: regular flat file format
     """
     headers = [
-        "item-sku", "update-delete", "parent-child", "parent-sku",
+        "sku", "update-delete", "parent-child", "parent-sku",
         "relationship-type", "variation-theme",
-        "item-name", "brand-name", "manufacturer", "item-type",
+        "item-name", "brand_name", "manufacturer", "item_type",
         "product-description",
         "bullet-point1", "bullet-point2", "bullet-point3", "bullet-point4", "bullet-point5",
         "generic-keywords", "standard-price", "quantity",
