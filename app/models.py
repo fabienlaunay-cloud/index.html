@@ -86,6 +86,7 @@ class AmazonListing(BaseModel):
     price: Optional[float] = None
     ean: Optional[str] = None
     color: Optional[str] = None
+    size: Optional[str] = None
     material: Optional[str] = None
     weight_kg: Optional[float] = None
     a_plus_content: Optional[dict] = None

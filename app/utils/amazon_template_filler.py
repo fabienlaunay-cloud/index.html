@@ -162,6 +162,8 @@ _EXACT_MAP = {
     "generic_keyword#1.value":                lambda l: l.backend_keywords,
     "color#1.value":                          lambda l: l.color or (l.variation_value or "") or "",
     "dominant_color#1.value":                 lambda l: l.color or (l.variation_value or "") or "",
+    "size#1.value":                           lambda l: getattr(l, "size", None) or "",
+    "size_name":                              lambda l: getattr(l, "size", None) or "",
     "material#1.value":                       lambda l: l.material or "",
     "amzn1.volt.ca.product_id_type":          lambda l: "EAN" if l.ean else "",
     "amzn1.volt.ca.product_id_value":         lambda l: l.ean or "",
@@ -364,18 +366,23 @@ def fill_amazon_template(template_bytes: bytes, listings: List[AmazonListing],
     if pt_col:
         managed_cols.add(pt_col)
 
-    # 6b. Auto-generate parent row when variation children are exported without one.
-    #     Triggers when (a) all listings declare a variation_theme, OR (b) their
-    #     SKUs share a non-trivial common prefix AND suffix (≥2 chars each after
-    #     stripping separators), which is a reliable signal for variation siblings
-    #     even when variation_theme was not set by the generation layer.
+    # 6b. Auto-generate the variation family when children are exported without
+    #     an explicit parent. Triggers when (a) listings carry nested
+    #     declination children (sizes per color → expanded to one row each),
+    #     (b) all listings declare a variation_theme, OR (c) their SKUs share a
+    #     non-trivial common prefix AND suffix (≥2 chars each), a reliable
+    #     signal for variation siblings.
     has_parent = any(l.is_parent for l in listings)
     has_parent_sku = any(l.parent_sku for l in listings)
-    if not has_parent and not has_parent_sku and len(listings) > 1:
+    has_nested_children = any(getattr(l, "children", None) for l in listings)
+    # Maps expanded declination SKU → base listing SKU (for image lookup)
+    base_sku_of: dict[str, str] = {}
+    if not has_parent and not has_parent_sku and (len(listings) > 1 or has_nested_children):
         skus = [l.sku for l in listings]
         themes = [l.variation_theme for l in listings if l.variation_theme]
         all_have_theme = len(themes) == len(listings)
-        # SKU pattern: compute common prefix and suffix
+        # SKU pattern on the BASE listings (before declination expansion):
+        # compute common prefix and suffix
         _pfx = skus[0]
         for s in skus[1:]:
             while _pfx and not s.startswith(_pfx):
@@ -386,28 +393,60 @@ def fill_amazon_template(template_bytes: bytes, listings: List[AmazonListing],
             while _sfx and not s.endswith(_sfx):
                 _sfx = _sfx[1:]
         _sfx = _sfx.lstrip("-_.")
-        sku_pattern_clear = len(_pfx) >= 2 and len(_sfx) >= 2 and _pfx != _sfx
-        if all_have_theme or sku_pattern_clear:
+        sku_pattern_clear = len(skus) > 1 and len(_pfx) >= 2 and len(_sfx) >= 2 and _pfx != _sfx
+        if has_nested_children or all_have_theme or sku_pattern_clear:
             parent_sku = _derive_parent_sku(skus)
-            # Choose variation theme: prefer explicit theme from children;
-            # fall back to COULEUR (FR Amazon) when extracting colors from SKU middles.
-            explicit_theme = _resolve_variation_theme(themes[0]) if all_have_theme and themes else ""
-            parent_theme = explicit_theme if explicit_theme else ("COULEUR" if sku_pattern_clear else "")
-            parent_listing = _make_parent_listing(list(listings), parent_sku, variation_theme=parent_theme)
-            updated_children = []
-            for child in listings:
-                updates: dict = {"parent_sku": parent_sku}
-                # Extract the middle segment (the differing part) from the SKU to use as color
-                if sku_pattern_clear and not child.color and not child.variation_value:
+            # Per-base-listing color, extracted from the SKU middle segment
+            # (the part that differs between color variants) when not set.
+            color_by_sku: dict[str, str] = {}
+            if sku_pattern_clear:
+                for l in listings:
                     mid_start = len(_pfx) + 1
-                    mid_end = len(child.sku) - len(_sfx) - 1
+                    mid_end = len(l.sku) - len(_sfx) - 1
                     if mid_end > mid_start:
-                        mid = child.sku[mid_start:mid_end]
-                        if mid:
-                            updates["variation_value"] = mid
-                            updates["color"] = mid
-                updated_children.append(child.model_copy(update=updates))
-            listings = [parent_listing] + updated_children
+                        color_by_sku[l.sku] = l.sku[mid_start:mid_end]
+            # Build the child rows: one per nested declination (size), or the
+            # base listing itself when it has no declinations.
+            child_rows = []
+            for l in listings:
+                base_color = l.color or color_by_sku.get(l.sku) or None
+                kids = getattr(l, "children", None) or []
+                if kids:
+                    for c in kids:
+                        base_sku_of[c.sku] = l.sku
+                        child_rows.append(l.model_copy(update={
+                            "sku": c.sku,
+                            "price": c.price if c.price is not None else l.price,
+                            "ean": c.ean or None,
+                            "color": c.color or base_color,
+                            "size": c.size or None,
+                            "variation_value": c.variation_value or None,
+                            "parent_sku": parent_sku,
+                            "children": [],
+                        }))
+                else:
+                    updates: dict = {"parent_sku": parent_sku}
+                    if base_color and not l.color:
+                        updates["color"] = base_color
+                        if not l.variation_value:
+                            updates["variation_value"] = base_color
+                    child_rows.append(l.model_copy(update=updates))
+            # Variation theme: explicit (resolved to Amazon FR vocab) wins;
+            # otherwise inferred from what actually varies between children.
+            explicit_theme = _resolve_variation_theme(themes[0]) if all_have_theme and themes else ""
+            if explicit_theme:
+                parent_theme = explicit_theme
+            else:
+                n_colors = len({r.color for r in child_rows if r.color})
+                n_sizes = len({getattr(r, "size", None) for r in child_rows if getattr(r, "size", None)})
+                if n_sizes > 1 and n_colors > 1:
+                    parent_theme = "COULEUR/TAILLE"
+                elif n_sizes > 1:
+                    parent_theme = "TAILLE"
+                else:
+                    parent_theme = "COULEUR"
+            parent_listing = _make_parent_listing(list(listings), parent_sku, variation_theme=parent_theme)
+            listings = [parent_listing] + child_rows
 
     # 7. Write listing data starting at data_row
     for i, listing in enumerate(listings):
@@ -430,8 +469,10 @@ def fill_amazon_template(template_bytes: bytes, listings: List[AmazonListing],
                 value = getter(listing)
                 ws.cell(row_num, col).value = value if value else None
 
-        # 7d. Images
-        sku_imgs = (image_urls or {}).get(listing.sku, {})
+        # 7d. Images — expanded declination rows fall back to their base
+        #     listing's images (same color photos shared across sizes)
+        sku_imgs = (image_urls or {}).get(listing.sku) \
+            or (image_urls or {}).get(base_sku_of.get(listing.sku, ""), {})
         if sku_imgs:
             for slot_id, (modern_key, legacy_key) in zip(_IMAGE_IDS_ORDERED, _IMAGE_COLUMN_KEYS):
                 url = sku_imgs.get(slot_id)
