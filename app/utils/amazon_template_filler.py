@@ -176,7 +176,7 @@ _EXACT_MAP = {
     "parentage_level#1.value":                lambda l: "Parent" if l.is_parent else ("Enfant" if l.parent_sku else ""),
     "child_parent_sku_relationship#1.parent_sku": lambda l: l.parent_sku or "",
     "child_parent_sku_relationship#1.child_relationship_type": lambda l: "variation" if l.parent_sku else "",
-    "variation_theme#1.name":                 lambda l: (l.variation_theme or "") if l.is_parent else "",
+    "variation_theme#1.name":                 lambda l: _resolve_variation_theme(l.variation_theme or "") if l.is_parent else "",
     # Logistics / compliance smart defaults (overridable via compliance_data)
     "unit_count#1.value":                     lambda l: "" if l.is_parent else "1",
     "unit_count#1.type.value":               lambda l: "" if l.is_parent else "unité",
@@ -201,6 +201,30 @@ _PATTERN_RULES = [
     (lambda attr: 'our_price' in attr and 'value_with_tax' in attr and 'b2b' not in attr.lower(),
      lambda l: str(l.price) if l.price else ""),
 ]
+
+# Map SynqIO internal theme names → valid Amazon FR variation theme values
+_THEME_TO_AMAZON = {
+    "ColorName":         "COULEUR",
+    "SizeClass":         "TAILLE",
+    "ColorName-SizeClass": "COULEUR/TAILLE",
+    "SizeClass-ColorName": "COULEUR/TAILLE",
+    "Color":             "COULEUR",
+    "Size":              "TAILLE",
+    "Color-Size":        "COULEUR/TAILLE",
+}
+
+
+def _resolve_variation_theme(theme: str) -> str:
+    """Convert a SynqIO internal theme name ('SizeClass', 'ColorName'…)
+    to the valid Amazon FR value ('TAILLE', 'COULEUR'…).
+    If the value is already in Amazon format (all-caps / contains slash)
+    it is returned as-is."""
+    if not theme:
+        return ""
+    if theme in _THEME_TO_AMAZON:
+        return _THEME_TO_AMAZON[theme]
+    # Already an Amazon-format value (COULEUR, COULEUR/TAILLE, ANIMAL_COLLAR_TYPE/…)
+    return theme
 
 
 def _derive_parent_sku(skus: list) -> str:
@@ -367,7 +391,7 @@ def fill_amazon_template(template_bytes: bytes, listings: List[AmazonListing],
             parent_sku = _derive_parent_sku(skus)
             # Choose variation theme: prefer explicit theme from children;
             # fall back to COULEUR (FR Amazon) when extracting colors from SKU middles.
-            explicit_theme = themes[0] if all_have_theme and themes else ""
+            explicit_theme = _resolve_variation_theme(themes[0]) if all_have_theme and themes else ""
             parent_theme = explicit_theme if explicit_theme else ("COULEUR" if sku_pattern_clear else "")
             parent_listing = _make_parent_listing(list(listings), parent_sku, variation_theme=parent_theme)
             updated_children = []
