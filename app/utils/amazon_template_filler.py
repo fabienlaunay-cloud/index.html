@@ -177,6 +177,11 @@ _EXACT_MAP = {
     "child_parent_sku_relationship#1.parent_sku": lambda l: l.parent_sku or "",
     "child_parent_sku_relationship#1.child_relationship_type": lambda l: "variation" if l.parent_sku else "",
     "variation_theme#1.name":                 lambda l: l.variation_theme or "",
+    # Logistics / compliance smart defaults (overridable via compliance_data)
+    "unit_count#1.value":                     lambda l: "" if l.is_parent else "1",
+    "unit_count#1.type.value":               lambda l: "" if l.is_parent else "unité",
+    "merchant_shipping_group#1.value":        lambda l: "" if l.is_parent else "Modèle par défaut Amazon",
+    "supplier_declared_dg_hz_regulation#1.value": lambda l: "Non applicable",
 }
 
 # Image slot → normalized modern column / legacy column

@@ -3112,6 +3112,41 @@
         <p class="text-xs text-gray-400 mt-2">Pour les produits avec piles, complétez les champs batterie directement dans Excel après export.</p>
       </div>
 
+      <!-- Produit -->
+      <div>
+        <h4 class="text-xs font-bold uppercase tracking-wider text-orange-500 mb-3">Produit <span class="text-gray-400 font-normal normal-case">(spécifique à chaque catégorie)</span></h4>
+        <div class="space-y-3">
+          <div>
+            <label class="block text-xs font-medium text-gray-700 mb-1">Composants inclus <span class="text-gray-400 font-normal">(col. CV — ex: Clochette, Laisse, Étiquette de nom)</span></label>
+            <input type="text" name="included_components#1.value" placeholder="ex : Étiquette de nom" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-purple-300 outline-none">
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-gray-700 mb-1">Usages particuliers du produit <span class="text-gray-400 font-normal">(col. DA)</span></label>
+            <input type="text" name="specific_uses_for_product#1.value" placeholder="ex : Actif" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-purple-300 outline-none">
+            <p class="text-xs text-gray-400 mt-1">Valeurs ANIMAL_COLLAR : <code class="bg-gray-100 px-1 rounded">Actif</code> · <code class="bg-gray-100 px-1 rounded">Comportement</code> · <code class="bg-gray-100 px-1 rounded">Pelage</code> · <code class="bg-gray-100 px-1 rounded">Yeux</code></p>
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-gray-700 mb-1">Consignes d'utilisation <span class="text-gray-400 font-normal">(col. KF)</span></label>
+            <textarea name="directions#1.value" rows="3" placeholder="ex : Utiliser conformément aux instructions. Tenir hors de portée des enfants." class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-purple-300 outline-none resize-none"></textarea>
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-gray-700 mb-1">Modèle d'expédition <span class="text-gray-400 font-normal">(col. GZ — défaut : Modèle par défaut Amazon)</span></label>
+            <input type="text" name="merchant_shipping_group#1.value" placeholder="Modèle par défaut Amazon" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-purple-300 outline-none">
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-gray-700 mb-1">Réglementation marchandises dangereuses <span class="text-gray-400 font-normal">(col. JS)</span></label>
+            <select name="supplier_declared_dg_hz_regulation#1.value" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-purple-300 outline-none">
+              <option value="Non applicable">Non applicable (défaut)</option>
+              <option value="SGH">SGH</option>
+              <option value="Stockage">Stockage</option>
+              <option value="Transport">Transport</option>
+              <option value="Mise au rebut">Mise au rebut</option>
+              <option value="Autre">Autre</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
       <!-- Variations -->
       <div>
         <h4 class="text-xs font-bold uppercase tracking-wider text-green-600 mb-3">Variations</h4>
