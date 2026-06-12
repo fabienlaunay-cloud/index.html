@@ -2507,9 +2507,13 @@
                     <div class="font-medium text-gray-800">Export JSON</div>
                     <div class="text-xs text-gray-400 mt-0.5">Format brut pour intégration</div>
                   </button>
+                  <button onclick="openTemplateLibrary();toggleDlMenu()" class="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 transition border-t border-gray-50">
+                    <div class="font-medium text-gray-800">Bibliothèque de templates</div>
+                    <div class="text-xs text-gray-400 mt-0.5">Choisir une catégorie Amazon → remplissage auto</div>
+                  </button>
                   <button onclick="triggerAmazonTemplateFill();toggleDlMenu()" class="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 transition border-t border-gray-50">
-                    <div class="font-medium text-gray-800">Remplir mon template Excel</div>
-                    <div class="text-xs text-gray-400 mt-0.5">Uploader votre template Amazon .xlsm</div>
+                    <div class="font-medium text-gray-800">Uploader mon propre template</div>
+                    <div class="text-xs text-gray-400 mt-0.5">Utiliser un fichier .xlsm téléchargé depuis Seller Central</div>
                   </button>
                   <button onclick="downloadZipPack();toggleDlMenu()" class="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 transition border-t border-gray-50">
                     <div class="font-medium text-gray-800">Tout télécharger</div>
@@ -2815,6 +2819,7 @@
           <button id="adminTabBtnClients" onclick="switchAdminTab('clients')" class="px-4 py-1.5 rounded-lg text-xs font-semibold transition" style="background:linear-gradient(135deg,#7c3aed,#4f46e5);color:white;box-shadow:0 2px 8px rgba(124,58,237,0.4)">Clients</button>
           <button id="adminTabBtnUsage" onclick="switchAdminTab('usage')" class="px-4 py-1.5 rounded-lg text-xs font-medium transition" style="color:rgba(255,255,255,0.55)">Usage & Plans</button>
           <button id="adminTabBtnConfig" onclick="switchAdminTab('config')" class="px-4 py-1.5 rounded-lg text-xs font-medium transition" style="color:rgba(255,255,255,0.55)">Config API</button>
+          <button id="adminTabBtnTemplates" onclick="switchAdminTab('templates')" class="px-4 py-1.5 rounded-lg text-xs font-medium transition" style="color:rgba(255,255,255,0.55)">Templates</button>
         </nav>
       </div>
       <div class="flex items-center gap-2">
@@ -2928,6 +2933,58 @@
 
   </div>
 
+  <!-- Tab: Templates -->
+  <div id="adminPanelTemplates" class="hidden max-w-3xl mx-auto px-6 py-8 space-y-6">
+
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+      <h4 class="font-semibold text-gray-800 text-base mb-1">Ajouter un template</h4>
+      <p class="text-gray-400 text-xs mb-4">Uploadez un fichier .xlsm téléchargé depuis Seller Central. Les clients n'auront plus qu'à choisir leur catégorie.</p>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+        <input id="tplUploadLabel" type="text" placeholder="Nom affiché (ex: Collier pour chien)" class="border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-purple-300">
+        <input id="tplUploadType" type="text" placeholder="Type produit Seller Central (ex: ANIMAL_COLLAR)" class="border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-purple-300">
+      </div>
+      <div class="flex flex-wrap gap-3 items-center">
+        <input id="tplUploadFile" type="file" accept=".xlsm,.xlsx" class="text-sm text-gray-500 flex-1 min-w-0">
+        <button onclick="uploadAdminTemplate()" class="gradient-bg text-white px-6 py-2 rounded-lg text-sm font-semibold hover:opacity-90 transition whitespace-nowrap">Ajouter</button>
+      </div>
+      <div id="tplUploadMsg" class="hidden mt-3 text-sm"></div>
+    </div>
+
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+      <div class="flex items-center justify-between mb-4">
+        <h4 class="font-semibold text-gray-800 text-base">Templates disponibles</h4>
+        <button onclick="loadAdminTemplates()" class="text-purple-600 text-sm hover:underline">↻ Actualiser</button>
+      </div>
+      <div id="adminTemplatesList" class="space-y-2">
+        <div class="text-gray-400 text-sm text-center py-8">Chargement...</div>
+      </div>
+    </div>
+
+  </div>
+
+</div>
+
+<!-- ═══════════════════ TEMPLATE LIBRARY MODAL ═══════════════════ -->
+<div id="templateLibraryModal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-[300] flex items-center justify-center p-4" onclick="if(event.target===this)closeTemplateLibrary()">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[80vh] flex flex-col">
+    <div class="flex items-center justify-between p-6 border-b border-gray-100">
+      <div>
+        <h3 class="text-lg font-bold text-gray-800">Bibliothèque de templates Amazon</h3>
+        <p class="text-xs text-gray-400 mt-0.5">Sélectionnez la catégorie de vos produits — le template est rempli automatiquement</p>
+      </div>
+      <button onclick="closeTemplateLibrary()" class="text-gray-400 hover:text-gray-600 transition p-1">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="p-4 border-b border-gray-50">
+      <input id="templateLibSearch" type="text" placeholder="Rechercher une catégorie (ex: Collier, Animal, Jouet…)"
+        oninput="filterTemplateLib()"
+        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-purple-300">
+    </div>
+    <div id="templateLibList" class="flex-1 overflow-y-auto p-4 space-y-2 min-h-[200px]">
+      <div class="text-gray-400 text-sm text-center py-8">Chargement…</div>
+    </div>
+  </div>
 </div>
 
 <!-- ═══════════════════ INVITE ACCEPT MODAL ═══════════════════ -->
@@ -4588,7 +4645,7 @@ function showAdminPanel() {
 }
 
 function switchAdminTab(tab) {
-  const tabs = ['clients', 'usage', 'config'];
+  const tabs = ['clients', 'usage', 'config', 'templates'];
   tabs.forEach(t => {
     const btn = document.getElementById(`adminTabBtn${t.charAt(0).toUpperCase() + t.slice(1)}`);
     const panel = document.getElementById(`adminPanel${t.charAt(0).toUpperCase() + t.slice(1)}`);
@@ -4602,6 +4659,7 @@ function switchAdminTab(tab) {
     if (panel) panel.classList.toggle('hidden', !active);
   });
   if (tab === 'config') loadConfigStatus();
+  if (tab === 'templates') loadAdminTemplates();
 }
 
 async function loadConfigStatus() {
@@ -7491,6 +7549,153 @@ async function exportResults(format) {
   showToast('✅', `${label[format]} téléchargé`);
 }
 
+
+// ── Template Library ─────────────────────────────────────────────────────────
+let _templateLibCache = null;
+
+async function openTemplateLibrary() {
+  if (!generatedListings.length) { showToast('⚠️', 'Génère d\'abord des fiches', true); return; }
+  document.getElementById('templateLibraryModal').classList.remove('hidden');
+  document.getElementById('templateLibSearch').value = '';
+  _templateLibCache = null;
+  await _loadTemplateLib();
+}
+
+function closeTemplateLibrary() {
+  document.getElementById('templateLibraryModal').classList.add('hidden');
+}
+
+async function _loadTemplateLib() {
+  const box = document.getElementById('templateLibList');
+  box.innerHTML = '<div class="text-gray-400 text-sm text-center py-8">Chargement…</div>';
+  try {
+    const r = await authFetch('/api/templates');
+    _templateLibCache = await r.json();
+    _renderTemplateLib(_templateLibCache);
+  } catch(e) {
+    box.innerHTML = '<div class="text-red-400 text-sm text-center py-8">Erreur de chargement</div>';
+  }
+}
+
+function _renderTemplateLib(templates) {
+  const box = document.getElementById('templateLibList');
+  if (!templates || !templates.length) {
+    box.innerHTML = '<div class="text-gray-400 text-sm text-center py-8">Aucun template disponible — demandez à l\'admin d\'en ajouter.</div>';
+    return;
+  }
+  box.innerHTML = templates.map(t => `
+    <div class="flex items-center justify-between p-3 rounded-xl border border-gray-100 hover:border-purple-200 hover:bg-purple-50/30 transition">
+      <div class="min-w-0 mr-3">
+        <div class="font-medium text-gray-800 text-sm">${t.label}</div>
+        <div class="text-xs text-gray-400 mt-0.5 font-mono truncate">${t.product_type}</div>
+      </div>
+      <button onclick="fillFromLibrary('${t.id}','${t.label.replace(/'/g,'\\\'')}')"
+        class="gradient-bg text-white px-4 py-1.5 rounded-lg text-xs font-semibold hover:opacity-90 transition whitespace-nowrap flex-shrink-0">
+        Remplir →
+      </button>
+    </div>
+  `).join('');
+}
+
+function filterTemplateLib() {
+  if (!_templateLibCache) return;
+  const q = document.getElementById('templateLibSearch').value.toLowerCase();
+  _renderTemplateLib(_templateLibCache.filter(t =>
+    t.label.toLowerCase().includes(q) || t.product_type.toLowerCase().includes(q)
+  ));
+}
+
+async function fillFromLibrary(tplId, label) {
+  closeTemplateLibrary();
+  showToast('⏳', `Remplissage du template "${label}"…`);
+  try {
+    const r = await authFetch(`/api/export/fill-from-library/${tplId}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ listings: generatedListings }),
+    });
+    if (!r.ok) {
+      const err = await r.json().catch(() => ({}));
+      showToast('⚠️', err.detail || 'Erreur lors du remplissage', true);
+      return;
+    }
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(await r.blob());
+    a.download = 'amazon_template_rempli.xlsm';
+    a.click();
+    showToast('✅', `Template "${label}" rempli — prêt à uploader sur Seller Central`);
+  } catch(e) {
+    showToast('⚠️', 'Erreur : ' + e.message, true);
+  }
+}
+
+// ── Admin template management ────────────────────────────────────────────────
+async function loadAdminTemplates() {
+  const box = document.getElementById('adminTemplatesList');
+  if (!box) return;
+  box.innerHTML = '<div class="text-gray-400 text-sm text-center py-8">Chargement...</div>';
+  try {
+    const r = await authFetch('/api/templates');
+    const templates = await r.json();
+    if (!templates.length) {
+      box.innerHTML = '<div class="text-gray-400 text-sm text-center py-8">Aucun template — ajoutez-en ci-dessus.</div>';
+      return;
+    }
+    box.innerHTML = templates.map(t => `
+      <div class="flex items-center justify-between p-3 rounded-xl border border-gray-100">
+        <div class="min-w-0 mr-3">
+          <div class="font-medium text-gray-800 text-sm">${t.label}</div>
+          <div class="text-xs text-gray-400 mt-0.5"><span class="font-mono">${t.product_type}</span> · ${t.filename} · ${(t.created_at||'').slice(0,10)}</div>
+        </div>
+        <button onclick="deleteAdminTemplate('${t.id}','${t.label.replace(/'/g,'\\\'')}')"
+          class="bg-red-50 hover:bg-red-100 text-red-600 px-3 py-1.5 rounded-lg text-xs font-semibold transition flex-shrink-0">
+          Supprimer
+        </button>
+      </div>
+    `).join('');
+  } catch(e) {
+    box.innerHTML = '<div class="text-red-400 text-sm text-center py-8">Erreur de chargement</div>';
+  }
+}
+
+async function uploadAdminTemplate() {
+  const label = document.getElementById('tplUploadLabel').value.trim();
+  const product_type = document.getElementById('tplUploadType').value.trim();
+  const file = document.getElementById('tplUploadFile').files[0];
+  const msg = document.getElementById('tplUploadMsg');
+  if (!label || !product_type || !file) {
+    msg.className = 'mt-3 text-sm text-red-600';
+    msg.textContent = 'Remplissez tous les champs et sélectionnez un fichier.';
+    msg.classList.remove('hidden');
+    return;
+  }
+  const form = new FormData();
+  form.append('template', file);
+  form.append('label', label);
+  form.append('product_type', product_type);
+  const r = await authFetch('/api/admin/templates', { method: 'POST', body: form });
+  if (r.ok) {
+    msg.className = 'mt-3 text-sm text-green-600';
+    msg.textContent = 'Template ajouté avec succès !';
+    msg.classList.remove('hidden');
+    document.getElementById('tplUploadLabel').value = '';
+    document.getElementById('tplUploadType').value = '';
+    document.getElementById('tplUploadFile').value = '';
+    loadAdminTemplates();
+  } else {
+    const err = await r.json().catch(() => ({}));
+    msg.className = 'mt-3 text-sm text-red-600';
+    msg.textContent = err.detail || 'Erreur lors de l\'upload.';
+    msg.classList.remove('hidden');
+  }
+}
+
+async function deleteAdminTemplate(tplId, label) {
+  if (!confirm(`Supprimer le template "${label}" ?`)) return;
+  const r = await authFetch(`/api/admin/templates/${tplId}`, { method: 'DELETE' });
+  if (r.ok) { showToast('✅', `Template "${label}" supprimé`); loadAdminTemplates(); }
+  else showToast('⚠️', 'Erreur lors de la suppression', true);
+}
 
 function triggerAmazonTemplateFill() {
   if (!generatedListings.length) { showToast('⚠️', 'Génère d\'abord des fiches', true); return; }

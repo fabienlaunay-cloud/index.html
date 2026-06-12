@@ -68,7 +68,9 @@ from app.db import (init_db, save_generation, list_generations, get_generation,
                     save_session, list_saved_sessions, get_saved_session, delete_saved_session,
                     save_ab_experiment, list_ab_experiments, get_ab_experiment,
                     update_ab_experiment, delete_ab_experiment,
-                    save_generated_image, get_generated_images, get_generated_images_bulk)
+                    save_generated_image, get_generated_images, get_generated_images_bulk,
+                    save_amazon_template, list_amazon_templates, get_amazon_template,
+                    amazon_template_exists, delete_amazon_template)
 from app.services.ab_testing import (generate_ab_variants, create_amazon_experiment,
                                       get_amazon_experiment_status, cancel_amazon_experiment)
 from app.routes.auth import router as auth_router, admin_router
@@ -175,6 +177,7 @@ async def startup():
     log.info(f"[SynqIO] DB exists: {os.path.isfile(db_abs)}")
     init_db()
     _bootstrap_admin()
+    _seed_amazon_templates()
     try:
         _jobs.update(load_recent_jobs())
     except Exception:
@@ -196,6 +199,25 @@ async def server_error_handler(request: Request, exc):
 @app.exception_handler(RequestValidationError)
 async def validation_error_handler(request: Request, exc: RequestValidationError):
     return JSONResponse(status_code=422, content={"detail": "Données invalides", "errors": exc.errors()})
+
+
+def _seed_amazon_templates():
+    """Seed DB from any .xlsm/.xlsx files in data/amazon_templates/ that aren't there yet."""
+    tpl_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "amazon_templates")
+    if not os.path.isdir(tpl_dir):
+        return
+    for fname in os.listdir(tpl_dir):
+        if not fname.endswith((".xlsm", ".xlsx")):
+            continue
+        product_type = fname.rsplit(".", 1)[0].split("_v")[0].upper()
+        if amazon_template_exists(product_type):
+            continue
+        fpath = os.path.join(tpl_dir, fname)
+        with open(fpath, "rb") as f:
+            data_b64 = base64.b64encode(f.read()).decode()
+        label = product_type.replace("_", " ").title()
+        save_amazon_template(str(uuid4()), label, product_type, fname, data_b64, "system")
+        log.info(f"[Templates] Seeded: {product_type}")
 
 
 def _check_secrets():
@@ -1039,6 +1061,68 @@ def _get_image_urls_for_skus(skus: list) -> dict:
         if imgs:
             result[sku] = imgs
     return result
+
+
+# ── Amazon template library ───────────────────────────────────────────────────
+
+@app.get("/api/templates")
+async def api_list_templates(request: Request):
+    return JSONResponse(list_amazon_templates())
+
+
+@app.post("/api/admin/templates")
+async def api_upload_template(request: Request):
+    if not getattr(request.state, "is_admin", False):
+        raise HTTPException(403, "Réservé aux administrateurs")
+    form = await request.form()
+    template_file = form.get("template")
+    label = (form.get("label") or "").strip()
+    product_type = (form.get("product_type") or "").strip().upper()
+    if not template_file or not label or not product_type:
+        raise HTTPException(400, "template, label et product_type requis")
+    data = await template_file.read()
+    data_b64 = base64.b64encode(data).decode()
+    tpl_id = str(uuid4())
+    save_amazon_template(tpl_id, label, product_type,
+                         getattr(template_file, "filename", f"{product_type}.xlsm"),
+                         data_b64,
+                         getattr(request.state, "user_email", "admin"))
+    return JSONResponse({"id": tpl_id, "label": label, "product_type": product_type})
+
+
+@app.delete("/api/admin/templates/{tpl_id}")
+async def api_delete_template(tpl_id: str, request: Request):
+    if not getattr(request.state, "is_admin", False):
+        raise HTTPException(403, "Réservé aux administrateurs")
+    ok = delete_amazon_template(tpl_id)
+    if not ok:
+        raise HTTPException(404, "Template introuvable")
+    return JSONResponse({"ok": True})
+
+
+@app.post("/api/export/fill-from-library/{tpl_id}")
+async def fill_from_library(tpl_id: str, request: Request):
+    """Fill a stored template with the supplied listings and return the filled bytes."""
+    body = await request.json()
+    raw = body.get("listings", [])
+    if not raw:
+        raise HTTPException(400, "Listings requis")
+    listings = [AmazonListing(**item) for item in raw]
+    tpl = get_amazon_template(tpl_id)
+    if not tpl:
+        raise HTTPException(404, "Template introuvable")
+    template_bytes = base64.b64decode(tpl["data_b64"])
+    try:
+        image_urls = _get_image_urls_for_skus([l.sku for l in listings])
+        filled_bytes = fill_amazon_template(template_bytes, listings, image_urls=image_urls)
+    except Exception as e:
+        raise HTTPException(422, f"Erreur lors du remplissage : {e}")
+    fn = tpl.get("filename") or "amazon_template_rempli.xlsm"
+    return Response(
+        content=filled_bytes,
+        media_type="application/vnd.ms-excel.sheet.macroEnabled.12",
+        headers={"Content-Disposition": f"attachment; filename={fn}"},
+    )
 
 
 @app.post("/api/export/flat-file")

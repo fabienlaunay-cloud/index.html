@@ -260,6 +260,18 @@ def _init_db_pg():
     """)
 
     conn.execute("""
+        CREATE TABLE IF NOT EXISTS amazon_templates (
+            id TEXT PRIMARY KEY,
+            label TEXT NOT NULL DEFAULT '',
+            product_type TEXT NOT NULL DEFAULT '',
+            filename TEXT NOT NULL DEFAULT '',
+            data_b64 TEXT NOT NULL,
+            user_email TEXT NOT NULL DEFAULT '',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+
+    conn.execute("""
         CREATE TABLE IF NOT EXISTS generated_images (
             id TEXT PRIMARY KEY,
             user_email TEXT NOT NULL,
@@ -493,6 +505,18 @@ def _init_db_sqlite():
             name TEXT NOT NULL DEFAULT '',
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             data_json TEXT NOT NULL DEFAULT '{}'
+        )
+    """)
+
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS amazon_templates (
+            id TEXT PRIMARY KEY,
+            label TEXT NOT NULL DEFAULT '',
+            product_type TEXT NOT NULL DEFAULT '',
+            filename TEXT NOT NULL DEFAULT '',
+            data_b64 TEXT NOT NULL,
+            user_email TEXT NOT NULL DEFAULT '',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
 
@@ -1027,6 +1051,63 @@ def delete_saved_session(session_id: str, user_email: str) -> bool:
         "DELETE FROM saved_sessions WHERE id = ? AND user_email = ?",
         (session_id, user_email),
     )
+    conn.commit()
+    conn.close()
+    return cur.rowcount > 0
+
+
+# ── Amazon category templates library ─────────────────────────────────────────
+
+def save_amazon_template(tpl_id: str, label: str, product_type: str,
+                         filename: str, data_b64: str, user_email: str) -> None:
+    conn = get_db()
+    conn.execute(
+        "INSERT INTO amazon_templates (id, label, product_type, filename, data_b64, user_email) "
+        "VALUES (?, ?, ?, ?, ?, ?)",
+        (tpl_id, label, product_type, filename, data_b64, user_email),
+    )
+    conn.commit()
+    conn.close()
+
+
+def list_amazon_templates() -> list:
+    """Metadata only — the data_b64 payload is heavy (1MB+ per template)."""
+    conn = get_db()
+    rows = conn.execute(
+        "SELECT id, label, product_type, filename, user_email, created_at "
+        "FROM amazon_templates ORDER BY label, created_at DESC"
+    ).fetchall()
+    conn.close()
+    return [{"id": r["id"], "label": r["label"], "product_type": r["product_type"],
+             "filename": r["filename"], "user_email": r["user_email"],
+             "created_at": str(r["created_at"])} for r in rows]
+
+
+def get_amazon_template(tpl_id: str) -> dict | None:
+    conn = get_db()
+    row = conn.execute(
+        "SELECT id, label, product_type, filename, data_b64 FROM amazon_templates WHERE id = ?",
+        (tpl_id,),
+    ).fetchone()
+    conn.close()
+    if not row:
+        return None
+    return {"id": row["id"], "label": row["label"], "product_type": row["product_type"],
+            "filename": row["filename"], "data_b64": row["data_b64"]}
+
+
+def amazon_template_exists(product_type: str) -> bool:
+    conn = get_db()
+    row = conn.execute(
+        "SELECT 1 FROM amazon_templates WHERE product_type = ? LIMIT 1", (product_type,)
+    ).fetchone()
+    conn.close()
+    return bool(row)
+
+
+def delete_amazon_template(tpl_id: str) -> bool:
+    conn = get_db()
+    cur = conn.execute("DELETE FROM amazon_templates WHERE id = ?", (tpl_id,))
     conn.commit()
     conn.close()
     return cur.rowcount > 0
