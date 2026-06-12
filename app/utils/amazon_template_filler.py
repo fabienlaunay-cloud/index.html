@@ -361,9 +361,20 @@ def fill_amazon_template(template_bytes: bytes, listings: List[AmazonListing],
         if all_have_theme or sku_pattern_clear:
             parent_sku = _derive_parent_sku(skus)
             parent_listing = _make_parent_listing(list(listings), parent_sku)
-            listings = [parent_listing] + [
-                l.model_copy(update={"parent_sku": parent_sku}) for l in listings
-            ]
+            updated_children = []
+            for child in listings:
+                updates: dict = {"parent_sku": parent_sku}
+                # Extract the middle segment (the differing part) from the SKU to use as color
+                if sku_pattern_clear and not child.color and not child.variation_value:
+                    mid_start = len(_pfx) + 1
+                    mid_end = len(child.sku) - len(_sfx) - 1
+                    if mid_end > mid_start:
+                        mid = child.sku[mid_start:mid_end]
+                        if mid:
+                            updates["variation_value"] = mid
+                            updates["color"] = mid
+                updated_children.append(child.model_copy(update=updates))
+            listings = [parent_listing] + updated_children
 
     # 7. Write listing data starting at data_row
     for i, listing in enumerate(listings):
