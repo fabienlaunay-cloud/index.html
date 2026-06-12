@@ -2469,36 +2469,49 @@
             </div>
             <!-- Export dropdowns -->
             <div class="flex gap-2 items-center">
-              <!-- Flat File Amazon dropdown -->
+              <!-- Amazon export (primary) -->
               <div class="relative" id="scExportMenu">
-                <button onclick="toggleScMenu()" class="bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-100 rounded-lg px-3 py-1.5 text-sm font-medium transition flex items-center gap-1.5">
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                  Flat File Amazon
+                <button onclick="toggleScMenu()" class="bg-blue-600 hover:bg-blue-700 text-white rounded-lg px-3 py-1.5 text-sm font-semibold transition flex items-center gap-1.5 shadow-sm">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                  Exporter vers Amazon
                   <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
                 </button>
-                <div id="scExportDropdown" class="hidden absolute right-0 top-full mt-1 bg-white rounded-xl shadow-lg border border-gray-100 z-50 min-w-[260px] py-1">
-                  <button onclick="exportResults('flat');toggleScMenu()" class="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 transition">
-                    <div class="font-medium text-gray-800">Nouveaux produits</div>
-                    <div class="text-xs text-gray-400 mt-0.5">Fichier .xlsx — catalogue vide</div>
+                <div id="scExportDropdown" class="hidden absolute right-0 top-full mt-1 bg-white rounded-xl shadow-lg border border-gray-100 z-50 min-w-[300px] py-1">
+                  <div class="px-4 pt-2.5 pb-1">
+                    <span class="text-[10px] font-bold uppercase tracking-wider text-gray-400">Nouveaux produits</span>
+                  </div>
+                  <button onclick="openTemplateLibrary();toggleScMenu()" class="w-full text-left px-4 py-2.5 text-sm hover:bg-blue-50 transition">
+                    <div class="flex items-center gap-2">
+                      <span class="text-blue-600 flex-shrink-0">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+                      </span>
+                      <div>
+                        <div class="font-semibold text-gray-800">Bibliothèque de templates <span class="text-[10px] font-normal bg-blue-100 text-blue-700 rounded px-1.5 ml-1">Recommandé</span></div>
+                        <div class="text-xs text-gray-400 mt-0.5">Choisir une catégorie → remplissage automatique</div>
+                      </div>
+                    </div>
                   </button>
-                  <button onclick="exportResults('listing-loader');toggleScMenu()" class="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 transition border-t border-gray-50">
-                    <div class="font-medium text-gray-800">Produits existants</div>
-                    <div class="text-xs text-gray-400 mt-0.5">Fichier .xlsx — mise à jour catalogue</div>
+                  <button onclick="triggerAmazonTemplateFill();toggleScMenu()" class="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 transition border-t border-gray-50">
+                    <div class="font-medium text-gray-700">Uploader mon propre template .xlsm</div>
+                    <div class="text-xs text-gray-400 mt-0.5">Sauvegardé automatiquement dans la bibliothèque</div>
                   </button>
-                  <button onclick="exportResults('variation-flat-file');toggleScMenu()" class="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 transition border-t border-gray-50">
-                    <div class="font-medium text-gray-800">Variations parent-enfant</div>
-                    <div class="text-xs text-gray-400 mt-0.5">Flat file déclinaisons couleur / taille</div>
+                  <div class="px-4 pt-3 pb-1 border-t border-gray-100 mt-1">
+                    <span class="text-[10px] font-bold uppercase tracking-wider text-gray-400">Mise à jour produits existants</span>
+                  </div>
+                  <button onclick="exportResults('listing-loader');toggleScMenu()" class="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 transition">
+                    <div class="font-medium text-gray-700">Listing Loader</div>
+                    <div class="text-xs text-gray-400 mt-0.5">Modifier des fiches déjà publiées sur Amazon</div>
                   </button>
                 </div>
               </div>
-              <!-- Downloads dropdown -->
+              <!-- Other exports dropdown -->
               <div class="relative" id="dlExportMenu">
                 <button onclick="toggleDlMenu()" class="bg-gray-50 hover:bg-gray-100 text-gray-700 border border-gray-200 rounded-lg px-3 py-1.5 text-sm font-medium transition flex items-center gap-1.5">
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                  Télécharger
+                  Exports
                   <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
                 </button>
-                <div id="dlExportDropdown" class="hidden absolute right-0 top-full mt-1 bg-white rounded-xl shadow-lg border border-gray-100 z-50 min-w-[240px] py-1">
+                <div id="dlExportDropdown" class="hidden absolute right-0 top-full mt-1 bg-white rounded-xl shadow-lg border border-gray-100 z-50 min-w-[220px] py-1">
                   <button onclick="exportResults('csv');toggleDlMenu()" class="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 transition">
                     <div class="font-medium text-gray-800">Export CSV</div>
                     <div class="text-xs text-gray-400 mt-0.5">Toutes les fiches en .csv</div>
@@ -2507,16 +2520,8 @@
                     <div class="font-medium text-gray-800">Export JSON</div>
                     <div class="text-xs text-gray-400 mt-0.5">Format brut pour intégration</div>
                   </button>
-                  <button onclick="openTemplateLibrary();toggleDlMenu()" class="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 transition border-t border-gray-50">
-                    <div class="font-medium text-gray-800">Bibliothèque de templates</div>
-                    <div class="text-xs text-gray-400 mt-0.5">Choisir une catégorie Amazon → remplissage auto</div>
-                  </button>
-                  <button onclick="triggerAmazonTemplateFill();toggleDlMenu()" class="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 transition border-t border-gray-50">
-                    <div class="font-medium text-gray-800">Uploader mon propre template</div>
-                    <div class="text-xs text-gray-400 mt-0.5">Utiliser un fichier .xlsm téléchargé depuis Seller Central</div>
-                  </button>
                   <button onclick="downloadZipPack();toggleDlMenu()" class="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 transition border-t border-gray-50">
-                    <div class="font-medium text-gray-800">Tout télécharger</div>
+                    <div class="font-medium text-gray-800">Tout télécharger (ZIP)</div>
                     <div class="text-xs text-gray-400 mt-0.5">Fiches + images dans un fichier .zip</div>
                   </button>
                 </div>
@@ -7717,11 +7722,13 @@ async function fillAmazonTemplate(input) {
       showToast('⚠️', err.detail || 'Erreur lors du remplissage', true);
       return;
     }
+    const blob = await r.blob();
     const a = document.createElement('a');
-    a.href = URL.createObjectURL(await r.blob());
-    a.download = 'amazon_template_rempli.xlsm';
+    a.href = URL.createObjectURL(blob);
+    a.download = file.name;
     a.click();
-    showToast('✅', `Template rempli — ${generatedListings.length} fiche(s) prêtes à uploader`);
+    showToast('✅', `Template rempli et sauvegardé dans la bibliothèque — prêt à uploader`);
+    _templateLibCache = null; // refresh library cache next open
   } catch(e) {
     showToast('⚠️', 'Erreur : ' + e.message, true);
   }

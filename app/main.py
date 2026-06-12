@@ -1033,10 +1033,25 @@ async def fill_amazon_template_endpoint(request: Request):
         filled_bytes = fill_amazon_template(template_bytes, listings, image_urls=image_urls)
     except Exception as e:
         raise HTTPException(422, f"Erreur lors du remplissage : {e}")
+    # Auto-save to library if this product type isn't there yet
+    try:
+        from app.utils.amazon_template_filler import _parse_template_settings
+        meta = _parse_template_settings(template_bytes)
+        pt = (meta.get("productType") or "").upper()
+        if pt and not amazon_template_exists(pt):
+            fname = getattr(template_file, "filename", None) or f"{pt}.xlsm"
+            data_b64 = base64.b64encode(template_bytes).decode()
+            label = pt.replace("_", " ").title()
+            save_amazon_template(str(uuid4()), label, pt, fname, data_b64,
+                                 getattr(request.state, "user_email", ""))
+            log.info(f"[Templates] Auto-saved from upload: {pt}")
+    except Exception:
+        pass
+    fn = getattr(template_file, "filename", None) or "amazon_template_rempli.xlsm"
     return Response(
         content=filled_bytes,
         media_type="application/vnd.ms-excel.sheet.macroEnabled.12",
-        headers={"Content-Disposition": "attachment; filename=amazon_template_rempli.xlsm"},
+        headers={"Content-Disposition": f"attachment; filename={fn}"},
     )
 
 
