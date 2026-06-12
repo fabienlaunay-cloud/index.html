@@ -97,10 +97,10 @@ def to_amazon_flat_file_bytes(listings: List[AmazonListing]) -> bytes:
         "external-product-id-type",
         "condition-type",
     ]
-    # Row 1 : column names
-    output.write("\t".join(headers) + "\n")
-    # Row 2 : template metadata (required by Amazon parser)
+    # Row 1 : TemplateType MUST come before column names (Amazon error 90009 otherwise)
     output.write("\t".join(["TemplateType=fptcustom", "Version=2021.1201"] + [""] * (len(headers) - 2)) + "\n")
+    # Row 2 : column names
+    output.write("\t".join(headers) + "\n")
 
     for listing in listings:
         bullets = listing.bullet_points + [""] * 5
@@ -157,8 +157,8 @@ def to_amazon_flat_file_xlsx(listings: List[AmazonListing], image_urls: Optional
     wb = openpyxl.Workbook()
     ws = wb.active
     ws.title = "Nouveaux Produits"
-    ws.append(headers)
     ws.append(["TemplateType=fptcustom", "Version=2021.1201"] + [""] * (len(headers) - 2))
+    ws.append(headers)
     for listing in listings:
         bullets = listing.bullet_points + [""] * 5
         sku_imgs = (image_urls or {}).get(listing.sku, {})
@@ -194,8 +194,8 @@ def to_listing_loader_xlsx(listings: List[AmazonListing]) -> bytes:
     wb = openpyxl.Workbook()
     ws = wb.active
     ws.title = "Produits Existants"
-    ws.append(headers)
     ws.append(["TemplateType=Offer", "Version=2021.1201"] + [""] * (len(headers) - 2))
+    ws.append(headers)
     for listing in listings:
         bullets = listing.bullet_points + [""] * 5
         ws.append([
@@ -241,8 +241,8 @@ def to_variation_flat_file_xlsx(listings: List[AmazonListing], image_urls: Optio
     wb = openpyxl.Workbook()
     ws = wb.active
     ws.title = "Variations"
-    ws.append(headers)
     ws.append(["TemplateType=fptcustom", "Version=2021.1201"] + [""] * (len(headers) - 2))
+    ws.append(headers)
 
     parents = {l.sku: l for l in listings if l.is_parent}
 
@@ -342,8 +342,8 @@ def to_listing_loader_bytes(listings: List[AmazonListing]) -> bytes:
         "bullet-point5",
         "generic-keywords",
     ]
-    output.write("\t".join(headers) + "\n")
     output.write("\t".join(["TemplateType=Offer", "Version=2021.1201"] + [""] * (len(headers) - 2)) + "\n")
+    output.write("\t".join(headers) + "\n")
 
     for listing in listings:
         bullets = listing.bullet_points + [""] * 5

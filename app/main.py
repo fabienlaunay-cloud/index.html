@@ -2449,8 +2449,9 @@ async def title_migration_export(req: TitleMigrationExportRequest, request: Requ
     and Item Highlights — ready to upload in 'Ajouter des produits via fichier'."""
     out = io.StringIO()
     headers = ["item-sku", "update-delete", "item-name", "item-highlights"]
-    out.write("\t".join(headers) + "\n")
+    # Amazon requires TemplateType BEFORE column headers (error 90009 otherwise)
     out.write("\t".join(["TemplateType=fptcustom", "Version=2021.1201", "", ""]) + "\n")
+    out.write("\t".join(headers) + "\n")
     count = 0
     for r in req.rows:
         sku = str(r.get("sku", "")).strip()
