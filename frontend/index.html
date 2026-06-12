@@ -3152,20 +3152,28 @@
         <h4 class="text-xs font-bold uppercase tracking-wider text-green-600 mb-3">Variations</h4>
         <div class="space-y-3">
           <div>
-            <label class="block text-xs font-medium text-gray-700 mb-1">Thème de variation <span class="text-gray-400 font-normal">(col. F — appliqué uniquement au parent)</span></label>
-            <input type="text" name="variation_theme#1.name" list="variationThemeOptions" placeholder="ex : COULEUR" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-purple-300 outline-none">
-            <datalist id="variationThemeOptions">
-              <option value="COULEUR">COULEUR — couleur uniquement (colliers, vêtements…)</option>
-              <option value="COULEUR/TAILLE">COULEUR/TAILLE — couleur + taille</option>
-              <option value="TAILLE">TAILLE — taille uniquement</option>
-              <option value="COULEUR/NOMBRE_ARTICLES">COULEUR/NOMBRE_ARTICLES</option>
-              <option value="COLOR/ITEM_LENGTH">COLOR/ITEM_LENGTH</option>
-              <option value="COLOR/ITEM_WIDTH">COLOR/ITEM_WIDTH</option>
-              <option value="COLOR/SIZE">COLOR/SIZE</option>
-              <option value="CLOSURE_TYPE/COLOR/METAL_TYPE">CLOSURE_TYPE/COLOR/METAL_TYPE</option>
-              <option value="ANIMAL_COLLAR_TYPE/COLOR/METAL_TYPE">ANIMAL_COLLAR_TYPE/COLOR/METAL_TYPE</option>
-            </datalist>
-            <p class="text-xs text-gray-400 mt-1">En MAJUSCULES. Laissez vide → auto (<strong>COULEUR</strong> si couleurs extraites des SKUs)</p>
+            <label class="block text-xs font-medium text-gray-700 mb-1">Thème de variation <span class="text-gray-400 font-normal">(col. F — parent uniquement)</span></label>
+            <select name="variation_theme#1.name" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-purple-300 outline-none">
+              <option value="">— Auto (COULEUR si couleurs extraites des SKUs) —</option>
+              <optgroup label="Par couleur">
+                <option value="COULEUR">COULEUR — seulement la couleur varie</option>
+                <option value="COULEUR/TAILLE">COULEUR/TAILLE — couleur + taille varient</option>
+                <option value="COULEUR/NOMBRE_ARTICLES">COULEUR/NOMBRE_ARTICLES — couleur + qté varient</option>
+                <option value="COLOR/ITEM_LENGTH">COLOR/ITEM_LENGTH — couleur + longueur varient</option>
+                <option value="COLOR/ITEM_WIDTH">COLOR/ITEM_WIDTH — couleur + largeur varient</option>
+              </optgroup>
+              <optgroup label="Par taille">
+                <option value="TAILLE">TAILLE — seulement la taille varie</option>
+                <option value="TAILLE/NOMBRE_D'ARTICLES">TAILLE/NOMBRE_D'ARTICLES — taille + qté varient</option>
+              </optgroup>
+              <optgroup label="Pour colliers (ANIMAL_COLLAR)">
+                <option value="ANIMAL_COLLAR_TYPE/COLOR/METAL_TYPE">ANIMAL_COLLAR_TYPE/COLOR/METAL_TYPE — type collier + couleur + métal</option>
+                <option value="CLOSURE_TYPE">CLOSURE_TYPE — type de fermeture uniquement</option>
+                <option value="CLOSURE_TYPE/COLOR/METAL_TYPE">CLOSURE_TYPE/COLOR/METAL_TYPE — fermeture + couleur + métal</option>
+                <option value="CLOSURE_TYPE/ITEM_LENGTH">CLOSURE_TYPE/ITEM_LENGTH — fermeture + longueur</option>
+              </optgroup>
+            </select>
+            <p class="text-xs text-gray-400 mt-1">Le thème doit correspondre exactement à ce qui varie entre vos enfants. Pour 3 couleurs uniquement → <strong>COULEUR</strong></p>
           </div>
         </div>
       </div>
