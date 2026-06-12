@@ -496,12 +496,27 @@ def fill_amazon_template(template_bytes: bytes, listings: List[AmazonListing],
         #     variation_theme is parent-only — never write it to child rows from compliance_data.
         if compliance_data:
             _parent_only_attrs = {"variation_theme#1.name"}
+            _gtin_exempt = compliance_data.get("_gtin_exempt")
             for attr, value in compliance_data.items():
+                if attr.startswith("_"):
+                    continue  # internal flags, not column keys
                 if attr in _parent_only_attrs and listing.parent_sku:
                     continue
                 col = col_index.get(attr)
                 if col and value not in (None, ""):
                     ws.cell(row_num, col).value = value
+            # GTIN exemption: clear all EAN/identifier columns
+            if _gtin_exempt:
+                _ean_attrs = [
+                    "externally_assigned_product_identifier#1.type",
+                    "externally_assigned_product_identifier#1.value",
+                    "external_product_id", "external_product_id_type",
+                    "amzn1.volt.ca.product_id_type", "amzn1.volt.ca.product_id_value",
+                ]
+                for attr in _ean_attrs:
+                    col = col_index.get(attr)
+                    if col:
+                        ws.cell(row_num, col).value = None
 
     # 8. Save preserving macros if the source was .xlsm
     out = io.BytesIO()

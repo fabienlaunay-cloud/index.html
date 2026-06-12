@@ -3036,6 +3036,15 @@
               <option value="Expédié par Amazon (UE)">Expédié par Amazon — FBA</option>
             </select>
           </div>
+          <div>
+            <label class="flex items-start gap-3 cursor-pointer p-3 rounded-xl border border-gray-200 hover:border-purple-300 hover:bg-purple-50 transition">
+              <input type="checkbox" name="_gtin_exempt" value="1" class="mt-0.5 w-4 h-4 accent-purple-500 flex-shrink-0 cursor-pointer">
+              <div>
+                <span class="text-sm font-medium text-gray-700">Exemption GTIN</span>
+                <p class="text-xs text-gray-500 mt-0.5">Pas de code EAN/UPC requis (Brand Registry Amazon ou exemption accordée). Les colonnes EAN seront laissées <strong>vides</strong> dans l'export — Amazon n'affichera pas d'erreur sur l'identifiant produit.</p>
+              </div>
+            </label>
+          </div>
         </div>
       </div>
 
@@ -7829,7 +7838,10 @@ function openComplianceModal() {
   const form = document.getElementById('complianceForm');
   form.querySelectorAll('[name]').forEach(el => {
     const val = saved[el.name];
-    if (val !== undefined) el.value = val;
+    if (val !== undefined) {
+      if (el.type === 'checkbox') el.checked = !!val;
+      else el.value = val;
+    }
   });
   document.getElementById('complianceModal').classList.remove('hidden');
 }
@@ -7842,7 +7854,8 @@ function saveComplianceDefaults() {
   const form = document.getElementById('complianceForm');
   const data = {};
   form.querySelectorAll('[name]').forEach(el => {
-    if (el.value !== '') data[el.name] = el.value;
+    if (el.type === 'checkbox') { if (el.checked) data[el.name] = el.value; }
+    else if (el.value !== '') data[el.name] = el.value;
   });
   localStorage.setItem(_COMPLIANCE_KEY, JSON.stringify(data));
   _updateComplianceSummary(data);
@@ -7857,6 +7870,7 @@ function _updateComplianceSummary(data) {
   if (data['country_of_origin#1.value']) parts.push(data['country_of_origin#1.value']);
   if (data['item_package_weight#1.value']) parts.push(`${data['item_package_weight#1.value']} ${(data['item_package_weight#1.unit']||'kg').slice(0,2).toLowerCase()}`);
   if (data['batteries_required#1.value'] === 'Oui') parts.push('avec piles');
+  if (data['_gtin_exempt']) parts.push('exemption GTIN');
   if (data['variation_theme#1.name']) parts.push(`variation: ${data['variation_theme#1.name']}`);
   el.textContent = parts.length ? parts.join(' · ') : 'Pays, emballage, piles, garantie…';
 }
