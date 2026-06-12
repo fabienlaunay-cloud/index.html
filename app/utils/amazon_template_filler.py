@@ -2,15 +2,15 @@
 Fills an Amazon inventory template (.xlsm/.xlsx) with listing data.
 
 Supports all Amazon template types:
-  - Category templates (new/update products): attributeRow=3, dataRow=4
-    e.g. ANIMAL_COLLAR.xlsm — has item_sku, item_name, bullet_point1…
-  - Listing Loader (existing products): attributeRow=5, dataRow=7
-    e.g. ListingLoader.xlsm — has contribution_sku#1.value, purchasable_offer[...]…
-  - Price & Quantity: attributeRow=5, dataRow=7
-    e.g. PriceAndQuantity.xlsm — has contribution_sku#1.value, purchasable_offer[...]…
+  - Legacy category templates (fptcustom): attributeRow=3, dataRow=4
+    e.g. old ANIMAL_COLLAR.xlsm — has item_sku, item_name, bullet_point1…
+  - Modern "Listing" templates (feedType=256): labelRow=4, attributeRow=5, dataRow=7
+    e.g. ANIMAL_COLLAR_2.xlsm — qualified names like
+    item_name[marketplace_id=A13V1IB3VIYZZH][language_tag=fr_FR]#1.value
+  - Listing Loader / Price & Quantity: attributeRow=5, dataRow=7
 
-Row 1 metadata contains `settings=…attributeRow=N&dataRow=M` which we parse to locate
-the correct rows and the exact worksheet automatically.
+Row 1 metadata contains `settings=…attributeRow=N&dataRow=M&ptds=<b64>` which we
+parse to locate the correct rows, worksheet and product type automatically.
 """
 
 import base64
@@ -24,19 +24,33 @@ import openpyxl
 from app.models import AmazonListing
 
 _HTML_RE = re.compile(r'<[^>]+>')
+_QUALIFIER_RE = re.compile(r'\[[^\]]*\]')
+
+# Generated image slots, in Amazon column order (main + other1..6)
+_IMAGE_IDS_ORDERED = [
+    "hero", "lifestyle_1", "infographic", "detail",
+    "dimensions", "packaging", "lifestyle_2",
+]
 
 
 def _strip_html(text: str) -> str:
     return _HTML_RE.sub('', text or '').strip()
 
 
+def _normalize_attr(name: str) -> str:
+    """Strip [marketplace_id=…]/[language_tag=…] qualifiers so modern template
+    attribute names match stable keys:
+    item_name[marketplace_id=X][language_tag=fr_FR]#1.value → item_name#1.value
+    """
+    return _QUALIFIER_RE.sub('', name or '').strip()
+
+
 def _parse_template_settings(wb: openpyxl.Workbook) -> tuple[dict, Optional[openpyxl.worksheet.worksheet.Worksheet]]:
     """
     Read row 1 of the first sheet that contains 'settings=' metadata.
-    Returns (dict with attributeRow/dataRow, worksheet where settings were found).
-    Returning the worksheet avoids picking the wrong sheet (e.g. Dropdown Lists).
+    Returns (dict with attributeRow/dataRow/productType, worksheet found).
     """
-    defaults = {"attributeRow": 3, "dataRow": 4}
+    defaults = {"attributeRow": 3, "dataRow": 4, "productType": ""}
     for ws in wb.worksheets:
         for col in range(1, min(10, ws.max_column + 1)):
             val = str(ws.cell(1, col).value or '')
@@ -48,6 +62,14 @@ def _parse_template_settings(wb: openpyxl.Workbook) -> tuple[dict, Optional[open
                     result['attributeRow'] = int(params['attributeRow'])
                 if 'dataRow' in params:
                     result['dataRow'] = int(params['dataRow'])
+                # Modern templates carry the product type base64-encoded in ptds
+                if params.get('ptds'):
+                    try:
+                        decoded = base64.b64decode(params['ptds']).decode('utf-8').strip()
+                        # may be a comma-separated list — take the first
+                        result['productType'] = decoded.split(',')[0].strip()
+                    except Exception:
+                        pass
                 return result, ws
     return defaults, None
 
@@ -60,7 +82,6 @@ def _find_template_worksheet(wb: openpyxl.Workbook, attr_row: int) -> Optional[o
             val = str(ws.cell(attr_row, col).value or '').lower()
             if any(m in val for m in markers):
                 return ws
-    # fallback: return first worksheet with content at that row
     for ws in wb.worksheets:
         if ws.cell(attr_row, 1).value:
             return ws
@@ -68,34 +89,30 @@ def _find_template_worksheet(wb: openpyxl.Workbook, attr_row: int) -> Optional[o
 
 
 def _build_col_index(ws, attr_row: int) -> dict[str, int]:
-    """Map attribute_name → column number from the given row."""
+    """Map attribute_name → column number. Both the raw name and its
+    qualifier-stripped normalization are indexed (first occurrence wins)."""
     index = {}
     for col in range(1, ws.max_column + 1):
         val = str(ws.cell(attr_row, col).value or '').strip()
-        if val:
+        if not val:
+            continue
+        if val not in index:
             index[val] = col
+        norm = _normalize_attr(val)
+        if norm and norm not in index:
+            index[norm] = col
     return index
 
 
-# ── Mapping helpers ────────────────────────────────────────────────────────────
+# ── Mapping ───────────────────────────────────────────────────────────────────
 
-def _get_value(col_index: dict, listing: AmazonListing, *keys) -> tuple[int, str]:
-    """Return (col, value) for the first matching key, or (None, None)."""
-    for key in keys:
-        if key in col_index:
-            return col_index[key], key
-    # Pattern match for complex keys (e.g. purchasable_offer[...])
-    for pattern_fn, value_fn, match_keys in _PATTERN_RULES:
-        for key in match_keys:
-            for attr, col in col_index.items():
-                if key in attr:
-                    return col, attr
-    return None, None
+def _bullet(l: AmazonListing, i: int) -> str:
+    return l.bullet_points[i] if len(l.bullet_points) > i else ""
 
 
-# Simple exact-match rules: attribute_name → getter(listing)
+# Exact-match rules — keys are either legacy names or normalized modern names.
 _EXACT_MAP = {
-    # Category template style
+    # Legacy category template style (fptcustom)
     "item_sku":                               lambda l: l.sku,
     "brand_name":                             lambda l: l.brand,
     "manufacturer":                           lambda l: l.brand,
@@ -103,15 +120,15 @@ _EXACT_MAP = {
     "item_name":                              lambda l: l.title,
     "item_highlights":                        lambda l: getattr(l, "item_highlights", "") or "",
     "product_description":                    lambda l: _strip_html(l.description),
-    "bullet_point1":                          lambda l: l.bullet_points[0] if len(l.bullet_points) > 0 else "",
-    "bullet_point2":                          lambda l: l.bullet_points[1] if len(l.bullet_points) > 1 else "",
-    "bullet_point3":                          lambda l: l.bullet_points[2] if len(l.bullet_points) > 2 else "",
-    "bullet_point4":                          lambda l: l.bullet_points[3] if len(l.bullet_points) > 3 else "",
-    "bullet_point5":                          lambda l: l.bullet_points[4] if len(l.bullet_points) > 4 else "",
+    "bullet_point1":                          lambda l: _bullet(l, 0),
+    "bullet_point2":                          lambda l: _bullet(l, 1),
+    "bullet_point3":                          lambda l: _bullet(l, 2),
+    "bullet_point4":                          lambda l: _bullet(l, 3),
+    "bullet_point5":                          lambda l: _bullet(l, 4),
     "generic_keywords":                       lambda l: l.backend_keywords,
     "external_product_id":                    lambda l: l.ean or "",
     "external_product_id_type":               lambda l: "EAN" if l.ean else "",
-    "update_delete":                          lambda l: "PartialUpdate",
+    "update_delete":                          lambda l: "Update",
     "standard_price":                         lambda l: str(l.price) if l.price else "",
     "quantity":                               lambda l: "1",
     "condition_type":                         lambda l: "New",
@@ -119,79 +136,134 @@ _EXACT_MAP = {
     "material_type":                          lambda l: l.material or "",
     "item_weight":                            lambda l: str(l.weight_kg) if l.weight_kg else "",
     "item_weight_unit_of_measure":            lambda l: "KG" if l.weight_kg else "",
-    # Listing Loader style (new format)
+    "parent_child":                           lambda l: "Parent" if l.is_parent else ("Child" if l.parent_sku else ""),
+    "parent_sku":                             lambda l: l.parent_sku or "",
+    "relationship_type":                      lambda l: "Variation" if l.parent_sku else "",
+    "variation_theme":                        lambda l: l.variation_theme or "",
+
+    # Modern "Listing" template style (normalized names, feedType=256)
     "contribution_sku#1.value":               lambda l: l.sku,
-    "::record_action":                        lambda l: "partial_update",
-    "externally_assigned_product_identifier#1.type":  lambda l: "EAN" if l.ean else "",
+    "::record_action":                        lambda l: "full_update",
+    "item_name#1.value":                      lambda l: l.title,
+    # "Point fort de l'article" — the new Item Highlights field
+    "title_differentiation#1.value":          lambda l: getattr(l, "item_highlights", "") or "",
+    "brand#1.value":                          lambda l: l.brand,
+    "manufacturer#1.value":                   lambda l: l.brand,
+    "model_name#1.value":                     lambda l: l.title[:50] if l.title else "",
+    "model_number#1.value":                   lambda l: l.sku,
+    "part_number#1.value":                    lambda l: l.sku,
+    "product_description#1.value":            lambda l: _strip_html(l.description),
+    "bullet_point#1.value":                   lambda l: _bullet(l, 0),
+    "bullet_point#2.value":                   lambda l: _bullet(l, 1),
+    "bullet_point#3.value":                   lambda l: _bullet(l, 2),
+    "bullet_point#4.value":                   lambda l: _bullet(l, 3),
+    "bullet_point#5.value":                   lambda l: _bullet(l, 4),
+    "generic_keyword#1.value":                lambda l: l.backend_keywords,
+    "color#1.value":                          lambda l: l.color or "",
+    "material#1.value":                       lambda l: l.material or "",
+    "amzn1.volt.ca.product_id_type":          lambda l: "EAN" if l.ean else "",
+    "amzn1.volt.ca.product_id_value":         lambda l: l.ean or "",
+    "externally_assigned_product_identifier#1.type":  lambda l: "ean" if l.ean else "",
     "externally_assigned_product_identifier#1.value": lambda l: l.ean or "",
     "condition_type#1.value":                 lambda l: "new",
     "fulfillment_availability#1.quantity":    lambda l: "1",
+    "item_package_quantity#1.value":          lambda l: "1",
+    "number_of_items#1.value":                lambda l: "1",
+    # Variations (modern)
+    "parentage_level#1.value":                lambda l: "Parent" if l.is_parent else ("Enfant" if l.parent_sku else ""),
+    "child_parent_sku_relationship#1.parent_sku": lambda l: l.parent_sku or "",
+    "child_parent_sku_relationship#1.child_relationship_type": lambda l: "variation" if l.parent_sku else "",
+    "variation_theme#1.name":                 lambda l: l.variation_theme or "",
 }
+
+# Image slot → normalized modern column / legacy column
+_IMAGE_COLUMN_KEYS = [
+    ("main_product_image_locator#1.media_location", "main_image_url"),
+    ("other_product_image_locator_1#1.media_location", "other_image_url1"),
+    ("other_product_image_locator_2#1.media_location", "other_image_url2"),
+    ("other_product_image_locator_3#1.media_location", "other_image_url3"),
+    ("other_product_image_locator_4#1.media_location", "other_image_url4"),
+    ("other_product_image_locator_5#1.media_location", "other_image_url5"),
+    ("other_product_image_locator_6#1.media_location", "other_image_url6"),
+]
 
 # Pattern-based rules for columns whose names vary by marketplace ID
 _PATTERN_RULES = [
-    # Price: any column containing 'our_price' and 'value_with_tax'
-    (lambda attr: 'our_price' in attr and 'value_with_tax' in attr and 'B2B' not in attr,
+    # Price: any column containing 'our_price' and 'value_with_tax' (modern)
+    (lambda attr: 'our_price' in attr and 'value_with_tax' in attr and 'b2b' not in attr.lower(),
      lambda l: str(l.price) if l.price else ""),
 ]
 
 
-def fill_amazon_template(template_bytes: bytes, listings: List[AmazonListing]) -> bytes:
+def fill_amazon_template(template_bytes: bytes, listings: List[AmazonListing],
+                         image_urls: Optional[dict] = None) -> bytes:
     """
     Read an Amazon category template (.xlsm/.xlsx), detect its structure,
-    fill it with listing data, and return the result as .xlsx bytes.
+    fill it with listing data, and return the result as bytes.
+    image_urls: optional {sku: {slot_id: public_url}} to fill image columns.
     """
     wb = openpyxl.load_workbook(io.BytesIO(template_bytes), keep_vba=True, data_only=True)
 
-    # 1. Parse settings — also returns the exact worksheet that holds the settings,
-    #    which is always the data sheet (avoids misidentifying Dropdown Lists, etc.)
+    # 1. Parse settings — also returns the exact worksheet that holds them
     settings, settings_ws = _parse_template_settings(wb)
     attr_row = settings['attributeRow']
     data_row = settings['dataRow']
+    product_type = settings.get('productType', '')
 
     # 2. Use the settings worksheet if found; fall back to heuristic search
     ws = settings_ws or _find_template_worksheet(wb, attr_row)
     if ws is None:
         raise ValueError("Impossible de trouver la feuille template dans ce fichier Amazon.")
 
-    # 3. Build column index from attribute row
+    # 3. Build column index (raw + normalized names)
     col_index = _build_col_index(ws, attr_row)
 
-    # 4. For category templates: get feed_product_type from existing data rows,
-    #    or from the TemplateSignature base64 field in row 1 metadata.
-    feed_product_type = ""
+    # 4. Product type: legacy templates store it in feed_product_type data rows /
+    #    TemplateSignature; modern ones in the ptds settings param.
     fpt_col = col_index.get("feed_product_type")
-    if fpt_col:
+    if fpt_col and not product_type:
         for r in range(attr_row + 1, attr_row + 5):
             v = ws.cell(r, fpt_col).value
             if v:
-                feed_product_type = str(v)
+                product_type = str(v)
                 break
-        if not feed_product_type:
+        if not product_type:
             for col in range(1, min(6, ws.max_column + 1)):
                 val = str(ws.cell(1, col).value or '')
                 if 'TemplateSignature=' in val:
                     sig = val.split('TemplateSignature=')[1].split('&')[0]
                     try:
-                        feed_product_type = base64.b64decode(sig).decode('utf-8').strip()
+                        product_type = base64.b64decode(sig).decode('utf-8').strip()
                     except Exception:
                         pass
                     break
+    pt_col = col_index.get("product_type#1.value") or fpt_col
 
     # 5. Write listing data starting at data_row
     for i, listing in enumerate(listings):
         row_num = data_row + i
 
-        # Feed product type (category templates only)
-        if feed_product_type and fpt_col:
-            ws.cell(row_num, fpt_col).value = feed_product_type
+        if product_type and pt_col:
+            ws.cell(row_num, pt_col).value = product_type
 
-        # Exact-match attributes
+        # Exact-match attributes (legacy + normalized modern)
         for attr, getter in _EXACT_MAP.items():
-            if attr in col_index:
+            col = col_index.get(attr)
+            if col:
                 value = getter(listing)
                 if value:
-                    ws.cell(row_num, col_index[attr]).value = value
+                    ws.cell(row_num, col).value = value
+
+        # Images (skip for parent rows of variations: children carry the offer)
+        sku_imgs = (image_urls or {}).get(listing.sku, {})
+        if sku_imgs:
+            for slot_id, (modern_key, legacy_key) in zip(_IMAGE_IDS_ORDERED, _IMAGE_COLUMN_KEYS):
+                url = sku_imgs.get(slot_id)
+                if not url:
+                    continue
+                col = col_index.get(modern_key) or col_index.get(legacy_key)
+                if col:
+                    ws.cell(row_num, col).value = url
 
         # Pattern-match attributes (e.g. price with marketplace ID in name)
         for (pattern_fn, value_fn) in _PATTERN_RULES:
@@ -202,7 +274,7 @@ def fill_amazon_template(template_bytes: bytes, listings: List[AmazonListing]) -
                         ws.cell(row_num, col).value = value
                     break  # fill only first matching price column
 
-    # 6. Save as xlsx
+    # 6. Save preserving macros if the source was .xlsm
     out = io.BytesIO()
     wb.save(out)
     return out.getvalue()

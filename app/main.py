@@ -1007,7 +1007,8 @@ async def fill_amazon_template_endpoint(request: Request):
     raw = _json.loads(listings_json)
     listings = [AmazonListing(**item) for item in raw]
     try:
-        filled_bytes = fill_amazon_template(template_bytes, listings)
+        image_urls = _get_image_urls_for_skus([l.sku for l in listings])
+        filled_bytes = fill_amazon_template(template_bytes, listings, image_urls=image_urls)
     except Exception as e:
         raise HTTPException(422, f"Erreur lors du remplissage : {e}")
     return Response(
