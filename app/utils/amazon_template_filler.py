@@ -261,7 +261,8 @@ def get_product_type_from_bytes(template_bytes: bytes) -> str:
 
 
 def fill_amazon_template(template_bytes: bytes, listings: List[AmazonListing],
-                         image_urls: Optional[dict] = None) -> bytes:
+                         image_urls: Optional[dict] = None,
+                         compliance_data: Optional[dict] = None) -> bytes:
     """
     Read an Amazon category template (.xlsm/.xlsx), detect its structure,
     fill it with listing data, and return the result as bytes.
@@ -404,6 +405,14 @@ def fill_amazon_template(template_bytes: bytes, listings: List[AmazonListing],
                     if value and not ws.cell(row_num, col).value:
                         ws.cell(row_num, col).value = value
                     break  # fill only first matching price column
+
+        # 7f. Per-export compliance values (country_of_origin, packaging dims, batteries, etc.)
+        #     Applied after _EXACT_MAP so user-provided values take precedence.
+        if compliance_data:
+            for attr, value in compliance_data.items():
+                col = col_index.get(attr)
+                if col and value not in (None, ""):
+                    ws.cell(row_num, col).value = value
 
     # 8. Save preserving macros if the source was .xlsm
     out = io.BytesIO()

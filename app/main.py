@@ -1028,9 +1028,11 @@ async def fill_amazon_template_endpoint(request: Request):
     import json as _json
     raw = _json.loads(listings_json)
     listings = [AmazonListing(**item) for item in raw]
+    compliance_raw = form.get("compliance_data")
+    compliance_data = _json.loads(compliance_raw) if compliance_raw else None
     try:
         image_urls = _get_image_urls_for_skus([l.sku for l in listings])
-        filled_bytes = fill_amazon_template(template_bytes, listings, image_urls=image_urls)
+        filled_bytes = fill_amazon_template(template_bytes, listings, image_urls=image_urls, compliance_data=compliance_data)
     except Exception as e:
         raise HTTPException(422, f"Erreur lors du remplissage : {e}")
     # Auto-save to library if this product type isn't there yet
@@ -1122,13 +1124,14 @@ async def fill_from_library(tpl_id: str, request: Request):
     if not raw:
         raise HTTPException(400, "Listings requis")
     listings = [AmazonListing(**item) for item in raw]
+    compliance_data = body.get("compliance_data") or None
     tpl = get_amazon_template(tpl_id)
     if not tpl:
         raise HTTPException(404, "Template introuvable")
     template_bytes = base64.b64decode(tpl["data_b64"])
     try:
         image_urls = _get_image_urls_for_skus([l.sku for l in listings])
-        filled_bytes = fill_amazon_template(template_bytes, listings, image_urls=image_urls)
+        filled_bytes = fill_amazon_template(template_bytes, listings, image_urls=image_urls, compliance_data=compliance_data)
     except Exception as e:
         raise HTTPException(422, f"Erreur lors du remplissage : {e}")
     fn = tpl.get("filename") or "amazon_template_rempli.xlsm"
