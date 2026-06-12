@@ -176,11 +176,11 @@ _EXACT_MAP = {
     "parentage_level#1.value":                lambda l: "Parent" if l.is_parent else ("Enfant" if l.parent_sku else ""),
     "child_parent_sku_relationship#1.parent_sku": lambda l: l.parent_sku or "",
     "child_parent_sku_relationship#1.child_relationship_type": lambda l: "variation" if l.parent_sku else "",
-    "variation_theme#1.name":                 lambda l: l.variation_theme or "",
+    "variation_theme#1.name":                 lambda l: (l.variation_theme or "") if l.is_parent else "",
     # Logistics / compliance smart defaults (overridable via compliance_data)
     "unit_count#1.value":                     lambda l: "" if l.is_parent else "1",
     "unit_count#1.type.value":               lambda l: "" if l.is_parent else "unité",
-    "merchant_shipping_group#1.value":        lambda l: "" if l.is_parent else "Modèle par défaut Amazon",
+    "merchant_shipping_group#1.value":        lambda l: "Modèle par défaut Amazon",
     "supplier_declared_dg_hz_regulation#1.value": lambda l: "Non applicable",
 }
 
@@ -366,6 +366,10 @@ def fill_amazon_template(template_bytes: bytes, listings: List[AmazonListing],
         if all_have_theme or sku_pattern_clear:
             parent_sku = _derive_parent_sku(skus)
             parent_listing = _make_parent_listing(list(listings), parent_sku)
+            # When parent is auto-derived from SKU pattern (not an explicit theme),
+            # default to ColorName since we're using color extracted from SKU middles.
+            if sku_pattern_clear and not all_have_theme and not parent_listing.variation_theme:
+                parent_listing = parent_listing.model_copy(update={"variation_theme": "ColorName"})
             updated_children = []
             for child in listings:
                 updates: dict = {"parent_sku": parent_sku}
