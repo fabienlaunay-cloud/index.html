@@ -6003,6 +6003,7 @@ async function _restoreImagesFromDB(skus) {
         sku,
         openai_configured: true,
         images_generated: true,
+        reference_image_used: true,
         images: imgs.map(i => ({ id: i.slot, slot: i.slot, url: i.data_url, has_image: true, label: i.slot }))
       };
       restored++;
@@ -6144,7 +6145,7 @@ async function restoreBatch(batchId) {
       const imgs = Array.isArray(v) ? v : (v && v.images) || [];
       if (!imgs.length) continue;
       savedImages[sku] = Array.isArray(v)
-        ? { sku, images: imgs, openai_configured: true, images_generated: true, total: imgs.length }
+        ? { sku, images: imgs, openai_configured: true, images_generated: true, reference_image_used: true, total: imgs.length }
         : v;
     }
     Object.assign(imagesCache, savedImages);
