@@ -231,7 +231,7 @@ def _derive_parent_sku(skus: list) -> str:
     return candidate if candidate not in skus else f"{candidate}-P"
 
 
-def _make_parent_listing(children: list, parent_sku: str) -> AmazonListing:
+def _make_parent_listing(children: list, parent_sku: str, variation_theme: str = "") -> AmazonListing:
     """Build a minimal parent listing from variation children."""
     ref = children[0]
     return AmazonListing(
@@ -247,7 +247,7 @@ def _make_parent_listing(children: list, parent_sku: str) -> AmazonListing:
         ean=None,
         color=None,
         material=ref.material,
-        variation_theme=ref.variation_theme,
+        variation_theme=variation_theme,
         variation_value=None,
         is_parent=True,
         parent_sku=None,
@@ -365,11 +365,11 @@ def fill_amazon_template(template_bytes: bytes, listings: List[AmazonListing],
         sku_pattern_clear = len(_pfx) >= 2 and len(_sfx) >= 2 and _pfx != _sfx
         if all_have_theme or sku_pattern_clear:
             parent_sku = _derive_parent_sku(skus)
-            parent_listing = _make_parent_listing(list(listings), parent_sku)
-            # When parent is auto-derived from SKU pattern (not an explicit theme),
-            # default to ColorName since we're using color extracted from SKU middles.
-            if sku_pattern_clear and not all_have_theme and not parent_listing.variation_theme:
-                parent_listing = parent_listing.model_copy(update={"variation_theme": "ColorName"})
+            # Choose variation theme: prefer explicit theme from children;
+            # fall back to COULEUR (FR Amazon) when extracting colors from SKU middles.
+            explicit_theme = themes[0] if all_have_theme and themes else ""
+            parent_theme = explicit_theme if explicit_theme else ("COULEUR" if sku_pattern_clear else "")
+            parent_listing = _make_parent_listing(list(listings), parent_sku, variation_theme=parent_theme)
             updated_children = []
             for child in listings:
                 updates: dict = {"parent_sku": parent_sku}
