@@ -6463,6 +6463,24 @@ async function restoreBatch(batchId) {
   }
 }
 
+// Persist the active batch's listings (incl. declination children) back to the
+// server history so a later "restaurer le lot" returns exactly what's on screen.
+// Debounced — many edits in a row collapse into one request.
+let _syncHistoryTimer = null;
+function syncListingsToHistory(delay = 1200) {
+  if (!currentBatchId || !Array.isArray(generatedListings) || !generatedListings.length) return;
+  clearTimeout(_syncHistoryTimer);
+  const batchId = currentBatchId;
+  const snapshot = generatedListings;
+  _syncHistoryTimer = setTimeout(() => {
+    authFetch(`/api/history/${batchId}/listings`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ listings: snapshot }),
+    }).catch(() => {}); // best-effort: localStorage already holds the truth
+  }, delay);
+}
+
 async function deleteHistoryEntry(batchId) {
   if (!confirm('Supprimer ce lot de l\'historique ?')) return;
   try {
@@ -6815,6 +6833,8 @@ function saveEdit(idx) {
     }
   });
   try { localStorage.setItem('synqio_listings', JSON.stringify(generatedListings)); } catch(e) {}
+  _saveBatches();
+  syncListingsToHistory();
   const card = document.getElementById(`card-${idx}`);
   if (card) {
     card.innerHTML = buildCardHTML(listing, idx, false);
@@ -9128,6 +9148,8 @@ function addSingleVariant(listingIdx) {
     parent_sku: listing.sku,
     variation_theme: listing.variation_theme,
   });
+  _saveBatches();
+  syncListingsToHistory();
   openListingDetail(listingIdx);
 }
 
@@ -9140,6 +9162,8 @@ function removeChildFromDetail(listingIdx, childIdx) {
     delete listing.children;
     delete listing.variation_theme;
   }
+  _saveBatches();
+  syncListingsToHistory();
   openListingDetail(listingIdx);
 }
 
@@ -9189,6 +9213,8 @@ function applyVariations(listingIdx) {
   listing.variation_theme = theme;
   listing.children = children;
 
+  _saveBatches();
+  syncListingsToHistory();
   showToast('✅', `${children.length} déclinaison${children.length>1?'s':''} créée${children.length>1?'s':''}`);
   openListingDetail(listingIdx);
 }
@@ -9376,6 +9402,8 @@ function _saveDetailToListing(idx) {
     });
   }
   try { localStorage.setItem('synqio_listings', JSON.stringify(generatedListings)); } catch(e) {}
+  _saveBatches();
+  syncListingsToHistory();
 }
 
 function closeListingDetail() {

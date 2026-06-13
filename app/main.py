@@ -61,7 +61,8 @@ from app.services import storage
 from app.utils.export import to_csv_bytes, to_json_bytes, to_amazon_flat_file_bytes, to_listing_loader_bytes, to_amazon_flat_file_xlsx, to_listing_loader_xlsx, to_variation_flat_file_xlsx
 from app.utils.variation_handler import group_by_parent, build_parent_product, expand_to_variation_listings
 from app.db import (init_db, save_generation, list_generations, get_generation,
-                    delete_generation, update_generation_label, save_job, update_job_db,
+                    delete_generation, update_generation_label,
+                    update_generation_listings, save_job, update_job_db,
                     load_recent_jobs, add_tracked_listing, list_tracked_listings,
                     delete_tracked_listing, add_snapshot, get_snapshots,
                     delete_snapshot, get_tracking_summary,
@@ -1563,6 +1564,20 @@ class LabelUpdate(BaseModel):
 async def update_history_label(batch_id: str, body: LabelUpdate, request: Request):
     email = request.state.user_email
     if not update_generation_label(batch_id, email, body.label):
+        raise HTTPException(status_code=404, detail="Lot introuvable")
+    return {"ok": True}
+
+
+class ListingsUpdate(BaseModel):
+    listings: list
+
+
+@app.put("/api/history/{batch_id}/listings")
+async def update_history_listings(batch_id: str, body: ListingsUpdate, request: Request):
+    """Persist client-side edits (notably declination children) back to the
+    stored batch so a later restore matches what the user sees in the UI."""
+    email = request.state.user_email
+    if not update_generation_listings(batch_id, email, body.listings):
         raise HTTPException(status_code=404, detail="Lot introuvable")
     return {"ok": True}
 

@@ -723,6 +723,28 @@ def update_generation_label(batch_id: str, user_email: str, label: str) -> bool:
     return cur.rowcount > 0
 
 
+def update_generation_listings(batch_id: str, user_email: str, listings: list) -> bool:
+    """Replace the stored listings of a history batch (preserves declination
+    children and any client-side edits so a restored batch matches the UI)."""
+    import json as _json
+    conn = get_db()
+    _ensure_history_table(conn)
+    top = [l for l in listings if not (l.get("parent_sku") and not l.get("is_parent"))]
+    product_count = len(top)
+    scores = [l.get("seo_score") or 0 for l in top if l.get("seo_score")]
+    avg_seo = round(sum(scores) / len(scores)) if scores else 0
+    cur = conn.execute(
+        "UPDATE generation_history SET listings_json = ?, product_count = ?, "
+        "avg_seo_score = ? WHERE id = ? AND user_email = ?",
+        (_json.dumps(listings, ensure_ascii=False, default=str),
+         product_count, avg_seo, batch_id, user_email),
+    )
+    conn.commit()
+    conn.close()
+    return cur.rowcount > 0
+
+
+
 # ── Product catalog ───────────────────────────────────────────────────────────
 
 def save_catalog_items(user_email: str, marketplace: str, items: list) -> int:
