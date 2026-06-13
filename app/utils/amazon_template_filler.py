@@ -184,6 +184,11 @@ _EXACT_MAP = {
     "unit_count#1.type.value":               lambda l: "" if l.is_parent else "unité",
     "merchant_shipping_group#1.value":        lambda l: "Modèle par défaut Amazon",
     "supplier_declared_dg_hz_regulation#1.value": lambda l: "Non applicable",
+    # "Piles nécessaires ?" / "Piles fournies ?" are mandatory in most categories.
+    # Default to "Non" so the export never trips the required-attribute check; the
+    # user can override per-export via the compliance form (applied in step 7f).
+    "batteries_required#1.value":             lambda l: "Non",
+    "batteries_included#1.value":             lambda l: "Non",
 }
 
 # Image slot → normalized modern column / legacy column
