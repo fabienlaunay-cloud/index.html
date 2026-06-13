@@ -189,6 +189,10 @@ _EXACT_MAP = {
     # user can override per-export via the compliance form (applied in step 7f).
     "batteries_required#1.value":             lambda l: "Non",
     "batteries_included#1.value":             lambda l: "Non",
+    # "Description de la garantie" is conditionally required. Default to the EU
+    # statutory minimum (2-year legal guarantee of conformity) so the export
+    # passes; the compliance form overrides it per-export (step 7f).
+    "warranty_description#1.value":           lambda l: "Garantie légale de conformité de 2 ans",
 }
 
 # Image slot → normalized modern column / legacy column
