@@ -71,6 +71,7 @@ from app.db import (init_db, save_generation, list_generations, get_generation,
                     update_ab_experiment, delete_ab_experiment,
                     save_generated_image, get_generated_images, get_generated_images_bulk,
                     save_amazon_template, list_amazon_templates, get_amazon_template,
+                    get_amazon_template_by_type,
                     amazon_template_exists, delete_amazon_template)
 from app.services.ab_testing import (generate_ab_variants, create_amazon_experiment,
                                       get_amazon_experiment_status, cancel_amazon_experiment)
@@ -209,6 +210,10 @@ def _seed_amazon_templates():
         return
     for fname in os.listdir(tpl_dir):
         if not fname.endswith((".xlsm", ".xlsx")):
+            continue
+        # Files prefixed with "_" are special bundled templates (e.g. the generic
+        # Listing Loader / offer template), not category templates — skip seeding.
+        if fname.startswith("_"):
             continue
         product_type = fname.rsplit(".", 1)[0].split("_v")[0].upper()
         if amazon_template_exists(product_type):
@@ -1162,6 +1167,97 @@ async def export_listing_loader(listings: List[AmazonListing]):
         content=to_listing_loader_xlsx(listings),
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={"Content-Disposition": "attachment; filename=amazon_produits_existants.xlsx"},
+    )
+
+
+def _bundled_listing_loader_bytes() -> Optional[bytes]:
+    """The generic Amazon Listing Loader (offer) template bundled with the app."""
+    path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                        "data", "amazon_templates", "_LISTING_LOADER.xlsm")
+    try:
+        with open(path, "rb") as f:
+            return f.read()
+    except Exception:
+        return None
+
+
+class SellerCentralPackRequest(BaseModel):
+    listings: List[AmazonListing]
+    compliance_data: Optional[dict] = None
+
+
+@app.post("/api/export/seller-central-pack")
+async def export_seller_central_pack(req: SellerCentralPackRequest, request: Request):
+    """One smart download: a ZIP with BOTH Amazon Excel files filled and ready —
+    the category template (create new products) when available for the listings'
+    category, and the Listing Loader (offers for existing catalog products) which
+    always works. Includes a short instructions file."""
+    import io as _io, zipfile as _zipfile
+    listings = req.listings
+    if not listings:
+        raise HTTPException(400, "Aucune fiche à exporter")
+    image_urls = _get_image_urls_for_skus([l.sku for l in listings])
+    compliance = req.compliance_data or None
+
+    buf = _io.BytesIO()
+    included = []
+    with _zipfile.ZipFile(buf, "w", _zipfile.ZIP_DEFLATED) as zf:
+        # 1) Category template (create new products) — only if we have one for this category
+        category = (listings[0].category or "").strip().upper()
+        cat_tpl = get_amazon_template_by_type(category) if category else None
+        if cat_tpl:
+            try:
+                cat_bytes = base64.b64decode(cat_tpl["data_b64"])
+                filled = fill_amazon_template(cat_bytes, listings,
+                                              image_urls=image_urls, compliance_data=compliance)
+                zf.writestr("1_NOUVEAUX_PRODUITS.xlsm", filled)
+                included.append("1_NOUVEAUX_PRODUITS.xlsm (créer de nouveaux produits)")
+            except Exception as e:
+                log.error(f"[pack] category fill failed: {e}")
+
+        # 2) Listing Loader (offers for existing catalog products) — always
+        ll_bytes = _bundled_listing_loader_bytes()
+        if ll_bytes:
+            try:
+                filled_ll = fill_amazon_template(ll_bytes, listings,
+                                                 image_urls=image_urls, compliance_data=compliance)
+                zf.writestr("2_PRODUITS_EXISTANTS_listing_loader.xlsm", filled_ll)
+                included.append("2_PRODUITS_EXISTANTS_listing_loader.xlsm (offres pour produits déjà au catalogue)")
+            except Exception as e:
+                log.error(f"[pack] listing loader fill failed: {e}")
+
+        if not included:
+            raise HTTPException(422, "Aucun modèle disponible pour cette catégorie")
+
+        # 3) Instructions
+        cat_note = ("• 1_NOUVEAUX_PRODUITS.xlsm → Seller Central > Catalogue > Ajouter des "
+                    "produits via un fichier > onglet « Téléverser » (créer de nouveaux produits).\n"
+                    if cat_tpl else
+                    "• (Modèle de catégorie non disponible pour cette catégorie — utilisez le "
+                    "Listing Loader, ou ajoutez le modèle de votre catégorie dans SynqIO.)\n")
+        readme = (
+            "PACK SYNQIO — IMPORT SELLER CENTRAL\n"
+            "===================================\n\n"
+            "Deux fichiers selon votre cas :\n\n"
+            + cat_note +
+            "• 2_PRODUITS_EXISTANTS_listing_loader.xlsm → Seller Central > Catalogue > "
+            "Ajouter des produits > « Mettre en vente des produits figurant dans le catalogue "
+            "Amazon » (met à jour/crée l'offre par SKU : prix, stock, état, photos).\n\n"
+            "Les photos sont incluses via des URLs publiques — Amazon les télécharge "
+            "automatiquement à l'import.\n\n"
+            "Astuce : si vos produits n'ont pas de code-barres (EAN/UPC), demandez une "
+            "exemption GTIN dans Seller Central (Catalogue > Ajouter des produits > "
+            "Demander une exemption de code-barres).\n"
+        )
+        zf.writestr("LISEZ-MOI.txt", readme)
+
+    buf.seek(0)
+    d = __import__("datetime").datetime.now()
+    fn = f"synqio_seller_central_{d.strftime('%Y%m%d-%H%M%S')}.zip"
+    return Response(
+        content=buf.getvalue(),
+        media_type="application/zip",
+        headers={"Content-Disposition": f"attachment; filename={fn}"},
     )
 
 

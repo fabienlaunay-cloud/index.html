@@ -2469,7 +2469,13 @@
             </div>
             <!-- Export dropdowns -->
             <div class="flex gap-2 items-center">
-              <!-- Amazon export (primary) -->
+              <!-- One-click smart pack (primary) -->
+              <button onclick="downloadSellerCentralPack()" title="ZIP avec les 2 fichiers Excel remplis (nouveaux produits + Listing Loader) prêts pour Seller Central"
+                class="bg-green-600 hover:bg-green-700 text-white rounded-lg px-3 py-1.5 text-sm font-semibold transition flex items-center gap-1.5 shadow-sm">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+                Tout pour Seller Central
+              </button>
+              <!-- Amazon export (advanced) -->
               <div class="relative" id="scExportMenu">
                 <button onclick="toggleScMenu()" class="bg-blue-600 hover:bg-blue-700 text-white rounded-lg px-3 py-1.5 text-sm font-semibold transition flex items-center gap-1.5 shadow-sm">
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
@@ -8118,6 +8124,35 @@ async function fillAmazonTemplate(input) {
     a.click();
     showToast('✅', `Template rempli et sauvegardé dans la bibliothèque — prêt à uploader`);
     _templateLibCache = null; // refresh library cache next open
+  } catch(e) {
+    showToast('⚠️', 'Erreur : ' + e.message, true);
+  }
+}
+
+// One-click: ZIP with BOTH filled Amazon Excel files (category + Listing Loader)
+async function downloadSellerCentralPack() {
+  if (!generatedListings.length) { showToast('⚠️', 'Aucune fiche générée', true); return; }
+  showToast('⏳', 'Préparation du pack Seller Central…');
+  try {
+    const body = { listings: generatedListings };
+    const _cd = getComplianceDefaults();
+    if (Object.keys(_cd).length) body.compliance_data = _cd;
+    const r = await authFetch('/api/export/seller-central-pack', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    if (!r.ok) {
+      const err = await r.json().catch(() => ({}));
+      showToast('⚠️', err.detail || 'Erreur lors de la création du pack', true);
+      return;
+    }
+    const blob = await r.blob();
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    const d = new Date(), p = n => String(n).padStart(2, '0');
+    a.download = `synqio_seller_central_${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}.zip`;
+    a.click();
+    showToast('✅', 'Pack prêt — les 2 fichiers Excel remplis sont dans le ZIP');
   } catch(e) {
     showToast('⚠️', 'Erreur : ' + e.message, true);
   }

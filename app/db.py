@@ -1118,6 +1118,21 @@ def get_amazon_template(tpl_id: str) -> dict | None:
             "filename": row["filename"], "data_b64": row["data_b64"]}
 
 
+def get_amazon_template_by_type(product_type: str) -> dict | None:
+    """Return the most recent stored template (with data) for a product type."""
+    conn = get_db()
+    row = conn.execute(
+        "SELECT id, label, product_type, filename, data_b64 FROM amazon_templates "
+        "WHERE product_type = ? ORDER BY created_at DESC LIMIT 1",
+        (product_type,),
+    ).fetchone()
+    conn.close()
+    if not row:
+        return None
+    return {"id": row["id"], "label": row["label"], "product_type": row["product_type"],
+            "filename": row["filename"], "data_b64": row["data_b64"]}
+
+
 def amazon_template_exists(product_type: str) -> bool:
     conn = get_db()
     row = conn.execute(
