@@ -172,6 +172,9 @@ _EXACT_MAP = {
     # Item condition — required on offer rows (child/standalone), empty on parents.
     # FR valid value is "Nouveau" (the dropdown token; "Neuf" is only a placeholder).
     "condition_type#1.value":                 lambda l: "" if l.is_parent else "Nouveau",
+    # When a stock quantity is declared, Amazon also requires the shipping channel.
+    # Default to merchant-fulfilled (FBM) on offer rows; empty on variation parents.
+    "fulfillment_availability#1.fulfillment_channel_code": lambda l: "" if l.is_parent else "Expédié par le vendeur (par défaut)",
     "fulfillment_availability#1.quantity":    lambda l: "" if l.is_parent else "1",
     "item_package_quantity#1.value":          lambda l: "1",
     "number_of_items#1.value":                lambda l: "1",
