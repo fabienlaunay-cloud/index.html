@@ -312,6 +312,129 @@ def get_product_type_from_bytes(template_bytes: bytes) -> str:
         return ''
 
 
+# Normalized attribute keys that SynqIO already fills automatically (identity,
+# content, offer, images) OR that already have a dedicated compliance field — so
+# they must NOT appear in the dynamic per-category attribute form.
+_DYNAMIC_ATTR_EXCLUDE_PREFIXES = (
+    "contribution_sku", "item_sku", "product_type", "feed_product_type",
+    "parentage_level", "child_parent_sku_relationship", "variation_theme",
+    "item_name", "title_differentiation", "brand", "manufacturer",
+    "model_name", "model_number", "part_number", "product_description",
+    "bullet_point", "generic_keyword", "product_site_launch_date",
+    "main_product_image_locator", "other_product_image_locator",
+    "main_offer_image_locator", "other_offer_image_locator", "swatch_",
+    "purchasable_offer", "fulfillment_availability", "list_price",
+    "condition_type", "condition_note", "externally_assigned_product_identifier",
+    "merchant_suggested_asin", "amzn1.volt.ca.product_id", "external_product_id",
+    "skip_offer", "max_order_quantity", "gift_options", "product_tax_code",
+    "merchant_release_date", "supplemental_condition_information",
+    # already covered by the fixed compliance form
+    "country_of_origin", "batteries_required", "batteries_included",
+    "warranty_description", "supplier_declared_dg_hz_regulation",
+    "included_components", "specific_uses_for_product", "directions",
+    "merchant_shipping_group", "item_package_dimensions", "item_package_weight",
+    "unit_count", "number_of_items", "item_package_quantity",
+    # battery / dangerous-goods deep fields — only relevant for battery products
+    # (batteries default to "Non"); kept out of the everyday category form.
+    "battery", "num_batteries", "number_of_lithium", "lithium_battery",
+    "ghs", "hazmat", "safety_data_sheet", "contains_battery_or_cell",
+    "battery_contains", "is_battery_non_spillable", "non_lithium_battery",
+    "has_less_than_30", "battery_installation", "has_multiple_battery",
+    "battery_type", "number_of_boxes", "package_contains_sku",
+    "collection_item", "ships_globally", "is_this_product_subject",
+    "ghs_chemical", "supplemental_condition",
+)
+
+# Per-variation fields filled from each child — must NOT be globally overridable
+# via the category form (a global value would flatten all colors/sizes).
+_DYNAMIC_ATTR_EXCLUDE_EXACT = {
+    "color#1.value", "size#1.value", "size_name", "color_name",
+    "dominant_color#1.value",
+}
+
+
+def _resolve_dropdown_values(wb, product_type: str, raw_attr: str) -> list:
+    """Resolve the accepted values of a template attribute via its defined-name
+    dropdown range (e.g. ANIMAL_COLLAR<attr> → 'Dropdown Lists'!$M$4:$M$16)."""
+    key = product_type + re.sub(r'[\[\]=#]', '', raw_attr)
+    dn = wb.defined_names.get(key) if hasattr(wb.defined_names, "get") else None
+    if dn is None:
+        try:
+            dn = wb.defined_names[key]
+        except Exception:
+            return []
+    ref = getattr(dn, "value", "") or ""
+    m = re.match(r"'?([^'!]+)'?!\$?([A-Z]+)\$?(\d+):\$?([A-Z]+)\$?(\d+)", ref)
+    if not m:
+        return []
+    sheet_name, c1, r1, c2, r2 = m.group(1), m.group(2), int(m.group(3)), m.group(4), int(m.group(5))
+    if sheet_name not in wb.sheetnames:
+        return []
+    ws = wb[sheet_name]
+    from openpyxl.utils import column_index_from_string
+    col = column_index_from_string(c1)
+    vals = []
+    for r in range(r1, r2 + 1):
+        v = ws.cell(r, col).value
+        if v not in (None, ""):
+            vals.append(str(v))
+    return vals
+
+
+def extract_template_attributes(template_bytes: bytes) -> list:
+    """Return the per-category attributes a client should fill once, for the
+    dynamic compliance form. Each item: {key, label, level, values}.
+    Only required / conditionally-required attributes that SynqIO doesn't already
+    fill are returned, with their accepted dropdown values when available."""
+    wb = openpyxl.load_workbook(io.BytesIO(template_bytes), keep_vba=True, data_only=True)
+    settings, settings_ws = _parse_template_settings(wb)
+    attr_row = settings["attributeRow"]
+    product_type = (settings.get("productType") or "").upper()
+    ws = settings_ws or _find_template_worksheet(wb, attr_row)
+    if ws is None:
+        return []
+    # Column attrs (raw) in sheet order
+    raw_by_norm = {}
+    order = []
+    for cell in ws[attr_row]:
+        raw = str(cell.value or "").strip()
+        if not raw:
+            continue
+        norm = _normalize_attr(raw)
+        if norm and norm not in raw_by_norm:
+            raw_by_norm[norm] = raw
+            order.append(norm)
+    # Requirement level + label from "Définitions des données" (col B=tech, C=label, F=level)
+    levels = {}
+    if "Définitions des données" in wb.sheetnames:
+        for row in wb["Définitions des données"].iter_rows(min_row=4, values_only=True):
+            if not row or len(row) < 6:
+                continue
+            tech, label = row[1], row[2]
+            level = row[5]
+            if tech and level:
+                levels[_normalize_attr(str(tech))] = (str(label or ""), str(level))
+    result = []
+    for norm in order:
+        if norm in _DYNAMIC_ATTR_EXCLUDE_EXACT:
+            continue
+        if any(norm.startswith(p) for p in _DYNAMIC_ATTR_EXCLUDE_PREFIXES):
+            continue
+        info = levels.get(norm)
+        if not info:
+            continue
+        label, level = info
+        low = level.lower()
+        if "obligatoire" not in low and "condition" not in low:
+            continue  # skip Facultatif / Recommandé
+        values = _resolve_dropdown_values(wb, product_type, raw_by_norm[norm])
+        result.append({
+            "key": norm, "label": label or norm, "level": level,
+            "values": values,
+        })
+    return result
+
+
 def fill_amazon_template(template_bytes: bytes, listings: List[AmazonListing],
                          image_urls: Optional[dict] = None,
                          compliance_data: Optional[dict] = None) -> bytes:

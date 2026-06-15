@@ -1094,6 +1094,28 @@ async def api_list_templates(request: Request):
     return JSONResponse(list_amazon_templates())
 
 
+@app.get("/api/templates/attributes")
+async def api_template_attributes(request: Request, product_type: str = "", tpl_id: str = ""):
+    """Dynamic per-category attribute list (label + accepted values + level) for
+    the compliance form. Resolved from the stored Amazon template of the given
+    category (product_type) or template id."""
+    from app.utils.amazon_template_filler import extract_template_attributes
+    tpl = None
+    if tpl_id:
+        tpl = get_amazon_template(tpl_id)
+    if not tpl and product_type:
+        tpl = get_amazon_template_by_type(product_type.strip().upper())
+    if not tpl:
+        return JSONResponse({"product_type": product_type.upper(), "attributes": []})
+    try:
+        data = base64.b64decode(tpl["data_b64"])
+        attrs = extract_template_attributes(data)
+    except Exception as e:
+        log.error(f"[templates] attribute extraction failed: {e}")
+        attrs = []
+    return JSONResponse({"product_type": tpl.get("product_type", ""), "attributes": attrs})
+
+
 @app.post("/api/admin/templates")
 async def api_upload_template(request: Request):
     if not getattr(request.state, "is_admin", False):
