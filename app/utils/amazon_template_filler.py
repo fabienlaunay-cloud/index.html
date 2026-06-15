@@ -169,8 +169,9 @@ _EXACT_MAP = {
     "amzn1.volt.ca.product_id_value":         lambda l: l.ean or "",
     "externally_assigned_product_identifier#1.type":  lambda l: "EAN" if l.ean else "",
     "externally_assigned_product_identifier#1.value": lambda l: l.ean or "",
-    # condition_type intentionally omitted — let the template's example row provide
-    # the locale-correct value (e.g. "Neuf" for FR) instead of hardcoding "new"
+    # Item condition — required on offer rows (child/standalone), empty on parents.
+    # FR valid value is "Nouveau" (the dropdown token; "Neuf" is only a placeholder).
+    "condition_type#1.value":                 lambda l: "" if l.is_parent else "Nouveau",
     "fulfillment_availability#1.quantity":    lambda l: "" if l.is_parent else "1",
     "item_package_quantity#1.value":          lambda l: "1",
     "number_of_items#1.value":                lambda l: "1",
@@ -201,14 +202,17 @@ _EXACT_MAP = {
 }
 
 # Image slot → normalized modern column / legacy column
+# Image slot → (product-template key, offer-template key, legacy key).
+# The category template uses *_product_image_locator; the Listing Loader (offer
+# template) uses *_offer_image_locator. Both are tried so one filler serves both.
 _IMAGE_COLUMN_KEYS = [
-    ("main_product_image_locator#1.media_location", "main_image_url"),
-    ("other_product_image_locator_1#1.media_location", "other_image_url1"),
-    ("other_product_image_locator_2#1.media_location", "other_image_url2"),
-    ("other_product_image_locator_3#1.media_location", "other_image_url3"),
-    ("other_product_image_locator_4#1.media_location", "other_image_url4"),
-    ("other_product_image_locator_5#1.media_location", "other_image_url5"),
-    ("other_product_image_locator_6#1.media_location", "other_image_url6"),
+    ("main_product_image_locator#1.media_location", "main_offer_image_locator#1.media_location", "main_image_url"),
+    ("other_product_image_locator_1#1.media_location", "other_offer_image_locator_1#1.media_location", "other_image_url1"),
+    ("other_product_image_locator_2#1.media_location", "other_offer_image_locator_2#1.media_location", "other_image_url2"),
+    ("other_product_image_locator_3#1.media_location", "other_offer_image_locator_3#1.media_location", "other_image_url3"),
+    ("other_product_image_locator_4#1.media_location", "other_offer_image_locator_4#1.media_location", "other_image_url4"),
+    ("other_product_image_locator_5#1.media_location", "other_offer_image_locator_5#1.media_location", "other_image_url5"),
+    ("other_product_image_locator_6#1.media_location", "other_offer_image_locator_6#1.media_location", "other_image_url6"),
 ]
 
 # Pattern-based rules for columns whose names vary by marketplace ID
@@ -334,6 +338,18 @@ def fill_amazon_template(template_bytes: bytes, listings: List[AmazonListing],
     # 3. Build column index (raw + normalized names)
     col_index = _build_col_index(ws, attr_row)
 
+    # 3b. Detect the offer template (Amazon "Listing Loader" — match existing
+    #     catalog products by identifier/ASIN and push only the offer). It has no
+    #     product_type column and carries offer-specific image/identifier columns.
+    #     For it we write ONE offer row per SKU and never synthesize a variation
+    #     parent (the parent product already exists in Amazon's catalog).
+    is_offer_template = (
+        "product_type#1.value" not in col_index
+        and ("main_offer_image_locator#1.media_location" in col_index
+             or "skip_offer#1.value" in col_index
+             or "merchant_suggested_asin#1.value" in col_index)
+    )
+
     # 4. Product type detection
     fpt_col = col_index.get("feed_product_type")
     if fpt_col and not product_type:
@@ -369,8 +385,8 @@ def fill_amazon_template(template_bytes: bytes, listings: List[AmazonListing],
         c = col_index.get(attr)
         if c:
             managed_cols.add(c)
-    for modern_key, legacy_key in _IMAGE_COLUMN_KEYS:
-        c = col_index.get(modern_key) or col_index.get(legacy_key)
+    for product_key, offer_key, legacy_key in _IMAGE_COLUMN_KEYS:
+        c = col_index.get(product_key) or col_index.get(offer_key) or col_index.get(legacy_key)
         if c:
             managed_cols.add(c)
     for pattern_fn, _ in _PATTERN_RULES:
@@ -398,7 +414,29 @@ def fill_amazon_template(template_bytes: bytes, listings: List[AmazonListing],
     has_nested_children = any(getattr(l, "children", None) for l in listings)
     # Maps expanded declination SKU → base listing SKU (for image lookup)
     base_sku_of: dict[str, str] = {}
-    if not has_parent_sku and (len(listings) > 1 or has_nested_children):
+    if is_offer_template:
+        # Listing Loader: one offer row per real SKU. Expand nested size children
+        # into their own offer rows; drop synthetic parents (no offer on parents).
+        offer_rows = []
+        for l in listings:
+            kids = getattr(l, "children", None) or []
+            if kids:
+                for c in kids:
+                    base_sku_of[c.sku] = l.sku
+                    offer_rows.append(l.model_copy(update={
+                        "sku": c.sku,
+                        "price": c.price if c.price is not None else l.price,
+                        "ean": c.ean or None,
+                        "color": c.color or l.color,
+                        "size": c.size or None,
+                        "parent_sku": None,
+                        "is_parent": False,
+                        "children": [],
+                    }))
+            elif not l.is_parent:
+                offer_rows.append(l.model_copy(update={"is_parent": False, "children": []}))
+        listings = offer_rows or listings
+    elif not has_parent_sku and (len(listings) > 1 or has_nested_children):
         skus = [l.sku for l in listings]
         themes = [l.variation_theme for l in listings if l.variation_theme]
         all_have_theme = len(themes) == len(listings)
@@ -496,11 +534,11 @@ def fill_amazon_template(template_bytes: bytes, listings: List[AmazonListing],
         sku_imgs = (image_urls or {}).get(listing.sku) \
             or (image_urls or {}).get(base_sku_of.get(listing.sku, ""), {})
         if sku_imgs:
-            for slot_id, (modern_key, legacy_key) in zip(_IMAGE_IDS_ORDERED, _IMAGE_COLUMN_KEYS):
+            for slot_id, (product_key, offer_key, legacy_key) in zip(_IMAGE_IDS_ORDERED, _IMAGE_COLUMN_KEYS):
                 url = sku_imgs.get(slot_id)
                 if not url:
                     continue
-                col = col_index.get(modern_key) or col_index.get(legacy_key)
+                col = col_index.get(product_key) or col_index.get(offer_key) or col_index.get(legacy_key)
                 if col:
                     ws.cell(row_num, col).value = url
 

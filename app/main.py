@@ -1040,7 +1040,9 @@ async def fill_amazon_template_endpoint(request: Request):
     try:
         from app.utils.amazon_template_filler import get_product_type_from_bytes
         pt = get_product_type_from_bytes(template_bytes)
-        if pt and not amazon_template_exists(pt):
+        # "PRODUCT" is the generic Listing Loader (offer) template — not a real
+        # category, don't pollute the category-template library with it.
+        if pt and pt != "PRODUCT" and not amazon_template_exists(pt):
             fname = getattr(template_file, "filename", None) or f"{pt}.xlsm"
             data_b64 = base64.b64encode(template_bytes).decode()
             label = pt.replace("_", " ").title()
