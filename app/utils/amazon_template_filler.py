@@ -178,17 +178,17 @@ _EXACT_MAP = {
     "parentage_level#1.value":                lambda l: "Parent" if l.is_parent else ("Enfant" if l.parent_sku else ""),
     "child_parent_sku_relationship#1.parent_sku": lambda l: l.parent_sku or "",
     "child_parent_sku_relationship#1.child_relationship_type": lambda l: "variation" if l.parent_sku else "",
-    "variation_theme#1.name":                 lambda l: _resolve_variation_theme(l.variation_theme or "") if l.is_parent else "",
+    # variation_theme must be written on BOTH parent AND child rows (Amazon requires it on all)
+    "variation_theme#1.name":                 lambda l: _resolve_variation_theme(l.variation_theme or "") if (l.is_parent or l.parent_sku) else "",
     # Logistics / compliance smart defaults (overridable via compliance_data)
     "unit_count#1.value":                     lambda l: "" if l.is_parent else "1",
     "unit_count#1.type.value":               lambda l: "" if l.is_parent else "unité",
     "merchant_shipping_group#1.value":        lambda l: "Modèle par défaut Amazon",
     "supplier_declared_dg_hz_regulation#1.value": lambda l: "Non applicable",
-    # "Piles nécessaires ?" / "Piles fournies ?" are mandatory in most categories.
-    # Default to "Non" so the export never trips the required-attribute check; the
-    # user can override per-export via the compliance form (applied in step 7f).
-    "batteries_required#1.value":             lambda l: "Non",
-    "batteries_included#1.value":             lambda l: "Non",
+    # "Piles nécessaires ?" / "Piles fournies ?" — required on child/standalone rows,
+    # must be EMPTY on parent variation rows (battery info lives on children).
+    "batteries_required#1.value":             lambda l: "" if l.is_parent else "Non",
+    "batteries_included#1.value":             lambda l: "" if l.is_parent else "Non",
     # "Description de la garantie" is conditionally required. Default to the EU
     # statutory minimum (2-year legal guarantee of conformity) so the export
     # passes; the compliance form overrides it per-export (step 7f).
@@ -512,7 +512,7 @@ def fill_amazon_template(template_bytes: bytes, listings: List[AmazonListing],
         #     Applied after _EXACT_MAP so user-provided values take precedence.
         #     variation_theme is parent-only — never write it to child rows from compliance_data.
         if compliance_data:
-            _parent_only_attrs = {"variation_theme#1.name"}
+            _parent_only_attrs: set[str] = set()  # handled by _EXACT_MAP, nothing compliance-only now
             _gtin_exempt = compliance_data.get("_gtin_exempt")
             for attr, value in compliance_data.items():
                 if attr.startswith("_"):
