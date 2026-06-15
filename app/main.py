@@ -1184,6 +1184,7 @@ def _bundled_listing_loader_bytes() -> Optional[bytes]:
 class SellerCentralPackRequest(BaseModel):
     listings: List[AmazonListing]
     compliance_data: Optional[dict] = None
+    category_template_id: Optional[str] = None   # explicit category template to use
 
 
 @app.post("/api/export/seller-central-pack")
@@ -1191,7 +1192,11 @@ async def export_seller_central_pack(req: SellerCentralPackRequest, request: Req
     """One smart download: a ZIP with BOTH Amazon Excel files filled and ready —
     the category template (create new products) when available for the listings'
     category, and the Listing Loader (offers for existing catalog products) which
-    always works. Includes a short instructions file."""
+    always works. Includes a short instructions file.
+
+    The category template is chosen by category_template_id when provided
+    (explicit pick from the library); otherwise we fall back to matching the
+    listings' category text against stored template product types."""
     import io as _io, zipfile as _zipfile
     listings = req.listings
     if not listings:
@@ -1201,10 +1206,16 @@ async def export_seller_central_pack(req: SellerCentralPackRequest, request: Req
 
     buf = _io.BytesIO()
     included = []
+    cat_included = False
     with _zipfile.ZipFile(buf, "w", _zipfile.ZIP_DEFLATED) as zf:
-        # 1) Category template (create new products) — only if we have one for this category
+        # 1) Category template (create new products)
+        #    Prefer the explicitly chosen template; else auto-match by category text.
         category = (listings[0].category or "").strip().upper()
-        cat_tpl = get_amazon_template_by_type(category) if category else None
+        cat_tpl = None
+        if req.category_template_id:
+            cat_tpl = get_amazon_template(req.category_template_id)
+        if not cat_tpl and category:
+            cat_tpl = get_amazon_template_by_type(category)
         if cat_tpl:
             try:
                 cat_bytes = base64.b64decode(cat_tpl["data_b64"])
@@ -1212,6 +1223,7 @@ async def export_seller_central_pack(req: SellerCentralPackRequest, request: Req
                                               image_urls=image_urls, compliance_data=compliance)
                 zf.writestr("1_NOUVEAUX_PRODUITS.xlsm", filled)
                 included.append("1_NOUVEAUX_PRODUITS.xlsm (créer de nouveaux produits)")
+                cat_included = True
             except Exception as e:
                 log.error(f"[pack] category fill failed: {e}")
 
@@ -1257,7 +1269,12 @@ async def export_seller_central_pack(req: SellerCentralPackRequest, request: Req
     return Response(
         content=buf.getvalue(),
         media_type="application/zip",
-        headers={"Content-Disposition": f"attachment; filename={fn}"},
+        headers={
+            "Content-Disposition": f"attachment; filename={fn}",
+            "X-Category-Included": "1" if cat_included else "0",
+            "X-Category-Type": category or "",
+            "Access-Control-Expose-Headers": "X-Category-Included, X-Category-Type",
+        },
     )
 
 

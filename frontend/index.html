@@ -8129,14 +8129,32 @@ async function fillAmazonTemplate(input) {
   }
 }
 
-// One-click: ZIP with BOTH filled Amazon Excel files (category + Listing Loader)
+// One-click: ZIP with BOTH filled Amazon Excel files (category + Listing Loader).
+// Resolves the right category template from the library by the listings' category;
+// if missing, still produces the Listing Loader and guides the user to add it.
 async function downloadSellerCentralPack() {
   if (!generatedListings.length) { showToast('⚠️', 'Aucune fiche générée', true); return; }
   showToast('⏳', 'Préparation du pack Seller Central…');
   try {
+    const cat = (generatedListings[0].category || '').trim();
+    // Find the matching category template in the library
+    let tplId = null, tplMatched = false;
+    try {
+      const lr = await authFetch('/api/templates');
+      const tpls = lr.ok ? await lr.json() : [];
+      const norm = s => (s || '').toUpperCase().replace(/[\s_-]+/g, '');
+      const c = norm(cat);
+      let m = tpls.find(t => norm(t.product_type) === c)
+           || tpls.find(t => c && (norm(t.product_type).includes(c) || c.includes(norm(t.product_type))));
+      if (!m && tpls.length === 1) m = tpls[0]; // only one template → use it
+      if (m) { tplId = m.id; tplMatched = true; }
+    } catch(e) {}
+
     const body = { listings: generatedListings };
     const _cd = getComplianceDefaults();
     if (Object.keys(_cd).length) body.compliance_data = _cd;
+    if (tplId) body.category_template_id = tplId;
+
     const r = await authFetch('/api/export/seller-central-pack', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
@@ -8146,13 +8164,18 @@ async function downloadSellerCentralPack() {
       showToast('⚠️', err.detail || 'Erreur lors de la création du pack', true);
       return;
     }
+    const catIncluded = r.headers.get('X-Category-Included') === '1';
     const blob = await r.blob();
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
     const d = new Date(), p = n => String(n).padStart(2, '0');
     a.download = `synqio_seller_central_${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}.zip`;
     a.click();
-    showToast('✅', 'Pack prêt — les 2 fichiers Excel remplis sont dans le ZIP');
+    if (catIncluded) {
+      showToast('✅', 'Pack prêt — 2 fichiers : nouveaux produits + produits existants');
+    } else {
+      showToast('ℹ️', `Pack prêt avec le fichier « produits existants ». Catégorie « ${cat || '?'} » pas encore dans la bibliothèque → ajoutez votre modèle Amazon pour aussi obtenir le fichier « nouveaux produits ».`, true);
+    }
   } catch(e) {
     showToast('⚠️', 'Erreur : ' + e.message, true);
   }
