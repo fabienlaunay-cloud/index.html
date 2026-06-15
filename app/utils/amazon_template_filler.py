@@ -381,12 +381,19 @@ def fill_amazon_template(template_bytes: bytes, listings: List[AmazonListing],
     #     (b) all listings declare a variation_theme, OR (c) their SKUs share a
     #     non-trivial common prefix AND suffix (≥2 chars each), a reliable
     #     signal for variation siblings.
+    #
+    # NOTE: has_parent intentionally NOT used as a guard here.  The AI agent
+    # marks every base listing is_parent=True before the user adds size
+    # children.  When those listings are exported together, they look like
+    # 3 "parent" rows with no children — an invalid variation structure on
+    # Amazon.  We must still run the expansion so they become proper siblings
+    # under one synthetic parent row.
     has_parent = any(l.is_parent for l in listings)
     has_parent_sku = any(l.parent_sku for l in listings)
     has_nested_children = any(getattr(l, "children", None) for l in listings)
     # Maps expanded declination SKU → base listing SKU (for image lookup)
     base_sku_of: dict[str, str] = {}
-    if not has_parent and not has_parent_sku and (len(listings) > 1 or has_nested_children):
+    if not has_parent_sku and (len(listings) > 1 or has_nested_children):
         skus = [l.sku for l in listings]
         themes = [l.variation_theme for l in listings if l.variation_theme]
         all_have_theme = len(themes) == len(listings)
@@ -431,10 +438,11 @@ def fill_amazon_template(template_bytes: bytes, listings: List[AmazonListing],
                             "size": c.size or None,
                             "variation_value": c.variation_value or None,
                             "parent_sku": parent_sku,
+                            "is_parent": False,
                             "children": [],
                         }))
                 else:
-                    updates: dict = {"parent_sku": parent_sku}
+                    updates: dict = {"parent_sku": parent_sku, "is_parent": False}
                     if base_color and not l.color:
                         updates["color"] = base_color
                         if not l.variation_value:
