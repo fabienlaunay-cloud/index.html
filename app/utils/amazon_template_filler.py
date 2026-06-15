@@ -529,6 +529,13 @@ def fill_amazon_template(template_bytes: bytes, listings: List[AmazonListing],
                 value = getter(listing)
                 ws.cell(row_num, col).value = value if value else None
 
+        # 7c-bis. The Listing Loader only supports "Créer ou modifier" (partial
+        #         update) — "full_update" is invalid there and gets rejected.
+        if is_offer_template:
+            ra_col = col_index.get("::record_action")
+            if ra_col:
+                ws.cell(row_num, ra_col).value = "partial_update"
+
         # 7d. Images — expanded declination rows fall back to their base
         #     listing's images (same color photos shared across sizes)
         sku_imgs = (image_urls or {}).get(listing.sku) \
