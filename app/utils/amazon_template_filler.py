@@ -132,7 +132,7 @@ _EXACT_MAP = {
     "external_product_id_type":               lambda l: "EAN" if l.ean else "",
     "update_delete":                          lambda l: "Update",
     "standard_price":                         lambda l: str(l.price) if l.price else "",
-    "quantity":                               lambda l: "1",
+    "quantity":                               lambda l: "" if l.is_parent else "1",
     "color_name":                             lambda l: l.color or (l.variation_value or "") or "",
     "material_type":                          lambda l: l.material or "",
     "item_weight":                            lambda l: str(l.weight_kg) if l.weight_kg else "",
@@ -171,7 +171,7 @@ _EXACT_MAP = {
     "externally_assigned_product_identifier#1.value": lambda l: l.ean or "",
     # condition_type intentionally omitted — let the template's example row provide
     # the locale-correct value (e.g. "Neuf" for FR) instead of hardcoding "new"
-    "fulfillment_availability#1.quantity":    lambda l: "1",
+    "fulfillment_availability#1.quantity":    lambda l: "" if l.is_parent else "1",
     "item_package_quantity#1.value":          lambda l: "1",
     "number_of_items#1.value":                lambda l: "1",
     # Variations (modern)
@@ -183,7 +183,12 @@ _EXACT_MAP = {
     # Logistics / compliance smart defaults (overridable via compliance_data)
     "unit_count#1.value":                     lambda l: "" if l.is_parent else "1",
     "unit_count#1.type.value":               lambda l: "" if l.is_parent else "unité",
-    "merchant_shipping_group#1.value":        lambda l: "Modèle par défaut Amazon",
+    # merchant_shipping_group = the NAME of a shipping template that exists in the
+    # seller's own account. There is no universal valid value ("Modèle par défaut
+    # Amazon" is rejected), and the field is only conditionally required — so leave
+    # it EMPTY by default (Amazon falls back to the account's default template).
+    # The user can set their real template name via the compliance form.
+    "merchant_shipping_group#1.value":        lambda l: "",
     "supplier_declared_dg_hz_regulation#1.value": lambda l: "Non applicable",
     # "Piles nécessaires ?" / "Piles fournies ?" — required on child/standalone rows,
     # must be EMPTY on parent variation rows (battery info lives on children).
