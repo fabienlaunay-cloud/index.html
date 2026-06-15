@@ -433,8 +433,13 @@ def fill_amazon_template(template_bytes: bytes, listings: List[AmazonListing],
                         "is_parent": False,
                         "children": [],
                     }))
-            elif not l.is_parent:
-                offer_rows.append(l.model_copy(update={"is_parent": False, "children": []}))
+            else:
+                # No children: this SKU is itself an offer. Force is_parent=False
+                # so it gets full offer data (the AI flags singles is_parent=True
+                # before sizes are added — in a Listing Loader they're just offers).
+                offer_rows.append(l.model_copy(update={
+                    "is_parent": False, "children": [], "parent_sku": None,
+                }))
         listings = offer_rows or listings
     elif not has_parent_sku and (len(listings) > 1 or has_nested_children):
         skus = [l.sku for l in listings]
