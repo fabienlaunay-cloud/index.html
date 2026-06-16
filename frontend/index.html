@@ -6705,7 +6705,11 @@ function _buildVariationChildrenTable(listing, idx, editMode) {
   if (!children.length) return '';
   const rows = children.map((c, ci) => `
     <tr class="border-t border-gray-100 hover:bg-gray-50">
-      <td class="py-1.5 px-2 font-mono text-xs text-purple-700">${_esc(c.sku)}</td>
+      <td class="py-1.5 px-2 font-mono text-xs text-purple-700">
+        ${editMode
+          ? `<input type="text" value="${_esc(c.sku)}" placeholder="SKU" class="w-32 font-mono border border-gray-200 rounded px-1.5 py-0.5 text-xs focus:ring-1 focus:ring-purple-300 outline-none" data-ci="${ci}" data-field="sku" oninput="updateChild(${idx},${ci},'sku',this.value)">`
+          : _esc(c.sku)}
+      </td>
       <td class="py-1.5 px-2 text-xs text-gray-600">${_esc(c.variation_value || '')}</td>
       <td class="py-1.5 px-2 text-xs text-gray-600">${_esc(c.color || '')}</td>
       <td class="py-1.5 px-2 text-xs text-gray-600">${_esc(c.size || '')}</td>
@@ -6745,20 +6749,32 @@ function _buildVariationChildrenTable(listing, idx, editMode) {
 function updateChild(listingIdx, childIdx, field, value) {
   const listing = generatedListings[listingIdx];
   if (!listing || !listing.children || !listing.children[childIdx]) return;
+  const child = listing.children[childIdx];
+  // The matching standalone child row (when present) is found by the CURRENT sku
+  const oldSku = child.sku;
+  const childListing = generatedListings.find(l => l.sku === oldSku && l.parent_sku === listing.sku);
   if (field === 'price') {
     const v = parseFloat(value);
-    listing.children[childIdx].price = isNaN(v) ? null : v;
-    // Also update the corresponding child listing in generatedListings
-    const childSku = listing.children[childIdx].sku;
-    const childListing = generatedListings.find(l => l.sku === childSku && l.parent_sku === listing.sku);
-    if (childListing) childListing.price = listing.children[childIdx].price;
+    child.price = isNaN(v) ? null : v;
+    if (childListing) childListing.price = child.price;
   } else if (field === 'ean') {
-    listing.children[childIdx].ean = value.trim() || null;
-    const childSku = listing.children[childIdx].sku;
-    const childListing = generatedListings.find(l => l.sku === childSku && l.parent_sku === listing.sku);
-    if (childListing) childListing.ean = listing.children[childIdx].ean;
+    child.ean = value.trim() || null;
+    if (childListing) childListing.ean = child.ean;
+  } else if (field === 'sku') {
+    const newSku = value.trim();
+    if (!newSku) return;            // never allow an empty SKU
+    child.sku = newSku;
+    if (childListing) childListing.sku = newSku;
+  } else if (field === 'color') {
+    child.color = value.trim() || null;
+    if (childListing) childListing.color = child.color;
+  } else if (field === 'size') {
+    child.size = value.trim() || null;
+    if (childListing) childListing.size = child.size;
   }
   try { localStorage.setItem('synqio_listings', JSON.stringify(generatedListings)); } catch(e) {}
+  _saveBatches();
+  syncListingsToHistory();
 }
 
 function _getActiveTab(idx) {
@@ -6842,6 +6858,19 @@ function saveEdit(idx) {
     const ci = parseInt(el.dataset.ci, 10);
     if (!isNaN(ci) && listing.children && listing.children[ci] !== undefined) {
       listing.children[ci].ean = el.value.trim() || null;
+    }
+  });
+  // Collect children SKU from DOM (and propagate to the matching standalone row)
+  document.querySelectorAll(`#card-${idx} input[data-field="sku"]`).forEach(el => {
+    const ci = parseInt(el.dataset.ci, 10);
+    const newSku = el.value.trim();
+    if (!isNaN(ci) && newSku && listing.children && listing.children[ci] !== undefined) {
+      const oldSku = listing.children[ci].sku;
+      if (newSku !== oldSku) {
+        const childListing = generatedListings.find(l => l.sku === oldSku && l.parent_sku === listing.sku);
+        if (childListing) childListing.sku = newSku;
+        listing.children[ci].sku = newSku;
+      }
     }
   });
   try { localStorage.setItem('synqio_listings', JSON.stringify(generatedListings)); } catch(e) {}
