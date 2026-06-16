@@ -55,6 +55,38 @@ def test_flat_file_export():
     assert "\t" in text
 
 
+def test_offer_template_rejected_for_new_products():
+    """An offer/Listing-Loader template (no product columns) must not be used to
+    CREATE new products — it would fail on Amazon with errors 8560 / 13013."""
+    import os
+    from app.utils.amazon_template_filler import (
+        is_offer_only_template, fill_amazon_template, OFFER_TEMPLATE_FOR_NEW_PRODUCTS_MSG,
+    )
+    ll = os.path.join("data", "amazon_templates", "_LISTING_LOADER.xlsm")
+    if not os.path.exists(ll):
+        pytest.skip("bundled Listing Loader not present")
+    data = open(ll, "rb").read()
+    assert is_offer_only_template(data) is True
+    with pytest.raises(ValueError):
+        fill_amazon_template(data, [make_listing()], for_new_products=True)
+    # Without the flag it still fills as an offer file (existing-product update).
+    out = fill_amazon_template(data, [make_listing()], for_new_products=False)
+    assert isinstance(out, (bytes, bytearray)) and len(out) > 0
+
+
+def test_full_category_template_allowed_for_new_products():
+    """A real category template (with product columns) fills fine for creation."""
+    import os
+    from app.utils.amazon_template_filler import is_offer_only_template, fill_amazon_template
+    cat = os.path.join("data", "amazon_templates", "ANIMAL_COLLAR.xlsm")
+    if not os.path.exists(cat):
+        pytest.skip("bundled category template not present")
+    data = open(cat, "rb").read()
+    assert is_offer_only_template(data) is False
+    out = fill_amazon_template(data, [make_listing()], for_new_products=True)
+    assert isinstance(out, (bytes, bytearray)) and len(out) > 0
+
+
 def test_empty_listings():
     assert to_csv_bytes([]) == b""
     assert to_json_bytes([]) == b"[]"

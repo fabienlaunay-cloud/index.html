@@ -8132,7 +8132,7 @@ async function fillFromLibrary(tplId, label) {
     });
     if (!r.ok) {
       const err = await r.json().catch(() => ({}));
-      showToast('⚠️', err.detail || 'Erreur lors du remplissage', true);
+      showActionableError(err.detail || 'Erreur lors du remplissage');
       return;
     }
     const a = document.createElement('a');
@@ -8232,7 +8232,7 @@ async function fillAmazonTemplate(input) {
     const r = await authFetch('/api/export/fill-amazon-template', { method: 'POST', body: form });
     if (!r.ok) {
       const err = await r.json().catch(() => ({}));
-      showToast('⚠️', err.detail || 'Erreur lors du remplissage', true);
+      showActionableError(err.detail || 'Erreur lors du remplissage');
       return;
     }
     const blob = await r.blob();
@@ -8699,6 +8699,18 @@ function setStep(n) {
 }
 
 let toastTimeout;
+// Long / multi-line backend errors (e.g. "this is an offer template, use the
+// full category template") must stay on screen until read — a 3.5s toast cuts
+// them off. Show those in a blocking dialog; keep short errors as toasts.
+function showActionableError(detail) {
+  const msg = String(detail || 'Erreur');
+  if (msg.length > 90 || msg.includes('\n')) {
+    alert(msg);
+  } else {
+    showToast('⚠️', msg, true);
+  }
+}
+
 function showToast(icon, msg, isError=false) {
   const t=document.getElementById('toast');
   const iconEl=document.getElementById('toastIcon');

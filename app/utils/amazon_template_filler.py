@@ -312,6 +312,50 @@ def get_product_type_from_bytes(template_bytes: bytes) -> str:
         return ''
 
 
+# Clear, actionable message shown when someone tries to CREATE new products with
+# an Amazon "offer" template (Listing Loader). Such a template has no product
+# columns (type de produit / titre / description) — it can only attach an offer
+# to a product that ALREADY exists in Amazon's catalogue.
+OFFER_TEMPLATE_FOR_NEW_PRODUCTS_MSG = (
+    "Ce modèle Amazon ne contient pas les colonnes produit (type de produit, "
+    "titre, description, points clés) : c'est un modèle d'OFFRE, qui sert "
+    "uniquement à mettre en vente des produits DÉJÀ présents dans le catalogue "
+    "Amazon (par code-barres/ASIN). Il ne peut pas CRÉER de nouveaux produits.\n\n"
+    "Pour créer vos fiches : dans Seller Central → Catalogue → Ajouter des "
+    "produits via un fichier → onglet « Télécharger un modèle », choisissez "
+    "VOTRE catégorie (ex. Colliers pour animaux), téléchargez le modèle complet, "
+    "puis importez-le dans SynqIO. C'est ce modèle complet (et non le modèle "
+    "d'offre / Listing Loader) qu'il faut utiliser pour de nouveaux produits."
+)
+
+
+def _detect_offer_template(col_index: dict) -> bool:
+    """An Amazon 'offer'/Listing Loader template carries offer columns but no
+    product_type column (so it can't define a new product, only an offer)."""
+    return (
+        "product_type#1.value" not in col_index
+        and ("main_offer_image_locator#1.media_location" in col_index
+             or "skip_offer#1.value" in col_index
+             or "merchant_suggested_asin#1.value" in col_index)
+    )
+
+
+def is_offer_only_template(template_bytes: bytes) -> bool:
+    """True when the template is an offer/Listing Loader template (no product
+    content columns). Used to stop offer templates being used — or stored as a
+    category template — for creating brand-new products."""
+    try:
+        wb = openpyxl.load_workbook(io.BytesIO(template_bytes), keep_vba=True, data_only=True)
+        settings, settings_ws = _parse_template_settings(wb)
+        attr_row = settings['attributeRow']
+        ws = settings_ws or _find_template_worksheet(wb, attr_row)
+        if ws is None:
+            return False
+        return _detect_offer_template(_build_col_index(ws, attr_row))
+    except Exception:
+        return False
+
+
 # Normalized attribute keys that SynqIO already fills automatically (identity,
 # content, offer, images) OR that already have a dedicated compliance field — so
 # they must NOT appear in the dynamic per-category attribute form.
@@ -437,7 +481,8 @@ def extract_template_attributes(template_bytes: bytes) -> list:
 
 def fill_amazon_template(template_bytes: bytes, listings: List[AmazonListing],
                          image_urls: Optional[dict] = None,
-                         compliance_data: Optional[dict] = None) -> bytes:
+                         compliance_data: Optional[dict] = None,
+                         for_new_products: bool = False) -> bytes:
     """
     Read an Amazon category template (.xlsm/.xlsx), detect its structure,
     fill it with listing data, and return the result as bytes.
@@ -447,6 +492,11 @@ def fill_amazon_template(template_bytes: bytes, listings: List[AmazonListing],
     warranty, battery info, dangerous-goods regulation, safety instructions…)
     are inherited from the example row that Amazon ships inside every template,
     so clients never have to re-enter them for each variation.
+
+    for_new_products: when True, refuse offer/Listing-Loader templates (they have
+    no product columns and can only update products already in the catalogue) so
+    the user gets a clear message instead of a file Amazon rejects with errors
+    8560 / 13013.
     """
     wb = openpyxl.load_workbook(io.BytesIO(template_bytes), keep_vba=True, data_only=True)
 
@@ -469,12 +519,12 @@ def fill_amazon_template(template_bytes: bytes, listings: List[AmazonListing],
     #     product_type column and carries offer-specific image/identifier columns.
     #     For it we write ONE offer row per SKU and never synthesize a variation
     #     parent (the parent product already exists in Amazon's catalog).
-    is_offer_template = (
-        "product_type#1.value" not in col_index
-        and ("main_offer_image_locator#1.media_location" in col_index
-             or "skip_offer#1.value" in col_index
-             or "merchant_suggested_asin#1.value" in col_index)
-    )
+    is_offer_template = _detect_offer_template(col_index)
+
+    # Guard: an offer template can't create new products. Fail loudly with an
+    # actionable message rather than emitting a file Amazon rejects (8560/13013).
+    if is_offer_template and for_new_products:
+        raise ValueError(OFFER_TEMPLATE_FOR_NEW_PRODUCTS_MSG)
 
     # 4. Product type detection
     fpt_col = col_index.get("feed_product_type")

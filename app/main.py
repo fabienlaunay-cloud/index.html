@@ -1037,16 +1037,21 @@ async def fill_amazon_template_endpoint(request: Request):
     compliance_data = _json.loads(compliance_raw) if compliance_raw else None
     try:
         image_urls = _get_image_urls_for_skus([l.sku for l in listings])
-        filled_bytes = fill_amazon_template(template_bytes, listings, image_urls=image_urls, compliance_data=compliance_data)
+        filled_bytes = fill_amazon_template(template_bytes, listings, image_urls=image_urls,
+                                            compliance_data=compliance_data, for_new_products=True)
+    except ValueError as e:
+        # Offer template used for new products, or other content-level problem.
+        raise HTTPException(422, str(e))
     except Exception as e:
         raise HTTPException(422, f"Erreur lors du remplissage : {e}")
     # Auto-save to library if this product type isn't there yet
     try:
-        from app.utils.amazon_template_filler import get_product_type_from_bytes
+        from app.utils.amazon_template_filler import get_product_type_from_bytes, is_offer_only_template
         pt = get_product_type_from_bytes(template_bytes)
         # "PRODUCT" is the generic Listing Loader (offer) template — not a real
-        # category, don't pollute the category-template library with it.
-        if pt and pt != "PRODUCT" and not amazon_template_exists(pt):
+        # category, don't pollute the category-template library with it. Also skip
+        # any offer-only template (no product columns) regardless of its type code.
+        if pt and pt != "PRODUCT" and not is_offer_only_template(template_bytes) and not amazon_template_exists(pt):
             fname = getattr(template_file, "filename", None) or f"{pt}.xlsm"
             data_b64 = base64.b64encode(template_bytes).decode()
             label = pt.replace("_", " ").title()
@@ -1126,6 +1131,12 @@ async def api_upload_template(request: Request):
     if not template_file or not label or not product_type:
         raise HTTPException(400, "template, label et product_type requis")
     data = await template_file.read()
+    # Reject offer/Listing-Loader templates here: this library is for category
+    # templates that CREATE products. An offer template only updates existing
+    # catalogue products and would later fail with Amazon errors 8560/13013.
+    from app.utils.amazon_template_filler import is_offer_only_template, OFFER_TEMPLATE_FOR_NEW_PRODUCTS_MSG
+    if is_offer_only_template(data):
+        raise HTTPException(422, OFFER_TEMPLATE_FOR_NEW_PRODUCTS_MSG)
     data_b64 = base64.b64encode(data).decode()
     tpl_id = str(uuid4())
     save_amazon_template(tpl_id, label, product_type,
@@ -1160,7 +1171,11 @@ async def fill_from_library(tpl_id: str, request: Request):
     template_bytes = base64.b64decode(tpl["data_b64"])
     try:
         image_urls = _get_image_urls_for_skus([l.sku for l in listings])
-        filled_bytes = fill_amazon_template(template_bytes, listings, image_urls=image_urls, compliance_data=compliance_data)
+        filled_bytes = fill_amazon_template(template_bytes, listings, image_urls=image_urls,
+                                            compliance_data=compliance_data, for_new_products=True)
+    except ValueError as e:
+        # Offer template stored as a category template, or other content problem.
+        raise HTTPException(422, str(e))
     except Exception as e:
         raise HTTPException(422, f"Erreur lors du remplissage : {e}")
     fn = tpl.get("filename") or "amazon_template_rempli.xlsm"
@@ -1256,7 +1271,8 @@ async def export_seller_central_pack(req: SellerCentralPackRequest, request: Req
             try:
                 cat_bytes = base64.b64decode(cat_tpl["data_b64"])
                 filled = fill_amazon_template(cat_bytes, listings,
-                                              image_urls=image_urls, compliance_data=compliance)
+                                              image_urls=image_urls, compliance_data=compliance,
+                                              for_new_products=True)
                 zf.writestr("1_NOUVEAUX_PRODUITS.xlsm", filled)
                 included.append("1_NOUVEAUX_PRODUITS.xlsm (créer de nouveaux produits)")
                 cat_included = True
