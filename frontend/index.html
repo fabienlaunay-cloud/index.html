@@ -4561,7 +4561,7 @@ async function tmDownloadFlatFile() {
   try {
     const r = await authFetch('/api/title-migration/export', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ rows: rows.map(x => ({ sku: x.sku, title: x.title, item_highlights: x.item_highlights || '' })) }),
+      body: JSON.stringify({ rows: rows.map(x => ({ sku: x.sku, title: x.title, item_highlights: x.item_highlights || '', product_type: x.product_type || x.category || '' })) }),
     });
     if (!r.ok) throw new Error(`Erreur HTTP ${r.status}`);
     const blob = await r.blob();

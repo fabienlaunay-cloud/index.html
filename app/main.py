@@ -2777,8 +2777,13 @@ async def title_migration_export(req: TitleMigrationExportRequest, request: Requ
     sku_col = col_index.get("contribution_sku#1.value")
     name_col = col_index.get("item_name#1.value")
     ra_col = col_index.get("::record_action")
+    ptype_col = col_index.get("product_type#1.value")
     if not (sku_col and name_col):
         raise HTTPException(503, "Colonnes SKU/titre introuvables dans le modèle Amazon.")
+    # product_type#1.value is REQUIRED even for a partial update (error 90041).
+    # Default to the template's own type; honour a real Amazon product-type CODE
+    # from the source report (e.g. PET_TAG) when the row carries one.
+    default_pt = (settings.get("productType") or "ANIMAL_COLLAR").upper()
 
     # Clear any example/demo rows Amazon ships from data_row downward.
     for r in range(data_row, ws.max_row + 1):
@@ -2796,6 +2801,11 @@ async def title_migration_export(req: TitleMigrationExportRequest, request: Requ
         ws.cell(row_num, name_col).value = title[:200]
         if ra_col:
             ws.cell(row_num, ra_col).value = "partial_update"
+        if ptype_col:
+            row_pt = str(r.get("product_type", "")).strip()
+            ws.cell(row_num, ptype_col).value = (
+                row_pt if re.fullmatch(r"[A-Z][A-Z0-9_]+", row_pt) else default_pt
+            )
         count += 1
     if not count:
         raise HTTPException(400, "Aucune ligne valide à exporter")
