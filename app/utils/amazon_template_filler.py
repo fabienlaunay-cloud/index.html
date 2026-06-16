@@ -689,6 +689,21 @@ def fill_amazon_template(template_bytes: bytes, listings: List[AmazonListing],
             parent_listing = _make_parent_listing(list(listings), parent_sku, variation_theme=parent_theme)
             listings = [parent_listing] + child_rows
 
+    # GTIN-exemption wording taken from the template's own dropdown so it matches
+    # the marketplace locale exactly ("Exemption du GTIN" on Amazon.fr,
+    # "GTIN Exemption" elsewhere). Used when the client has a barcode exemption.
+    gtin_exemption_label = ""
+    for _type_attr in ("amzn1.volt.ca.product_id_type",
+                       "externally_assigned_product_identifier#1.type",
+                       "external_product_id_type"):
+        if _type_attr in col_index:
+            for _v in (_resolve_dropdown_values(wb, product_type, _type_attr) or []):
+                if "exempt" in str(_v).lower():
+                    gtin_exemption_label = str(_v)
+                    break
+        if gtin_exemption_label:
+            break
+
     # 7. Write listing data starting at data_row
     for i, listing in enumerate(listings):
         row_num = data_row + i
@@ -753,18 +768,36 @@ def fill_amazon_template(template_bytes: bytes, listings: List[AmazonListing],
                 col = col_index.get(attr)
                 if col and value not in (None, ""):
                     ws.cell(row_num, col).value = value
-            # GTIN exemption: clear all EAN/identifier columns
-            if _gtin_exempt:
-                _ean_attrs = [
+            # GTIN exemption: declare the exemption in the identifier *type*
+            # column (so Amazon knows the missing barcode is intentional — clearing
+            # it alone re-triggers error 8560) and blank out the identifier value.
+            # Variation PARENT rows must carry no identifier at all, so they keep
+            # the empty columns _EXACT_MAP already wrote (skip them here).
+            if _gtin_exempt and not listing.is_parent:
+                _id_type_attrs = [
+                    "amzn1.volt.ca.product_id_type",
                     "externally_assigned_product_identifier#1.type",
-                    "externally_assigned_product_identifier#1.value",
-                    "external_product_id", "external_product_id_type",
-                    "amzn1.volt.ca.product_id_type", "amzn1.volt.ca.product_id_value",
+                    "external_product_id_type",
                 ]
-                for attr in _ean_attrs:
+                _id_value_attrs = [
+                    "amzn1.volt.ca.product_id_value",
+                    "externally_assigned_product_identifier#1.value",
+                    "external_product_id",
+                ]
+                for attr in _id_type_attrs:
+                    col = col_index.get(attr)
+                    if col:
+                        ws.cell(row_num, col).value = gtin_exemption_label or None
+                for attr in _id_value_attrs:
                     col = col_index.get(attr)
                     if col:
                         ws.cell(row_num, col).value = None
+                # Legacy explicit exemption flag, when the template carries one.
+                for attr in ("supplier_declared_has_product_identifier_exemption#1.value",
+                             "supplier_declared_has_product_identifier_exemption"):
+                    col = col_index.get(attr)
+                    if col:
+                        ws.cell(row_num, col).value = "true"
 
     # 8. Save preserving macros if the source was .xlsm
     out = io.BytesIO()
