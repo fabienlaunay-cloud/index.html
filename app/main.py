@@ -2463,41 +2463,59 @@ BULLETS :
 {bullets_text}
 ITEM HIGHLIGHTS ACTUEL : {item_highlights or "(vide)"}"""
 
-    resp = await get_client().messages.create(
-        model="claude-sonnet-4-6",
-        max_tokens=600,
-        system=[{"type": "text", "text": _REFORMAT_SYSTEM, "cache_control": {"type": "ephemeral"}}],
-        messages=[{"role": "user", "content": prompt}],
-    )
-    # Extract text from first text block (skip thinking blocks if any)
-    raw = ""
-    for block in (resp.content or []):
-        txt = getattr(block, "text", None)
-        if txt and txt.strip():
-            raw = txt.strip()
-            break
+    async def _call_once() -> Optional[dict]:
+        resp = await get_client().messages.create(
+            model="claude-sonnet-4-6",
+            max_tokens=600,
+            system=[{"type": "text", "text": _REFORMAT_SYSTEM, "cache_control": {"type": "ephemeral"}}],
+            messages=[
+                {"role": "user", "content": prompt},
+                # Prefill the reply with "{" so the model is forced to emit JSON
+                # (eliminates the prose/markdown replies that broke parsing before).
+                {"role": "assistant", "content": "{"},
+            ],
+        )
+        raw = ""
+        for block in (resp.content or []):
+            txt = getattr(block, "text", None)
+            if txt and txt.strip():
+                raw = txt.strip()
+                break
+        raw = "{" + raw  # re-add the prefilled opening brace
+        raw = _re_rf.sub(r'^```(?:json)?\s*', '', raw, flags=_re_rf.MULTILINE)
+        raw = _re_rf.sub(r'\s*```\s*$', '', raw, flags=_re_rf.MULTILINE).strip()
+        try:
+            return _json.loads(raw)
+        except _json.JSONDecodeError:
+            m = _re_rf.search(r'\{.*"title".*\}', raw, _re_rf.DOTALL)
+            if m:
+                try:
+                    return _json.loads(m.group())
+                except _json.JSONDecodeError:
+                    return None
+        return None
 
-    # Strip markdown code fences if present
-    raw = _re_rf.sub(r'^```(?:json)?\s*', '', raw, flags=_re_rf.MULTILINE)
-    raw = _re_rf.sub(r'\s*```\s*$', '', raw, flags=_re_rf.MULTILINE).strip()
-
-    # Try direct JSON parse; if it fails, extract first {...} block from the text
+    # Retry transient API errors AND non-JSON replies — a single miss across a
+    # 70-row catalogue is what produced crude truncations + empty highlights.
     data = None
-    try:
-        data = _json.loads(raw)
-    except _json.JSONDecodeError:
-        log.warning("[reformat_title] JSON parse failed. raw=%r", raw[:300])
-        m = _re_rf.search(r'\{[^{}]*"title"[^{}]*\}', raw, _re_rf.DOTALL)
-        if m:
-            try:
-                data = _json.loads(m.group())
-            except _json.JSONDecodeError:
-                pass
+    for attempt in range(3):
+        try:
+            data = await _call_once()
+        except Exception as e:
+            data = None
+            log.warning("[reformat_title] attempt %d failed: %s", attempt + 1, str(e)[:160])
+        if data and str(data.get("title", "")).strip():
+            break
+        if attempt < 2:
+            await asyncio.sleep(0.6 * (attempt + 1))
 
-    if not data:
-        # Last resort: truncate original title intelligently at word boundary
+    if not data or not str(data.get("title", "")).strip():
+        # Last resort: clean word-boundary truncation + a highlight built from the
+        # descriptive tail that no longer fits the title (never leave it empty).
         short = title[:75].rsplit(" ", 1)[0] if len(title) > 75 else title
-        return _scored(short, (item_highlights or "")[:125])
+        tail = _re_rf.sub(r"\s+", " ", title[len(short):]).strip(" -|,;:.")
+        fallback_hl = (item_highlights or tail or title)[:125]
+        return _scored(short, fallback_hl)
 
     # Enforce hard limits server-side regardless of model output
     return _scored(
