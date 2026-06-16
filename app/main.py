@@ -2716,7 +2716,11 @@ async def title_migration_export(req: TitleMigrationExportRequest, request: Requ
     """Build a Seller Central partial-update flat file (TSV) with the new titles
     and Item Highlights — ready to upload in 'Ajouter des produits via fichier'."""
     out = io.StringIO()
-    headers = ["item-sku", "update-delete", "item-name", "item-highlights"]
+    # Header names must match Amazon's fptcustom field IDs exactly:
+    #   - SKU column is "sku" (NOT "item-sku" → triggers error 90012 "champ sku absent")
+    #   - highlights column is "item_highlights" (NOT "item-highlights" → warning 90061
+    #     "en-tête invalide", values silently ignored)
+    headers = ["sku", "update-delete", "item-name", "item_highlights"]
     # Amazon requires TemplateType BEFORE column headers (error 90009 otherwise)
     out.write("\t".join(["TemplateType=fptcustom", "Version=2021.1201", "", ""]) + "\n")
     out.write("\t".join(headers) + "\n")

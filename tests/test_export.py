@@ -45,7 +45,12 @@ def test_flat_file_export():
     listings = [make_listing()]
     data = to_amazon_flat_file_bytes(listings)
     text = data.decode("utf-8-sig")
-    assert "item-sku" in text
+    # Amazon fptcustom requires the SKU column to be named exactly "sku"
+    # and the highlights column "item_highlights" (underscore), not hyphenated.
+    assert "\tsku\t" in ("\t" + text.split("\n")[1] + "\t")
+    assert "item_highlights" in text
+    assert "item-sku" not in text
+    assert "item-highlights" not in text
     assert "TEST-001" in text
     assert "\t" in text
 

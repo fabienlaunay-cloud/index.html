@@ -80,7 +80,7 @@ def to_amazon_flat_file_bytes(listings: List[AmazonListing]) -> bytes:
         "sku",
         "update-delete",
         "item-name",
-        "item-highlights",
+        "item_highlights",
         "brand_name",
         "manufacturer",
         "item_type",
