@@ -6999,6 +6999,10 @@ async function _bgPollImage(sku, idx, job_id) {
       _saveImagesToDB(sku, job.result);
       delete _activeImgJobs[sku];
       _imgJobDone++; _updateImgProgress();
+      // Tell the user when the real product photo could NOT be used (visuals 100% IA)
+      if (job.result && job.result.reference_image_used === false) {
+        showToast('⚠️', `${sku} : visuels générés SANS votre photo produit (photo de référence introuvable ou inaccessible) — rendu 100% IA. Ajoutez une photo produit pour des visuels fidèles.`, true);
+      }
       const cont = document.getElementById(`images-container-${idx}`);
       if (cont && cont.dataset.jobId === job_id) { renderImages(cont, job.result); delete cont.dataset.jobId; }
       return;

@@ -7,12 +7,38 @@ import re
 import json
 import html as html_lib
 from typing import Optional
+from urllib.parse import urljoin, urlparse
 
 _HTML_TAG_RE = re.compile(r'<[^>]+>')
 
 
 def _clean(text: str) -> str:
     return _HTML_TAG_RE.sub('', html_lib.unescape(text or '')).strip()
+
+
+def _normalize_images(images: list, base_url: str) -> list:
+    """Make image URLs absolute and drop junk (data:, svg, placeholders, dupes).
+    A relative or broken URL can't be fetched as a generation reference, which is
+    why listings end up with 100% synthetic visuals instead of the real product."""
+    out, seen = [], set()
+    for raw in images or []:
+        u = (raw or '').strip()
+        if not u or u.startswith('data:'):
+            continue
+        # protocol-relative or relative → absolutize against the page URL
+        if u.startswith('//'):
+            u = 'https:' + u
+        elif not u.startswith(('http://', 'https://')):
+            u = urljoin(base_url, u)
+        if not u.startswith(('http://', 'https://')):
+            continue
+        low = u.lower()
+        if low.endswith('.svg') or 'sprite' in low or 'placeholder' in low or 'blank.' in low:
+            continue
+        if u not in seen:
+            seen.add(u)
+            out.append(u)
+    return out
 
 
 def _extract_json_ld(html_text: str) -> Optional[dict]:
@@ -154,5 +180,8 @@ def scrape_product(html_text: str, url: str) -> dict:
             "Impossible d'extraire le nom du produit depuis cette URL. "
             "Le site bloque peut-être les requêtes automatiques (Cloudflare, etc.)."
         )
+
+    # Absolutize + clean image URLs so they can be used as a generation reference
+    result['images'] = _normalize_images(result.get('images'), url)
 
     return result
