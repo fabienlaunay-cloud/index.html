@@ -6746,6 +6746,29 @@ function _buildVariationChildrenTable(listing, idx, editMode) {
     </div>`;
 }
 
+// Collect SKUs that appear more than once across all parents/standalone listings
+// and all declination children (Amazon requires every SKU to be unique).
+function _findDuplicateSkus() {
+  const counts = {};
+  const add = s => { s = (s || '').trim(); if (s) counts[s] = (counts[s] || 0) + 1; };
+  generatedListings.forEach(l => {
+    if (!l.parent_sku) add(l.sku);            // parents & standalone (skip nested-dup of standalone child rows)
+    (l.children || []).forEach(c => add(c.sku));
+  });
+  return Object.keys(counts).filter(k => counts[k] > 1);
+}
+
+let _dupSkuTimer = null;
+function _warnDuplicateSkus(delay = 700) {
+  clearTimeout(_dupSkuTimer);
+  _dupSkuTimer = setTimeout(() => {
+    const dups = _findDuplicateSkus();
+    if (dups.length) {
+      showToast('⚠️', `SKU en double : ${dups.join(', ')} — chaque SKU doit être unique pour Amazon`, true);
+    }
+  }, delay);
+}
+
 function updateChild(listingIdx, childIdx, field, value) {
   const listing = generatedListings[listingIdx];
   if (!listing || !listing.children || !listing.children[childIdx]) return;
@@ -6765,6 +6788,7 @@ function updateChild(listingIdx, childIdx, field, value) {
     if (!newSku) return;            // never allow an empty SKU
     child.sku = newSku;
     if (childListing) childListing.sku = newSku;
+    _warnDuplicateSkus();           // alert if this SKU now collides with another
   } else if (field === 'color') {
     child.color = value.trim() || null;
     if (childListing) childListing.color = child.color;
@@ -6876,6 +6900,7 @@ function saveEdit(idx) {
   try { localStorage.setItem('synqio_listings', JSON.stringify(generatedListings)); } catch(e) {}
   _saveBatches();
   syncListingsToHistory();
+  _warnDuplicateSkus(0);
   const card = document.getElementById(`card-${idx}`);
   if (card) {
     card.innerHTML = buildCardHTML(listing, idx, false);
@@ -9530,6 +9555,7 @@ function _saveDetailToListing(idx) {
   try { localStorage.setItem('synqio_listings', JSON.stringify(generatedListings)); } catch(e) {}
   _saveBatches();
   syncListingsToHistory();
+  _warnDuplicateSkus(0);
 }
 
 function closeListingDetail() {
