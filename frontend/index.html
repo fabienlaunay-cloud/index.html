@@ -4567,7 +4567,7 @@ async function tmDownloadFlatFile() {
     const blob = await r.blob();
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = 'synqio_migration_titres_amazon.xlsx';
+    a.download = 'synqio_migration_titres_amazon.xlsm';
     a.click();
     showToast('✅', `Fichier Seller Central téléchargé — ${rows.length} titre(s)`);
   } catch (e) {

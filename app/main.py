@@ -1006,7 +1006,6 @@ async def publish(request_data: PublishRequest, request: Request):
 
 
 from app.utils.amazon_template_filler import fill_amazon_template
-
 # ── Export ────────────────────────────────────────────────────────────────────
 
 @app.post("/api/export/csv")
@@ -2729,46 +2728,84 @@ class TitleMigrationExportRequest(BaseModel):
 
 @app.post("/api/title-migration/export")
 async def title_migration_export(req: TitleMigrationExportRequest, request: Request):
-    """Build a Seller Central partial-update inventory file with the new titles and
-    Item Highlights — ready to upload in 'Ajouter des produits via un fichier'.
+    """Build a Seller Central partial-update inventory file with the new titles,
+    ready to upload in 'Ajouter des produits via un fichier'.
 
-    Output is a real .xlsx (not a hand-built .txt): Amazon's uploader accepts it,
-    it stores accents natively (no UTF-8/cp1252 mojibake like 'personnalisÃ©'), and
-    there's no BOM or risk of Excel re-saving the .txt and duplicating columns —
-    both of which corrupted earlier uploads (errors 90012 'sku absent' / 90061)."""
+    Built from a REAL Amazon template (modern feedType=256 structure), NOT a
+    hand-crafted fptcustom file. The legacy 'TemplateType=fptcustom' flat file is
+    deprecated and was rejected every time (90012 'sku absent' / 90061 'invalid
+    header') because the modern format identifies the SKU via
+    'contribution_sku#1.value', the title via 'item_name#1.value' and the update
+    mode via '::record_action' — names that can't be reproduced by hand because
+    the settings/signature row is required. We load Amazon's own template, clear
+    the example row and write one partial-update row per SKU (title only),
+    leaving product_type empty so Amazon patches the existing listing by SKU
+    across all categories."""
     import openpyxl as _openpyxl
-    wb = _openpyxl.Workbook()
-    ws = wb.active
-    ws.title = "Template"
-    # Row 1: TemplateType MUST come before the column headers (error 90009 otherwise)
-    ws.append(["TemplateType=fptcustom", "Version=2021.1201"])
-    # Row 2: exact Amazon fptcustom UPLOAD field IDs — all underscores. Confirmed
-    # against Amazon's processing report: "sku"/"item-name" (hyphen/Category-Listings
-    # -Report style) are rejected (90012 'sku absent' / 90061 'invalid header'),
-    # while the underscore upload field names are accepted. "item_highlights"
-    # (underscore) was already accepted, which pinned down the convention.
-    ws.append(["item_sku", "update_delete", "item_name", "item_highlights"])
+    from app.utils.amazon_template_filler import (
+        _parse_template_settings, _find_template_worksheet, _build_col_index,
+    )
+
+    # Load a real Amazon category template (has item_name + contribution_sku).
+    tpl_bytes = None
+    try:
+        _t = get_amazon_template_by_type("ANIMAL_COLLAR")
+        if _t and _t.get("data_b64"):
+            tpl_bytes = base64.b64decode(_t["data_b64"])
+    except Exception:
+        pass
+    if not tpl_bytes:
+        for _p in ("data/amazon_templates/ANIMAL_COLLAR.xlsm",
+                   os.path.join(os.getcwd(), "data", "amazon_templates", "ANIMAL_COLLAR.xlsm")):
+            try:
+                with open(_p, "rb") as _f:
+                    tpl_bytes = _f.read()
+                break
+            except Exception:
+                continue
+    if not tpl_bytes:
+        raise HTTPException(503, "Modèle Amazon indisponible pour la migration des titres.")
+
+    wb = _openpyxl.load_workbook(io.BytesIO(tpl_bytes), keep_vba=True, data_only=False)
+    settings, settings_ws = _parse_template_settings(wb)
+    attr_row = settings["attributeRow"]
+    data_row = settings["dataRow"]
+    ws = settings_ws or _find_template_worksheet(wb, attr_row)
+    if ws is None:
+        raise HTTPException(503, "Structure du modèle Amazon non reconnue.")
+    col_index = _build_col_index(ws, attr_row)
+    sku_col = col_index.get("contribution_sku#1.value")
+    name_col = col_index.get("item_name#1.value")
+    ra_col = col_index.get("::record_action")
+    if not (sku_col and name_col):
+        raise HTTPException(503, "Colonnes SKU/titre introuvables dans le modèle Amazon.")
+
+    # Clear any example/demo rows Amazon ships from data_row downward.
+    for r in range(data_row, ws.max_row + 1):
+        for c in range(1, ws.max_column + 1):
+            ws.cell(r, c).value = None
+
     count = 0
     for r in req.rows:
         sku = str(r.get("sku", "")).strip()
         title = str(r.get("title", "")).strip()
         if not sku or not title:
             continue
-        ws.append([
-            sku,
-            "PartialUpdate",
-            title[:200],
-            str(r.get("item_highlights", ""))[:125],
-        ])
+        row_num = data_row + count
+        ws.cell(row_num, sku_col).value = sku
+        ws.cell(row_num, name_col).value = title[:200]
+        if ra_col:
+            ws.cell(row_num, ra_col).value = "partial_update"
         count += 1
     if not count:
         raise HTTPException(400, "Aucune ligne valide à exporter")
+
     _buf = io.BytesIO()
     wb.save(_buf)
     return Response(
         content=_buf.getvalue(),
-        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        headers={"Content-Disposition": 'attachment; filename="synqio_migration_titres_amazon.xlsx"'},
+        media_type="application/vnd.ms-excel.sheet.macroEnabled.12",
+        headers={"Content-Disposition": 'attachment; filename="synqio_migration_titres_amazon.xlsm"'},
     )
 
 
