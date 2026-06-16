@@ -76,26 +76,28 @@ def to_amazon_flat_file_bytes(listings: List[AmazonListing]) -> bytes:
     Uses the standard Listing Loader template columns accepted across categories.
     """
     output = io.StringIO()
+    # fptcustom UPLOAD field IDs use underscores; hyphenated forms are rejected
+    # on upload (90012 'sku absent' / 90061 'invalid header').
     headers = [
-        "sku",
-        "update-delete",
-        "item-name",
+        "item_sku",
+        "update_delete",
+        "item_name",
         "item_highlights",
         "brand_name",
         "manufacturer",
         "item_type",
-        "product-description",
-        "bullet-point1",
-        "bullet-point2",
-        "bullet-point3",
-        "bullet-point4",
-        "bullet-point5",
-        "generic-keywords",
-        "standard-price",
+        "product_description",
+        "bullet_point1",
+        "bullet_point2",
+        "bullet_point3",
+        "bullet_point4",
+        "bullet_point5",
+        "generic_keywords",
+        "standard_price",
         "quantity",
-        "external-product-id",
-        "external-product-id-type",
-        "condition-type",
+        "external_product_id",
+        "external_product_id_type",
+        "condition_type",
     ]
     # Row 1 : TemplateType MUST come before column names (Amazon error 90009 otherwise)
     output.write("\t".join(["TemplateType=fptcustom", "Version=2021.1201"] + [""] * (len(headers) - 2)) + "\n")
@@ -144,15 +146,18 @@ def _style_header_row(ws, n_cols: int):
 
 def to_amazon_flat_file_xlsx(listings: List[AmazonListing], image_urls: Optional[dict] = None) -> bytes:
     """Amazon flat file for NEW products — proper .xlsx, uploadable to Seller Central."""
+    # fptcustom UPLOAD field IDs use underscores (item_sku/item_name/…). The
+    # hyphenated forms are the Category-Listings-Report download style and are
+    # rejected on upload (90012 'sku absent' / 90061 'invalid header').
     headers = [
-        "sku", "update-delete", "item-name", "brand_name", "manufacturer",
-        "item_type", "product-description",
-        "bullet-point1", "bullet-point2", "bullet-point3", "bullet-point4", "bullet-point5",
-        "generic-keywords", "standard-price", "quantity",
-        "external-product-id", "external-product-id-type", "condition-type",
-        "main-image-url",
-        "other-image-url1", "other-image-url2", "other-image-url3",
-        "other-image-url4", "other-image-url5", "other-image-url6",
+        "item_sku", "update_delete", "item_name", "brand_name", "manufacturer",
+        "item_type", "product_description",
+        "bullet_point1", "bullet_point2", "bullet_point3", "bullet_point4", "bullet_point5",
+        "generic_keywords", "standard_price", "quantity",
+        "external_product_id", "external_product_id_type", "condition_type",
+        "main_image_url",
+        "other_image_url1", "other_image_url2", "other_image_url3",
+        "other_image_url4", "other_image_url5", "other_image_url6",
     ]
     wb = openpyxl.Workbook()
     ws = wb.active

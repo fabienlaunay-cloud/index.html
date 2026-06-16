@@ -2742,9 +2742,12 @@ async def title_migration_export(req: TitleMigrationExportRequest, request: Requ
     ws.title = "Template"
     # Row 1: TemplateType MUST come before the column headers (error 90009 otherwise)
     ws.append(["TemplateType=fptcustom", "Version=2021.1201"])
-    # Row 2: exact Amazon fptcustom field IDs — "sku" (not item-sku → 90012),
-    #        "item_highlights" (not item-highlights → 90061).
-    ws.append(["sku", "update-delete", "item-name", "item_highlights"])
+    # Row 2: exact Amazon fptcustom UPLOAD field IDs — all underscores. Confirmed
+    # against Amazon's processing report: "sku"/"item-name" (hyphen/Category-Listings
+    # -Report style) are rejected (90012 'sku absent' / 90061 'invalid header'),
+    # while the underscore upload field names are accepted. "item_highlights"
+    # (underscore) was already accepted, which pinned down the convention.
+    ws.append(["item_sku", "update_delete", "item_name", "item_highlights"])
     count = 0
     for r in req.rows:
         sku = str(r.get("sku", "")).strip()

@@ -45,11 +45,15 @@ def test_flat_file_export():
     listings = [make_listing()]
     data = to_amazon_flat_file_bytes(listings)
     text = data.decode("utf-8-sig")
-    # Amazon fptcustom requires the SKU column to be named exactly "sku"
-    # and the highlights column "item_highlights" (underscore), not hyphenated.
-    assert "\tsku\t" in ("\t" + text.split("\n")[1] + "\t")
-    assert "item_highlights" in text
+    # Amazon fptcustom UPLOAD field IDs are underscore-style (item_sku/item_name/
+    # item_highlights). Hyphenated forms come from the Category Listings Report
+    # and are rejected on upload (90012 / 90061).
+    header = text.split("\n")[1]
+    assert "item_sku" in header
+    assert "item_name" in header
+    assert "item_highlights" in header
     assert "item-sku" not in text
+    assert "item-name" not in text
     assert "item-highlights" not in text
     assert "TEST-001" in text
     assert "\t" in text
