@@ -2445,7 +2445,10 @@
           <!-- Row 1: title + primary CTA -->
           <div class="flex items-center justify-between mb-3">
             <div><h2 class="font-semibold text-gray-800">Fiches générées</h2><p id="statsText" class="text-sm text-gray-400 mt-0.5"></p></div>
-            <button onclick="showPublishModal()" class="gradient-bg text-white rounded-lg px-4 py-2 text-sm font-semibold hover:opacity-90 transition flex items-center gap-1.5">↗ Exporter vers Seller Central</button>
+            <button onclick="showPublishModal()" class="gradient-bg text-white rounded-lg px-4 py-2 text-sm font-semibold hover:opacity-90 transition flex items-center gap-1.5" title="Publier directement via l'API Amazon (connexion Seller Central)">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg>
+              Connexion API
+            </button>
           </div>
           <!-- Row 2: IA actions (left) | export dropdowns (right) -->
           <div class="flex items-center justify-between mb-4 gap-2">
@@ -3493,6 +3496,30 @@
       <div class="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-3 text-xs text-amber-800">
         ⚠️ L'accès SP-API Amazon nécessite une validation par Amazon (en cours). En attendant, utilisez l'export Flat File ci-dessus — c'est la méthode recommandée.
       </div>
+
+      <!-- Comment connecter son Seller Central (guide) -->
+      <details class="mb-3 rounded-lg border border-gray-150 bg-gray-50">
+        <summary class="cursor-pointer select-none px-3 py-2 text-xs font-semibold text-gray-700 flex items-center gap-1.5">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+          Comment connecter mon Seller Central&nbsp;?
+        </summary>
+        <div class="px-3 pb-3 pt-1 text-xs text-gray-600 space-y-2">
+          <p class="text-gray-500">La connexion se fait via l'<strong>API officielle Amazon (SP-API)</strong>. L'API est <strong>gratuite</strong> — Amazon ne facture pas son accès.</p>
+          <p class="font-semibold text-gray-700">Prérequis :</p>
+          <ul class="list-disc list-inside space-y-1">
+            <li>Un compte vendeur <strong>Professionnel</strong> (~40&nbsp;€/mois) — requis pour l'API (le plan « Individuel » n'y a pas droit).</li>
+            <li>Être <strong>administrateur</strong> du compte Seller Central.</li>
+          </ul>
+          <p class="font-semibold text-gray-700">Étapes (quelques clics) :</p>
+          <ol class="list-decimal list-inside space-y-1">
+            <li>Cliquez sur « <strong>Connecter mon Seller Central</strong> » ci-dessous.</li>
+            <li>Vous êtes redirigé vers Amazon → connectez-vous à votre compte vendeur.</li>
+            <li><strong>Autorisez SynqIO</strong> (application Amazon enregistrée) sur l'écran de consentement.</li>
+            <li>De retour sur SynqIO, le statut passe à « <strong>Connecté</strong> ✅ » — vous pouvez publier.</li>
+          </ol>
+          <p class="text-gray-400">Aucune manipulation technique : pas de clé à copier, pas de code. À faire une seule fois.</p>
+        </div>
+      </details>
 
       <!-- Statut connexion Amazon -->
       <div id="amazonStatusBox" class="mb-3 text-xs rounded-lg px-3 py-2 bg-gray-50 text-gray-400">Vérification connexion...</div>
