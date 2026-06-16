@@ -1100,9 +1100,12 @@ def list_amazon_templates() -> list:
         "FROM amazon_templates ORDER BY label, created_at DESC"
     ).fetchall()
     conn.close()
+    # Hide internal/system templates (product_type prefixed with "_", e.g. the
+    # generic Listing Loader) from the category picker.
     return [{"id": r["id"], "label": r["label"], "product_type": r["product_type"],
              "filename": r["filename"], "user_email": r["user_email"],
-             "created_at": str(r["created_at"])} for r in rows]
+             "created_at": str(r["created_at"])}
+            for r in rows if not str(r["product_type"]).startswith("_")]
 
 
 def get_amazon_template(tpl_id: str) -> dict | None:

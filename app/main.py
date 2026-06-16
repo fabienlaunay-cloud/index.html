@@ -211,10 +211,9 @@ def _seed_amazon_templates():
     for fname in os.listdir(tpl_dir):
         if not fname.endswith((".xlsm", ".xlsx")):
             continue
-        # Files prefixed with "_" are special bundled templates (e.g. the generic
-        # Listing Loader / offer template), not category templates — skip seeding.
-        if fname.startswith("_"):
-            continue
+        # "_"-prefixed files are special bundled templates (e.g. the generic
+        # Listing Loader) — seeded into the DB too (so the pack reads them
+        # reliably), but kept out of the category picker via list_amazon_templates.
         product_type = fname.rsplit(".", 1)[0].split("_v")[0].upper()
         if amazon_template_exists(product_type):
             continue
@@ -1193,14 +1192,29 @@ async def export_listing_loader(listings: List[AmazonListing]):
 
 
 def _bundled_listing_loader_bytes() -> Optional[bytes]:
-    """The generic Amazon Listing Loader (offer) template bundled with the app."""
-    path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                        "data", "amazon_templates", "_LISTING_LOADER.xlsm")
+    """The generic Amazon Listing Loader (offer) template. Prefer the DB-seeded
+    copy (reliable across deploys, same store the category templates use); fall
+    back to the bundled file on disk."""
+    # 1) DB (seeded from data/amazon_templates/_LISTING_LOADER.xlsm at startup)
     try:
-        with open(path, "rb") as f:
-            return f.read()
+        tpl = get_amazon_template_by_type("_LISTING_LOADER")
+        if tpl and tpl.get("data_b64"):
+            return base64.b64decode(tpl["data_b64"])
     except Exception:
-        return None
+        pass
+    # 2) File fallback — try a few candidate locations
+    here = os.path.dirname(os.path.abspath(__file__))
+    candidates = [
+        os.path.join(os.path.dirname(here), "data", "amazon_templates", "_LISTING_LOADER.xlsm"),
+        os.path.join(os.getcwd(), "data", "amazon_templates", "_LISTING_LOADER.xlsm"),
+    ]
+    for path in candidates:
+        try:
+            with open(path, "rb") as f:
+                return f.read()
+        except Exception:
+            continue
+    return None
 
 
 class SellerCentralPackRequest(BaseModel):
