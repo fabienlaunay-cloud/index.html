@@ -2740,7 +2740,8 @@ async def title_migration_export(req: TitleMigrationExportRequest, request: Requ
     the settings/signature row is required. We load Amazon's own template, clear
     the example row and write one partial-update row per SKU (title only),
     leaving product_type empty so Amazon patches the existing listing by SKU
-    across all categories."""
+    across all categories. Updates both the title (item_name) and the new Item
+    Highlights field ("Point fort de l'article" = title_differentiation)."""
     import openpyxl as _openpyxl
     from app.utils.amazon_template_filler import (
         _parse_template_settings, _find_template_worksheet, _build_col_index,
@@ -2778,6 +2779,9 @@ async def title_migration_export(req: TitleMigrationExportRequest, request: Requ
     name_col = col_index.get("item_name#1.value")
     ra_col = col_index.get("::record_action")
     ptype_col = col_index.get("product_type#1.value")
+    # Item Highlights (new July-2026 norm) = "Point fort de l'article" in the
+    # template, attribute title_differentiation#1.value.
+    hl_col = col_index.get("title_differentiation#1.value")
     if not (sku_col and name_col):
         raise HTTPException(503, "Colonnes SKU/titre introuvables dans le modèle Amazon.")
     # product_type#1.value is REQUIRED even for a partial update (error 90041).
@@ -2799,6 +2803,9 @@ async def title_migration_export(req: TitleMigrationExportRequest, request: Requ
         row_num = data_row + count
         ws.cell(row_num, sku_col).value = sku
         ws.cell(row_num, name_col).value = title[:200]
+        highlights = str(r.get("item_highlights", "")).strip()
+        if hl_col and highlights:
+            ws.cell(row_num, hl_col).value = highlights[:125]
         if ra_col:
             ws.cell(row_num, ra_col).value = "partial_update"
         if ptype_col:
