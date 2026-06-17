@@ -13198,23 +13198,19 @@ async function _scLoadAsinsFromAmazon() {
   }
 }
 
-const _SC_FETCH_CHUNK = 20;   // ASINs per Apify call (kept under the run timeout)
-
 async function _scFetchByAsin() {
   const raw = (document.getElementById('scAsinInput').value || '').trim();
   const asins = raw.split(/[\s,;]+/).map(a => a.trim().toUpperCase())
     .filter(a => /^[A-Z0-9]{10}$/.test(a));
-  const uniq = [...new Set(asins)];
+  const uniq = [...new Set(asins)].slice(0, 200);
   if (!uniq.length) {
     showToast('❌', 'Aucun ASIN valide (10 caractères, ex. B0XXXXXXXXX)');
     return;
   }
   // Cost/time guard for large boutiques
-  if (uniq.length > 60) {
-    const est = Math.ceil(uniq.length / _SC_FETCH_CHUNK);
-    if (!confirm(`${uniq.length} ASIN à traiter (≈ ${est} lots, ~${Math.ceil(uniq.length * 0.15)} s).\n\n` +
-      `Cela consomme du crédit Apify. Lancer la récupération de toute la boutique ?`)) return;
-  }
+  if (uniq.length > 60 && !confirm(
+    `${uniq.length} ASIN à traiter (max 200 par lancement).\n\n` +
+    `Le scraping peut prendre quelques minutes et consomme du crédit Apify. Lancer ?`)) return;
 
   const marketplace = document.getElementById('auditMkt')?.value || 'amazon_fr';
   const btn = document.getElementById('scAsinFetchBtn');
@@ -13227,54 +13223,50 @@ async function _scFetchByAsin() {
   btn.innerHTML = '<div class="w-3 h-3 border-2 border-white/40 border-t-white rounded-full animate-spin"></div> Récupération…';
   ['scProductsPanel', 'scBatchResultsPanel'].forEach(id => document.getElementById(id).classList.add('hidden'));
   prog.classList.remove('hidden');
+  bar.style.width = '15%';
+  label.textContent = `Démarrage du scraping pour ${uniq.length} ASIN…`;
 
-  // Split into chunks and accumulate, deduping reviews by ASIN
-  const chunks = [];
-  for (let i = 0; i < uniq.length; i += _SC_FETCH_CHUNK) chunks.push(uniq.slice(i, i + _SC_FETCH_CHUNK));
-  const byAsin = {};
-  let hardError = null;
-  for (let ci = 0; ci < chunks.length; ci++) {
-    const found = Object.keys(byAsin).length;
-    label.textContent = `Récupération des avis : lot ${ci + 1}/${chunks.length} · ${found} produit(s) trouvé(s)`;
-    bar.style.width = `${Math.round((ci / chunks.length) * 100)}%`;
-    try {
-      const r = await authFetch('/api/reviews/fetch-bulk', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ asins: chunks[ci], marketplace }),
-      });
-      if (r.ok) {
-        const data = await r.json();
-        for (const p of (data.products || [])) {
-          if (!byAsin[p.asin]) byAsin[p.asin] = { asin: p.asin, name: p.name, reviews: [...p.reviews] };
-          else byAsin[p.asin].reviews.push(...p.reviews);
-        }
-      } else if (r.status === 404) {
-        // No 1★/2★ reviews in this chunk — normal, keep going
-      } else {
-        const e = await r.json().catch(() => ({}));
-        // Config errors (no APIFY_TOKEN, invalid actor) repeat on every chunk —
-        // abort early instead of hammering.
-        if (r.status === 503 || r.status === 502) { hardError = e.detail || `Erreur ${r.status}`; break; }
-        if (r.status === 429) { hardError = e.detail || 'Limite de débit atteinte — réessayez plus tard.'; break; }
-      }
-    } catch(e) { /* network blip on one chunk — continue */ }
-  }
-  bar.style.width = '100%';
-  prog.classList.add('hidden');
-  btn.disabled = false;
-  btn.innerHTML = original;
+  const finish = () => { prog.classList.add('hidden'); btn.disabled = false; btn.innerHTML = original; };
+  try {
+    // Kick off the async Apify job
+    const r = await authFetch('/api/reviews/fetch-bulk', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ asins: uniq, marketplace }),
+    });
+    if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.detail || `Erreur ${r.status}`); }
+    const { job_id } = await r.json();
 
-  if (hardError) { showActionableError(hardError); hint.textContent = ''; return; }
+    // Poll the job (Apify run happens server-side; can take a few minutes)
+    let result = null;
+    const started = Date.now();
+    for (let i = 0; i < 200; i++) {        // up to ~13 min at 4s
+      await new Promise(res => setTimeout(res, 4000));
+      const elapsed = Math.round((Date.now() - started) / 1000);
+      bar.style.width = `${Math.min(15 + i * 4, 90)}%`;
+      label.textContent = `Scraping des avis en cours… (${elapsed}s)`;
+      const jr = await authFetch(`/api/jobs/${job_id}`).catch(() => null);
+      if (!jr || !jr.ok) continue;
+      const job = await jr.json();
+      if (job.status === 'done') { result = job.result; break; }
+      if (job.status === 'failed') throw new Error(job.error || 'Récupération échouée');
+    }
+    if (!result) throw new Error('Délai dépassé — réessayez avec moins d\'ASIN.');
 
-  const products = Object.values(byAsin).sort((a, b) => b.reviews.length - a.reviews.length);
-  if (!products.length) {
+    bar.style.width = '100%';
+    finish();
+    const products = (result.products || []).sort((a, b) => b.reviews.length - a.reviews.length);
+    if (!products.length) {
+      hint.textContent = '';
+      showActionableError('Aucun avis 1★/2★ trouvé pour ces ASIN. Les produits n\'ont peut-être pas encore d\'avis négatifs, ou vérifiez la configuration Apify.');
+      return;
+    }
+    hint.textContent = `${products.length} produit(s) · ${result.count} avis négatifs récupérés`;
+    _scShowProductList(products);
+  } catch(e) {
+    finish();
     hint.textContent = '';
-    showActionableError('Aucun avis 1★/2★ trouvé pour ces ASIN. Vérifiez la configuration Apify (APIFY_TOKEN / acteur) ou réessayez.');
-    return;
+    showActionableError(e.message || 'Échec de la récupération des avis');
   }
-  const totalReviews = products.reduce((s, p) => s + p.reviews.length, 0);
-  hint.textContent = `${products.length} produit(s) · ${totalReviews} avis négatifs récupérés`;
-  _scShowProductList(products);
 }
 
 async function _scRunJob(reviews, asin, name) {

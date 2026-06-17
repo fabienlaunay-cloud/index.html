@@ -3345,23 +3345,12 @@ def _apify_pick(item: dict, *keys):
     return None
 
 
-async def _apify_fetch_reviews(asins: list[str], marketplace: str, max_per: int = 50) -> list[dict]:
-    """Run the Apify Amazon-reviews actor for a batch of ASINs. Returns
-    [{asin, name, reviews:[str]}] keeping only 1★/2★ reviews."""
-    token = os.getenv("APIFY_TOKEN")
-    if not token:
-        raise HTTPException(
-            503,
-            "APIFY_TOKEN manquant — configurez la clé Apify dans les variables "
-            "d'environnement pour activer la récupération automatique des avis.",
-        )
+def _apify_build_payload(asins: list[str], marketplace: str, max_per: int) -> dict:
     domain = _KW_DOMAINS.get(marketplace, ("amazon.fr",))[0]
     product_urls = [{"url": f"https://www.{domain}/dp/{a}"} for a in asins]
-
-    # Input matches the Junglee "Amazon Reviews Scraper" schema (the default
-    # actor). filterByRatings uses camelCase enum values ("oneStar", "twoStar"),
-    # and the marketplace is carried by the product URL domain (no country field).
-    payload = {
+    # Matches the Junglee "Amazon Reviews Scraper" schema (the default actor).
+    # filterByRatings uses camelCase enums; marketplace is carried by URL domain.
+    return {
         "productUrls": product_urls,
         "maxReviews": max_per,
         "filterByRatings": ["oneStar", "twoStar"],
@@ -3371,34 +3360,13 @@ async def _apify_fetch_reviews(asins: list[str], marketplace: str, max_per: int 
         "includeGdprSensitive": False,
         "proxyConfiguration": {"useApifyProxy": True},
     }
-    url = (
-        f"https://api.apify.com/v2/acts/{APIFY_REVIEWS_ACTOR}"
-        f"/run-sync-get-dataset-items?token={token}"
-    )
-    try:
-        async with httpx.AsyncClient(timeout=300) as client:
-            resp = await client.post(url, json=payload)
-    except httpx.HTTPError as e:
-        raise HTTPException(502, f"Apify injoignable : {type(e).__name__}")
-    if resp.status_code in (401, 403):
-        raise HTTPException(502, "APIFY_TOKEN invalide ou sans accès à cet acteur.")
-    if resp.status_code == 404:
-        raise HTTPException(
-            502,
-            f"Acteur Apify introuvable : '{APIFY_REVIEWS_ACTOR}'. "
-            "Vérifiez APIFY_REVIEWS_ACTOR.",
-        )
-    if not resp.is_success:
-        raise HTTPException(502, f"Apify a renvoyé {resp.status_code} : {resp.text[:200]}")
-    try:
-        items = resp.json()
-    except Exception:
-        raise HTTPException(502, "Réponse Apify illisible (JSON attendu).")
-    if not isinstance(items, list):
-        items = items.get("items", []) if isinstance(items, dict) else []
 
+
+def _apify_parse_items(items: list) -> list[dict]:
+    """Group raw Apify dataset items into [{asin, name, reviews:[str]}],
+    keeping only 1★/2★ reviews."""
     by_asin: dict[str, dict] = {}
-    for it in items:
+    for it in items or []:
         if not isinstance(it, dict):
             continue
         text = _apify_pick(
@@ -3422,8 +3390,85 @@ async def _apify_fetch_reviews(asins: list[str], marketplace: str, max_per: int 
         if not slot["name"] or slot["name"] == asin:
             slot["name"] = name or asin
         slot["reviews"].append(str(text).strip())
-
     return sorted(by_asin.values(), key=lambda p: len(p["reviews"]), reverse=True)
+
+
+async def _apify_run_and_fetch(asins: list[str], marketplace: str, max_per: int,
+                               progress_cb=None) -> list[dict]:
+    """Start the actor asynchronously, poll the run to completion, then read the
+    dataset. Avoids the run-sync 300s cap / gateway timeouts on long scrapes."""
+    token = os.getenv("APIFY_TOKEN")
+    if not token:
+        raise HTTPException(503, "APIFY_TOKEN manquant — configurez la clé Apify côté serveur.")
+    payload = _apify_build_payload(asins, marketplace, max_per)
+    base = "https://api.apify.com/v2"
+    async with httpx.AsyncClient(timeout=120) as client:
+        # 1) Start the run
+        try:
+            r = await client.post(f"{base}/acts/{APIFY_REVIEWS_ACTOR}/runs?token={token}", json=payload)
+        except httpx.HTTPError as e:
+            raise HTTPException(502, f"Apify injoignable : {type(e).__name__}")
+        if r.status_code in (401, 403):
+            raise HTTPException(502, "APIFY_TOKEN invalide ou sans accès à cet acteur.")
+        if r.status_code == 404:
+            raise HTTPException(502, f"Acteur Apify introuvable : '{APIFY_REVIEWS_ACTOR}'. Vérifiez APIFY_REVIEWS_ACTOR.")
+        if r.status_code == 400:
+            raise HTTPException(502, f"Apify a refusé l'entrée (400) : {r.text[:200]}")
+        if not r.is_success:
+            raise HTTPException(502, f"Apify a renvoyé {r.status_code} : {r.text[:200]}")
+        data = (r.json() or {}).get("data", {})
+        run_id = data.get("id")
+        ds_id = data.get("defaultDatasetId")
+        status = data.get("status", "READY")
+        if not run_id or not ds_id:
+            raise HTTPException(502, "Réponse Apify inattendue au démarrage du run.")
+
+        # 2) Poll the run (up to ~12 min — runs in the background, frontend polls the job)
+        for _ in range(180):
+            if status == "SUCCEEDED":
+                break
+            if status in ("FAILED", "ABORTED", "TIMED-OUT", "TIMED_OUT", "TIMING-OUT"):
+                raise HTTPException(502, f"Le run Apify s'est terminé en échec ({status}).")
+            await asyncio.sleep(4)
+            try:
+                pr = await client.get(f"{base}/actor-runs/{run_id}?token={token}")
+                status = (pr.json() or {}).get("data", {}).get("status", status)
+            except httpx.HTTPError:
+                continue  # transient — keep polling
+            if progress_cb:
+                progress_cb(status)
+        else:
+            raise HTTPException(504, "Le scraping Apify a dépassé le délai. Réessayez avec moins d'ASIN.")
+
+        # 3) Read the dataset
+        di = await client.get(f"{base}/datasets/{ds_id}/items?token={token}&clean=true&format=json")
+        if not di.is_success:
+            raise HTTPException(502, f"Lecture du dataset Apify impossible ({di.status_code}).")
+        try:
+            items = di.json()
+        except Exception:
+            raise HTTPException(502, "Dataset Apify illisible (JSON attendu).")
+    if not isinstance(items, list):
+        items = items.get("items", []) if isinstance(items, dict) else []
+    return _apify_parse_items(items)
+
+
+async def _run_fetch_reviews_job(job_id: str, asins: list[str], marketplace: str, email: str):
+    _jobs[job_id]["status"] = "running"
+    try:
+        def _cb(status):
+            _jobs[job_id]["label"] = status
+        products = await _apify_run_and_fetch(asins, marketplace, 50, _cb)
+        total = sum(len(p["reviews"]) for p in products)
+        _jobs[job_id].update({
+            "status": "done", "progress": 1,
+            "result": {"products": products, "count": total, "asins_found": len(products)},
+        })
+    except HTTPException as e:
+        _jobs[job_id].update({"status": "failed", "error": str(e.detail)})
+    except Exception as e:
+        log.error("fetch_reviews_job failed", extra={"job_id": job_id, "error": str(e)})
+        _jobs[job_id].update({"status": "failed", "error": f"{type(e).__name__}: {str(e)[:300]}"})
 
 
 class ReviewsFetchBulkRequest(BaseModel):
@@ -3433,31 +3478,28 @@ class ReviewsFetchBulkRequest(BaseModel):
 
 @app.post("/api/reviews/fetch-bulk")
 async def reviews_fetch_bulk(req: ReviewsFetchBulkRequest, request: Request):
-    """Récupère en masse les avis 1★/2★ pour une liste d'ASIN via Apify."""
+    """Lance un job Apify (asynchrone) pour récupérer les avis 1★/2★ d'une liste
+    d'ASIN. Renvoie un job_id à suivre via /api/jobs/{id}."""
     clean: list[str] = []
     for a in req.asins:
         a = (a or "").strip().upper()
         if re.match(r'^[A-Z0-9]{10}$', a):
             clean.append(a)
-    clean = list(dict.fromkeys(clean))[:50]  # dédoublonne, plafonne à 50 ASIN
+    clean = list(dict.fromkeys(clean))[:200]  # dédoublonne, plafonne à 200 ASIN/run
     if not clean:
         raise HTTPException(400, "Aucun ASIN valide (format attendu : 10 caractères, ex. B0XXXXXXXXX).")
+    if not os.getenv("APIFY_TOKEN"):
+        raise HTTPException(503, "APIFY_TOKEN manquant — configurez la clé Apify côté serveur.")
 
     email = getattr(request.state, "user_email", None)
-    # A whole-boutique scan is chunked into many ~20-ASIN calls, so this limit is
-    # per-chunk, not per-scan — keep it high enough for a few full boutiques/hour.
-    if email and not _rate_limit(f"{email}:reviews_fetch_bulk", limit=120, window=3600):
+    if email and not _rate_limit(f"{email}:reviews_fetch_bulk", limit=20, window=3600):
         raise HTTPException(429, "Trop de récupérations — réessayez dans une heure.")
 
-    products = await _apify_fetch_reviews(clean, req.marketplace)
-    if not products:
-        raise HTTPException(
-            404,
-            "Aucun avis 1★ ou 2★ trouvé pour ces ASIN. Les produits n'ont "
-            "peut-être pas encore d'avis négatifs.",
-        )
-    total = sum(len(p["reviews"]) for p in products)
-    return {"products": products, "count": total, "asins_found": len(products)}
+    job_id = str(uuid4())
+    _jobs[job_id] = {"status": "pending", "progress": 0, "total": 1, "created_at": time.time()}
+    _cleanup_jobs()
+    asyncio.create_task(_run_fetch_reviews_job(job_id, clean, req.marketplace, email or ""))
+    return {"job_id": job_id}
 
 
 @app.post("/api/reviews/parse-html")
