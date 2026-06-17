@@ -3356,21 +3356,20 @@ async def _apify_fetch_reviews(asins: list[str], marketplace: str, max_per: int 
             "d'environnement pour activer la récupération automatique des avis.",
         )
     domain = _KW_DOMAINS.get(marketplace, ("amazon.fr",))[0]
-    country = _apify_country_code(marketplace)
     product_urls = [{"url": f"https://www.{domain}/dp/{a}"} for a in asins]
 
-    # Broad input covering the common Amazon-reviews actor schemas. Actors ignore
-    # keys they don't recognize, so this works across the popular ones.
+    # Input matches the Junglee "Amazon Reviews Scraper" schema (the default
+    # actor). filterByRatings uses camelCase enum values ("oneStar", "twoStar"),
+    # and the marketplace is carried by the product URL domain (no country field).
     payload = {
-        "asins": asins,
         "productUrls": product_urls,
         "maxReviews": max_per,
-        "maxReviewsPerProduct": max_per,
-        "filterByRatings": ["one_star", "two_star"],
-        "sortReviewsBy": "recent",
-        "country": country,
+        "filterByRatings": ["oneStar", "twoStar"],
+        "sort": "recent",
+        "reviewsUseProductVariantFilter": False,
         "scrapeProductDetails": True,
         "includeGdprSensitive": False,
+        "proxyConfiguration": {"useApifyProxy": True},
     }
     url = (
         f"https://api.apify.com/v2/acts/{APIFY_REVIEWS_ACTOR}"
