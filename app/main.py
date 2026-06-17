@@ -3308,6 +3308,157 @@ async def reviews_fetch(asin: str, marketplace: str = "amazon_fr"):
     return {"reviews": reviews, "count": len(reviews), "asin": asin}
 
 
+# ── Apify-backed review fetch (proxy infrastructure → no IP blocking) ────────────
+# Direct scraping above gets blocked by Amazon from datacenter IPs. Apify runs the
+# scrape through rotating residential proxies and returns clean review data.
+# Configure via env: APIFY_TOKEN (required) + APIFY_REVIEWS_ACTOR (optional).
+
+APIFY_REVIEWS_ACTOR = os.getenv("APIFY_REVIEWS_ACTOR", "junglee~amazon-reviews-scraper")
+
+_APIFY_COUNTRY = {
+    "fr": "FR", "de": "DE", "co.uk": "GB", "it": "IT",
+    "es": "ES", "com": "US", "nl": "NL", "se": "SE", "pl": "PL",
+}
+
+
+def _apify_country_code(marketplace: str) -> str:
+    domain = _KW_DOMAINS.get(marketplace, ("amazon.fr",))[0]
+    suffix = domain.split("amazon.", 1)[-1] if "amazon." in domain else "fr"
+    return _APIFY_COUNTRY.get(suffix, "FR")
+
+
+def _apify_parse_rating(raw) -> Optional[float]:
+    """Accept 5, '5', '5.0', '5,0 sur 5 étoiles', etc. → float or None."""
+    if raw is None:
+        return None
+    if isinstance(raw, (int, float)):
+        return float(raw)
+    m = re.search(r'(\d+([.,]\d+)?)', str(raw))
+    return float(m.group(1).replace(",", ".")) if m else None
+
+
+def _apify_pick(item: dict, *keys):
+    for k in keys:
+        v = item.get(k)
+        if v not in (None, "", []):
+            return v
+    return None
+
+
+async def _apify_fetch_reviews(asins: list[str], marketplace: str, max_per: int = 50) -> list[dict]:
+    """Run the Apify Amazon-reviews actor for a batch of ASINs. Returns
+    [{asin, name, reviews:[str]}] keeping only 1★/2★ reviews."""
+    token = os.getenv("APIFY_TOKEN")
+    if not token:
+        raise HTTPException(
+            503,
+            "APIFY_TOKEN manquant — configurez la clé Apify dans les variables "
+            "d'environnement pour activer la récupération automatique des avis.",
+        )
+    domain = _KW_DOMAINS.get(marketplace, ("amazon.fr",))[0]
+    country = _apify_country_code(marketplace)
+    product_urls = [{"url": f"https://www.{domain}/dp/{a}"} for a in asins]
+
+    # Broad input covering the common Amazon-reviews actor schemas. Actors ignore
+    # keys they don't recognize, so this works across the popular ones.
+    payload = {
+        "asins": asins,
+        "productUrls": product_urls,
+        "maxReviews": max_per,
+        "maxReviewsPerProduct": max_per,
+        "filterByRatings": ["one_star", "two_star"],
+        "sortReviewsBy": "recent",
+        "country": country,
+        "scrapeProductDetails": True,
+        "includeGdprSensitive": False,
+    }
+    url = (
+        f"https://api.apify.com/v2/acts/{APIFY_REVIEWS_ACTOR}"
+        f"/run-sync-get-dataset-items?token={token}"
+    )
+    try:
+        async with httpx.AsyncClient(timeout=300) as client:
+            resp = await client.post(url, json=payload)
+    except httpx.HTTPError as e:
+        raise HTTPException(502, f"Apify injoignable : {type(e).__name__}")
+    if resp.status_code in (401, 403):
+        raise HTTPException(502, "APIFY_TOKEN invalide ou sans accès à cet acteur.")
+    if resp.status_code == 404:
+        raise HTTPException(
+            502,
+            f"Acteur Apify introuvable : '{APIFY_REVIEWS_ACTOR}'. "
+            "Vérifiez APIFY_REVIEWS_ACTOR.",
+        )
+    if not resp.is_success:
+        raise HTTPException(502, f"Apify a renvoyé {resp.status_code} : {resp.text[:200]}")
+    try:
+        items = resp.json()
+    except Exception:
+        raise HTTPException(502, "Réponse Apify illisible (JSON attendu).")
+    if not isinstance(items, list):
+        items = items.get("items", []) if isinstance(items, dict) else []
+
+    by_asin: dict[str, dict] = {}
+    for it in items:
+        if not isinstance(it, dict):
+            continue
+        text = _apify_pick(
+            it, "reviewDescription", "reviewText", "text", "review", "body",
+            "content", "description", "reviewBody",
+        )
+        if not text or len(str(text).strip()) < 10:
+            continue
+        rating = _apify_parse_rating(_apify_pick(
+            it, "ratingScore", "rating", "stars", "reviewRating", "starRating", "score",
+        ))
+        if rating is not None and rating > 2:
+            continue  # keep only 1★/2★ when a rating is present
+        asin = str(_apify_pick(it, "asin", "productAsin", "asin1", "parentAsin") or "").upper().strip()
+        if not asin or len(asin) < 5:
+            continue
+        name = str(_apify_pick(
+            it, "productTitle", "title", "productName", "name", "product",
+        ) or asin).strip()
+        slot = by_asin.setdefault(asin, {"asin": asin, "name": name or asin, "reviews": []})
+        if not slot["name"] or slot["name"] == asin:
+            slot["name"] = name or asin
+        slot["reviews"].append(str(text).strip())
+
+    return sorted(by_asin.values(), key=lambda p: len(p["reviews"]), reverse=True)
+
+
+class ReviewsFetchBulkRequest(BaseModel):
+    asins: list[str] = []
+    marketplace: str = "amazon_fr"
+
+
+@app.post("/api/reviews/fetch-bulk")
+async def reviews_fetch_bulk(req: ReviewsFetchBulkRequest, request: Request):
+    """Récupère en masse les avis 1★/2★ pour une liste d'ASIN via Apify."""
+    clean: list[str] = []
+    for a in req.asins:
+        a = (a or "").strip().upper()
+        if re.match(r'^[A-Z0-9]{10}$', a):
+            clean.append(a)
+    clean = list(dict.fromkeys(clean))[:50]  # dédoublonne, plafonne à 50 ASIN
+    if not clean:
+        raise HTTPException(400, "Aucun ASIN valide (format attendu : 10 caractères, ex. B0XXXXXXXXX).")
+
+    email = getattr(request.state, "user_email", None)
+    if email and not _rate_limit(f"{email}:reviews_fetch_bulk", limit=10, window=3600):
+        raise HTTPException(429, "Maximum 10 récupérations en masse par heure.")
+
+    products = await _apify_fetch_reviews(clean, req.marketplace)
+    if not products:
+        raise HTTPException(
+            404,
+            "Aucun avis 1★ ou 2★ trouvé pour ces ASIN. Les produits n'ont "
+            "peut-être pas encore d'avis négatifs.",
+        )
+    total = sum(len(p["reviews"]) for p in products)
+    return {"products": products, "count": total, "asins_found": len(products)}
+
+
 @app.post("/api/reviews/parse-html")
 async def reviews_parse_html(body: dict):
     """Extract review texts from raw HTML source pasted by the user (Ctrl+U fallback)."""
