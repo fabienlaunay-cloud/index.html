@@ -13198,45 +13198,83 @@ async function _scLoadAsinsFromAmazon() {
   }
 }
 
+const _SC_FETCH_CHUNK = 20;   // ASINs per Apify call (kept under the run timeout)
+
 async function _scFetchByAsin() {
   const raw = (document.getElementById('scAsinInput').value || '').trim();
   const asins = raw.split(/[\s,;]+/).map(a => a.trim().toUpperCase())
     .filter(a => /^[A-Z0-9]{10}$/.test(a));
-  const all = [...new Set(asins)];
-  const uniq = all.slice(0, 50);
+  const uniq = [...new Set(asins)];
   if (!uniq.length) {
     showToast('❌', 'Aucun ASIN valide (10 caractères, ex. B0XXXXXXXXX)');
     return;
   }
-  if (all.length > 50) {
-    showToast('ℹ️', `${all.length} ASIN détectés — seuls les 50 premiers seront traités (limite par lot).`);
+  // Cost/time guard for large boutiques
+  if (uniq.length > 60) {
+    const est = Math.ceil(uniq.length / _SC_FETCH_CHUNK);
+    if (!confirm(`${uniq.length} ASIN à traiter (≈ ${est} lots, ~${Math.ceil(uniq.length * 0.15)} s).\n\n` +
+      `Cela consomme du crédit Apify. Lancer la récupération de toute la boutique ?`)) return;
   }
+
+  const marketplace = document.getElementById('auditMkt')?.value || 'amazon_fr';
   const btn = document.getElementById('scAsinFetchBtn');
   const hint = document.getElementById('scAsinHint');
+  const prog = document.getElementById('scBatchProgress');
+  const bar = document.getElementById('scProgressBar');
+  const label = document.getElementById('scProgressLabel');
   btn.disabled = true;
   const original = btn.innerHTML;
   btn.innerHTML = '<div class="w-3 h-3 border-2 border-white/40 border-t-white rounded-full animate-spin"></div> Récupération…';
-  hint.textContent = `Recherche des avis pour ${uniq.length} ASIN… (peut prendre 1 à 2 min)`;
-  ['scProductsPanel', 'scBatchProgress', 'scBatchResultsPanel'].forEach(id =>
-    document.getElementById(id).classList.add('hidden'));
-  const marketplace = document.getElementById('auditMkt')?.value || 'amazon_fr';
-  try {
-    const r = await authFetch('/api/reviews/fetch-bulk', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ asins: uniq, marketplace }),
-    });
-    if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.detail || `Erreur ${r.status}`); }
-    const data = await r.json();
-    hint.textContent = `${data.asins_found} produit(s) · ${data.count} avis négatifs récupérés`;
-    _scShowProductList(data.products);
-  } catch(e) {
-    showActionableError(e.message || 'Échec de la récupération des avis');
-    hint.textContent = '';
-  } finally {
-    btn.disabled = false;
-    btn.innerHTML = original;
+  ['scProductsPanel', 'scBatchResultsPanel'].forEach(id => document.getElementById(id).classList.add('hidden'));
+  prog.classList.remove('hidden');
+
+  // Split into chunks and accumulate, deduping reviews by ASIN
+  const chunks = [];
+  for (let i = 0; i < uniq.length; i += _SC_FETCH_CHUNK) chunks.push(uniq.slice(i, i + _SC_FETCH_CHUNK));
+  const byAsin = {};
+  let hardError = null;
+  for (let ci = 0; ci < chunks.length; ci++) {
+    const found = Object.keys(byAsin).length;
+    label.textContent = `Récupération des avis : lot ${ci + 1}/${chunks.length} · ${found} produit(s) trouvé(s)`;
+    bar.style.width = `${Math.round((ci / chunks.length) * 100)}%`;
+    try {
+      const r = await authFetch('/api/reviews/fetch-bulk', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ asins: chunks[ci], marketplace }),
+      });
+      if (r.ok) {
+        const data = await r.json();
+        for (const p of (data.products || [])) {
+          if (!byAsin[p.asin]) byAsin[p.asin] = { asin: p.asin, name: p.name, reviews: [...p.reviews] };
+          else byAsin[p.asin].reviews.push(...p.reviews);
+        }
+      } else if (r.status === 404) {
+        // No 1★/2★ reviews in this chunk — normal, keep going
+      } else {
+        const e = await r.json().catch(() => ({}));
+        // Config errors (no APIFY_TOKEN, invalid actor) repeat on every chunk —
+        // abort early instead of hammering.
+        if (r.status === 503 || r.status === 502) { hardError = e.detail || `Erreur ${r.status}`; break; }
+        if (r.status === 429) { hardError = e.detail || 'Limite de débit atteinte — réessayez plus tard.'; break; }
+      }
+    } catch(e) { /* network blip on one chunk — continue */ }
   }
+  bar.style.width = '100%';
+  prog.classList.add('hidden');
+  btn.disabled = false;
+  btn.innerHTML = original;
+
+  if (hardError) { showActionableError(hardError); hint.textContent = ''; return; }
+
+  const products = Object.values(byAsin).sort((a, b) => b.reviews.length - a.reviews.length);
+  if (!products.length) {
+    hint.textContent = '';
+    showActionableError('Aucun avis 1★/2★ trouvé pour ces ASIN. Vérifiez la configuration Apify (APIFY_TOKEN / acteur) ou réessayez.');
+    return;
+  }
+  const totalReviews = products.reduce((s, p) => s + p.reviews.length, 0);
+  hint.textContent = `${products.length} produit(s) · ${totalReviews} avis négatifs récupérés`;
+  _scShowProductList(products);
 }
 
 async function _scRunJob(reviews, asin, name) {

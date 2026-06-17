@@ -3445,8 +3445,10 @@ async def reviews_fetch_bulk(req: ReviewsFetchBulkRequest, request: Request):
         raise HTTPException(400, "Aucun ASIN valide (format attendu : 10 caractères, ex. B0XXXXXXXXX).")
 
     email = getattr(request.state, "user_email", None)
-    if email and not _rate_limit(f"{email}:reviews_fetch_bulk", limit=10, window=3600):
-        raise HTTPException(429, "Maximum 10 récupérations en masse par heure.")
+    # A whole-boutique scan is chunked into many ~20-ASIN calls, so this limit is
+    # per-chunk, not per-scan — keep it high enough for a few full boutiques/hour.
+    if email and not _rate_limit(f"{email}:reviews_fetch_bulk", limit=120, window=3600):
+        raise HTTPException(429, "Trop de récupérations — réessayez dans une heure.")
 
     products = await _apify_fetch_reviews(clean, req.marketplace)
     if not products:
