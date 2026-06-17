@@ -13289,12 +13289,25 @@ async function _scRunJob(reviews, asin, name) {
   throw new Error('Timeout — réessayez');
 }
 
-function _scAnalyzeOne(idx) {
+async function _scAnalyzeOne(idx) {
   const p = _scProducts[idx];
-  document.getElementById('revProductName').value = p.name || p.asin;
-  document.getElementById('revReviews').value = p.reviews.join('\n\n');
-  document.getElementById('revAnalyzeBtn').scrollIntoView({ behavior: 'smooth', block: 'center' });
-  setTimeout(() => _reviewsAnalyze(), 400);
+  const btn = document.querySelector(`[onclick="_scAnalyzeOne(${idx})"]`);
+  if (btn) { btn.disabled = true; btn.textContent = '…'; }
+  _scBatchResults = [];
+  document.getElementById('scBatchProgress').classList.remove('hidden');
+  document.getElementById('scBatchResultsPanel').classList.add('hidden');
+  document.getElementById('scProgressLabel').textContent = `Analyse de ${p.name || p.asin}…`;
+  document.getElementById('scProgressBar').style.width = '30%';
+  try {
+    const result = await _scRunJob(p.reviews, p.asin, p.name);
+    _scBatchResults.push({ product: p, result, ok: true });
+  } catch(e) {
+    _scBatchResults.push({ product: p, error: e.message, ok: false });
+  }
+  document.getElementById('scProgressBar').style.width = '100%';
+  document.getElementById('scProgressLabel').textContent = 'Terminé !';
+  setTimeout(() => { document.getElementById('scBatchProgress').classList.add('hidden'); _scRenderBatchResults(); }, 500);
+  if (btn) { btn.disabled = false; btn.textContent = 'Analyser'; }
 }
 
 async function _scAnalyzeAll() {

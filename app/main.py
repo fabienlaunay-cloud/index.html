@@ -3383,9 +3383,13 @@ def _apify_parse_items(items: list) -> list[dict]:
         asin = str(_apify_pick(it, "asin", "productAsin", "asin1", "parentAsin") or "").upper().strip()
         if not asin or len(asin) < 5:
             continue
-        name = str(_apify_pick(
+        name_raw = _apify_pick(
             it, "productTitle", "title", "productName", "name", "product",
-        ) or asin).strip()
+        ) or asin
+        if isinstance(name_raw, dict):
+            name_raw = (name_raw.get("title") or name_raw.get("name")
+                        or next((v for v in name_raw.values() if isinstance(v, str) and len(v) > 5), asin))
+        name = str(name_raw).strip()
         slot = by_asin.setdefault(asin, {"asin": asin, "name": name or asin, "reviews": []})
         if not slot["name"] or slot["name"] == asin:
             slot["name"] = name or asin
