@@ -1628,14 +1628,26 @@
             <p class="text-xs font-semibold text-emerald-800">Récupération automatique des avis par ASIN</p>
           </div>
 
-          <!-- Option A : import rapport inventaire Seller Central -->
+          <!-- Option A : compte Amazon connecté (SP-API) -->
           <div class="bg-white border border-emerald-200 rounded-lg p-3 mb-3">
-            <p class="text-xs font-semibold text-gray-700 mb-1">Option A — Rapport Gestion des stocks <span class="text-gray-400 font-normal">(recommandé)</span></p>
+            <p class="text-xs font-semibold text-gray-700 mb-1">Option A — Mon compte Amazon connecté <span class="text-emerald-600 font-normal">(recommandé — tous les ASIN)</span></p>
+            <p class="text-xs text-gray-500 mb-2 leading-relaxed">Récupère les vrais ASIN de <strong>toute votre boutique</strong> via l'API Amazon, y compris les produits listés par EAN.</p>
+            <button id="scAmazonBtn" onclick="_scLoadAsinsFromAmazon()"
+              class="w-full bg-emerald-50 border border-emerald-300 text-emerald-700 rounded-lg px-3 py-2 text-xs font-semibold hover:bg-emerald-100 transition flex items-center justify-center gap-1.5">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+              Récupérer mes ASIN depuis Amazon
+            </button>
+          </div>
+
+          <!-- Option B : import rapport inventaire Seller Central -->
+          <div class="bg-white border border-emerald-200 rounded-lg p-3 mb-3">
+            <p class="text-xs font-semibold text-gray-700 mb-1">Option B — Rapport Gestion des stocks</p>
             <ol class="text-xs text-gray-500 list-decimal list-inside space-y-0.5 mb-2 leading-relaxed">
               <li>Seller Central → <strong>Rapports</strong> → <strong>Gestion des stocks</strong></li>
-              <li>Téléchargez <strong>Rapport sur tous les produits mis en vente</strong> (.csv)</li>
-              <li>Déposez-le ici — SynqIO extrait tous les ASIN automatiquement</li>
+              <li>Téléchargez <strong>Rapport sur tous les produits mis en vente</strong></li>
+              <li>Déposez-le ici — SynqIO extrait les ASIN disponibles</li>
             </ol>
+            <p class="text-xs text-amber-600 mb-2">⚠️ Ce rapport ne contient l'ASIN que pour les produits listés par ASIN — ceux listés par EAN n'y figurent pas. Préférez l'Option A pour une boutique complète.</p>
             <div id="scInventoryDropzone"
               ondragover="event.preventDefault(); this.classList.add('border-emerald-400','bg-emerald-50')"
               ondragleave="this.classList.remove('border-emerald-400','bg-emerald-50')"
@@ -1648,9 +1660,9 @@
             </div>
           </div>
 
-          <!-- Option B : saisie manuelle -->
+          <!-- Option C : saisie manuelle -->
           <div>
-            <p class="text-xs font-semibold text-gray-700 mb-1">Option B — Coller les ASIN manuellement <span class="text-gray-400 font-normal">(jusqu'à 50)</span></p>
+            <p class="text-xs font-semibold text-gray-700 mb-1">Option C — Coller les ASIN manuellement <span class="text-gray-400 font-normal">(jusqu'à 50)</span></p>
             <textarea id="scAsinInput" rows="3"
               placeholder="B0XXXXXXXX1&#10;B0XXXXXXXX2&#10;B0XXXXXXXX3"
               class="w-full text-xs border border-gray-200 rounded-lg p-2.5 font-mono focus:ring-1 focus:ring-emerald-400 focus:border-emerald-400 outline-none resize-none"></textarea>
@@ -13151,14 +13163,58 @@ function _scExtractAsinsFromInventory(raw) {
   return asins;
 }
 
+async function _scLoadAsinsFromAmazon() {
+  const mkt = document.getElementById('auditMkt')?.value || 'amazon_fr';
+  const btn = document.getElementById('scAmazonBtn');
+  const hint = document.getElementById('scAsinHint');
+  const original = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = '<div class="w-3 h-3 border-2 border-emerald-300 border-t-emerald-600 rounded-full animate-spin"></div> Chargement…';
+  const grabAsins = (items) => [...new Set((items || [])
+    .map(i => (i.asin || '').toUpperCase().trim())
+    .filter(a => /^[A-Z0-9]{10}$/.test(a)))];
+  try {
+    let r = await authFetch(`/api/amazon/catalog?marketplace=${encodeURIComponent(mkt)}`);
+    if (r.status === 401 || r.status === 403) throw new Error('Connectez d\'abord votre compte Amazon (onglet Publication / Connexion Amazon) pour utiliser cette option.');
+    let data = r.ok ? await r.json() : {};
+    let asins = grabAsins(data.items);
+    if (!asins.length) {
+      // Catalog not synced yet → trigger a sync then re-fetch
+      hint.textContent = 'Synchronisation du catalogue Amazon… (peut prendre 1 min)';
+      const s = await authFetch('/api/amazon/catalog/sync', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ marketplace: mkt }),
+      });
+      if (s.status === 401 || s.status === 403) throw new Error('Compte Amazon non connecté — connectez-le d\'abord.');
+      if (!s.ok) { const e = await s.json().catch(() => ({})); throw new Error(e.detail || 'Échec de la synchronisation Amazon'); }
+      r = await authFetch(`/api/amazon/catalog?marketplace=${encodeURIComponent(mkt)}`);
+      data = r.ok ? await r.json() : {};
+      asins = grabAsins(data.items);
+    }
+    if (!asins.length) throw new Error('Aucun ASIN trouvé dans votre catalogue Amazon. Vérifiez que la connexion SP-API est active et que le marketplace est le bon.');
+    document.getElementById('scAsinInput').value = asins.join('\n');
+    hint.textContent = `${asins.length} ASIN récupérés depuis Amazon — cliquez sur Récupérer les avis`;
+  } catch(e) {
+    showActionableError(e.message || 'Impossible de récupérer les ASIN depuis Amazon');
+    hint.textContent = '';
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = original;
+  }
+}
+
 async function _scFetchByAsin() {
   const raw = (document.getElementById('scAsinInput').value || '').trim();
   const asins = raw.split(/[\s,;]+/).map(a => a.trim().toUpperCase())
     .filter(a => /^[A-Z0-9]{10}$/.test(a));
-  const uniq = [...new Set(asins)].slice(0, 50);
+  const all = [...new Set(asins)];
+  const uniq = all.slice(0, 50);
   if (!uniq.length) {
     showToast('❌', 'Aucun ASIN valide (10 caractères, ex. B0XXXXXXXXX)');
     return;
+  }
+  if (all.length > 50) {
+    showToast('ℹ️', `${all.length} ASIN détectés — seuls les 50 premiers seront traités (limite par lot).`);
   }
   const btn = document.getElementById('scAsinFetchBtn');
   const hint = document.getElementById('scAsinHint');
