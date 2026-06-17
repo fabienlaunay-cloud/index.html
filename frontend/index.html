@@ -13105,34 +13105,48 @@ function _scInventoryReadFile(file) {
 
 function _scExtractAsinsFromInventory(raw) {
   if (raw.charCodeAt(0) === 0xFEFF) raw = raw.slice(1);
-  // Seller Central inventory reports can be tab or comma separated
-  const lines = raw.split(/\r?\n/);
-  // Find header line — skip comment/metadata rows that start without a recognizable header
-  let headerIdx = -1;
-  let sep = '\t';
-  for (let i = 0; i < Math.min(lines.length, 10); i++) {
-    const low = lines[i].toLowerCase();
-    if (low.includes('asin') || low.includes('sku')) {
-      headerIdx = i;
-      sep = lines[i].includes('\t') ? '\t' : ',';
-      break;
-    }
+  const lines = raw.split(/\r?\n/).filter(l => l.trim());
+  if (lines.length < 2) throw new Error('Fichier vide ou trop court');
+
+  // Pick the separator that yields the most columns (Amazon reports are usually
+  // tab-separated, but some exports use comma or semicolon).
+  let sep = '\t', bestCols = 1;
+  for (const s of ['\t', ',', ';']) {
+    const n = lines[0].split(s).length;
+    if (n > bestCols) { bestCols = n; sep = s; }
   }
-  if (headerIdx === -1) throw new Error('En-tête de colonne introuvable (colonnes ASIN/SKU attendues)');
-  const headers = lines[headerIdx].split(sep).map(h =>
-    h.toLowerCase().trim().replace(/^"|"$/g, '').replace(/[-_\s]/g, '')
-  );
-  // Accept asin1, asin, asin1, "asin 1"
-  let asinCol = headers.findIndex(h => h === 'asin1' || h === 'asin');
-  if (asinCol === -1) asinCol = headers.findIndex(h => h.startsWith('asin'));
-  if (asinCol === -1) throw new Error('Colonne ASIN introuvable — téléchargez bien le rapport "Rapport sur tous les produits mis en vente"');
+  const splitLine = (line) => line.split(sep).map(v => v.replace(/^"|"$/g, '').trim());
+
   const seen = new Set();
   const asins = [];
-  for (let i = headerIdx + 1; i < lines.length; i++) {
-    if (!lines[i].trim()) continue;
-    const cols = lines[i].split(sep).map(v => v.replace(/^"|"$/g, '').trim());
-    const a = (cols[asinCol] || '').toUpperCase().trim();
-    if (/^[A-Z0-9]{10}$/.test(a) && !seen.has(a)) { seen.add(a); asins.push(a); }
+  const pushIf10 = (v) => {
+    v = (v || '').toUpperCase().trim();
+    if (/^[A-Z0-9]{10}$/.test(v) && !seen.has(v)) { seen.add(v); asins.push(v); }
+  };
+
+  // 1) Header-based detection — accepts asin1 / asin / "asin 1" / localized variants
+  const header = splitLine(lines[0]).map(h => h.toLowerCase().replace(/[-_\s]/g, ''));
+  let asinCol = header.findIndex(h => h === 'asin1' || h === 'asin');
+  if (asinCol === -1) asinCol = header.findIndex(h => h.startsWith('asin'));
+  if (asinCol !== -1) {
+    for (let i = 1; i < lines.length; i++) pushIf10(splitLine(lines[i])[asinCol]);
+  }
+
+  // 2) Fallback — scan every cell for ASIN-looking tokens. Robust against
+  // unknown/localized headers, preamble rows or wrong separator. ASINs start
+  // with "B0" (most products) or are 10-digit ISBN-based codes.
+  if (!asins.length) {
+    const looksAsin = (v) => /^B0[0-9A-Z]{8}$/.test(v) || /^[0-9]{9}[0-9X]$/.test(v);
+    for (let i = 0; i < lines.length; i++) {
+      for (const cell of splitLine(lines[i])) {
+        const v = cell.toUpperCase().trim();
+        if (looksAsin(v) && !seen.has(v)) { seen.add(v); asins.push(v); }
+      }
+    }
+  }
+
+  if (!asins.length) {
+    throw new Error('Aucun ASIN trouvé dans ce fichier. Vérifiez qu\'il s\'agit bien du « Rapport sur tous les produits mis en vente » (Rapports → Gestion des stocks).');
   }
   return asins;
 }
