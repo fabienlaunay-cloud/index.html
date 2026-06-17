@@ -1628,26 +1628,16 @@
             <p class="text-xs font-semibold text-emerald-800">Récupération automatique des avis par ASIN</p>
           </div>
 
-          <!-- Option A : compte Amazon connecté (SP-API) -->
+          <!-- Option A : Rapport d'activité (Business Report) — contient tous les ASIN -->
           <div class="bg-white border border-emerald-200 rounded-lg p-3 mb-3">
-            <p class="text-xs font-semibold text-gray-700 mb-1">Option A — Mon compte Amazon connecté <span class="text-emerald-600 font-normal">(recommandé — tous les ASIN)</span></p>
-            <p class="text-xs text-gray-500 mb-2 leading-relaxed">Récupère les vrais ASIN de <strong>toute votre boutique</strong> via l'API Amazon, y compris les produits listés par EAN.</p>
-            <button id="scAmazonBtn" onclick="_scLoadAsinsFromAmazon()"
-              class="w-full bg-emerald-50 border border-emerald-300 text-emerald-700 rounded-lg px-3 py-2 text-xs font-semibold hover:bg-emerald-100 transition flex items-center justify-center gap-1.5">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
-              Récupérer mes ASIN depuis Amazon
-            </button>
-          </div>
-
-          <!-- Option B : import rapport inventaire Seller Central -->
-          <div class="bg-white border border-emerald-200 rounded-lg p-3 mb-3">
-            <p class="text-xs font-semibold text-gray-700 mb-1">Option B — Rapport Gestion des stocks</p>
+            <p class="text-xs font-semibold text-gray-700 mb-1">Option A — Rapport d'activité Amazon <span class="text-emerald-600 font-normal">(recommandé — tous les ASIN)</span></p>
             <ol class="text-xs text-gray-500 list-decimal list-inside space-y-0.5 mb-2 leading-relaxed">
-              <li>Seller Central → <strong>Rapports</strong> → <strong>Gestion des stocks</strong></li>
-              <li>Téléchargez <strong>Rapport sur tous les produits mis en vente</strong></li>
-              <li>Déposez-le ici — SynqIO extrait les ASIN disponibles</li>
+              <li>Seller Central → <strong>Rapports</strong> → <strong>Rapports d'activité</strong></li>
+              <li>Ouvrez <strong>« Ventes et trafic par page de produit enfant »</strong> (par ASIN)</li>
+              <li>Choisissez une <strong>large période</strong> (ex. 12 mois), puis <strong>Télécharger</strong> en CSV</li>
+              <li>Déposez le fichier ci-dessous — SynqIO extrait tous les ASIN</li>
             </ol>
-            <p class="text-xs text-amber-600 mb-2">⚠️ Ce rapport ne contient l'ASIN que pour les produits listés par ASIN — ceux listés par EAN n'y figurent pas. Préférez l'Option A pour une boutique complète.</p>
+            <p class="text-xs text-emerald-600 mb-1">✓ Ce rapport contient l'ASIN de chaque produit (EAN inclus), contrairement au rapport d'inventaire.</p>
             <div id="scInventoryDropzone"
               ondragover="event.preventDefault(); this.classList.add('border-emerald-400','bg-emerald-50')"
               ondragleave="this.classList.remove('border-emerald-400','bg-emerald-50')"
@@ -1655,14 +1645,14 @@
               onclick="document.getElementById('scInventoryCsvInput').click()"
               class="border-2 border-dashed border-emerald-200 rounded-lg p-4 text-center cursor-pointer hover:border-emerald-400 hover:bg-emerald-50 transition">
               <input type="file" id="scInventoryCsvInput" accept=".csv,.txt,.tsv" class="hidden" onchange="_scInventoryOnFileChange(this)">
-              <p class="text-xs text-gray-500">Déposez votre rapport inventaire ici ou <span class="text-emerald-600 font-medium underline">cliquez pour parcourir</span></p>
+              <p class="text-xs text-gray-500">Déposez le rapport d'activité ici ou <span class="text-emerald-600 font-medium underline">cliquez pour parcourir</span></p>
               <p class="text-xs text-gray-400 mt-0.5" id="scInventoryFileName">Fichier .csv Seller Central</p>
             </div>
           </div>
 
-          <!-- Option C : saisie manuelle -->
+          <!-- Option B : saisie manuelle -->
           <div>
-            <p class="text-xs font-semibold text-gray-700 mb-1">Option C — Coller les ASIN manuellement <span class="text-gray-400 font-normal">(jusqu'à 50)</span></p>
+            <p class="text-xs font-semibold text-gray-700 mb-1">Option B — Coller les ASIN manuellement <span class="text-gray-400 font-normal">(jusqu'à 50)</span></p>
             <textarea id="scAsinInput" rows="3"
               placeholder="B0XXXXXXXX1&#10;B0XXXXXXXX2&#10;B0XXXXXXXX3"
               class="w-full text-xs border border-gray-200 rounded-lg p-2.5 font-mono focus:ring-1 focus:ring-emerald-400 focus:border-emerald-400 outline-none resize-none"></textarea>
@@ -13105,7 +13095,7 @@ function _scInventoryReadFile(file) {
   reader.onload = (e) => {
     try {
       const asins = _scExtractAsinsFromInventory(e.target.result);
-      if (!asins.length) { showToast('❌', 'Aucun ASIN trouvé — vérifiez qu\'il s\'agit du rapport Gestion des stocks'); return; }
+      if (!asins.length) { showToast('❌', 'Aucun ASIN trouvé — utilisez le rapport « Ventes et trafic par page de produit enfant » (Rapports d\'activité)'); return; }
       document.getElementById('scAsinInput').value = asins.join('\n');
       document.getElementById('scAsinHint').textContent = `${asins.length} ASIN détectés — cliquez sur Récupérer les avis`;
     } catch(err) {
@@ -13136,12 +13126,17 @@ function _scExtractAsinsFromInventory(raw) {
     if (/^[A-Z0-9]{10}$/.test(v) && !seen.has(v)) { seen.add(v); asins.push(v); }
   };
 
-  // 1) Header-based detection — accepts asin1 / asin / "asin 1" / localized variants
+  // 1) Header-based detection — collect from EVERY ASIN-named column so the
+  // Business Report "(Parent) ASIN" + "(Enfant) ASIN" (and asin1/2/3) are all
+  // captured. Value validation in pushIf10 keeps non-ASIN columns harmless.
   const header = splitLine(lines[0]).map(h => h.toLowerCase().replace(/[-_\s]/g, ''));
-  let asinCol = header.findIndex(h => h === 'asin1' || h === 'asin');
-  if (asinCol === -1) asinCol = header.findIndex(h => h.startsWith('asin'));
-  if (asinCol !== -1) {
-    for (let i = 1; i < lines.length; i++) pushIf10(splitLine(lines[i])[asinCol]);
+  const asinCols = [];
+  header.forEach((h, i) => { if (h.includes('asin')) asinCols.push(i); });
+  if (asinCols.length) {
+    for (let i = 1; i < lines.length; i++) {
+      const cells = splitLine(lines[i]);
+      for (const c of asinCols) pushIf10(cells[c]);
+    }
   }
 
   // 2) Fallback — scan every cell for ASIN-looking tokens. Robust against
