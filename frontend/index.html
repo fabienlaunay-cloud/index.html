@@ -13368,7 +13368,12 @@ function _scSendBatchToGenerator(i) {
     .map(iss => `[${fieldLabels[iss.field] || iss.field}] ${iss.suggestion}`);
   parsedProducts = [{ sku: product.asin, name: product.name, improvement_notes, focus_keywords: [], features: [], images: [], extra: {} }];
   switchAppMode('generate');
+  // Show product list and enable generation
+  showProductsList(parsedProducts);
+  document.getElementById('generateBtn').disabled = false;
   setStep(2);
+  // Scroll to the product list so the user sees it's loaded
+  document.getElementById('productsList').scrollIntoView({ behavior: 'smooth', block: 'start' });
   showToast('', `${improvement_notes.length} correctif(s) injecté(s) dans le générateur`);
 }
 
