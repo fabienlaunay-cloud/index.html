@@ -3362,24 +3362,27 @@ def _apify_build_payload(asins: list[str], marketplace: str, max_per: int) -> di
     }
 
 
+def _apify_parse_int(raw) -> Optional[int]:
+    if raw is None:
+        return None
+    if isinstance(raw, (int, float)):
+        return int(raw)
+    m = re.search(r'[\d.,\s]+', str(raw))
+    if not m:
+        return None
+    digits = re.sub(r'[^\d]', '', m.group(0))
+    return int(digits) if digits else None
+
+
 def _apify_parse_items(items: list) -> list[dict]:
-    """Group raw Apify dataset items into [{asin, name, reviews:[str]}],
-    keeping only 1★/2★ reviews."""
+    """Group raw Apify dataset items by ASIN. Keeps only 1★/2★ review text, but
+    also captures the product-level overall rating and total review count
+    (already present on each item thanks to scrapeProductDetails) so the UI can
+    show the global score, not just the negatives."""
     by_asin: dict[str, dict] = {}
     for it in items or []:
         if not isinstance(it, dict):
             continue
-        text = _apify_pick(
-            it, "reviewDescription", "reviewText", "text", "review", "body",
-            "content", "description", "reviewBody",
-        )
-        if not text or len(str(text).strip()) < 10:
-            continue
-        rating = _apify_parse_rating(_apify_pick(
-            it, "ratingScore", "rating", "stars", "reviewRating", "starRating", "score",
-        ))
-        if rating is not None and rating > 2:
-            continue  # keep only 1★/2★ when a rating is present
         asin = str(_apify_pick(it, "asin", "productAsin", "asin1", "parentAsin") or "").upper().strip()
         if not asin or len(asin) < 5:
             continue
@@ -3390,11 +3393,41 @@ def _apify_parse_items(items: list) -> list[dict]:
             name_raw = (name_raw.get("title") or name_raw.get("name")
                         or next((v for v in name_raw.values() if isinstance(v, str) and len(v) > 5), asin))
         name = str(name_raw).strip()
-        slot = by_asin.setdefault(asin, {"asin": asin, "name": name or asin, "reviews": []})
+        slot = by_asin.setdefault(
+            asin, {"asin": asin, "name": name or asin, "reviews": [],
+                   "rating": None, "total_reviews": None})
         if not slot["name"] or slot["name"] == asin:
             slot["name"] = name or asin
+
+        # Product-level score / volume — carried on every item via scrapeProductDetails
+        if slot["rating"] is None:
+            slot["rating"] = _apify_parse_rating(_apify_pick(
+                it, "productRating", "productOverallRating", "overallRating",
+                "averageRating", "productStarRating", "stars",
+            ))
+        if slot["total_reviews"] is None:
+            slot["total_reviews"] = _apify_parse_int(_apify_pick(
+                it, "countReviews", "reviewsCount", "productReviewsCount",
+                "totalReviews", "countRatings", "ratingCount", "productTotalReviews",
+            ))
+
+        # Review text — keep only 1★/2★
+        text = _apify_pick(
+            it, "reviewDescription", "reviewText", "text", "review", "body",
+            "content", "description", "reviewBody",
+        )
+        if not text or len(str(text).strip()) < 10:
+            continue
+        rating = _apify_parse_rating(_apify_pick(
+            it, "ratingScore", "rating", "reviewRating", "starRating", "score",
+        ))
+        if rating is not None and rating > 2:
+            continue  # keep only 1★/2★ when a rating is present
         slot["reviews"].append(str(text).strip())
-    return sorted(by_asin.values(), key=lambda p: len(p["reviews"]), reverse=True)
+
+    # Surface only products that actually have negatives to work on
+    result = [p for p in by_asin.values() if p["reviews"]]
+    return sorted(result, key=lambda p: len(p["reviews"]), reverse=True)
 
 
 async def _apify_run_and_fetch(asins: list[str], marketplace: str, max_per: int,

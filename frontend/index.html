@@ -13058,22 +13058,39 @@ function _scReadFile(file) {
   reader.readAsText(file, 'UTF-8');
 }
 
+function _scScoreBadge(p) {
+  // Overall product score (positives included), pulled from product details.
+  if (p.rating == null) return '';
+  const r = Number(p.rating);
+  const color = r >= 4 ? 'text-emerald-600' : r >= 3 ? 'text-amber-600' : 'text-red-600';
+  const total = p.total_reviews != null ? ` · ${p.total_reviews.toLocaleString('fr-FR')} avis` : '';
+  return `<span class="${color} font-semibold">★ ${r.toFixed(1)}</span><span class="text-gray-400">${total}</span>`;
+}
+
 function _scShowProductList(products) {
   _scProducts = products;
   const total = products.reduce((s, p) => s + p.reviews.length, 0);
   document.getElementById('scProductsSummary').textContent =
     `${products.length} produit(s) avec avis négatifs · ${total} avis 1★/2★`;
-  document.getElementById('scProductList').innerHTML = products.map((p, i) => `
+  document.getElementById('scProductList').innerHTML = products.map((p, i) => {
+    const score = _scScoreBadge(p);
+    return `
     <div class="flex items-center gap-3 p-3 rounded-xl border border-gray-100 hover:border-blue-200 transition bg-gray-50">
       <div class="flex-1 min-w-0">
         <p class="text-sm font-medium text-gray-800 truncate">${p.name}</p>
-        <p class="text-xs text-gray-400">${p.asin} · ${p.reviews.length} avis négatif${p.reviews.length > 1 ? 's' : ''}</p>
+        <p class="text-xs text-gray-400 flex items-center gap-1.5 flex-wrap">
+          ${score ? `${score}<span class="text-gray-300">·</span>` : ''}
+          <span>${p.asin}</span>
+          <span class="text-gray-300">·</span>
+          <span class="text-red-500 font-medium">${p.reviews.length} négatif${p.reviews.length > 1 ? 's' : ''}</span>
+        </p>
       </div>
       <button onclick="_scAnalyzeOne(${i})"
         class="text-xs bg-blue-50 text-blue-700 border border-blue-200 rounded-lg px-3 py-1.5 font-semibold hover:bg-blue-100 transition flex-shrink-0">
         Analyser
       </button>
-    </div>`).join('');
+    </div>`;
+  }).join('');
   document.getElementById('scProductsPanel').classList.remove('hidden');
 }
 
@@ -13370,11 +13387,12 @@ function _scRenderBatchResults() {
       <span class="font-semibold">${r.product.name}</span> — Erreur : ${r.error}</div>`;
     const { summary, issues = [] } = r.result;
     const urgCount = issues.filter(iss => iss.urgency !== 'minor').length;
+    const score = _scScoreBadge(r.product);
     return `<div class="border border-gray-100 rounded-xl overflow-hidden">
       <button onclick="_scToggleBatchCard(${i})" class="w-full flex items-center gap-3 p-3 hover:bg-gray-50 transition text-left">
         <div class="flex-1 min-w-0">
           <p class="text-sm font-semibold text-gray-800 truncate">${r.product.name}</p>
-          <p class="text-xs text-gray-400">${r.product.asin} · ${r.product.reviews.length} avis · ${issues.length} problème(s)${urgCount ? ` · <span class="text-red-500 font-semibold">${urgCount} urgent(s)</span>` : ''}</p>
+          <p class="text-xs text-gray-400">${score ? `${score} · ` : ''}${r.product.asin} · ${r.product.reviews.length} avis négatifs · ${issues.length} problème(s)${urgCount ? ` · <span class="text-red-500 font-semibold">${urgCount} urgent(s)</span>` : ''}</p>
         </div>
         <span id="scArrow_${i}" class="text-gray-300 text-sm transition-transform duration-200">▾</span>
       </button>
