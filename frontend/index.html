@@ -1752,17 +1752,22 @@
         <!-- Instructions deux formats -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
           <div class="bg-indigo-50 border border-indigo-200 rounded-xl p-4">
-            <p class="text-xs font-semibold text-indigo-800 mb-1.5">Option A — Rapport Seller Central</p>
+            <p class="text-xs font-semibold text-indigo-800 mb-1.5">Option A — Rapport Flat File Amazon <span class="text-indigo-500 font-normal">(audit complet)</span></p>
             <ol class="text-xs text-indigo-700 space-y-1 list-decimal list-inside leading-relaxed">
-              <li>Seller Central → <strong>Rapports</strong> → <strong>Gestion des stocks</strong></li>
-              <li>Téléchargez <strong>Rapport sur tous les produits mis en vente</strong></li>
-              <li>Importez le <code class="bg-indigo-100 rounded px-1">.csv</code> ici</li>
+              <li>Seller Central → <strong>Rapports</strong> → <strong>Demander un rapport</strong></li>
+              <li>Choisissez <strong>« Toutes les inscriptions »</strong> (Flat File)</li>
+              <li>Téléchargez et importez le fichier <code class="bg-indigo-100 rounded px-1">.txt / .csv</code> ici</li>
             </ol>
-            <p class="text-xs text-indigo-400 mt-2">⚠ Audit partiel : titre + description uniquement (bullets manquants dans ce rapport)</p>
+            <p class="text-xs text-emerald-700 mt-2 font-medium">✓ Contient titre, bullets, mots-clés backend — audit 100 % complet</p>
+          </div>
+          <div class="bg-amber-50 border border-amber-200 rounded-xl p-4">
+            <p class="text-xs font-semibold text-amber-800 mb-1.5">Option B — Rapport basique <span class="text-amber-600 font-normal">(audit partiel)</span></p>
+            <p class="text-xs text-amber-700 leading-relaxed mb-1">Seller Central → <strong>Rapports</strong> → <strong>Gestion des stocks</strong> → <em>Rapport sur tous les produits mis en vente</em></p>
+            <p class="text-xs text-amber-600">⚠ Ce rapport n'inclut pas les bullet points (limitation Amazon). Seuls le titre et la description seront audités.</p>
           </div>
           <div class="bg-violet-50 border border-violet-200 rounded-xl p-4">
-            <p class="text-xs font-semibold text-violet-800 mb-1.5">Option B — Template SynqIO (audit complet)</p>
-            <p class="text-xs text-violet-700 leading-relaxed mb-2">Téléchargez le template, remplissez titre + 5 bullets + mots-clés backend + description, puis importez.</p>
+            <p class="text-xs font-semibold text-violet-800 mb-1.5">Option C — Template SynqIO <span class="text-violet-600 font-normal">(saisie manuelle)</span></p>
+            <p class="text-xs text-violet-700 leading-relaxed mb-2">Remplissez titre + 5 bullets + mots-clés backend + description pour chaque produit.</p>
             <button onclick="_laDownloadTemplate()"
               class="text-xs bg-violet-600 hover:bg-violet-700 text-white rounded-lg px-3 py-1.5 font-semibold transition flex items-center gap-1.5">
               <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
@@ -13511,20 +13516,23 @@ function _laParseCsv(raw) {
     "Format non reconnu. Utilisez le template SynqIO ou le rapport 'Toutes les inscriptions' de Seller Central."
   );
 
-  const partial = !isSynqio; // Amazon report = audit partiel (no bullets/keywords)
-
   // Column mapping
   const skuCol   = col('sku', 'sellersku', 'seller-sku');
   const asinCol  = col('asin', 'asin1');
   const nameCol  = col('titre', 'title', 'itemname', 'item-name', 'productname', 'name');
   const descCol  = col('description', 'itemdescription', 'item-description', 'productdescription');
   const mktCol   = col('marketplace');
-  const kwCol    = col('motsclesbackend', 'mots_cles_backend', 'searchterms', 'search-terms', 'genericKeywords', 'keywords', 'backendkeywords');
-  const b1Col    = col('bullet1', 'bullet_1', 'keyfeature1', 'key-feature-1', 'bulletpoint1');
-  const b2Col    = col('bullet2', 'bullet_2', 'keyfeature2', 'key-feature-2', 'bulletpoint2');
-  const b3Col    = col('bullet3', 'bullet_3', 'keyfeature3', 'key-feature-3', 'bulletpoint3');
-  const b4Col    = col('bullet4', 'bullet_4', 'keyfeature4', 'key-feature-4', 'bulletpoint4');
-  const b5Col    = col('bullet5', 'bullet_5', 'keyfeature5', 'key-feature-5', 'bulletpoint5');
+  const kwCol    = col('motsclesbackend', 'mots_cles_backend', 'searchterms', 'search-terms', 'genericKeywords', 'generickeywords', 'keywords', 'backendkeywords', 'searchterm');
+  // bullet-point1…5 (Amazon Flat File) normalises to bulletpoint1…5 via col()
+  const b1Col    = col('bullet1', 'bullet_1', 'keyfeature1', 'key-feature-1', 'bulletpoint1', 'bulletpoint01');
+  const b2Col    = col('bullet2', 'bullet_2', 'keyfeature2', 'key-feature-2', 'bulletpoint2', 'bulletpoint02');
+  const b3Col    = col('bullet3', 'bullet_3', 'keyfeature3', 'key-feature-3', 'bulletpoint3', 'bulletpoint03');
+  const b4Col    = col('bullet4', 'bullet_4', 'keyfeature4', 'key-feature-4', 'bulletpoint4', 'bulletpoint04');
+  const b5Col    = col('bullet5', 'bullet_5', 'keyfeature5', 'key-feature-5', 'bulletpoint5', 'bulletpoint05');
+
+  // partial = bullets genuinely absent from this file (Amazon basic inventory report).
+  // Amazon Flat File All Listings Report DOES have bullet-point1…5, so won't be partial.
+  const partial = b1Col === -1;
 
   const get = (cols, row) => {
     const v = cols !== -1 ? (row[cols] || '') : '';
@@ -13587,7 +13595,7 @@ function _laShowListingList(listings, partial) {
     `${listings.length} fiche(s) détectée(s)`;
   const note = document.getElementById('laFormatNote');
   if (partial) {
-    note.textContent = '⚠ Rapport Amazon détecté — audit partiel : titre et description uniquement. Utilisez le template SynqIO pour un audit complet.';
+    note.textContent = '⚠ Rapport basique détecté — les bullet points ne sont pas inclus dans ce rapport Amazon. Utilisez le Flat File ou le template SynqIO pour un audit complet.';
     note.classList.remove('hidden');
   } else {
     note.classList.add('hidden');
