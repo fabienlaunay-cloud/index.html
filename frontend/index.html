@@ -13210,7 +13210,7 @@ async function _scFetchByAsin() {
   // Cost/time guard for large boutiques
   if (uniq.length > 60 && !confirm(
     `${uniq.length} ASIN à traiter (max 200 par lancement).\n\n` +
-    `Le scraping peut prendre quelques minutes et consomme du crédit Apify. Lancer ?`)) return;
+    `La récupération peut prendre quelques minutes. Lancer ?`)) return;
 
   const marketplace = document.getElementById('auditMkt')?.value || 'amazon_fr';
   const btn = document.getElementById('scAsinFetchBtn');
@@ -13224,7 +13224,7 @@ async function _scFetchByAsin() {
   ['scProductsPanel', 'scBatchResultsPanel'].forEach(id => document.getElementById(id).classList.add('hidden'));
   prog.classList.remove('hidden');
   bar.style.width = '15%';
-  label.textContent = `Démarrage du scraping pour ${uniq.length} ASIN…`;
+  label.textContent = `Récupération des avis pour ${uniq.length} ASIN…`;
 
   const finish = () => { prog.classList.add('hidden'); btn.disabled = false; btn.innerHTML = original; };
   try {
@@ -13243,7 +13243,7 @@ async function _scFetchByAsin() {
       await new Promise(res => setTimeout(res, 4000));
       const elapsed = Math.round((Date.now() - started) / 1000);
       bar.style.width = `${Math.min(15 + i * 4, 90)}%`;
-      label.textContent = `Scraping des avis en cours… (${elapsed}s)`;
+      label.textContent = `Récupération des avis en cours… (${elapsed}s)`;
       const jr = await authFetch(`/api/jobs/${job_id}`).catch(() => null);
       if (!jr || !jr.ok) continue;
       const job = await jr.json();
