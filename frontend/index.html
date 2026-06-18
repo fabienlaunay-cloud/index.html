@@ -1291,15 +1291,39 @@
   </div>
 
   <!-- ── Audit section ────────────────────────────────────────────────────── -->
-  <div id="auditSection" class="hidden">
-    <div class="grid grid-cols-12 gap-6">
+  <div id="auditSection" class="hidden flex flex-col gap-6">
+
+    <!-- ═══ Section 1 — Optimisation SEO des fiches ═══ -->
+    <div class="order-1 flex items-center gap-3 pt-1">
+      <div class="w-9 h-9 rounded-xl bg-purple-100 flex items-center justify-center flex-shrink-0">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      </div>
+      <div>
+        <h2 class="font-bold text-gray-800 text-lg leading-tight">Optimisation SEO des fiches</h2>
+        <p class="text-xs text-gray-500">Notez et améliorez la qualité de vos fiches — titre, bullets, mots-clés, images</p>
+      </div>
+    </div>
+
+    <!-- ═══ Section 2 — Analyse des avis clients ═══ -->
+    <div class="order-4 flex items-center gap-3 pt-5 mt-1 border-t border-gray-100">
+      <div class="w-9 h-9 rounded-xl bg-red-50 flex items-center justify-center flex-shrink-0">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+      </div>
+      <div>
+        <h2 class="font-bold text-gray-800 text-lg leading-tight">Analyse des avis clients</h2>
+        <p class="text-xs text-gray-500">Identifiez les axes d'amélioration à partir des avis négatifs (1★/2★)</p>
+      </div>
+    </div>
+
+    <!-- SEO — une fiche -->
+    <div class="grid grid-cols-12 gap-6 order-2">
 
       <!-- Left: form -->
       <div class="col-span-12 lg:col-span-5 space-y-4">
         <div class="bg-white rounded-2xl shadow-sm p-6 border border-gray-100 space-y-4">
           <h2 class="font-semibold text-gray-800 flex items-center gap-2 text-base">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-            Analyser une fiche existante
+            Une fiche
           </h2>
 
           <!-- Amazon URL import -->
@@ -1499,16 +1523,16 @@
       </div>
     </div>
 
-    <!-- ── Review monitoring ───────────────────────────────────────────────── -->
-    <div class="mt-6">
+    <!-- Avis — une fiche -->
+    <div class="order-5">
       <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
         <div class="flex items-center gap-3 mb-5">
           <div class="w-9 h-9 rounded-xl bg-red-50 flex items-center justify-center flex-shrink-0">
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
           </div>
           <div>
-            <h2 class="font-semibold text-gray-800 text-base">Analyse des avis clients</h2>
-            <p class="text-xs text-gray-500">Collez des avis négatifs pour extraire les axes d'amélioration de votre fiche</p>
+            <h2 class="font-semibold text-gray-800 text-base">Une fiche</h2>
+            <p class="text-xs text-gray-500">Collez ou importez les avis négatifs d'un produit pour en extraire les axes d'amélioration</p>
           </div>
         </div>
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
@@ -1596,36 +1620,24 @@
       </div>
     </div>
 
-    <!-- ── Analyse boutique entière — CSV Seller Central ───────────────────── -->
-    <div class="mt-6">
+    <!-- Avis — toute la boutique -->
+    <div class="order-6">
       <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
         <div class="flex items-center gap-3 mb-5">
           <div class="w-9 h-9 rounded-xl bg-blue-50 flex items-center justify-center flex-shrink-0">
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18"/></svg>
           </div>
           <div>
-            <h2 class="font-semibold text-gray-800 text-base">Analyse boutique entière</h2>
-            <p class="text-xs text-gray-500">Importez le rapport <strong class="text-gray-700">Customer Reviews</strong> de Seller Central pour analyser tous vos produits d'un coup</p>
+            <h2 class="font-semibold text-gray-800 text-base">Toute la boutique</h2>
+            <p class="text-xs text-gray-500">Récupérez et analysez automatiquement les avis négatifs de tous vos produits, à partir de leurs ASIN</p>
           </div>
-        </div>
-        <!-- Instructions -->
-        <div class="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-4">
-          <p class="text-xs font-semibold text-blue-800 mb-2">Quel fichier importer ?</p>
-          <p class="text-xs text-blue-700 leading-relaxed mb-2">Amazon ne propose <strong>aucun export des avis</strong> dans Seller Central. Importez un CSV contenant ces colonnes (depuis votre outil de suivi d'avis ou créé à la main) :</p>
-          <ul class="text-xs text-blue-700 space-y-1 list-disc list-inside leading-relaxed">
-            <li><strong>asin</strong> — identifiant produit <span class="text-blue-400">(obligatoire)</span></li>
-            <li><strong>star-rating</strong> — note sur 5 <span class="text-blue-400">(obligatoire)</span></li>
-            <li><strong>review-body</strong> — texte de l'avis <span class="text-blue-400">(obligatoire)</span></li>
-            <li><strong>product-name</strong> — nom du produit <span class="text-blue-400">(optionnel)</span></li>
-          </ul>
-          <p class="text-xs text-blue-700 mt-2">Sources possibles : <strong>Helium 10</strong> (Review Insights), <strong>Jungle Scout</strong>, ou un export CSV maison.</p>
-          <p class="text-xs text-blue-400 mt-2">Format .csv / .tsv — SynqIO filtre automatiquement les avis 1★ et 2★ et les regroupe par produit.</p>
         </div>
         <!-- Récupération auto par ASIN (Apify) -->
         <div class="border border-emerald-200 bg-emerald-50/60 rounded-xl p-4 mb-4">
           <div class="flex items-center gap-2 mb-1.5">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
             <p class="text-xs font-semibold text-emerald-800">Récupération automatique des avis par ASIN</p>
+            <span class="text-[10px] font-bold uppercase tracking-wide bg-emerald-600 text-white rounded px-1.5 py-0.5">Recommandé</span>
           </div>
 
           <!-- Option A : Rapport d'activité (Business Report) — contient tous les ASIN -->
@@ -1669,11 +1681,12 @@
         </div>
 
         <!-- Séparateur -->
-        <div class="flex items-center gap-3 mb-4">
+        <div class="flex items-center gap-3 mb-3">
           <div class="flex-1 h-px bg-gray-100"></div>
-          <span class="text-xs text-gray-300 font-medium">OU importez un CSV</span>
+          <span class="text-xs text-gray-300 font-medium">OU importez un CSV d'avis</span>
           <div class="flex-1 h-px bg-gray-100"></div>
         </div>
+        <p class="text-xs text-gray-400 mb-3 text-center">Si vous avez déjà un export d'avis (Helium 10, Jungle Scout…), colonnes attendues : <strong class="text-gray-500">asin</strong> · <strong class="text-gray-500">star-rating</strong> · <strong class="text-gray-500">review-body</strong></p>
 
         <!-- Drop zone -->
         <div id="scDropzone"
@@ -1724,16 +1737,16 @@
       </div>
     </div>
 
-    <!-- ── Audit boutique entière — CSV fiches existantes ───────────────────── -->
-    <div class="mt-6">
+    <!-- SEO — toute la boutique -->
+    <div class="order-3">
       <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
         <div class="flex items-center gap-3 mb-5">
           <div class="w-9 h-9 rounded-xl bg-indigo-50 flex items-center justify-center flex-shrink-0">
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#4f46e5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
           </div>
           <div>
-            <h2 class="font-semibold text-gray-800 text-base">Audit boutique entière — fiches existantes</h2>
-            <p class="text-xs text-gray-500">Importez vos fiches via le rapport Seller Central ou le template SynqIO pour un score SEO sur toute votre boutique</p>
+            <h2 class="font-semibold text-gray-800 text-base">Toute la boutique</h2>
+            <p class="text-xs text-gray-500">Importez vos fiches (rapport Seller Central ou template SynqIO) pour un score SEO sur toute la boutique</p>
           </div>
         </div>
         <!-- Instructions deux formats -->
