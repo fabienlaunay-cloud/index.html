@@ -1792,9 +1792,10 @@ Fonctionnalités clés :
 
 === RÈGLES AMAZON ===
 Titre :
-- Max 200 caractères (idéal 150–180)
-- Structure : Marque + Produit + Caractéristique principale + Matière/Couleur + Taille/Quantité
+- Max 75 caractères (nouvelle règle Amazon 2026, espaces compris) — un titre plus long sera tronqué par Amazon
+- Structure : Marque + Type produit + Attribut clé + Couleur/Matière + Taille/Quantité
 - Interdit : prix, promotions (« soldes », « promo »), livraison gratuite, majuscules excessives, superlatifs (« meilleur », « n°1 »)
+- L'outil "Migration des titres" de SynqIO permet de raccourcir tous ses titres en masse automatiquement
 
 Bullet points :
 - Exactement 5 bullets, max 500 caractères chacun
@@ -1875,9 +1876,11 @@ Structure JSON exacte :
 Critères de scoring :
 
 TITRE (poids 30%) :
-- Longueur 150-180 chars → 40 pts ; 100-149 ou 181-200 → 25 pts ; <100 ou >200 → 10 pts
-- Mots-clés principaux dans les 80 premiers chars → 30 pts
-- Pas de majuscules abusives, caractères interdits (!?$¡¿), répétitions → 30 pts
+RÈGLE AMAZON 2026 : le titre doit faire ≤75 caractères (espaces compris). Un titre >75 chars sera tronqué par Amazon.
+- Longueur ≤75 chars → 40 pts ; 76-100 chars → 15 pts (trop long, sera tronqué) ; >100 chars → 0 pts
+- Mots-clés principaux dans les 60 premiers chars → 30 pts
+- Pas de majuscules abusives, caractères interdits (!?$¡¿), superlatifs (meilleur, n°1), répétitions → 30 pts
+NE PAS recommander d'allonger le titre si celui-ci est déjà ≤75 chars — c'est correct selon la norme actuelle.
 
 BULLETS (poids 30%) :
 - 5 bullets → 25 pts ; 4 → 15 pts ; <4 → 5 pts
@@ -1904,7 +1907,7 @@ Retourne UNIQUEMENT un objet JSON valide, sans texte avant ni après :
 - Pour "keywords" → {"improved": "<keywords ≤249 bytes, séparés par espaces>", "explanation": "<1 phrase>"}
 
 Règles :
-- Titre : 150-180 chars, mots-clés en tête, Marque + Produit + 2-3 caractéristiques clés
+- Titre : ≤75 chars (nouvelle règle Amazon 2026), mots-clés principaux en tête, Marque + Type produit + Attribut clé. Ne JAMAIS dépasser 75 caractères.
 - Bullets : 5 bullets, 150-200 chars chacun, commencer par un bénéfice client, pas de point final
 - Keywords : ≤249 bytes UTF-8, pas de doublons avec le titre, pluriels/synonymes/longue traîne"""
 

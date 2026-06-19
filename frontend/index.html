@@ -12197,6 +12197,10 @@ function _auditSendToGen() {
   const kw      = document.getElementById('auditKw').value.trim();
   const mkt     = document.getElementById('auditMkt').value;
 
+  // Récupère les URLs photos saisies dans l'audit comme images de référence
+  const imgUrls = (document.getElementById('auditImgUrls')?.value || '')
+    .split('\n').map(u => u.trim()).filter(u => u.startsWith('http'));
+
   const product = {
     sku: 'AUDIT-' + Date.now(),
     name: title || 'Produit issu de l\'audit',
@@ -12207,7 +12211,7 @@ function _auditSendToGen() {
     ean: null,
     features: bullets,
     focus_keywords: kw ? kw.split(/[\s,]+/).filter(Boolean) : [],
-    images: [],
+    images: imgUrls,
     extra: {},
   };
 
