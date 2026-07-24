@@ -87,7 +87,8 @@ from app.routes.agent import router as agent_router
 # Routes sans authentification
 PUBLIC_PATHS = {"/", "/health", "/api/auth/login", "/api/auth/setup", "/api/auth/needs-setup", "/api/marketplaces", "/api/amazon/callback", "/api/amazon/login", "/api/drive/oauth/callback", "/api/template", "/api/auth/unsubscribe", "/api/auth/forgot-password", "/api/auth/reset-password", "/api/stripe/webhook"}
 # Invite paths are public (token-based auth)
-PUBLIC_PREFIX_PATHS = ("/api/auth/invite/", "/api/photos/", "/api/auth/reset-password/")
+# /api/v1 is the public API — authenticated per-request via API key (see routes/public_api.py)
+PUBLIC_PREFIX_PATHS = ("/api/auth/invite/", "/api/photos/", "/api/auth/reset-password/", "/api/v1")
 
 
 class AuthMiddleware(BaseHTTPMiddleware):
@@ -153,6 +154,8 @@ app.include_router(insights_router)
 app.include_router(drive_router)
 app.include_router(drive_oauth_router)
 app.include_router(agent_router)
+from app.routes.public_api import router as public_api_router
+app.include_router(public_api_router)
 
 
 @app.on_event("startup")
@@ -916,6 +919,17 @@ async def _run_generation_job(job_id: str, request: GenerationRequest, email: st
                     marketplace=str(target_mkts[0].value),
                     listings=result_dict.get("listings", []),
                 )
+            except Exception:
+                pass
+            # Notify client integrations (PIM, sites…) — fire-and-forget
+            try:
+                from app.services.webhooks import fire_and_forget
+                fire_and_forget(email, "listing.generated", {
+                    "batch_id": job_id,
+                    "marketplace": str(target_mkts[0].value),
+                    "product_count": len(result_dict.get("listings", [])),
+                    "listings": result_dict.get("listings", []),
+                })
             except Exception:
                 pass
             # Email notification for large batches (>= 5 SKUs)
@@ -2921,6 +2935,103 @@ async def api_delete_session(session_id: str, request: Request):
     if not delete_saved_session(session_id, request.state.user_email):
         raise HTTPException(404, "Session introuvable")
     return {"ok": True}
+
+
+# ── Public API keys & webhooks management (session-authed, feeds the UI) ─────
+
+class ApiKeyCreateRequest(BaseModel):
+    label: str = ""
+
+
+@app.get("/api/apikeys")
+async def apikeys_list(request: Request):
+    from app.db import list_api_keys
+    return {"keys": list_api_keys(request.state.user_email)}
+
+
+@app.post("/api/apikeys")
+async def apikeys_create(body: ApiKeyCreateRequest, request: Request):
+    import hashlib as _hl
+    from app.db import list_api_keys, create_api_key
+    email = request.state.user_email
+    active = [k for k in list_api_keys(email) if not k.get("revoked")]
+    if len(active) >= 5:
+        raise HTTPException(400, "Maximum 5 clés actives — révoquez-en une d'abord")
+    key = f"sk_synqio_{uuid4().hex}{uuid4().hex[:8]}"
+    key_id = f"key_{uuid4().hex[:12]}"
+    create_api_key(key_id, email, _hl.sha256(key.encode()).hexdigest(),
+                   prefix=key[:16] + "…", label=(body.label or "").strip()[:60])
+    # Plaintext returned ONCE — only the hash is stored
+    return {"id": key_id, "key": key, "label": body.label}
+
+
+@app.delete("/api/apikeys/{key_id}")
+async def apikeys_revoke(key_id: str, request: Request):
+    from app.db import revoke_api_key
+    if not revoke_api_key(key_id, request.state.user_email):
+        raise HTTPException(404, "Clé introuvable")
+    return {"revoked": True}
+
+
+class WebhookCreateRequest(BaseModel):
+    url: str
+    events: list[str] = ["listing.generated"]
+
+
+@app.get("/api/webhooks")
+async def webhooks_list(request: Request):
+    from app.db import list_webhooks
+    return {"webhooks": list_webhooks(request.state.user_email)}
+
+
+@app.post("/api/webhooks")
+async def webhooks_create(body: WebhookCreateRequest, request: Request):
+    import secrets as _sec
+    from app.db import list_webhooks, create_webhook
+    email = request.state.user_email
+    url = (body.url or "").strip()
+    if not url.startswith("https://"):
+        raise HTTPException(400, "L'URL du webhook doit être en https://")
+    if len(list_webhooks(email)) >= 10:
+        raise HTTPException(400, "Maximum 10 webhooks par compte")
+    events = [e for e in body.events if e == "listing.generated"] or ["listing.generated"]
+    hook_id = f"wh_{uuid4().hex[:12]}"
+    secret = f"whsec_{_sec.token_urlsafe(24)}"
+    create_webhook(hook_id, email, url, secret, ",".join(events))
+    return {"id": hook_id, "url": url, "events": events, "secret": secret}
+
+
+@app.delete("/api/webhooks/{hook_id}")
+async def webhooks_delete(hook_id: str, request: Request):
+    from app.db import delete_webhook
+    if not delete_webhook(hook_id, request.state.user_email):
+        raise HTTPException(404, "Webhook introuvable")
+    return {"deleted": True}
+
+
+@app.post("/api/webhooks/{hook_id}/test")
+async def webhooks_test(hook_id: str, request: Request):
+    """Send a signed test event to ONE webhook so the client can validate their receiver."""
+    from app.db import get_active_webhooks, list_webhooks
+    from app.services.webhooks import _deliver_one
+    email = request.state.user_email
+    hook = next((h for h in get_active_webhooks(email, "listing.generated") if h["id"] == hook_id), None)
+    if not hook:
+        if any(h["id"] == hook_id for h in list_webhooks(email)):
+            raise HTTPException(400, "Webhook inactif ou non abonné à listing.generated")
+        raise HTTPException(404, "Webhook introuvable")
+    payload = {
+        "event": "listing.generated", "test": True,
+        "batch_id": "test_batch", "marketplace": "amazon_fr", "product_count": 1,
+        "listings": [{"sku": "TEST-SKU", "title": "Produit de test SynqIO",
+                      "bullet_points": ["Ceci est un événement de test"],
+                      "description": "Événement envoyé depuis SynqIO pour valider votre intégration.",
+                      "brand": "SynqIO", "category": "Test"}],
+    }
+    await _deliver_one(hook, "listing.generated", json.dumps(payload, ensure_ascii=False).encode())
+    from app.db import list_webhooks as _lw
+    status = next((h.get("last_status") for h in _lw(email) if h["id"] == hook_id), "")
+    return {"sent": True, "last_status": status}
 
 
 # ── Generated images persistence ──────────────────────────────────────────────

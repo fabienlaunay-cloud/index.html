@@ -1203,6 +1203,10 @@
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 7H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
             Connecter Seller Central
           </button>
+          <button onclick="openApiPanel();toggleUserMenu()" class="w-full text-left px-4 py-2 text-sm transition flex items-center gap-2" style="color:rgba(255,255,255,0.65)">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+            API &amp; Intégrations
+          </button>
           <button onclick="openChangePasswordModal();toggleUserMenu()" class="w-full text-left px-4 py-2 text-sm transition flex items-center gap-2" style="color:rgba(255,255,255,0.65)">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
             Changer le mot de passe
@@ -3490,6 +3494,67 @@
       <input id="changePwNew2" type="password" placeholder="Confirmez le nouveau mot de passe" class="input-auth w-full rounded-xl px-4 py-3 text-sm" onkeydown="if(event.key==='Enter') doChangePassword()">
       <button onclick="doChangePassword()" class="btn-login w-full text-white rounded-xl py-3.5 font-semibold text-sm mt-2">Enregistrer →</button>
       <button onclick="document.getElementById('changePasswordModal').classList.add('hidden')" class="w-full text-sm py-2 transition" style="color:rgba(255,255,255,0.4)">Annuler</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════ API & INTÉGRATIONS ═══════════════════ -->
+<div id="apiPanelModal" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[400] p-4">
+  <div class="bg-white w-full max-w-2xl rounded-3xl shadow-2xl max-h-[88vh] flex flex-col">
+    <div class="flex items-center justify-between px-7 py-5 border-b border-gray-100">
+      <div>
+        <h3 class="text-lg font-bold text-gray-900">API &amp; Intégrations</h3>
+        <p class="text-xs text-gray-400 mt-0.5">Connectez votre PIM, votre site ou vos outils — <a href="/api-docs.html" target="_blank" class="text-purple-600 underline hover:text-purple-800">documentation API</a></p>
+      </div>
+      <button onclick="document.getElementById('apiPanelModal').classList.add('hidden')" class="text-gray-300 hover:text-gray-600 text-2xl leading-none">✕</button>
+    </div>
+    <div class="overflow-y-auto px-7 py-5 space-y-7">
+
+      <!-- Clés API -->
+      <div>
+        <div class="flex items-center justify-between mb-2">
+          <h4 class="text-sm font-bold text-gray-800">Clés API</h4>
+          <button onclick="apiCreateKey()" class="text-xs font-semibold text-purple-600 bg-purple-50 hover:bg-purple-100 rounded-lg px-3 py-1.5 transition">+ Nouvelle clé</button>
+        </div>
+        <p class="text-xs text-gray-400 mb-3">Une clé permet à un système externe de lire vos fiches : <code class="bg-gray-100 px-1 rounded">GET /api/v1/listings</code>. Envoyez-la en en-tête <code class="bg-gray-100 px-1 rounded">Authorization: Bearer sk_synqio_…</code></p>
+        <div id="apiNewKeyBox" class="hidden mb-3 bg-green-50 border border-green-200 rounded-xl p-3">
+          <p class="text-xs font-semibold text-green-800 mb-1.5">✅ Clé créée — copiez-la maintenant, elle ne sera plus jamais affichée :</p>
+          <div class="flex items-center gap-2">
+            <code id="apiNewKeyValue" class="flex-1 text-[11px] bg-white border border-green-200 rounded-lg px-2.5 py-2 break-all select-all"></code>
+            <button onclick="navigator.clipboard.writeText(document.getElementById('apiNewKeyValue').textContent).then(()=>showToast('','Clé copiée !'))" class="text-xs font-semibold text-green-700 bg-green-100 hover:bg-green-200 rounded-lg px-3 py-2 transition flex-shrink-0">Copier</button>
+          </div>
+        </div>
+        <div id="apiKeysList" class="space-y-2"><p class="text-xs text-gray-300 text-center py-3">Chargement…</p></div>
+      </div>
+
+      <!-- Webhooks -->
+      <div>
+        <div class="flex items-center justify-between mb-2">
+          <h4 class="text-sm font-bold text-gray-800">Webhooks</h4>
+        </div>
+        <p class="text-xs text-gray-400 mb-3">SynqIO appelle votre URL à chaque génération terminée (événement <code class="bg-gray-100 px-1 rounded">listing.generated</code>) avec les fiches en JSON, signées HMAC-SHA256.</p>
+        <div class="flex gap-2 mb-3">
+          <input id="webhookUrlInput" type="url" placeholder="https://votre-site.com/webhooks/synqio" class="flex-1 border border-gray-200 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-purple-400">
+          <button onclick="apiCreateWebhook()" class="text-xs font-semibold text-white gradient-bg rounded-xl px-4 transition hover:opacity-90 flex-shrink-0">Ajouter</button>
+        </div>
+        <div id="apiNewHookBox" class="hidden mb-3 bg-green-50 border border-green-200 rounded-xl p-3">
+          <p class="text-xs font-semibold text-green-800 mb-1.5">✅ Webhook créé — voici le secret de signature (affiché une seule fois) :</p>
+          <div class="flex items-center gap-2">
+            <code id="apiNewHookSecret" class="flex-1 text-[11px] bg-white border border-green-200 rounded-lg px-2.5 py-2 break-all select-all"></code>
+            <button onclick="navigator.clipboard.writeText(document.getElementById('apiNewHookSecret').textContent).then(()=>showToast('','Secret copié !'))" class="text-xs font-semibold text-green-700 bg-green-100 hover:bg-green-200 rounded-lg px-3 py-2 transition flex-shrink-0">Copier</button>
+          </div>
+        </div>
+        <div id="apiWebhooksList" class="space-y-2"><p class="text-xs text-gray-300 text-center py-3">Chargement…</p></div>
+      </div>
+
+      <!-- Quick start -->
+      <div class="bg-gray-50 rounded-2xl p-4">
+        <h4 class="text-xs font-bold text-gray-700 mb-2">Démarrage rapide</h4>
+        <pre class="text-[11px] text-gray-600 bg-white border border-gray-200 rounded-xl p-3 overflow-x-auto">curl https://synqio.io/api/v1/listings \
+  -H "Authorization: Bearer sk_synqio_VOTRE_CLE"</pre>
+        <p class="text-[11px] text-gray-400 mt-2">Réponse : vos fiches (titre, bullets, description, mots-clés, prix, EAN) + URLs des visuels générés. <a href="/api-docs.html" target="_blank" class="text-purple-600 underline">Voir tous les endpoints →</a></p>
+      </div>
+
     </div>
   </div>
 </div>
@@ -12357,6 +12422,109 @@ function _auditSendToGen() {
   switchAppMode('generate');
   setStep(2);
   showToast('✅', 'Fiche chargée dans le générateur — complétez marque/catégorie puis lancez');
+}
+
+// ── API & Intégrations (clés API + webhooks) ─────────────────────────────────
+
+async function openApiPanel() {
+  document.getElementById('apiPanelModal').classList.remove('hidden');
+  document.getElementById('apiNewKeyBox').classList.add('hidden');
+  document.getElementById('apiNewHookBox').classList.add('hidden');
+  _apiLoadKeys();
+  _apiLoadWebhooks();
+}
+
+async function _apiLoadKeys() {
+  const box = document.getElementById('apiKeysList');
+  try {
+    const r = await authFetch('/api/apikeys');
+    const { keys } = await r.json();
+    if (!keys.length) { box.innerHTML = '<p class="text-xs text-gray-300 text-center py-3">Aucune clé — créez-en une pour connecter un outil externe</p>'; return; }
+    box.innerHTML = keys.map(k => `
+      <div class="flex items-center gap-3 border border-gray-100 rounded-xl px-3.5 py-2.5 ${k.revoked ? 'opacity-45' : ''}">
+        <code class="text-[11px] text-gray-600">${_esc(k.prefix)}</code>
+        <span class="text-xs text-gray-500 flex-1 truncate">${_esc(k.label || 'Sans nom')}</span>
+        ${k.revoked
+          ? '<span class="text-[10px] font-semibold text-red-400 bg-red-50 rounded-full px-2 py-0.5">Révoquée</span>'
+          : `<span class="text-[10px] text-gray-300">${k.last_used_at ? 'Utilisée récemment' : 'Jamais utilisée'}</span>
+             <button onclick="apiRevokeKey('${k.id}',this)" data-armed="0" class="text-[11px] font-semibold text-red-500 hover:text-red-700 transition">Révoquer</button>`}
+      </div>`).join('');
+  } catch(e) { box.innerHTML = '<p class="text-xs text-red-400 text-center py-3">Erreur de chargement</p>'; }
+}
+
+async function apiCreateKey() {
+  const label = prompt('Nom de la clé (ex : "Site Shopify ES", "PIM Akeneo") :') || '';
+  if (label === null) return;
+  try {
+    const r = await authFetch('/api/apikeys', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ label }) });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.detail || 'Erreur');
+    document.getElementById('apiNewKeyValue').textContent = data.key;
+    document.getElementById('apiNewKeyBox').classList.remove('hidden');
+    _apiLoadKeys();
+  } catch(e) { showToast('❌', e.message || 'Erreur de création', true); }
+}
+
+async function apiRevokeKey(id, btn) {
+  if (btn.dataset.armed !== '1') { btn.dataset.armed = '1'; btn.textContent = 'Confirmer ?'; setTimeout(() => { btn.dataset.armed = '0'; btn.textContent = 'Révoquer'; }, 4000); return; }
+  try {
+    const r = await authFetch('/api/apikeys/' + id, { method: 'DELETE' });
+    if (!r.ok) throw new Error();
+    _apiLoadKeys();
+    showToast('✅', 'Clé révoquée');
+  } catch(e) { showToast('❌', 'Erreur lors de la révocation', true); }
+}
+
+async function _apiLoadWebhooks() {
+  const box = document.getElementById('apiWebhooksList');
+  try {
+    const r = await authFetch('/api/webhooks');
+    const { webhooks } = await r.json();
+    if (!webhooks.length) { box.innerHTML = '<p class="text-xs text-gray-300 text-center py-3">Aucun webhook — ajoutez une URL pour recevoir vos fiches automatiquement</p>'; return; }
+    box.innerHTML = webhooks.map(h => `
+      <div class="flex items-center gap-3 border border-gray-100 rounded-xl px-3.5 py-2.5">
+        <span class="text-[11px] text-gray-600 flex-1 truncate" title="${_esc(h.url)}">${_esc(h.url)}</span>
+        <span class="text-[10px] ${String(h.last_status||'').startsWith('2') ? 'text-green-500' : (h.last_status ? 'text-amber-500' : 'text-gray-300')}">${h.last_status ? 'Dernier : ' + _esc(h.last_status) : 'Jamais appelé'}</span>
+        <button onclick="apiTestWebhook('${h.id}',this)" class="text-[11px] font-semibold text-purple-600 hover:text-purple-800 transition">Tester</button>
+        <button onclick="apiDeleteWebhook('${h.id}',this)" data-armed="0" class="text-[11px] font-semibold text-red-500 hover:text-red-700 transition">Suppr.</button>
+      </div>`).join('');
+  } catch(e) { box.innerHTML = '<p class="text-xs text-red-400 text-center py-3">Erreur de chargement</p>'; }
+}
+
+async function apiCreateWebhook() {
+  const url = document.getElementById('webhookUrlInput').value.trim();
+  if (!url.startsWith('https://')) { showToast('⚠️', 'L\'URL doit commencer par https://', true); return; }
+  try {
+    const r = await authFetch('/api/webhooks', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ url }) });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.detail || 'Erreur');
+    document.getElementById('apiNewHookSecret').textContent = data.secret;
+    document.getElementById('apiNewHookBox').classList.remove('hidden');
+    document.getElementById('webhookUrlInput').value = '';
+    _apiLoadWebhooks();
+  } catch(e) { showToast('❌', e.message || 'Erreur de création', true); }
+}
+
+async function apiTestWebhook(id, btn) {
+  btn.textContent = '…';
+  try {
+    const r = await authFetch('/api/webhooks/' + id + '/test', { method: 'POST' });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.detail || 'Erreur');
+    showToast(String(data.last_status||'').startsWith('2') ? '✅' : '⚠️', 'Test envoyé — réponse : ' + (data.last_status || 'inconnue'));
+    _apiLoadWebhooks();
+  } catch(e) { showToast('❌', e.message || 'Erreur de test', true); }
+  btn.textContent = 'Tester';
+}
+
+async function apiDeleteWebhook(id, btn) {
+  if (btn.dataset.armed !== '1') { btn.dataset.armed = '1'; btn.textContent = 'Confirmer ?'; setTimeout(() => { btn.dataset.armed = '0'; btn.textContent = 'Suppr.'; }, 4000); return; }
+  try {
+    const r = await authFetch('/api/webhooks/' + id, { method: 'DELETE' });
+    if (!r.ok) throw new Error();
+    _apiLoadWebhooks();
+    showToast('✅', 'Webhook supprimé');
+  } catch(e) { showToast('❌', 'Erreur lors de la suppression', true); }
 }
 
 // ── A/B Testing ──────────────────────────────────────────────────────────────

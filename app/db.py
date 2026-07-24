@@ -1265,3 +1265,143 @@ def delete_drive_token(user_email: str) -> None:
     conn.execute("DELETE FROM google_drive_tokens WHERE user_email = ?", (user_email,))
     conn.commit()
     conn.close()
+
+
+# ── Public API keys & webhooks ───────────────────────────────────────────────
+
+def _ensure_api_tables(conn):
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS api_keys (
+            id TEXT PRIMARY KEY,
+            user_email TEXT NOT NULL,
+            key_hash TEXT NOT NULL,
+            prefix TEXT NOT NULL DEFAULT '',
+            label TEXT NOT NULL DEFAULT '',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            last_used_at TIMESTAMP,
+            revoked INTEGER NOT NULL DEFAULT 0
+        )
+    """)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS webhooks (
+            id TEXT PRIMARY KEY,
+            user_email TEXT NOT NULL,
+            url TEXT NOT NULL,
+            secret TEXT NOT NULL DEFAULT '',
+            events TEXT NOT NULL DEFAULT 'listing.generated',
+            active INTEGER NOT NULL DEFAULT 1,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            last_status TEXT DEFAULT '',
+            last_delivery_at TIMESTAMP
+        )
+    """)
+
+
+def create_api_key(key_id: str, user_email: str, key_hash: str, prefix: str, label: str) -> None:
+    conn = get_db()
+    _ensure_api_tables(conn)
+    conn.execute(
+        "INSERT INTO api_keys (id, user_email, key_hash, prefix, label) VALUES (?, ?, ?, ?, ?)",
+        (key_id, user_email, key_hash, prefix, label),
+    )
+    conn.commit()
+    conn.close()
+
+
+def list_api_keys(user_email: str) -> list:
+    conn = get_db()
+    _ensure_api_tables(conn)
+    rows = conn.execute(
+        "SELECT id, prefix, label, created_at, last_used_at, revoked "
+        "FROM api_keys WHERE user_email = ? ORDER BY created_at DESC",
+        (user_email,),
+    ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def revoke_api_key(key_id: str, user_email: str) -> bool:
+    conn = get_db()
+    _ensure_api_tables(conn)
+    cur = conn.execute(
+        "UPDATE api_keys SET revoked = 1 WHERE id = ? AND user_email = ?",
+        (key_id, user_email),
+    )
+    conn.commit()
+    conn.close()
+    return cur.rowcount > 0
+
+
+def resolve_api_key(key_hash: str):
+    """Return the owning user_email for an active key hash, or None."""
+    conn = get_db()
+    _ensure_api_tables(conn)
+    row = conn.execute(
+        "SELECT id, user_email FROM api_keys WHERE key_hash = ? AND revoked = 0",
+        (key_hash,),
+    ).fetchone()
+    if not row:
+        conn.close()
+        return None
+    conn.execute("UPDATE api_keys SET last_used_at = CURRENT_TIMESTAMP WHERE id = ?", (row["id"],))
+    conn.commit()
+    conn.close()
+    return row["user_email"]
+
+
+def create_webhook(hook_id: str, user_email: str, url: str, secret: str, events: str) -> None:
+    conn = get_db()
+    _ensure_api_tables(conn)
+    conn.execute(
+        "INSERT INTO webhooks (id, user_email, url, secret, events) VALUES (?, ?, ?, ?, ?)",
+        (hook_id, user_email, url, secret, events),
+    )
+    conn.commit()
+    conn.close()
+
+
+def list_webhooks(user_email: str) -> list:
+    conn = get_db()
+    _ensure_api_tables(conn)
+    rows = conn.execute(
+        "SELECT id, url, events, active, created_at, last_status, last_delivery_at "
+        "FROM webhooks WHERE user_email = ? ORDER BY created_at DESC",
+        (user_email,),
+    ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def delete_webhook(hook_id: str, user_email: str) -> bool:
+    conn = get_db()
+    _ensure_api_tables(conn)
+    cur = conn.execute(
+        "DELETE FROM webhooks WHERE id = ? AND user_email = ?", (hook_id, user_email),
+    )
+    conn.commit()
+    conn.close()
+    return cur.rowcount > 0
+
+
+def get_active_webhooks(user_email: str, event: str) -> list:
+    """Active webhooks for this user subscribed to `event` (with secrets)."""
+    conn = get_db()
+    _ensure_api_tables(conn)
+    rows = conn.execute(
+        "SELECT id, url, secret, events FROM webhooks WHERE user_email = ? AND active = 1",
+        (user_email,),
+    ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows
+            if event in [e.strip() for e in (r["events"] or "").split(",") if e.strip()]]
+
+
+def update_webhook_status(hook_id: str, status: str) -> None:
+    conn = get_db()
+    _ensure_api_tables(conn)
+    conn.execute(
+        "UPDATE webhooks SET last_status = ?, last_delivery_at = CURRENT_TIMESTAMP WHERE id = ?",
+        (status, hook_id),
+    )
+    conn.commit()
+    conn.close()
