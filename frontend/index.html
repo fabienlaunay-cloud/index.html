@@ -2599,6 +2599,31 @@
                     <div class="font-medium text-gray-800">Tout télécharger (ZIP)</div>
                     <div class="text-xs text-gray-400 mt-0.5">Fiches + images dans un fichier .zip</div>
                   </button>
+                  <div class="px-4 pt-2.5 pb-1 text-[10px] font-bold uppercase tracking-wider text-purple-400 border-t border-gray-100 mt-1">Multicanal — PIM &amp; e-commerce</div>
+                  <button onclick="exportChannel('pim');toggleDlMenu()" class="w-full text-left px-4 py-2 text-sm hover:bg-purple-50/50 transition">
+                    <div class="font-medium text-gray-800">PIM / Universel (Excel)</div>
+                    <div class="text-xs text-gray-400 mt-0.5">Toutes les données + images, prêt pour tout PIM/ERP</div>
+                  </button>
+                  <button onclick="exportChannel('shopify');toggleDlMenu()" class="w-full text-left px-4 py-2 text-sm hover:bg-purple-50/50 transition">
+                    <div class="font-medium text-gray-800">Shopify</div>
+                    <div class="text-xs text-gray-400 mt-0.5">CSV d'import produits (avec images)</div>
+                  </button>
+                  <button onclick="exportChannel('woocommerce');toggleDlMenu()" class="w-full text-left px-4 py-2 text-sm hover:bg-purple-50/50 transition">
+                    <div class="font-medium text-gray-800">WooCommerce</div>
+                    <div class="text-xs text-gray-400 mt-0.5">CSV pour l'importateur natif WordPress</div>
+                  </button>
+                  <button onclick="exportChannel('prestashop');toggleDlMenu()" class="w-full text-left px-4 py-2 text-sm hover:bg-purple-50/50 transition">
+                    <div class="font-medium text-gray-800">PrestaShop</div>
+                    <div class="text-xs text-gray-400 mt-0.5">CSV d'import produits (séparateur ;)</div>
+                  </button>
+                  <button onclick="exportChannel('akeneo');toggleDlMenu()" class="w-full text-left px-4 py-2 text-sm hover:bg-purple-50/50 transition">
+                    <div class="font-medium text-gray-800">Akeneo PIM</div>
+                    <div class="text-xs text-gray-400 mt-0.5">CSV avec attributs localisés (name-fr_FR…)</div>
+                  </button>
+                  <button onclick="exportChannel('google-merchant');toggleDlMenu()" class="w-full text-left px-4 py-2 text-sm hover:bg-purple-50/50 transition">
+                    <div class="font-medium text-gray-800">Google Shopping</div>
+                    <div class="text-xs text-gray-400 mt-0.5">Flux Merchant Center (TSV)</div>
+                  </button>
                 </div>
               </div>
               <input type="file" id="amazonTemplateInput" accept=".xlsm,.xlsx" class="hidden" onchange="fillAmazonTemplate(this)">
@@ -8089,6 +8114,34 @@ async function exportResults(format) {
   const a = document.createElement('a');
   a.href = URL.createObjectURL(await r.blob()); a.download = fn[format]; a.click();
   showToast('✅', `${label[format]} téléchargé`);
+}
+
+// ── Multichannel exports (PIM, Shopify, WooCommerce, PrestaShop, Akeneo, Google) ──
+const _CHANNEL_META = {
+  'pim':             { fn: 'synqio_produits_pim.xlsx',   label: 'Export PIM / Universel' },
+  'shopify':         { fn: 'shopify_produits.csv',       label: 'Export Shopify' },
+  'woocommerce':     { fn: 'woocommerce_produits.csv',   label: 'Export WooCommerce' },
+  'prestashop':      { fn: 'prestashop_produits.csv',    label: 'Export PrestaShop' },
+  'akeneo':          { fn: 'akeneo_produits.csv',        label: 'Export Akeneo' },
+  'google-merchant': { fn: 'google_merchant_feed.tsv',   label: 'Flux Google Shopping' },
+};
+
+async function exportChannel(channel) {
+  if (!generatedListings.length) { showToast('⚠️', 'Génère d\'abord des fiches', true); return; }
+  const meta = _CHANNEL_META[channel];
+  if (!meta) return;
+  try {
+    const r = await authFetch('/api/export/channel/' + channel, {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(generatedListings),
+    });
+    if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.detail || `Erreur ${r.status}`); }
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(await r.blob()); a.download = meta.fn; a.click();
+    showToast('✅', `${meta.label} téléchargé`);
+  } catch(e) {
+    showToast('❌', e.message || 'Erreur d\'export', true);
+  }
 }
 
 

@@ -1205,6 +1205,24 @@ async def export_listing_loader(listings: List[AmazonListing]):
     )
 
 
+@app.post("/api/export/channel/{channel}")
+async def export_channel(channel: str, listings: List[AmazonListing]):
+    """Multichannel export — PIM / Shopify / WooCommerce / PrestaShop / Akeneo /
+    Google Merchant. Generated image URLs are resolved from storage per SKU."""
+    from app.utils.export_channels import CHANNELS
+    spec = CHANNELS.get(channel)
+    if not spec:
+        raise HTTPException(404, f"Canal inconnu : {channel} — disponibles : {', '.join(CHANNELS)}")
+    if not listings:
+        raise HTTPException(400, "Aucune fiche à exporter")
+    image_urls = _get_image_urls_for_skus([l.sku for l in listings])
+    return Response(
+        content=spec["builder"](listings, image_urls=image_urls),
+        media_type=spec["media_type"],
+        headers={"Content-Disposition": f'attachment; filename="{spec["filename"]}"'},
+    )
+
+
 def _bundled_listing_loader_bytes() -> Optional[bytes]:
     """The generic Amazon Listing Loader (offer) template. Prefer the DB-seeded
     copy (reliable across deploys, same store the category templates use); fall
