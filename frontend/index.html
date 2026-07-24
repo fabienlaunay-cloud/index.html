@@ -6283,7 +6283,7 @@ async function _sessLoadList() {
           <p style="font-weight:600;font-size:13px;color:rgba(255,255,255,0.9)" class="truncate">${_esc(s.name)}</p>
           <p style="font-size:11px;color:rgba(255,255,255,0.4);margin-top:2px">${label}</p>
         </div>
-        <button onclick="_sessLoad('${s.id}')" style="flex-shrink:0;font-size:11px;font-weight:600;color:rgba(167,139,250,0.9);background:rgba(124,58,237,0.15);border:1px solid rgba(124,58,237,0.3);border-radius:8px;padding:6px 12px;transition:background 0.2s" onmouseover="this.style.background='rgba(124,58,237,0.28)'" onmouseout="this.style.background='rgba(124,58,237,0.15)'">Charger</button>
+        <button onclick="_sessLoad('${s.id}',this)" data-armed="0" style="flex-shrink:0;font-size:11px;font-weight:600;color:rgba(167,139,250,0.9);background:rgba(124,58,237,0.15);border:1px solid rgba(124,58,237,0.3);border-radius:8px;padding:6px 12px;transition:background 0.2s" onmouseover="this.style.background='rgba(124,58,237,0.28)'" onmouseout="this.style.background='rgba(124,58,237,0.15)'">Charger</button>
         <button onclick="_sessDelete('${s.id}',this)" style="flex-shrink:0;color:rgba(255,255,255,0.25);transition:color 0.2s;padding:4px" onmouseover="this.style.color='#f87171'" onmouseout="this.style.color='rgba(255,255,255,0.25)'" title="Supprimer">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>
         </button>
@@ -6407,8 +6407,30 @@ async function _restoreImagesFromDB(skus) {
   } catch(e) { return 0; }
 }
 
-async function _sessLoad(sessionId) {
-  if (!confirm('Charger cette session ? La session courante sera remplacée.')) return;
+async function _sessLoad(sessionId, btn) {
+  // Two-click confirmation on the button itself — avoids native confirm(),
+  // which the browser can silently suppress (making the load appear to do nothing).
+  if (btn && btn.dataset.armed !== '1') {
+    btn.dataset.armed = '1';
+    const orig = btn.textContent;
+    btn.textContent = 'Confirmer ?';
+    btn.style.background = 'rgba(239,68,68,0.25)';
+    btn.style.borderColor = 'rgba(239,68,68,0.5)';
+    btn.style.color = '#fca5a5';
+    btn._resetTimer = setTimeout(() => {
+      btn.dataset.armed = '0';
+      btn.textContent = orig;
+      btn.style.background = 'rgba(124,58,237,0.15)';
+      btn.style.borderColor = 'rgba(124,58,237,0.3)';
+      btn.style.color = 'rgba(167,139,250,0.9)';
+    }, 4000);
+    return;
+  }
+  if (btn) {
+    clearTimeout(btn._resetTimer);
+    btn.disabled = true;
+    btn.textContent = 'Chargement…';
+  }
   try {
     const r = await authFetch(`/api/sessions/${sessionId}`);
     if (!r.ok) {
@@ -6442,21 +6464,44 @@ async function _sessLoad(sessionId) {
     setTimeout(() => location.reload(), 600);
   } catch(e) {
     showToast('', `Erreur lors du chargement : ${e.message || 'inconnue'}`, true);
+    if (btn) {
+      btn.disabled = false;
+      btn.dataset.armed = '0';
+      btn.textContent = 'Charger';
+      btn.style.background = 'rgba(124,58,237,0.15)';
+      btn.style.borderColor = 'rgba(124,58,237,0.3)';
+      btn.style.color = 'rgba(167,139,250,0.9)';
+    }
   }
 }
 
 async function _sessDelete(sessionId, btn) {
-  if (!confirm('Supprimer cette session ?')) return;
+  const row = btn.closest('div');
+  // Two-click confirmation on the button (avoids native confirm() suppression)
+  if (btn.dataset.armed !== '1') {
+    btn.dataset.armed = '1';
+    btn.style.color = '#f87171';
+    btn.setAttribute('title', 'Cliquez encore pour confirmer la suppression');
+    btn._resetTimer = setTimeout(() => {
+      btn.dataset.armed = '0';
+      btn.style.color = 'rgba(255,255,255,0.25)';
+      btn.setAttribute('title', 'Supprimer');
+    }, 4000);
+    return;
+  }
+  clearTimeout(btn._resetTimer);
   try {
     const r = await authFetch(`/api/sessions/${sessionId}`, {method: 'DELETE'});
     if (!r.ok) throw new Error();
-    btn.closest('div.border').remove();
+    if (row) row.remove();
     const list = document.getElementById('sessList');
-    if (!list.querySelector('div.border')) {
+    if (!list.querySelector('button[onclick^="_sessLoad"]')) {
       list.innerHTML = '<p class="text-center text-gray-400 text-sm py-8">Aucune session sauvegardée</p>';
     }
   } catch(e) {
     showToast('', 'Erreur lors de la suppression', true);
+    btn.dataset.armed = '0';
+    btn.style.color = 'rgba(255,255,255,0.25)';
   }
 }
 
