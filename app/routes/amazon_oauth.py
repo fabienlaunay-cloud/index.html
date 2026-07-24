@@ -1,10 +1,16 @@
 import os
+import json as _json
 import secrets
 import httpx
 from fastapi import APIRouter, Request, HTTPException
 from fastapi.responses import RedirectResponse, HTMLResponse
 from pydantic import BaseModel
 from typing import List, Optional
+
+
+def _js_str(s: Optional[str]) -> str:
+    """Safely embed a Python string as a JS string literal (XSS-safe)."""
+    return _json.dumps(s or "")
 
 from app.db import get_db, get_config, set_config, save_catalog_items, get_catalog, get_catalog_summary
 from app.models import Marketplace
@@ -23,15 +29,36 @@ def _lwa_credentials() -> tuple[str, str]:
     return client_id, client_secret
 
 
+# Seller Central consent-page host per marketplace. The LWA token-exchange
+# endpoint (api.amazon.com) is global, but the consent page must be served from
+# the seller's regional domain. All currently supported marketplaces are EU.
+_CONSENT_HOSTS = {
+    "amazon_fr": "sellercentral.amazon.fr",
+    "amazon_de": "sellercentral.amazon.de",
+    "amazon_it": "sellercentral.amazon.it",
+    "amazon_es": "sellercentral.amazon.es",
+    "amazon_uk": "sellercentral.amazon.co.uk",
+    "amazon_nl": "sellercentral.amazon.nl",
+    "amazon_se": "sellercentral.amazon.se",
+    "amazon_pl": "sellercentral.amazon.pl",
+    "amazon_be": "sellercentral.amazon.com.be",
+}
+_DEFAULT_CONSENT_HOST = "sellercentral-europe.amazon.com"  # EU-wide fallback
 
 
-@router.get("/connect")
-async def amazon_connect(request: Request):
-    """Retourne l'URL d'autorisation Amazon (le JS gère la redirection)."""
-    app_id = get_config("AMAZON_APP_ID", "").strip()
-    if not app_id:
-        raise HTTPException(503, "AMAZON_APP_ID manquant — configurez-le dans l'espace admin SynqIO")
-    email = request.state.user_email
+def _consent_host(marketplace: Optional[str]) -> str:
+    return _CONSENT_HOSTS.get((marketplace or "").strip().lower(), _DEFAULT_CONSENT_HOST)
+
+
+def _oauth_beta() -> bool:
+    """version=beta runs the consent page in DRAFT mode (developer's own account
+    only). Off by default now the app is PUBLIC; togglable for testing a draft."""
+    return (os.getenv("AMAZON_OAUTH_BETA", "").strip()
+            or get_config("AMAZON_OAUTH_BETA", "").strip()).lower() in ("1", "true", "yes")
+
+
+def _new_state(email: str) -> str:
+    """Mint and persist an anti-CSRF state bound to a SynqIO user."""
     state = secrets.token_urlsafe(32)
     conn = get_db()
     conn.execute(
@@ -41,19 +68,97 @@ async def amazon_connect(request: Request):
     )
     conn.commit()
     conn.close()
+    return state
+
+
+@router.get("/connect")
+async def amazon_connect(request: Request, marketplace: Optional[str] = None):
+    """Seller-initiated flow: return the Amazon consent URL (JS handles redirect)."""
+    app_id = get_config("AMAZON_APP_ID", "").strip()
+    if not app_id:
+        raise HTTPException(503, "AMAZON_APP_ID manquant — configurez-le dans l'espace admin SynqIO")
+    state = _new_state(request.state.user_email)
     auth_url = (
-        f"https://sellercentral.amazon.fr/apps/authorize/consent"
+        f"https://{_consent_host(marketplace)}/apps/authorize/consent"
         f"?application_id={app_id}"
         f"&state={state}"
     )
-    # `version=beta` runs the consent page in DRAFT mode — only the developer's
-    # own seller account can authorize. Now that the app is PUBLIC it must be
-    # omitted for production. Kept togglable for testing an unpublished draft.
-    beta = (os.getenv("AMAZON_OAUTH_BETA", "").strip()
-            or get_config("AMAZON_OAUTH_BETA", "").strip()).lower() in ("1", "true", "yes")
-    if beta:
+    if _oauth_beta():
         auth_url += "&version=beta"
     return {"url": auth_url}
+
+
+class AppstoreAuthorizeBody(BaseModel):
+    amazon_callback_uri: str
+    amazon_state: str
+
+
+@router.post("/appstore-authorize")
+async def amazon_appstore_authorize(request: Request, body: AppstoreAuthorizeBody):
+    """Amazon-initiated flow (from the Appstore listing): the /login page calls
+    this once the SynqIO user is authenticated. We mint our own state and return
+    the consent URL to redirect the seller back to Amazon's consent page."""
+    callback = (body.amazon_callback_uri or "").strip()
+    amazon_state = (body.amazon_state or "").strip()
+    # Guard against open-redirect: only ever redirect to an Amazon Seller Central host
+    if not (callback.startswith("https://") and ".amazon." in callback
+            and "sellercentral" in callback and "?" not in callback and "#" not in callback):
+        raise HTTPException(400, "amazon_callback_uri invalide")
+    if not amazon_state:
+        raise HTTPException(400, "amazon_state manquant")
+    state = _new_state(request.state.user_email)
+    url = (
+        f"{callback}"
+        f"?redirect_uri={REDIRECT_URI}"
+        f"&amazon_state={amazon_state}"
+        f"&state={state}"
+    )
+    if _oauth_beta():
+        url += "&version=beta"
+    return {"url": url}
+
+
+@router.get("/login")
+async def amazon_login(amazon_callback_uri: str = "", amazon_state: str = "", selling_partner_id: str = ""):
+    """Login URI registered with Amazon. When a seller clicks "Authorize" on the
+    Appstore listing, Amazon opens this page with amazon_callback_uri +
+    amazon_state. We ensure the seller is logged into SynqIO (client-side token),
+    then hand off to /appstore-authorize which builds the consent redirect.
+
+    This route is PUBLIC (the seller arrives via top-level navigation with no
+    Authorization header) — see PUBLIC_PATHS in main.py."""
+    return HTMLResponse(f"""<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Connexion Amazon — SynqIO</title></head>
+<body style="font-family:sans-serif;text-align:center;padding:60px 20px;color:#1f2937">
+<div style="font-size:2.4rem;margin-bottom:12px">🔗</div>
+<h2 style="margin:0 0 8px;font-size:1.15rem">Autorisation Amazon en cours…</h2>
+<p id="msg" style="color:#6b7280;font-size:.9rem">Vérification de votre session SynqIO…</p>
+<script>
+(function() {{
+  var cb = {_js_str(amazon_callback_uri)};
+  var ast = {_js_str(amazon_state)};
+  var msg = document.getElementById('msg');
+  if (!cb || !ast) {{ msg.textContent = "Lien d'autorisation Amazon incomplet."; return; }}
+  var token = localStorage.getItem('synqio_token');
+  if (!token) {{
+    // Not logged in — stash the Amazon params and send the seller to login.
+    sessionStorage.setItem('synqio_amazon_pending', JSON.stringify({{cb: cb, ast: ast}}));
+    location.href = '/?amazon_authorize=1';
+    return;
+  }}
+  fetch('/api/amazon/appstore-authorize', {{
+    method: 'POST',
+    headers: {{'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token}},
+    body: JSON.stringify({{amazon_callback_uri: cb, amazon_state: ast}})
+  }}).then(function(r) {{ return r.json().then(function(d) {{ return {{ok: r.ok, d: d}}; }}); }})
+    .then(function(res) {{
+      if (res.ok && res.d.url) {{ location.href = res.d.url; }}
+      else {{ msg.textContent = 'Erreur : ' + ((res.d && res.d.detail) || 'autorisation impossible'); }}
+    }})
+    .catch(function() {{ msg.textContent = 'Erreur réseau — réessayez.'; }});
+}})();
+</script>
+</body></html>""")
 
 
 @router.get("/callback")

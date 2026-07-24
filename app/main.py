@@ -85,7 +85,7 @@ from app.routes.drive_oauth import router as drive_oauth_router
 from app.routes.agent import router as agent_router
 
 # Routes sans authentification
-PUBLIC_PATHS = {"/", "/health", "/api/auth/login", "/api/auth/setup", "/api/auth/needs-setup", "/api/marketplaces", "/api/amazon/callback", "/api/drive/oauth/callback", "/api/template", "/api/auth/unsubscribe", "/api/auth/forgot-password", "/api/auth/reset-password", "/api/stripe/webhook"}
+PUBLIC_PATHS = {"/", "/health", "/api/auth/login", "/api/auth/setup", "/api/auth/needs-setup", "/api/marketplaces", "/api/amazon/callback", "/api/amazon/login", "/api/drive/oauth/callback", "/api/template", "/api/auth/unsubscribe", "/api/auth/forgot-password", "/api/auth/reset-password", "/api/stripe/webhook"}
 # Invite paths are public (token-based auth)
 PUBLIC_PREFIX_PATHS = ("/api/auth/invite/", "/api/photos/", "/api/auth/reset-password/")
 

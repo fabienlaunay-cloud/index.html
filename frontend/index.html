@@ -4156,6 +4156,7 @@ function showApp(email) {
   } else {
     document.getElementById('app').classList.remove('hidden');
     document.getElementById('adminView').classList.add('hidden');
+    _resumeAmazonAuthorize();  // resume Appstore-initiated OAuth if one is pending
     checkHealth();
     loadUsage();
     _restoreSession();
@@ -8523,10 +8524,33 @@ function _dismissOnboardingBanner() {
   sessionStorage.setItem('synqio_amazon_banner_dismissed', '1');
 }
 
+// Amazon-initiated OAuth (from the Appstore listing): the /api/amazon/login page
+// stashes the Amazon params here when the seller isn't logged into SynqIO yet.
+// After login we resume by minting the consent URL and redirecting to Amazon.
+async function _resumeAmazonAuthorize() {
+  let pending;
+  try { pending = JSON.parse(sessionStorage.getItem('synqio_amazon_pending') || 'null'); } catch(e) { pending = null; }
+  if (!pending || !pending.cb || !pending.ast) return;
+  sessionStorage.removeItem('synqio_amazon_pending');
+  try {
+    const r = await authFetch('/api/amazon/appstore-authorize', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ amazon_callback_uri: pending.cb, amazon_state: pending.ast }),
+    });
+    const data = await r.json();
+    if (r.ok && data.url) { location.href = data.url; }
+    else { showToast('⚠️', 'Autorisation Amazon impossible : ' + (data.detail || 'réessayez depuis le Seller Central')); }
+  } catch(e) {
+    showToast('❌', 'Erreur lors de la reprise de l\'autorisation Amazon');
+  }
+}
+
 async function _connectAmazonOnboarding() {
   const popup = window.open('about:blank', 'amazon_oauth', 'width=820,height=720,scrollbars=yes,resizable=yes');
   try {
-    const r = await authFetch('/api/amazon/connect');
+    const mkt = (selectedMarketplaces && selectedMarketplaces[0]) || 'amazon_fr';
+    const r = await authFetch('/api/amazon/connect?marketplace=' + encodeURIComponent(mkt));
     const data = await r.json();
     const errMsg = data.error || data.detail;
     if (errMsg || !data.url) {
@@ -8594,7 +8618,8 @@ async function checkAmazonStatus() {
         btn.onclick = async () => {
           const popup = window.open('about:blank', 'amazon_oauth', 'width=820,height=720,scrollbars=yes,resizable=yes');
           try {
-            const r = await authFetch('/api/amazon/connect');
+            const mkt = (selectedMarketplaces && selectedMarketplaces[0]) || 'amazon_fr';
+            const r = await authFetch('/api/amazon/connect?marketplace=' + encodeURIComponent(mkt));
             const data = await r.json();
             const errMsg = data.error || data.detail;
             if (errMsg || !data.url) { if (popup) popup.close(); showToast('⚠️', errMsg || 'URL Amazon manquante — vérifiez AMAZON_APP_ID dans l\'admin'); return; }
