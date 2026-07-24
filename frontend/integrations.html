@@ -197,16 +197,62 @@
   </section>
 
   <!-- CTA -->
-  <section class="max-w-4xl mx-auto px-6 pb-24 text-center">
-    <div class="gradient-bg rounded-3xl px-8 py-14 text-white" style="box-shadow:0 24px 60px rgba(124,58,237,0.35)">
-      <h2 class="text-3xl md:text-4xl font-black mb-4">Un contenu. Tous vos canaux.</h2>
-      <p class="text-white/80 max-w-xl mx-auto mb-8">Voyons ensemble comment brancher SynqIO sur votre boutique, votre PIM ou votre site — démonstration personnalisée de 30 minutes, offerte.</p>
-      <div class="flex flex-wrap gap-4 justify-center">
-        <a href="https://calendly.com/fl-synqio/30min" target="_blank" class="px-8 py-4 rounded-2xl bg-white text-purple-700 font-bold text-lg transition hover:bg-purple-50">Réserver une démo →</a>
-        <a href="mailto:hello@solutionstmf.com" class="px-8 py-4 rounded-2xl border-2 border-white/40 text-white font-semibold text-lg transition hover:bg-white/10">hello@solutionstmf.com</a>
+  <section id="contact" class="max-w-4xl mx-auto px-6 pb-24">
+    <div class="gradient-bg rounded-3xl px-6 md:px-12 py-14 text-white" style="box-shadow:0 24px 60px rgba(124,58,237,0.35)">
+      <div class="text-center mb-8">
+        <h2 class="text-3xl md:text-4xl font-black mb-4">Un contenu. Tous vos canaux.</h2>
+        <p class="text-white/80 max-w-xl mx-auto">Voyons ensemble comment brancher SynqIO sur votre boutique, votre PIM ou votre site. Laissez-nous vos coordonnées, ou réservez directement une démo de 30 min.</p>
+      </div>
+
+      <div class="max-w-lg mx-auto">
+        <form id="contactForm" onsubmit="return submitContact(event)" class="bg-white/10 border border-white/15 rounded-2xl p-6 backdrop-blur">
+          <div class="grid sm:grid-cols-2 gap-3 mb-3">
+            <input id="cFirstName" type="text" placeholder="Prénom" required class="w-full rounded-xl px-4 py-3 text-sm text-gray-900 placeholder-gray-400 focus:outline-none">
+            <input id="cName" type="text" placeholder="Nom" required class="w-full rounded-xl px-4 py-3 text-sm text-gray-900 placeholder-gray-400 focus:outline-none">
+          </div>
+          <input id="cEmail" type="email" placeholder="Adresse email professionnelle" required class="w-full rounded-xl px-4 py-3 text-sm text-gray-900 placeholder-gray-400 focus:outline-none mb-3">
+          <textarea id="cMessage" rows="3" placeholder="Votre besoin (optionnel) — plateformes utilisées, volume de fiches…" class="w-full rounded-xl px-4 py-3 text-sm text-gray-900 placeholder-gray-400 focus:outline-none mb-4 resize-none"></textarea>
+          <button id="cSubmit" type="submit" class="w-full px-8 py-3.5 rounded-xl bg-white text-purple-700 font-bold text-base transition hover:bg-purple-50">Être recontacté →</button>
+          <p id="cMsg" class="hidden text-center text-sm mt-3"></p>
+        </form>
+        <div class="text-center mt-5">
+          <span class="text-white/50 text-sm">ou </span>
+          <a href="https://calendly.com/fl-synqio/30min" target="_blank" class="text-white font-semibold text-sm underline underline-offset-4 hover:text-purple-100 transition">réservez une démo en visio (30 min offertes) →</a>
+        </div>
       </div>
     </div>
   </section>
+
+  <script>
+    async function submitContact(e) {
+      e.preventDefault();
+      var btn = document.getElementById('cSubmit');
+      var msg = document.getElementById('cMsg');
+      var payload = {
+        first_name: document.getElementById('cFirstName').value.trim(),
+        name: document.getElementById('cName').value.trim(),
+        email: document.getElementById('cEmail').value.trim(),
+        message: document.getElementById('cMessage').value.trim()
+      };
+      btn.disabled = true; btn.textContent = 'Envoi…';
+      msg.className = 'hidden';
+      try {
+        var r = await fetch('/api/contact', {
+          method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload)
+        });
+        var data = await r.json().catch(function(){ return {}; });
+        if (!r.ok) throw new Error(data.detail || 'Erreur');
+        document.getElementById('contactForm').reset();
+        msg.textContent = '✅ Merci ! Nous vous recontactons très vite.';
+        msg.className = 'text-center text-sm mt-3 text-white font-semibold';
+      } catch (err) {
+        msg.textContent = 'Une erreur est survenue — réservez plutôt une démo via le lien ci-dessous.';
+        msg.className = 'text-center text-sm mt-3 text-amber-200';
+      }
+      btn.disabled = false; btn.textContent = 'Être recontacté →';
+      return false;
+    }
+  </script>
 
   <!-- FOOTER -->
   <footer class="bg-gray-50 border-t border-gray-200 py-10">

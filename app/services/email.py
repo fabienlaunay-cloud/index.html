@@ -413,3 +413,42 @@ Accédez à l'admin : {APP_URL}
   </div>
 </body></html>"""
     _send(admin_email, subject, text, html)
+
+
+def send_contact(name: str, email: str, message: str = "") -> bool:
+    """Deliver a contact-form submission to the SynqIO inbox.
+
+    Returns True if handed to SMTP, False if email isn't configured (so the
+    caller can surface a fallback like the Calendly link).
+    """
+    to = os.getenv("CONTACT_EMAIL", "fl.synqio@gmail.com")
+    if not _can_send():
+        return False
+    safe_name = (name or "—").strip()[:120]
+    safe_email = (email or "—").strip()[:160]
+    safe_msg = (message or "").strip()[:4000]
+    subject = f"📩 Contact SynqIO — {safe_name}"
+    text = (
+        f"Nouvelle demande de contact depuis synqio.io\n\n"
+        f"Nom    : {safe_name}\n"
+        f"Email  : {safe_email}\n\n"
+        f"Message:\n{safe_msg or '(aucun)'}\n"
+    )
+    msg_block = (
+        f'<tr><td style="padding:8px 0;color:#6b7280;vertical-align:top">Message</td>'
+        f'<td style="padding:8px 0;font-weight:500;white-space:pre-wrap">{safe_msg}</td></tr>'
+    ) if safe_msg else ''
+    html = f"""<!DOCTYPE html>
+<html><head><meta charset="utf-8"></head>
+<body style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:24px;color:#1f2937">
+  <div style="background:linear-gradient(135deg,#7c3aed,#4f46e5);border-radius:16px;padding:22px;text-align:center;margin-bottom:24px">
+    <p style="color:white;font-size:18px;font-weight:700;margin:0">📩 Nouvelle demande de contact</p>
+  </div>
+  <table style="width:100%;border-collapse:collapse;font-size:14px">
+    <tr><td style="padding:8px 0;color:#6b7280">Nom</td><td style="padding:8px 0;font-weight:600">{safe_name}</td></tr>
+    <tr><td style="padding:8px 0;color:#6b7280">Email</td><td style="padding:8px 0;font-weight:600"><a href="mailto:{safe_email}">{safe_email}</a></td></tr>
+    {msg_block}
+  </table>
+</body></html>"""
+    _send(to, subject, text, html)
+    return True

@@ -85,7 +85,7 @@ from app.routes.drive_oauth import router as drive_oauth_router
 from app.routes.agent import router as agent_router
 
 # Routes sans authentification
-PUBLIC_PATHS = {"/", "/health", "/api/auth/login", "/api/auth/setup", "/api/auth/needs-setup", "/api/marketplaces", "/api/amazon/callback", "/api/amazon/login", "/api/drive/oauth/callback", "/api/template", "/api/auth/unsubscribe", "/api/auth/forgot-password", "/api/auth/reset-password", "/api/stripe/webhook"}
+PUBLIC_PATHS = {"/", "/health", "/api/auth/login", "/api/auth/setup", "/api/auth/needs-setup", "/api/marketplaces", "/api/amazon/callback", "/api/amazon/login", "/api/drive/oauth/callback", "/api/template", "/api/auth/unsubscribe", "/api/auth/forgot-password", "/api/auth/reset-password", "/api/stripe/webhook", "/api/contact"}
 # Invite paths are public (token-based auth)
 # /api/v1 is the public API — authenticated per-request via API key (see routes/public_api.py)
 # /api/feed/ are pull feeds — the capability token in the path is the auth (see routes/feeds.py)
@@ -289,6 +289,32 @@ async def root():
 async def sitemap():
     with open("frontend/sitemap.xml", "r", encoding="utf-8") as f:
         return Response(content=f.read(), media_type="application/xml")
+
+
+class ContactRequest(BaseModel):
+    name: str = ""
+    first_name: str = ""
+    email: str
+    message: str = ""
+
+
+@app.post("/api/contact")
+async def api_contact(req: ContactRequest, request: Request):
+    """Public contact form (marketing pages). Emails the SynqIO inbox."""
+    email = (req.email or "").strip()
+    if "@" not in email or "." not in email.split("@")[-1] or len(email) < 6:
+        raise HTTPException(400, "Adresse email invalide")
+    # Simple abuse guard: 5 submissions / hour per IP
+    ip = request.client.host if request.client else "unknown"
+    if not _rate_limit(f"contact:{ip}", limit=5, window=3600):
+        raise HTTPException(429, "Trop de demandes — réessayez plus tard")
+    full_name = " ".join(p for p in [(req.first_name or "").strip(), (req.name or "").strip()] if p) or "—"
+    from app.services.email import send_contact
+    sent = await asyncio.get_event_loop().run_in_executor(
+        None, send_contact, full_name, email, req.message or ""
+    )
+    # `sent` is False only when SMTP isn't configured; the UI falls back to Calendly
+    return {"ok": True, "delivered": sent}
 
 
 # ── Favicon (Google Search needs a real PNG/ICO ≥48px, with correct MIME) ─────
