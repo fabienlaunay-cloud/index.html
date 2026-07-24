@@ -75,10 +75,12 @@ def _get_sp_credentials(user_email: str = None) -> dict:
         ).fetchone()
         conn.close()
         if row:
-            return {**base, "refresh_token": row["refresh_token"], "seller_id": row["seller_id"]}
+            from app.services.crypto import decrypt_token
+            return {**base, "refresh_token": decrypt_token(row["refresh_token"]), "seller_id": row["seller_id"]}
+    from app.services.crypto import decrypt_token
     return {
         **base,
-        "refresh_token": get_config("AMAZON_REFRESH_TOKEN"),
+        "refresh_token": decrypt_token(get_config("AMAZON_REFRESH_TOKEN")),
         "seller_id": get_config("AMAZON_SELLER_ID"),
     }
 

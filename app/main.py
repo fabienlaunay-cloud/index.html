@@ -1660,9 +1660,10 @@ async def amazon_credentials_update(request: Request):
         )
         updated["seller_id"] = new_seller_id
     if new_refresh_token:
+        from app.services.crypto import encrypt_token
         conn.execute(
             "UPDATE amazon_credentials SET refresh_token = ? WHERE user_email = ?",
-            (new_refresh_token, email),
+            (encrypt_token(new_refresh_token), email),
         )
         updated["refresh_token"] = new_refresh_token[:12] + "..."
     conn.commit()

@@ -95,6 +95,7 @@ async def amazon_callback(
             raise HTTPException(502, f"Erreur LWA: {resp.text}")
         tokens = resp.json()
 
+    from app.services.crypto import encrypt_token
     conn = get_db()
     conn.execute(
         """
@@ -105,7 +106,7 @@ async def amazon_callback(
             refresh_token = excluded.refresh_token,
             updated_at = CURRENT_TIMESTAMP
         """,
-        (email, selling_partner_id or "", tokens["refresh_token"]),
+        (email, selling_partner_id or "", encrypt_token(tokens["refresh_token"])),
     )
     conn.commit()
     conn.close()
@@ -171,6 +172,7 @@ async def amazon_manual_token(body: ManualTokenBody, request: Request):
     if not token.startswith("Atzr|"):
         raise HTTPException(400, "Le refresh token doit commencer par 'Atzr|'")
 
+    from app.services.crypto import encrypt_token
     conn = get_db()
     conn.execute(
         """
@@ -181,7 +183,7 @@ async def amazon_manual_token(body: ManualTokenBody, request: Request):
             refresh_token = excluded.refresh_token,
             updated_at = CURRENT_TIMESTAMP
         """,
-        (email, body.seller_id.strip(), token),
+        (email, body.seller_id.strip(), encrypt_token(token)),
     )
     conn.commit()
     conn.close()
