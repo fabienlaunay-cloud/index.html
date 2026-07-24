@@ -4188,7 +4188,7 @@ function showApp(email) {
   }
 }
 
-function _restoreSession() {
+function _restoreSession(silent) {
   try {
     // Restore multi-batch state if available
     const savedBatches = localStorage.getItem('synqio_batches');
@@ -4212,8 +4212,10 @@ function _restoreSession() {
         if (needImgs.length) {
           _restoreImagesFromDB(needImgs).then(n => { if (n) renderListingsContainer(); });
         }
-        const msg = _batches.length > 1 ? `${_batches.length} sessions restaurées` : `Session restaurée — ${generatedListings.length} fiche(s)`;
-        showToast('🔄', msg);
+        if (!silent) {
+          const msg = _batches.length > 1 ? `${_batches.length} sessions restaurées` : `Session restaurée — ${generatedListings.length} fiche(s)`;
+          showToast('🔄', msg);
+        }
         return;
       }
     }
@@ -6439,14 +6441,15 @@ async function _sessLoad(sessionId, btn) {
     }
     const sess = await r.json();
     const d = sess.data || {};
-    // Strip any base64 data-URLs (legacy sessions saved them) — they blow the
-    // ~5MB localStorage quota; images are re-fetched from the DB after reload.
-    if (d.batches) {
-      try {
-        localStorage.setItem('synqio_batches', JSON.stringify(_slimBatchesForStorage(d.batches)));
-      } catch(e) {
-        throw new Error('Session trop volumineuse pour le stockage local');
-      }
+    const slimBatches = Array.isArray(d.batches) ? _slimBatchesForStorage(d.batches) : [];
+    const nFiches = slimBatches.reduce((n, b) => n + ((b.listings || []).length), 0);
+
+    // Persist to localStorage (survives future refreshes). Base64 data-URLs are
+    // stripped (they blow the ~5MB quota); images are re-fetched from the DB.
+    try {
+      localStorage.setItem('synqio_batches', JSON.stringify(slimBatches));
+    } catch(e) {
+      throw new Error('Session trop volumineuse pour le stockage local');
     }
     if (d.activeBatch !== undefined) localStorage.setItem('synqio_active_batch', String(d.activeBatch));
     if (d.marketplaces)   localStorage.setItem('synqio_marketplaces',     JSON.stringify(d.marketplaces));
@@ -6457,11 +6460,28 @@ async function _sessLoad(sessionId, btn) {
     if (d.abVariants)     localStorage.setItem('synqio_ab_variants',       JSON.stringify(d.abVariants));
     else                  localStorage.removeItem('synqio_ab_variants');
 
-    // Image restore happens after reload (non-blocking here): _restoreSession
-    // re-fetches missing images from the DB for every SKU of the batches.
+    // Refresh in-memory globals so the restore is faithful WITHOUT a page reload
+    // (the old location.reload() approach was unreliable — restore could race the
+    // page init or land on the wrong tab, so nothing appeared to happen).
+    if (d.marketplaces)    selectedMarketplaces = d.marketplaces;
+    if (d.brandVoice)      brandVoice = d.brandVoice;
+    if (d.segmentPresets)  segmentPresets = d.segmentPresets;
+    if (d.listingStatuses) listingStatuses = d.listingStatuses;
+    if (d.publishedSkus)   publishedSkus = new Set(d.publishedSkus);
+
     _sessClose();
-    showToast('', `Session "${sess.name}" chargée — rechargement…`);
-    setTimeout(() => location.reload(), 600);
+
+    if (!nFiches) {
+      showToast('⚠️', `« ${sess.name} » ne contient aucune fiche générée`, true);
+      return;
+    }
+
+    // Rebuild batch state from the freshly written localStorage and render inline
+    _batches = [];
+    _activeBatchIdx = 0;
+    switchAppMode('generate');
+    _restoreSession(true);  // reads synqio_batches, renders results, re-fetches images from DB
+    showToast('✅', `Session « ${sess.name} » chargée — ${nFiches} fiche(s)`);
   } catch(e) {
     showToast('', `Erreur lors du chargement : ${e.message || 'inconnue'}`, true);
     if (btn) {
