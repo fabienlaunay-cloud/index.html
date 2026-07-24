@@ -205,13 +205,18 @@
       </div>
 
       <div class="max-w-lg mx-auto">
-        <form id="contactForm" onsubmit="return submitContact(event)" class="bg-white/10 border border-white/15 rounded-2xl p-6 backdrop-blur">
+        <!-- Netlify Forms: captured server-side by Netlify (dashboard + email notif),
+             no SMTP needed. netlify-honeypot filters bots. -->
+        <form id="contactForm" name="contact" method="POST" data-netlify="true" netlify-honeypot="bot-field"
+              onsubmit="return submitContact(event)" class="bg-white/10 border border-white/15 rounded-2xl p-6 backdrop-blur">
+          <input type="hidden" name="form-name" value="contact">
+          <p class="hidden"><label>Ne pas remplir : <input name="bot-field"></label></p>
           <div class="grid sm:grid-cols-2 gap-3 mb-3">
-            <input id="cFirstName" type="text" placeholder="Prénom" required class="w-full rounded-xl px-4 py-3 text-sm text-gray-900 placeholder-gray-400 focus:outline-none">
-            <input id="cName" type="text" placeholder="Nom" required class="w-full rounded-xl px-4 py-3 text-sm text-gray-900 placeholder-gray-400 focus:outline-none">
+            <input id="cFirstName" name="firstname" type="text" placeholder="Prénom" required class="w-full rounded-xl px-4 py-3 text-sm text-gray-900 placeholder-gray-400 focus:outline-none">
+            <input id="cName" name="lastname" type="text" placeholder="Nom" required class="w-full rounded-xl px-4 py-3 text-sm text-gray-900 placeholder-gray-400 focus:outline-none">
           </div>
-          <input id="cEmail" type="email" placeholder="Adresse email professionnelle" required class="w-full rounded-xl px-4 py-3 text-sm text-gray-900 placeholder-gray-400 focus:outline-none mb-3">
-          <textarea id="cMessage" rows="3" placeholder="Votre besoin (optionnel) — plateformes utilisées, volume de fiches…" class="w-full rounded-xl px-4 py-3 text-sm text-gray-900 placeholder-gray-400 focus:outline-none mb-4 resize-none"></textarea>
+          <input id="cEmail" name="email" type="email" placeholder="Adresse email professionnelle" required class="w-full rounded-xl px-4 py-3 text-sm text-gray-900 placeholder-gray-400 focus:outline-none mb-3">
+          <textarea id="cMessage" name="message" rows="3" placeholder="Votre besoin (optionnel) — plateformes utilisées, volume de fiches…" class="w-full rounded-xl px-4 py-3 text-sm text-gray-900 placeholder-gray-400 focus:outline-none mb-4 resize-none"></textarea>
           <button id="cSubmit" type="submit" class="w-full px-8 py-3.5 rounded-xl bg-white text-purple-700 font-bold text-base transition hover:bg-purple-50">Être recontacté →</button>
           <p id="cMsg" class="hidden text-center text-sm mt-3"></p>
         </form>
@@ -224,28 +229,49 @@
   </section>
 
   <script>
+    function _encodeForm(obj) {
+      return Object.keys(obj).map(function(k) {
+        return encodeURIComponent(k) + '=' + encodeURIComponent(obj[k]);
+      }).join('&');
+    }
     async function submitContact(e) {
       e.preventDefault();
       var btn = document.getElementById('cSubmit');
       var msg = document.getElementById('cMsg');
-      var payload = {
-        first_name: document.getElementById('cFirstName').value.trim(),
-        name: document.getElementById('cName').value.trim(),
+      var fields = {
+        'form-name': 'contact',
+        firstname: document.getElementById('cFirstName').value.trim(),
+        lastname: document.getElementById('cName').value.trim(),
         email: document.getElementById('cEmail').value.trim(),
         message: document.getElementById('cMessage').value.trim()
       };
       btn.disabled = true; btn.textContent = 'Envoi…';
       msg.className = 'hidden';
+      var ok = false;
+      // 1) Netlify Forms (primary — no SMTP dependency)
       try {
-        var r = await fetch('/api/contact', {
-          method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload)
+        var rn = await fetch('/', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: _encodeForm(fields)
         });
-        var data = await r.json().catch(function(){ return {}; });
-        if (!r.ok) throw new Error(data.detail || 'Erreur');
+        ok = rn.ok;
+      } catch (err) { ok = false; }
+      // 2) Fallback to the app backend if Netlify handling isn't available
+      if (!ok) {
+        try {
+          var rb = await fetch('/api/contact', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ first_name: fields.firstname, name: fields.lastname, email: fields.email, message: fields.message })
+          });
+          ok = rb.ok;
+        } catch (err2) { ok = false; }
+      }
+      if (ok) {
         document.getElementById('contactForm').reset();
         msg.textContent = '✅ Merci ! Nous vous recontactons très vite.';
         msg.className = 'text-center text-sm mt-3 text-white font-semibold';
-      } catch (err) {
+      } else {
         msg.textContent = 'Une erreur est survenue — réservez plutôt une démo via le lien ci-dessous.';
         msg.className = 'text-center text-sm mt-3 text-amber-200';
       }
