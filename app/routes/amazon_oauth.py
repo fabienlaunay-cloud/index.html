@@ -45,8 +45,14 @@ async def amazon_connect(request: Request):
         f"https://sellercentral.amazon.fr/apps/authorize/consent"
         f"?application_id={app_id}"
         f"&state={state}"
-        f"&version=beta"
     )
+    # `version=beta` runs the consent page in DRAFT mode — only the developer's
+    # own seller account can authorize. Now that the app is PUBLIC it must be
+    # omitted for production. Kept togglable for testing an unpublished draft.
+    beta = (os.getenv("AMAZON_OAUTH_BETA", "").strip()
+            or get_config("AMAZON_OAUTH_BETA", "").strip()).lower() in ("1", "true", "yes")
+    if beta:
+        auth_url += "&version=beta"
     return {"url": auth_url}
 
 
