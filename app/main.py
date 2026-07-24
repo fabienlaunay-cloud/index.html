@@ -3044,6 +3044,91 @@ async def feedtoken_regenerate(request: Request):
             "last_fetched_at": None, "last_channel": "", "fetch_count": 0}
 
 
+# ── Native push connectors (Shopify, WooCommerce) ────────────────────────────
+
+def _connector_config(email: str, platform: str) -> dict:
+    from app.db import get_connector
+    from app.services.crypto import decrypt_token
+    row = get_connector(email, platform)
+    if not row:
+        raise HTTPException(404, f"Connecteur {platform} non configuré")
+    try:
+        return json.loads(decrypt_token(row["config_enc"]) or "{}")
+    except Exception:
+        raise HTTPException(500, "Configuration du connecteur illisible — reconfigurez-le")
+
+
+@app.get("/api/connectors")
+async def connectors_list(request: Request):
+    from app.db import list_connectors
+    from app.services.connectors import PLATFORMS
+    configured = {c["platform"]: c for c in list_connectors(request.state.user_email)}
+    return {"platforms": [
+        {"platform": p, "label": spec["label"], "fields": spec["fields"],
+         "configured": p in configured,
+         "last_push_at": str(configured[p]["last_push_at"]) if p in configured and configured[p]["last_push_at"] else None,
+         "last_status": configured[p]["last_status"] if p in configured else ""}
+        for p, spec in PLATFORMS.items()
+    ]}
+
+
+@app.post("/api/connectors/{platform}")
+async def connectors_save(platform: str, request: Request):
+    """Validate credentials against the platform, then store them encrypted."""
+    from app.db import set_connector
+    from app.services.connectors import PLATFORMS
+    from app.services.crypto import encrypt_token
+    spec = PLATFORMS.get(platform)
+    if not spec:
+        raise HTTPException(404, f"Plateforme inconnue : {platform}")
+    body = await request.json()
+    cfg = {f: str(body.get(f, "")).strip() for f in spec["fields"]}
+    if not all(cfg.values()):
+        raise HTTPException(400, f"Champs requis : {', '.join(spec['fields'])}")
+    try:
+        info = await spec["test"](cfg)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    except Exception:
+        raise HTTPException(502, "Connexion à la plateforme impossible — vérifiez l'URL")
+    set_connector(request.state.user_email, platform,
+                  encrypt_token(json.dumps(cfg, ensure_ascii=False)))
+    return {"ok": True, "platform": platform, "info": info}
+
+
+@app.delete("/api/connectors/{platform}")
+async def connectors_delete(platform: str, request: Request):
+    from app.db import delete_connector
+    if not delete_connector(request.state.user_email, platform):
+        raise HTTPException(404, "Connecteur introuvable")
+    return {"deleted": True}
+
+
+@app.post("/api/connectors/{platform}/push")
+async def connectors_push(platform: str, listings: List[AmazonListing], request: Request):
+    """Push listings into the client's store (draft status, create-or-update)."""
+    from app.db import update_connector_status
+    from app.services.connectors import PLATFORMS, MAX_PUSH
+    spec = PLATFORMS.get(platform)
+    if not spec:
+        raise HTTPException(404, f"Plateforme inconnue : {platform}")
+    if not listings:
+        raise HTTPException(400, "Aucune fiche à publier")
+    email = request.state.user_email
+    if not _rate_limit(f"{email}:connector-push", limit=10, window=3600):
+        raise HTTPException(429, "Limite de 10 publications/heure — réessayez plus tard")
+    cfg = _connector_config(email, platform)
+    image_urls = _get_image_urls_for_skus([l.sku for l in listings])
+    results = await spec["push"](cfg, listings, image_urls=image_urls)
+    created = sum(1 for r in results if r["action"] == "created")
+    updated = sum(1 for r in results if r["action"] == "updated")
+    errors = sum(1 for r in results if r["action"] == "error")
+    update_connector_status(email, platform, f"{created}+{updated}ok/{errors}err")
+    return {"created": created, "updated": updated, "errors": errors,
+            "skipped": max(0, len(listings) - len(results)),
+            "max_per_push": MAX_PUSH, "results": results}
+
+
 @app.post("/api/webhooks/{hook_id}/test")
 async def webhooks_test(hook_id: str, request: Request):
     """Send a signed test event to ONE webhook so the client can validate their receiver."""

@@ -196,10 +196,16 @@ def get_headers_and_sample(filename: str, content: bytes) -> dict:
         norm = _normalise_header(h)
         auto_mapped[h] = COLUMN_MAP.get(norm)  # None if unrecognised
 
+    # Platform export detected → the frontend can skip the mapping modal
+    from app.services.platform_import import detect_platform, PLATFORM_LABELS
+    platform = detect_platform(headers)
+
     return {
         "headers": headers,
         "sample_rows": sample_rows,
         "auto_mapped": auto_mapped,
+        "detected_platform": platform,
+        "detected_platform_label": PLATFORM_LABELS.get(platform) if platform else None,
     }
 
 
@@ -209,6 +215,16 @@ def parse_csv(content: bytes, delimiter: str = None, custom_mapping: dict = None
         sample = text[:2000]
         delimiter = ";" if sample.count(";") > sample.count(",") else ","
     reader = csv.DictReader(io.StringIO(text), delimiter=delimiter)
+
+    # Platform exports (Shopify, WooCommerce, PrestaShop, Akeneo) are recognized
+    # from their header signature and converted directly — no manual mapping.
+    # An explicit custom_mapping from the user always takes precedence.
+    if not custom_mapping:
+        from app.services.platform_import import detect_platform, parse_platform
+        platform = detect_platform(list(reader.fieldnames or []))
+        if platform:
+            return parse_platform(content, platform)
+
     products = []
     for row in reader:
         try:

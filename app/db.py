@@ -1465,3 +1465,79 @@ def resolve_feed_token(token: str, channel: str = ""):
     conn.commit()
     conn.close()
     return row["user_email"]
+
+
+# ── Native push connectors (Shopify, WooCommerce…) ───────────────────────────
+
+def _ensure_connectors_table(conn):
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS connectors (
+            user_email TEXT NOT NULL,
+            platform TEXT NOT NULL,
+            config_enc TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            last_push_at TIMESTAMP,
+            last_status TEXT DEFAULT '',
+            PRIMARY KEY (user_email, platform)
+        )
+    """)
+
+
+def set_connector(user_email: str, platform: str, config_enc: str) -> None:
+    conn = get_db()
+    _ensure_connectors_table(conn)
+    conn.execute(
+        """INSERT INTO connectors (user_email, platform, config_enc)
+           VALUES (?, ?, ?)
+           ON CONFLICT(user_email, platform) DO UPDATE SET
+               config_enc=EXCLUDED.config_enc""",
+        (user_email, platform, config_enc),
+    )
+    conn.commit()
+    conn.close()
+
+
+def get_connector(user_email: str, platform: str):
+    conn = get_db()
+    _ensure_connectors_table(conn)
+    row = conn.execute(
+        "SELECT config_enc, last_push_at, last_status FROM connectors "
+        "WHERE user_email = ? AND platform = ?", (user_email, platform),
+    ).fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
+def list_connectors(user_email: str) -> list:
+    conn = get_db()
+    _ensure_connectors_table(conn)
+    rows = conn.execute(
+        "SELECT platform, created_at, last_push_at, last_status FROM connectors "
+        "WHERE user_email = ? ORDER BY platform", (user_email,),
+    ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def delete_connector(user_email: str, platform: str) -> bool:
+    conn = get_db()
+    _ensure_connectors_table(conn)
+    cur = conn.execute(
+        "DELETE FROM connectors WHERE user_email = ? AND platform = ?",
+        (user_email, platform),
+    )
+    conn.commit()
+    conn.close()
+    return cur.rowcount > 0
+
+
+def update_connector_status(user_email: str, platform: str, status: str) -> None:
+    conn = get_db()
+    _ensure_connectors_table(conn)
+    conn.execute(
+        "UPDATE connectors SET last_status = ?, last_push_at = CURRENT_TIMESTAMP "
+        "WHERE user_email = ? AND platform = ?",
+        (status, user_email, platform),
+    )
+    conn.commit()
+    conn.close()
