@@ -10,3 +10,8 @@ build/
 .pytest_cache/
 .claude/
 data/*.db
+
+# Node / Playwright (screenshot tooling only — not part of the app)
+node_modules/
+package.json
+package-lock.json
