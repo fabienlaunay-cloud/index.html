@@ -1405,3 +1405,63 @@ def update_webhook_status(hook_id: str, status: str) -> None:
     )
     conn.commit()
     conn.close()
+
+
+# ── Feed tokens (pull feeds: Google Merchant, sites) ─────────────────────────
+
+def _ensure_feed_table(conn):
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS feed_tokens (
+            token TEXT PRIMARY KEY,
+            user_email TEXT NOT NULL UNIQUE,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            last_fetched_at TIMESTAMP,
+            last_channel TEXT DEFAULT '',
+            fetch_count INTEGER NOT NULL DEFAULT 0
+        )
+    """)
+
+
+def get_feed_token(user_email: str):
+    """Return the user's feed token row, or None if not yet created."""
+    conn = get_db()
+    _ensure_feed_table(conn)
+    row = conn.execute(
+        "SELECT token, created_at, last_fetched_at, last_channel, fetch_count "
+        "FROM feed_tokens WHERE user_email = ?", (user_email,),
+    ).fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
+def set_feed_token(user_email: str, token: str) -> None:
+    """Create or replace (regenerate) the user's feed token."""
+    conn = get_db()
+    _ensure_feed_table(conn)
+    conn.execute("DELETE FROM feed_tokens WHERE user_email = ?", (user_email,))
+    conn.execute(
+        "INSERT INTO feed_tokens (token, user_email) VALUES (?, ?)",
+        (token, user_email),
+    )
+    conn.commit()
+    conn.close()
+
+
+def resolve_feed_token(token: str, channel: str = ""):
+    """Return the owning user_email for a feed token (and bump fetch stats)."""
+    conn = get_db()
+    _ensure_feed_table(conn)
+    row = conn.execute(
+        "SELECT user_email FROM feed_tokens WHERE token = ?", (token,),
+    ).fetchone()
+    if not row:
+        conn.close()
+        return None
+    conn.execute(
+        "UPDATE feed_tokens SET last_fetched_at = CURRENT_TIMESTAMP, "
+        "last_channel = ?, fetch_count = fetch_count + 1 WHERE token = ?",
+        (channel, token),
+    )
+    conn.commit()
+    conn.close()
+    return row["user_email"]

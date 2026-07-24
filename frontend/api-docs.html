@@ -131,8 +131,20 @@ const expected = "sha256=" + crypto.createHmac("sha256", SECRET).update(rawBody)
 const valid = crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(req.headers["x-synqio-signature"]));</pre>
     <p>En cas d'échec (erreur réseau ou 5xx), une nouvelle tentative unique a lieu après 3 secondes. Répondez <code class="inline">2xx</code> rapidement (traitez en asynchrone si besoin).</p>
 
+    <h2>Flux automatiques (pull)</h2>
+    <p>Pour les consommateurs qui <em>tirent</em> un fichier à intervalle régulier (Google Merchant Center, jobs de synchronisation PIM, sites), SynqIO fournit des <strong>URLs de flux permanentes</strong> — aucune clé ni en-tête requis, le jeton dans l'URL fait office d'authentification. Récupérez vos URLs dans <strong>API &amp; Intégrations → Flux automatiques</strong>.</p>
+    <pre>GET https://synqio.io/api/feed/{jeton}/{canal}
+
+# Canaux : google-merchant · shopify · woocommerce · prestashop · akeneo · pim
+# Filtre optionnel : ?marketplace=amazon_fr
+
+# Exemple — flux Google Merchant Center à coller dans
+# Merchant Center → Produits → Flux → Ajouter un flux (récupération planifiée) :
+https://synqio.io/api/feed/feed_VOTRE_JETON/google-merchant</pre>
+    <p>Le contenu est toujours la <strong>dernière version</strong> de chaque fiche (même source que <code class="inline">/api/v1/listings</code>). Le jeton est révocable : « Régénérer l'URL » dans l'application invalide immédiatement les anciennes URLs. Limite : 120 requêtes/heure par flux.</p>
+
     <h2>Exports fichiers</h2>
-    <p>Besoin d'un fichier plutôt que d'une API ? L'application exporte aussi vos fiches aux formats <strong>PIM universel (Excel), Shopify, WooCommerce, PrestaShop, Akeneo et Google Shopping</strong> — menu <em>Exports</em> après génération.</p>
+    <p>Besoin d'un fichier ponctuel plutôt que d'une API ou d'un flux ? L'application exporte aussi vos fiches aux formats <strong>PIM universel (Excel), Shopify, WooCommerce, PrestaShop, Akeneo et Google Shopping</strong> — menu <em>Exports</em> après génération.</p>
 
     <h2>Codes d'erreur</h2>
     <table>

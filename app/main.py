@@ -88,7 +88,8 @@ from app.routes.agent import router as agent_router
 PUBLIC_PATHS = {"/", "/health", "/api/auth/login", "/api/auth/setup", "/api/auth/needs-setup", "/api/marketplaces", "/api/amazon/callback", "/api/amazon/login", "/api/drive/oauth/callback", "/api/template", "/api/auth/unsubscribe", "/api/auth/forgot-password", "/api/auth/reset-password", "/api/stripe/webhook"}
 # Invite paths are public (token-based auth)
 # /api/v1 is the public API — authenticated per-request via API key (see routes/public_api.py)
-PUBLIC_PREFIX_PATHS = ("/api/auth/invite/", "/api/photos/", "/api/auth/reset-password/", "/api/v1")
+# /api/feed/ are pull feeds — the capability token in the path is the auth (see routes/feeds.py)
+PUBLIC_PREFIX_PATHS = ("/api/auth/invite/", "/api/photos/", "/api/auth/reset-password/", "/api/v1", "/api/feed/")
 
 
 class AuthMiddleware(BaseHTTPMiddleware):
@@ -156,6 +157,8 @@ app.include_router(drive_oauth_router)
 app.include_router(agent_router)
 from app.routes.public_api import router as public_api_router
 app.include_router(public_api_router)
+from app.routes.feeds import router as feeds_router
+app.include_router(feeds_router)
 
 
 @app.on_event("startup")
@@ -3007,6 +3010,38 @@ async def webhooks_delete(hook_id: str, request: Request):
     if not delete_webhook(hook_id, request.state.user_email):
         raise HTTPException(404, "Webhook introuvable")
     return {"deleted": True}
+
+
+def _feed_urls(token: str) -> dict:
+    from app.utils.export_channels import CHANNELS
+    base = os.getenv("PUBLIC_BASE_URL", "https://synqio.io").rstrip("/")
+    return {ch: f"{base}/api/feed/{token}/{ch}" for ch in CHANNELS}
+
+
+@app.get("/api/feedtoken")
+async def feedtoken_get(request: Request):
+    """Return the user's feed token + per-channel URLs (create it on first call)."""
+    import secrets as _sec
+    from app.db import get_feed_token, set_feed_token
+    email = request.state.user_email
+    row = get_feed_token(email)
+    if not row:
+        token = f"feed_{_sec.token_urlsafe(24)}"
+        set_feed_token(email, token)
+        row = {"token": token, "last_fetched_at": None, "last_channel": "", "fetch_count": 0}
+    return {**row, "urls": _feed_urls(row["token"])}
+
+
+@app.post("/api/feedtoken/regenerate")
+async def feedtoken_regenerate(request: Request):
+    """Mint a new token — the old feed URLs stop working immediately."""
+    import secrets as _sec
+    from app.db import set_feed_token
+    email = request.state.user_email
+    token = f"feed_{_sec.token_urlsafe(24)}"
+    set_feed_token(email, token)
+    return {"token": token, "urls": _feed_urls(token),
+            "last_fetched_at": None, "last_channel": "", "fetch_count": 0}
 
 
 @app.post("/api/webhooks/{hook_id}/test")
