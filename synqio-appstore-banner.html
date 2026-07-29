@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="fr"><head><meta charset="UTF-8">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { width:1464px; height:600px; overflow:hidden; font-family:'Segoe UI', system-ui, -apple-system, sans-serif; }
+  .banner {
+    width:1464px; height:600px; position:relative; overflow:hidden;
+    background: linear-gradient(125deg, #0f0c29 0%, #2b2160 46%, #1c1740 100%);
+    display:flex; align-items:center;
+  }
+  .dots { position:absolute; inset:0; background-image:radial-gradient(circle, rgba(255,255,255,0.06) 1.3px, transparent 1.3px); background-size:38px 38px; }
+  .glow { position:absolute; border-radius:50%; filter:blur(90px); }
+  .g1 { width:520px; height:520px; background:rgba(124,58,237,0.28); top:-120px; left:340px; }
+  .g2 { width:420px; height:420px; background:rgba(99,102,241,0.2); bottom:-160px; right:-60px; }
+  .accent { position:absolute; left:0; top:0; width:8px; height:100%; background:linear-gradient(180deg,#7c3aed,#a855f7,#6366f1); }
+
+  .left { padding-left:76px; z-index:10; width:56%; }
+  .brand { display:flex; align-items:center; gap:16px; margin-bottom:26px; }
+  .mark { width:64px; height:64px; border-radius:17px; background:linear-gradient(135deg,#8b5cf6,#4f46e5); display:flex; align-items:center; justify-content:center; box-shadow:0 10px 30px rgba(124,58,237,0.5); }
+  .bname { color:white; font-size:40px; font-weight:800; letter-spacing:-1px; }
+  .badge { display:inline-flex; align-items:center; gap:9px; background:rgba(255,153,0,0.14); border:1px solid rgba(255,153,0,0.5); border-radius:22px; padding:7px 18px; color:#ffb84d; font-size:18px; font-weight:700; margin-bottom:22px; }
+  h1 { color:white; font-size:52px; font-weight:800; line-height:1.14; letter-spacing:-1px; margin-bottom:20px; }
+  h1 .grad { background:linear-gradient(90deg,#a78bfa,#c4b5fd); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+  .feats { display:flex; flex-wrap:wrap; gap:10px; max-width:660px; }
+  .feat { display:inline-flex; align-items:center; gap:8px; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.13); border-radius:12px; padding:9px 15px; color:rgba(255,255,255,0.82); font-size:17px; font-weight:600; }
+  .feat .c { color:#4ade80; font-weight:800; }
+
+  /* Right mock card */
+  .right { position:absolute; right:70px; top:50%; transform:translateY(-50%) rotate(-4deg); z-index:8; width:400px; }
+  .card { background:white; border-radius:22px; padding:22px; box-shadow:0 40px 90px rgba(0,0,0,0.45); }
+  .thumb { height:150px; border-radius:14px; background:linear-gradient(135deg,#ede9fe,#ddd6fe); display:flex; align-items:center; justify-content:center; margin-bottom:16px; }
+  .bar { height:13px; border-radius:7px; background:#ede9fe; margin-bottom:10px; }
+  .bar.t { width:88%; background:#c4b5fd; height:17px; }
+  .bar.s { width:66%; }
+  .bar.q { width:76%; }
+  .scorerow { display:flex; align-items:center; gap:10px; margin-top:16px; }
+  .score { background:linear-gradient(135deg,#7c3aed,#4f46e5); color:white; font-weight:800; font-size:18px; border-radius:10px; padding:6px 12px; }
+  .scoretxt { color:#6b7280; font-size:14px; font-weight:600; }
+</style></head>
+<body>
+<div class="banner">
+  <div class="dots"></div>
+  <div class="glow g1"></div><div class="glow g2"></div>
+  <div class="accent"></div>
+
+  <div class="left">
+    <div class="brand">
+      <div class="mark">
+        <svg width="38" height="38" viewBox="0 0 24 24" fill="none"><path d="M12 2L2 7l10 5 10-5-10-5z" stroke="white" stroke-width="1.8" stroke-linejoin="round"/><path d="M2 17l10 5 10-5M2 12l10 5 10-5" stroke="white" stroke-width="1.8" stroke-linejoin="round"/></svg>
+      </div>
+      <span class="bname">SynqIO</span>
+    </div>
+    <div class="badge">★ Optimisé pour Amazon</div>
+    <h1>Vos fiches produits Amazon,<br><span class="grad">générées par IA</span></h1>
+    <div class="feats">
+      <span class="feat"><span class="c">✓</span> Titre SEO + 5 bullets + A+</span>
+      <span class="feat"><span class="c">✓</span> 7 visuels IA par produit</span>
+      <span class="feat"><span class="c">✓</span> Conforme aux normes 2026</span>
+      <span class="feat"><span class="c">✓</span> Multi-marchés FR · DE · IT · ES · UK</span>
+    </div>
+  </div>
+
+  <div class="right">
+    <div class="card">
+      <div class="thumb">
+        <svg width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="1.7"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.6"/><polyline points="21 15 16 10 5 21"/></svg>
+      </div>
+      <div class="bar t"></div>
+      <div class="bar s"></div>
+      <div class="bar q"></div>
+      <div class="scorerow">
+        <span class="score">94</span>
+        <span class="scoretxt">Score SEO — Excellent</span>
+      </div>
+    </div>
+  </div>
+</div>
+</body></html>
