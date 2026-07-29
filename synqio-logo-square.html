@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html><head><meta charset="UTF-8">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { width:800px; height:800px; overflow:hidden; font-family:'Segoe UI', system-ui, -apple-system, sans-serif; }
+  .sq {
+    width:800px; height:800px; position:relative; overflow:hidden;
+    background: linear-gradient(145deg, #7c3aed 0%, #5b3fd6 45%, #4f46e5 100%);
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:38px;
+  }
+  .glow { position:absolute; border-radius:50%; filter:blur(70px); }
+  .g1 { width:420px; height:420px; background:rgba(255,255,255,0.16); top:-120px; left:-80px; }
+  .g2 { width:380px; height:380px; background:rgba(79,70,229,0.4); bottom:-120px; right:-80px; }
+  .dots { position:absolute; inset:0; background-image:radial-gradient(circle, rgba(255,255,255,0.08) 1.4px, transparent 1.4px); background-size:40px 40px; }
+  .mark {
+    width:300px; height:300px; border-radius:64px;
+    background:rgba(255,255,255,0.12); border:2px solid rgba(255,255,255,0.28);
+    display:flex; align-items:center; justify-content:center; z-index:2;
+    box-shadow:0 30px 70px rgba(0,0,0,0.25), inset 0 2px 0 rgba(255,255,255,0.15);
+  }
+  .name { color:white; font-size:96px; font-weight:800; letter-spacing:-2px; z-index:2; text-shadow:0 4px 20px rgba(0,0,0,0.2); }
+</style></head>
+<body>
+<div class="sq">
+  <div class="glow g1"></div><div class="glow g2"></div><div class="dots"></div>
+  <div class="mark">
+    <svg width="168" height="168" viewBox="0 0 24 24" fill="none">
+      <path d="M12 2L2 7l10 5 10-5-10-5z" stroke="white" stroke-width="1.7" stroke-linejoin="round"/>
+      <path d="M2 17l10 5 10-5M2 12l10 5 10-5" stroke="white" stroke-width="1.7" stroke-linejoin="round"/>
+    </svg>
+  </div>
+  <div class="name">SynqIO</div>
+</div>
+</body></html>
