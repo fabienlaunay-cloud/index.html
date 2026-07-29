@@ -291,6 +291,77 @@ async def sitemap():
         return Response(content=f.read(), media_type="application/xml")
 
 
+def _gather_catalog_for_scan(email: str) -> list:
+    """Merge the live SP-API catalog (what is actually published — title/ean) with
+    the richest generated listing per SKU (bullets/keywords/description). The live
+    title wins when present (it is what Amazon shows and what may be non-compliant)."""
+    from app.db import get_catalog, get_catalog_summary
+    from app.routes.public_api import _latest_listings
+    merged: dict = {}
+    for mkt in (get_catalog_summary(email) or {}):
+        for it in get_catalog(email, mkt):
+            key = (mkt, it.get("sku") or "")
+            merged[key] = {"sku": it.get("sku") or "", "marketplace": mkt,
+                           "title": it.get("title") or "", "ean": it.get("ean") or "",
+                           "_source": "live"}
+    for g in _latest_listings(email):
+        key = (g.get("marketplace") or "", g.get("sku") or "")
+        if key in merged:
+            base = merged[key]
+            for f in ("bullet_points", "backend_keywords", "description"):
+                if f in g:
+                    base[f] = g[f]
+            if not base.get("title"):
+                base["title"] = g.get("title") or ""
+        else:
+            merged[key] = {**g, "_source": "generated"}
+    return list(merged.values())
+
+
+@app.get("/api/compliance/scan")
+async def compliance_scan(request: Request):
+    """Conformity Watchdog — scan the user's catalog against Amazon rules."""
+    from app.services.compliance import scan_listings
+    report = scan_listings(_gather_catalog_for_scan(request.state.user_email))
+    return report
+
+
+@app.post("/api/compliance/send-digest")
+async def compliance_send_digest(request: Request):
+    """Send the weekly health digest to the current user (also used to preview it)."""
+    from app.services.compliance import scan_listings
+    from app.services.email import send_catalog_health
+    email = request.state.user_email
+    report = scan_listings(_gather_catalog_for_scan(email))
+    sent = await asyncio.get_event_loop().run_in_executor(None, send_catalog_health, email, report)
+    return {"sent": sent, "score": report.get("score"), "non_compliant": report.get("non_compliant")}
+
+
+@app.post("/api/admin/compliance/send-all-digests")
+async def compliance_send_all(request: Request):
+    """Send the weekly digest to every active user. Intended to be triggered by a
+    scheduler (e.g. a weekly Railway cron hitting this endpoint). Admin only."""
+    from app.db import get_db
+    from app.services.compliance import scan_listings
+    from app.services.email import send_catalog_health
+    conn = get_db()
+    row = conn.execute("SELECT is_admin FROM users WHERE email = ?", (request.state.user_email,)).fetchone()
+    if not (row and row["is_admin"]):
+        conn.close()
+        raise HTTPException(403, "Réservé aux admins")
+    emails = [r["email"] for r in conn.execute("SELECT email FROM users").fetchall()]
+    conn.close()
+    sent = 0
+    for em in emails:
+        try:
+            report = scan_listings(_gather_catalog_for_scan(em))
+            if report.get("total", 0) and await asyncio.get_event_loop().run_in_executor(None, send_catalog_health, em, report):
+                sent += 1
+        except Exception:
+            continue
+    return {"users": len(emails), "digests_sent": sent}
+
+
 class ContactRequest(BaseModel):
     name: str = ""
     first_name: str = ""

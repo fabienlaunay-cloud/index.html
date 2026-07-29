@@ -452,3 +452,58 @@ def send_contact(name: str, email: str, message: str = "") -> bool:
 </body></html>"""
     _send(to, subject, text, html)
     return True
+
+
+def send_catalog_health(to_email: str, report: dict) -> bool:
+    """Weekly Conformity Watchdog digest: catalog health score + items to fix."""
+    if not _can_send() or _is_unsubscribed(to_email):
+        return False
+    score = report.get("score", 100)
+    total = report.get("total", 0)
+    non_compliant = report.get("non_compliant", 0)
+    critical = report.get("critical_count", 0)
+    if total == 0:
+        return False  # nothing to report
+
+    color = "#059669" if score >= 90 else ("#d97706" if score >= 70 else "#dc2626")
+    app_url = os.getenv("APP_URL", "https://synqio.io")
+
+    # Top 5 listings to fix
+    rows = ""
+    for item in report.get("listings", [])[:5]:
+        first = (item.get("issues") or [{}])[0].get("message", "")
+        rows += (
+            f'<tr><td style="padding:8px 0;font-size:13px;color:#374151">'
+            f'<strong>{(item.get("title") or item.get("sku") or "")[:60]}</strong><br>'
+            f'<span style="color:#6b7280;font-size:12px">{first}</span></td></tr>'
+        )
+
+    subject = f"🛡️ Santé de votre catalogue : {score}/100" + (f" — {non_compliant} fiche(s) à corriger" if non_compliant else " — tout est conforme")
+    text = (
+        f"Santé de votre catalogue SynqIO\n\n"
+        f"Score de conformité : {score}/100\n"
+        f"Fiches analysées : {total}\n"
+        f"À corriger : {non_compliant} (dont {critical} critiques)\n\n"
+        f"Ouvrez SynqIO pour corriger : {app_url}\n"
+    )
+    html = f"""<!DOCTYPE html>
+<html><head><meta charset="utf-8"></head>
+<body style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:24px;color:#1f2937">
+  <div style="background:linear-gradient(135deg,#7c3aed,#4f46e5);border-radius:16px;padding:22px;text-align:center;margin-bottom:24px">
+    <p style="color:white;font-size:17px;font-weight:700;margin:0">🛡️ Gardien de conformité SynqIO</p>
+    <p style="color:rgba(255,255,255,0.8);font-size:13px;margin:6px 0 0">Santé hebdomadaire de votre catalogue</p>
+  </div>
+  <div style="text-align:center;margin-bottom:22px">
+    <div style="font-size:46px;font-weight:800;color:{color}">{score}<span style="font-size:20px;color:#9ca3af">/100</span></div>
+    <p style="color:#6b7280;font-size:13px;margin:4px 0 0">{total} fiches analysées · {non_compliant} à corriger · {critical} critiques</p>
+  </div>
+  {'<table style="width:100%;border-collapse:collapse;border-top:1px solid #eee;margin-bottom:20px">' + rows + '</table>' if rows else '<p style="text-align:center;color:#059669;font-weight:600">✅ Tout votre catalogue est conforme.</p>'}
+  <div style="text-align:center;margin-top:8px">
+    <a href="{app_url}" style="display:inline-block;background:linear-gradient(135deg,#7c3aed,#4f46e5);color:white;padding:12px 28px;border-radius:12px;font-weight:700;text-decoration:none;font-size:14px">
+      Corriger dans SynqIO →
+    </a>
+  </div>
+  {_unsubscribe_footer_html(to_email)}
+</body></html>"""
+    _send(to_email, subject, text, html)
+    return True
