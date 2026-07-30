@@ -1357,6 +1357,7 @@ async def _run_catalog_sync_job(job_id: str, email: str, marketplace_str: str):
             "features": it.get("bullet_points", []) or [],
             "images": it.get("images", []) or [],
             "asin": it.get("asin", "") or "",
+            "price": it.get("price"),
         } for it in items]
         _jobs[job_id].update({"status": "done",
                               "result": {"synced": count, "marketplace": marketplace_str,

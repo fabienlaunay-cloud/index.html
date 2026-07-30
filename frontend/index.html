@@ -5877,14 +5877,31 @@ function showProductsList(products) {
       : p._skuSource === 'amazon'
       ? `<span class="inline-flex items-center gap-0.5 text-xs bg-orange-50 text-orange-700 border border-orange-200 px-1.5 py-0.5 rounded flex-shrink-0" title="ASIN trouvé sur Amazon"><span class="w-1.5 h-1.5 bg-orange-500 rounded-full inline-block"></span>ASIN</span>`
       : '';
+    const imgUrl = (p.images && p.images[0]) || (photoMap[p.sku] || '');
+    const thumb = imgUrl
+      ? `<img src="${_esc(imgUrl)}" loading="lazy" class="w-10 h-10 rounded-lg object-cover bg-white border border-gray-200 flex-shrink-0" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><span class="w-10 h-10 rounded-lg bg-gray-100 items-center justify-center flex-shrink-0" style="display:none"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></span>`
+      : `<span class="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#d1d5db" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></span>`;
+    const asin = p.extra?.asin || '';
+    const price = (p.price !== null && p.price !== undefined && p.price !== '')
+      ? Number(p.price).toFixed(2).replace('.', ',') + ' €' : '';
     return `
-    <div class="flex items-center gap-2 p-2.5 bg-gray-50 rounded-lg text-sm">
-      <span class="font-mono text-xs bg-purple-50 text-purple-700 px-2 py-0.5 rounded flex-shrink-0">${p.sku}</span>
-      ${skuBadge}
-      <span class="text-gray-700 truncate flex-1">${p.name}</span>
-      ${photoMap[p.sku] ? `<span class="text-indigo-500 text-xs flex-shrink-0" title="Photo associée"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></span>` : ''}
-      ${hasKwFile ? `<span class="text-green-500 text-xs flex-shrink-0" title="Mots-clés du fichier"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg></span>` : ''}
-      ${seg ? `<span class="text-xs bg-purple-100 text-purple-600 px-1.5 py-0.5 rounded flex-shrink-0">${seg}</span>` : ''}
+    <div class="flex items-center gap-3 p-2.5 bg-gray-50 rounded-lg text-sm">
+      ${thumb}
+      <div class="min-w-0 flex-1">
+        <div class="flex items-center gap-1.5 flex-wrap">
+          <span class="text-gray-800 font-medium truncate max-w-full">${p.name}</span>
+          ${seg ? `<span class="text-[10px] bg-purple-100 text-purple-600 px-1.5 py-0.5 rounded flex-shrink-0">${seg}</span>` : ''}
+        </div>
+        <div class="flex items-center gap-1.5 mt-0.5 flex-wrap">
+          <span class="font-mono text-[10px] bg-purple-50 text-purple-700 px-1.5 py-0.5 rounded">${_esc(p.sku)}</span>
+          ${asin ? `<span class="font-mono text-[10px] bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded" title="ASIN Amazon">${_esc(asin)}</span>` : ''}
+          ${p.ean ? `<span class="font-mono text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded" title="EAN/GTIN">${_esc(p.ean)}</span>` : ''}
+          ${p.brand ? `<span class="text-[10px] text-gray-400">${_esc(p.brand)}</span>` : ''}
+          ${skuBadge}
+          ${hasKwFile ? `<span class="text-green-500" title="Mots-clés du fichier"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg></span>` : ''}
+        </div>
+      </div>
+      ${price ? `<span class="text-sm font-semibold text-gray-700 flex-shrink-0">${price}</span>` : ''}
     </div>`;
   }).join('');
   document.getElementById('productsList').classList.remove('hidden');
@@ -8992,7 +9009,7 @@ async function syncCatalog() {
         // Load the online catalog (with photos) straight into the generator
         parsedProducts = prods.map(p => ({
           sku: p.sku, name: p.name, brand: p.brand || '', category: '',
-          description: p.description || '', price: null, ean: p.ean || '',
+          description: p.description || '', price: (p.price ?? null), ean: p.ean || '',
           features: p.features || [], focus_keywords: [],
           images: p.images || [], extra: { asin: p.asin || '' },
         }));
