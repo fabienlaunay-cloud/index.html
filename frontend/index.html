@@ -1243,6 +1243,10 @@
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/></svg>
             Santé du catalogue
           </button>
+          <button onclick="openCompetitorPanel();toggleUserMenu()" class="w-full text-left px-4 py-2 text-sm transition flex items-center gap-2" style="color:rgba(255,255,255,0.65)">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
+            Veille concurrentielle
+          </button>
           <button onclick="openApiPanel();toggleUserMenu()" class="w-full text-left px-4 py-2 text-sm transition flex items-center gap-2" style="color:rgba(255,255,255,0.65)">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
             API &amp; Intégrations
@@ -3540,6 +3544,32 @@
       <input id="changePwNew2" type="password" placeholder="Confirmez le nouveau mot de passe" class="input-auth w-full rounded-xl px-4 py-3 text-sm" onkeydown="if(event.key==='Enter') doChangePassword()">
       <button onclick="doChangePassword()" class="btn-login w-full text-white rounded-xl py-3.5 font-semibold text-sm mt-2">Enregistrer →</button>
       <button onclick="document.getElementById('changePasswordModal').classList.add('hidden')" class="w-full text-sm py-2 transition" style="color:rgba(255,255,255,0.4)">Annuler</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════ VEILLE CONCURRENTIELLE (prix) ═══════════════════ -->
+<div id="competitorModal" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[400] p-4">
+  <div class="bg-white w-full max-w-2xl rounded-3xl shadow-2xl max-h-[88vh] flex flex-col">
+    <div class="flex items-center justify-between px-7 py-5 border-b border-gray-100">
+      <div>
+        <h3 class="text-lg font-bold text-gray-900">🔍 Veille concurrentielle</h3>
+        <p class="text-xs text-gray-400 mt-0.5">Surveillez les prix des concurrents et comparez-les aux vôtres</p>
+      </div>
+      <button onclick="document.getElementById('competitorModal').classList.add('hidden')" class="text-gray-300 hover:text-gray-600 text-2xl leading-none">✕</button>
+    </div>
+    <div class="overflow-y-auto px-7 py-5 space-y-4">
+      <div class="grid sm:grid-cols-[1fr_1fr_auto] gap-2">
+        <input id="cmpAsin" type="text" placeholder="ASIN concurrent (B0XXXXXXXX)" class="border border-gray-200 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-purple-400">
+        <input id="cmpLabel" type="text" placeholder="Libellé (optionnel)" class="border border-gray-200 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-purple-400">
+        <button onclick="cmpAdd()" class="text-xs font-semibold text-white gradient-bg rounded-xl px-4 py-2.5 transition hover:opacity-90">+ Suivre</button>
+      </div>
+      <input id="cmpMySku" type="text" placeholder="Votre SKU à comparer (optionnel — pour le face-à-face prix)" class="w-full border border-gray-200 rounded-xl px-3.5 py-2 text-xs focus:outline-none focus:border-purple-400">
+      <div class="flex items-center justify-between">
+        <p class="text-xs text-gray-400">Prix récupérés via Amazon (Apify)</p>
+        <button onclick="cmpRefresh(this)" class="text-xs font-semibold text-purple-600 bg-purple-50 hover:bg-purple-100 rounded-lg px-3 py-1.5 transition">↻ Actualiser les prix</button>
+      </div>
+      <div id="cmpList" class="space-y-2"><p class="text-xs text-gray-300 text-center py-4">Chargement…</p></div>
     </div>
   </div>
 </div>
@@ -12603,6 +12633,94 @@ function _auditSendToGen() {
   switchAppMode('generate');
   setStep(2);
   showToast('✅', 'Fiche chargée dans le générateur — complétez marque/catégorie puis lancez');
+}
+
+// ── Veille concurrentielle (prix) ────────────────────────────────────────────
+async function openCompetitorPanel() {
+  document.getElementById('competitorModal').classList.remove('hidden');
+  _cmpLoad();
+}
+
+function _cmpFmt(p) { return (p === null || p === undefined) ? '—' : p.toFixed(2).replace('.', ',') + ' €'; }
+
+function _cmpRow(c) {
+  const vs = c.vs_you;
+  let compare = '';
+  if (vs !== null && vs !== undefined) {
+    if (vs > 0) compare = `<span class="text-green-600 font-semibold">Vous êtes moins cher de ${_cmpFmt(vs)}</span>`;
+    else if (vs < 0) compare = `<span class="text-red-600 font-semibold">Vous êtes plus cher de ${_cmpFmt(-vs)}</span>`;
+    else compare = '<span class="text-gray-500">Même prix</span>';
+  }
+  let delta = '';
+  if (c.delta !== null && c.delta !== undefined && c.delta !== 0) {
+    delta = c.delta < 0
+      ? `<span class="text-[11px] text-red-500">▼ ${_cmpFmt(-c.delta)}</span>`
+      : `<span class="text-[11px] text-green-600">▲ ${_cmpFmt(c.delta)}</span>`;
+  }
+  return `<div class="border border-gray-100 rounded-xl p-3.5">
+    <div class="flex items-center gap-2 mb-1">
+      <span class="text-sm font-semibold text-gray-800 truncate flex-1">${_esc(c.label || c.title || c.asin)}</span>
+      <button onclick="cmpDelete('${c.id}',this)" data-armed="0" class="text-[11px] font-semibold text-red-500 hover:text-red-700 flex-shrink-0">Suppr.</button>
+    </div>
+    <p class="text-[10px] text-gray-300 mb-1.5">ASIN ${_esc(c.asin)}${c.title && c.label ? ' · ' + _esc(c.title) : ''}</p>
+    <div class="flex items-center gap-4 text-sm">
+      <span class="text-gray-700">Concurrent : <strong>${_cmpFmt(c.price !== undefined ? c.price : c.last_price)}</strong> ${delta}</span>
+      ${c.my_price !== null && c.my_price !== undefined ? `<span class="text-gray-500">Vous : ${_cmpFmt(c.my_price)}</span>` : ''}
+    </div>
+    ${compare ? `<p class="text-xs mt-1">${compare}</p>` : ''}
+  </div>`;
+}
+
+async function _cmpLoad() {
+  const box = document.getElementById('cmpList');
+  try {
+    const r = await authFetch('/api/competitors');
+    if (!r.ok) throw new Error();
+    const comps = (await r.json()).competitors || [];
+    box.innerHTML = comps.length ? comps.map(_cmpRow).join('')
+      : '<p class="text-xs text-gray-300 text-center py-4">Aucun concurrent suivi. Ajoutez un ASIN pour surveiller son prix.</p>';
+  } catch(e) { box.innerHTML = '<p class="text-xs text-red-400 text-center py-4">Erreur de chargement</p>'; }
+}
+
+async function cmpAdd() {
+  const asin = document.getElementById('cmpAsin').value.trim().toUpperCase();
+  const label = document.getElementById('cmpLabel').value.trim();
+  const my_sku = document.getElementById('cmpMySku').value.trim();
+  if (!asin) { showToast('⚠️', 'Renseignez un ASIN', true); return; }
+  const mkt = (selectedMarketplaces && selectedMarketplaces[0]) || 'amazon_fr';
+  try {
+    const r = await authFetch('/api/competitors', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ asin, label, my_sku, marketplace: mkt }) });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.detail || 'Erreur');
+    document.getElementById('cmpAsin').value = ''; document.getElementById('cmpLabel').value = '';
+    _cmpLoad();
+    showToast('✅', 'Concurrent ajouté — cliquez « Actualiser les prix »');
+  } catch(e) { showToast('❌', e.message || 'Erreur', true); }
+}
+
+async function cmpRefresh(btn) {
+  btn.disabled = true; const orig = btn.textContent; btn.textContent = 'Récupération des prix…';
+  try {
+    const r = await authFetch('/api/competitors/refresh', { method:'POST' });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.detail || 'Erreur');
+    if (data.competitors) {
+      document.getElementById('cmpList').innerHTML = data.competitors.length
+        ? data.competitors.map(_cmpRow).join('')
+        : '<p class="text-xs text-gray-300 text-center py-4">Aucun concurrent suivi.</p>';
+    }
+    showToast('✅', `${data.refreshed || 0} prix actualisé(s)`);
+  } catch(e) { showToast('❌', e.message || 'Erreur de récupération', true); }
+  btn.disabled = false; btn.textContent = orig;
+}
+
+async function cmpDelete(id, btn) {
+  if (btn.dataset.armed !== '1') { btn.dataset.armed='1'; btn.textContent='Confirmer ?'; setTimeout(()=>{btn.dataset.armed='0';btn.textContent='Suppr.';},4000); return; }
+  try {
+    const r = await authFetch('/api/competitors/' + id, { method:'DELETE' });
+    if (!r.ok) throw new Error();
+    _cmpLoad();
+  } catch(e) { showToast('❌', 'Erreur lors de la suppression', true); }
 }
 
 // ── Espaces client (agence multi-client) ─────────────────────────────────────

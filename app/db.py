@@ -1686,3 +1686,84 @@ def delete_workspace(ws_id: str, owner_email: str) -> bool:
     conn.commit()
     conn.close()
     return True
+
+
+# ── Competitor price watch (scoped by user_email → per-workspace) ─────────────
+
+def _ensure_competitors(conn):
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS competitors (
+            id TEXT PRIMARY KEY,
+            user_email TEXT NOT NULL,
+            asin TEXT NOT NULL,
+            marketplace TEXT NOT NULL DEFAULT 'amazon_fr',
+            label TEXT DEFAULT '',
+            my_sku TEXT DEFAULT '',
+            last_price REAL,
+            last_title TEXT DEFAULT '',
+            last_rating REAL,
+            last_checked_at TIMESTAMP,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS competitor_snapshots (
+            competitor_id TEXT NOT NULL,
+            user_email TEXT NOT NULL,
+            snap_date DATE NOT NULL,
+            price REAL,
+            PRIMARY KEY (competitor_id, snap_date)
+        )
+    """)
+
+
+def add_competitor(cid: str, user_email: str, asin: str, marketplace: str, label: str, my_sku: str) -> None:
+    conn = get_db()
+    _ensure_competitors(conn)
+    conn.execute(
+        "INSERT INTO competitors (id, user_email, asin, marketplace, label, my_sku) VALUES (?, ?, ?, ?, ?, ?)",
+        (cid, user_email, asin.upper(), marketplace, label, my_sku),
+    )
+    conn.commit()
+    conn.close()
+
+
+def list_competitors(user_email: str) -> list:
+    conn = get_db()
+    _ensure_competitors(conn)
+    rows = conn.execute(
+        "SELECT id, asin, marketplace, label, my_sku, last_price, last_title, last_rating, last_checked_at "
+        "FROM competitors WHERE user_email = ? ORDER BY created_at ASC", (user_email,),
+    ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def delete_competitor(cid: str, user_email: str) -> bool:
+    conn = get_db()
+    _ensure_competitors(conn)
+    cur = conn.execute("DELETE FROM competitors WHERE id = ? AND user_email = ?", (cid, user_email))
+    conn.execute("DELETE FROM competitor_snapshots WHERE competitor_id = ? AND user_email = ?", (cid, user_email))
+    conn.commit()
+    conn.close()
+    return cur.rowcount > 0
+
+
+def update_competitor_price(cid: str, user_email: str, price, title: str, rating) -> None:
+    conn = get_db()
+    _ensure_competitors(conn)
+    conn.execute(
+        "UPDATE competitors SET last_price = ?, last_title = ?, last_rating = ?, "
+        "last_checked_at = CURRENT_TIMESTAMP WHERE id = ? AND user_email = ?",
+        (price, title or "", rating, cid, user_email),
+    )
+    is_pg = bool(os.getenv("DATABASE_URL"))
+    today = "CURRENT_DATE" if is_pg else "date('now')"
+    if price is not None:
+        conn.execute(
+            f"INSERT INTO competitor_snapshots (competitor_id, user_email, snap_date, price) "
+            f"VALUES (?, ?, {today}, ?) ON CONFLICT(competitor_id, snap_date) DO UPDATE SET price = excluded.price",
+            (cid, user_email, price),
+        )
+    conn.commit()
+    conn.close()

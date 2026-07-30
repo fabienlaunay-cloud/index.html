@@ -376,6 +376,108 @@ async def business_sync(request: Request):
     return res
 
 
+class CompetitorAdd(BaseModel):
+    asin: str
+    label: str = ""
+    my_sku: str = ""
+    marketplace: str = "amazon_fr"
+
+
+def _my_price_for_sku(email: str, sku: str):
+    """Best-effort: your own price for a SKU, from the latest generation."""
+    if not sku:
+        return None
+    from app.routes.public_api import _latest_listings
+    for l in _latest_listings(email):
+        if l.get("sku") == sku and l.get("price") is not None:
+            try:
+                return round(float(l["price"]), 2)
+            except (TypeError, ValueError):
+                return None
+    return None
+
+
+@app.get("/api/competitors")
+async def competitors_list(request: Request):
+    from app.db import list_competitors
+    email = request.state.user_email
+    rows = list_competitors(email)
+    for c in rows:
+        c["my_price"] = _my_price_for_sku(email, c.get("my_sku") or "")
+        if c.get("last_price") is not None and c.get("my_price") is not None:
+            c["vs_you"] = round(c["last_price"] - c["my_price"], 2)  # >0 = concurrent plus cher
+    return {"competitors": rows}
+
+
+@app.post("/api/competitors")
+async def competitors_add(body: CompetitorAdd, request: Request):
+    from app.db import list_competitors, add_competitor
+    email = request.state.user_email
+    asin = (body.asin or "").strip().upper()
+    if not (5 <= len(asin) <= 12) or not asin.isalnum():
+        raise HTTPException(400, "ASIN invalide (ex : B0XXXXXXXX)")
+    if len(list_competitors(email)) >= 100:
+        raise HTTPException(400, "Maximum 100 concurrents suivis")
+    add_competitor(f"cmp_{uuid4().hex[:12]}", email, asin, body.marketplace,
+                   (body.label or "").strip()[:80], (body.my_sku or "").strip())
+    return {"ok": True}
+
+
+@app.delete("/api/competitors/{cid}")
+async def competitors_delete(cid: str, request: Request):
+    from app.db import delete_competitor
+    if not delete_competitor(cid, request.state.user_email):
+        raise HTTPException(404, "Concurrent introuvable")
+    return {"deleted": True}
+
+
+@app.post("/api/competitors/refresh")
+async def competitors_refresh(request: Request):
+    """Scrape current prices for all watched competitors via Apify, store
+    snapshots, and return per-competitor price + change vs last check."""
+    from app.db import list_competitors, update_competitor_price
+    email = request.state.user_email
+    comps = list_competitors(email)
+    if not comps:
+        return {"refreshed": 0, "competitors": []}
+    if not _rate_limit(f"{email}:cmp-refresh", limit=6, window=3600):
+        raise HTTPException(429, "Limite de 6 rafraîchissements/heure — réessayez plus tard")
+    # group ASINs by marketplace
+    by_mkt: dict = {}
+    for c in comps:
+        by_mkt.setdefault(c["marketplace"], []).append(c["asin"])
+    scraped: dict = {}
+    for mkt, asins in by_mkt.items():
+        try:
+            scraped.update(await _apify_fetch_products(list(set(asins)), mkt))
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(502, f"Scraping impossible : {type(e).__name__}")
+
+    results = []
+    refreshed = 0
+    for c in comps:
+        data = scraped.get(c["asin"])
+        prev = c.get("last_price")
+        if data:
+            update_competitor_price(c["id"], email, data["price"], data["title"], data["rating"])
+            refreshed += 1
+        my_price = _my_price_for_sku(email, c.get("my_sku") or "")
+        cur = (data or {}).get("price")
+        results.append({
+            "id": c["id"], "asin": c["asin"], "label": c.get("label") or "",
+            "title": (data or {}).get("title") or c.get("last_title") or "",
+            "price": cur, "rating": (data or {}).get("rating"),
+            "prev_price": prev,
+            "delta": (round(cur - prev, 2) if (cur is not None and prev is not None) else None),
+            "my_price": my_price,
+            "vs_you": (round(cur - my_price, 2) if (cur is not None and my_price is not None) else None),
+            "found": bool(data),
+        })
+    return {"refreshed": refreshed, "competitors": results}
+
+
 @app.get("/api/business/scan")
 async def business_scan(request: Request):
     """Business Watchdog — detect declining tracked listings, correlated with
@@ -3902,6 +4004,99 @@ def _apify_build_payload(asins: list[str], marketplace: str, max_per: int) -> di
         "includeGdprSensitive": False,
         "proxyConfiguration": {"useApifyProxy": True},
     }
+
+
+APIFY_PRODUCT_ACTOR = os.getenv("APIFY_PRODUCT_ACTOR", "junglee~amazon-product-details")
+
+
+def _apify_parse_price(raw) -> Optional[float]:
+    """Parse a price from many shapes: number, '19,99 €', '$1,299.00', {'value':..}."""
+    if raw is None:
+        return None
+    if isinstance(raw, (int, float)):
+        return round(float(raw), 2)
+    if isinstance(raw, dict):
+        return _apify_parse_price(raw.get("value") or raw.get("amount") or raw.get("price"))
+    m = re.search(r'\d[\d.,\s ]*', str(raw))
+    if not m:
+        return None
+    num = m.group(0).replace(" ", "").replace(" ", "")
+    if "," in num and "." in num:  # 1.299,00 (EU) or 1,299.00 (US)
+        num = num.replace(".", "").replace(",", ".") if num.rfind(",") > num.rfind(".") else num.replace(",", "")
+    elif "," in num:
+        num = num.replace(",", ".")
+    try:
+        return round(float(num), 2)
+    except ValueError:
+        return None
+
+
+def _apify_parse_products(items: list) -> dict:
+    """Extract {asin: {asin, title, price, rating}} from a product-scraper dataset."""
+    out: dict = {}
+    for it in items or []:
+        if not isinstance(it, dict):
+            continue
+        asin = str(_apify_pick(it, "asin", "productAsin", "asin1", "parentAsin") or "").upper().strip()
+        if not asin or len(asin) < 5 or asin in out:
+            continue
+        name = _apify_pick(it, "title", "productTitle", "name", "productName", "product")
+        if isinstance(name, dict):
+            name = name.get("title") or name.get("name") or ""
+        price = _apify_parse_price(_apify_pick(
+            it, "price", "currentPrice", "priceAmount", "buyBoxPrice", "productPrice",
+            "price_amount", "salePrice", "listPrice"))
+        rating = _apify_parse_rating(_apify_pick(
+            it, "productRating", "productOverallRating", "stars", "rating", "averageRating"))
+        out[asin] = {"asin": asin, "title": str(name or "")[:200], "price": price, "rating": rating}
+    return out
+
+
+async def _apify_fetch_products(asins: list[str], marketplace: str) -> dict:
+    """Scrape current product data (price/title/rating) for competitor ASINs."""
+    token = os.getenv("APIFY_TOKEN")
+    if not token:
+        raise HTTPException(503, "APIFY_TOKEN manquant — configurez la clé Apify côté serveur.")
+    domain = _KW_DOMAINS.get(marketplace, ("amazon.fr",))[0]
+    payload = {
+        "productUrls": [{"url": f"https://www.{domain}/dp/{a}"} for a in asins],
+        "maxItems": len(asins),
+        "proxyConfiguration": {"useApifyProxy": True},
+    }
+    base = "https://api.apify.com/v2"
+    async with httpx.AsyncClient(timeout=120) as client:
+        r = await client.post(f"{base}/acts/{APIFY_PRODUCT_ACTOR}/runs?token={token}", json=payload)
+        if r.status_code in (401, 403):
+            raise HTTPException(502, "APIFY_TOKEN invalide ou sans accès à cet acteur produit.")
+        if r.status_code == 404:
+            raise HTTPException(502, f"Acteur produit introuvable : '{APIFY_PRODUCT_ACTOR}' (APIFY_PRODUCT_ACTOR).")
+        if not r.is_success:
+            raise HTTPException(502, f"Apify a renvoyé {r.status_code} : {r.text[:200]}")
+        data = (r.json() or {}).get("data", {})
+        run_id, ds_id = data.get("id"), data.get("defaultDatasetId")
+        status = data.get("status", "READY")
+        if not run_id or not ds_id:
+            raise HTTPException(502, "Réponse Apify inattendue au démarrage du run produit.")
+        for _ in range(90):  # up to ~6 min
+            if status == "SUCCEEDED":
+                break
+            if status in ("FAILED", "ABORTED", "TIMED-OUT", "TIMED_OUT", "TIMING-OUT"):
+                raise HTTPException(502, f"Le run Apify produit s'est terminé en échec ({status}).")
+            await asyncio.sleep(4)
+            try:
+                pr = await client.get(f"{base}/actor-runs/{run_id}?token={token}")
+                status = (pr.json() or {}).get("data", {}).get("status", status)
+            except httpx.HTTPError:
+                continue
+        else:
+            raise HTTPException(504, "Le scraping produit Apify a dépassé le délai.")
+        di = await client.get(f"{base}/datasets/{ds_id}/items?token={token}&clean=true&format=json")
+        if not di.is_success:
+            raise HTTPException(502, f"Lecture du dataset Apify impossible ({di.status_code}).")
+        items = di.json()
+    if not isinstance(items, list):
+        items = items.get("items", []) if isinstance(items, dict) else []
+    return _apify_parse_products(items)
 
 
 def _apify_parse_int(raw) -> Optional[int]:
