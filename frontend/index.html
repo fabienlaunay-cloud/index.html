@@ -13050,6 +13050,7 @@ function _renderHealth(rep) {
         ${rep.critical_count ? `<p class="text-xs text-red-500 mt-1 font-medium">⚠️ ${rep.critical_count} problème(s) critique(s) — à traiter en priorité</p>` : ''}
       </div>
     </div>
+    ${_healthOverview(rep)}
     <div id="healthTrend" class="border border-gray-100 rounded-2xl p-3.5 mb-5"></div>
     ${rep.non_compliant === 0
       ? '<p class="text-center text-green-600 font-semibold py-6">✅ Tout votre catalogue est conforme aux règles Amazon.</p>'
@@ -13075,6 +13076,37 @@ async function healthFixTitles(btn) {
     showToast('❌', e.message || 'Erreur lors de la correction', true);
     btn.disabled = false; btn.textContent = orig;
   }
+}
+
+function _healthOverview(rep) {
+  const co = rep.catalog_overview, so = rep.sales_overview;
+  const hasCat = co && co.total > 0;
+  const hasSales = so && so.tracked > 0;
+  if (!hasCat && !hasSales) return '';
+  const tile = (val, label, cls) => `
+    <div class="flex-1 min-w-[80px] text-center bg-gray-50 rounded-xl py-2.5 px-2">
+      <div class="text-xl font-bold ${cls || 'text-gray-800'}">${val}</div>
+      <div class="text-[10px] text-gray-400 mt-0.5">${label}</div>
+    </div>`;
+  let tiles = '';
+  if (hasCat) {
+    tiles += tile(co.total, 'Fiches catalogue');
+    tiles += tile(co.active, 'Actives', 'text-green-600');
+    tiles += tile(co.inactive, 'Inactives', 'text-gray-400');
+    tiles += tile(co.in_stock, 'En stock', 'text-blue-600');
+  }
+  if (hasSales) {
+    tiles += tile(so.selling, 'Fiches qui vendent', 'text-purple-600');
+    tiles += tile(Number(so.revenue).toLocaleString('fr-FR') + ' €', 'CA (dernier relevé)', 'text-gray-800');
+  }
+  const salesHint = hasCat && !hasSales
+    ? '<p class="text-[11px] text-gray-400 mt-2">💡 Connectez le suivi des ventes (onglet Suivi → Synchroniser) pour croiser vos fiches actives avec le chiffre d\'affaires.</p>'
+    : '';
+  return `<div class="mb-5">
+    <p class="text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-2">Vue d'ensemble</p>
+    <div class="flex gap-2 flex-wrap">${tiles}</div>
+    ${salesHint}
+  </div>`;
 }
 
 async function healthSendDigest(btn) {

@@ -752,44 +752,71 @@ def update_generation_listings(batch_id: str, user_email: str, listings: list) -
 
 # ── Product catalog ───────────────────────────────────────────────────────────
 
+def _ensure_catalog_extra(conn):
+    """Idempotently add status/quantity/price columns to product_catalog."""
+    is_pg = bool(os.getenv("DATABASE_URL"))
+    for col, typ in (("status", "TEXT DEFAULT ''"), ("quantity", "INTEGER"), ("price", "REAL")):
+        try:
+            if is_pg:
+                conn.execute(f"ALTER TABLE product_catalog ADD COLUMN IF NOT EXISTS {col} {typ}")
+            else:
+                conn.execute(f"ALTER TABLE product_catalog ADD COLUMN {col} {typ}")
+        except Exception:
+            pass
+
+
 def save_catalog_items(user_email: str, marketplace: str, items: list) -> int:
     """Upsert items into product_catalog. Returns count saved."""
     if not items:
         return 0
     conn = get_db()
+    _ensure_catalog_extra(conn)
     database_url = os.getenv("DATABASE_URL")
     count = 0
     for item in items:
         sku = item.get("sku", "")
         if not sku:
             continue
+        vals = (user_email, marketplace, sku, item.get("asin", ""), item.get("ean", ""),
+                item.get("title", ""), (item.get("status") or ""), item.get("quantity"), item.get("price"))
         if database_url:
             conn.execute(
                 """
-                INSERT INTO product_catalog (user_email, marketplace, sku, asin, ean, title, synced_at)
-                VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                INSERT INTO product_catalog (user_email, marketplace, sku, asin, ean, title, status, quantity, price, synced_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
                 ON CONFLICT(user_email, marketplace, sku) DO UPDATE SET
-                    asin = EXCLUDED.asin,
-                    ean = EXCLUDED.ean,
-                    title = EXCLUDED.title,
+                    asin = EXCLUDED.asin, ean = EXCLUDED.ean, title = EXCLUDED.title,
+                    status = EXCLUDED.status, quantity = EXCLUDED.quantity, price = EXCLUDED.price,
                     synced_at = CURRENT_TIMESTAMP
                 """,
-                (user_email, marketplace, sku,
-                 item.get("asin", ""), item.get("ean", ""), item.get("title", "")),
+                vals,
             )
         else:
             conn.execute(
                 """
-                INSERT OR REPLACE INTO product_catalog (user_email, marketplace, sku, asin, ean, title, synced_at)
-                VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                INSERT OR REPLACE INTO product_catalog (user_email, marketplace, sku, asin, ean, title, status, quantity, price, synced_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
                 """,
-                (user_email, marketplace, sku,
-                 item.get("asin", ""), item.get("ean", ""), item.get("title", "")),
+                vals,
             )
         count += 1
     conn.commit()
     conn.close()
     return count
+
+
+def get_catalog_overview(user_email: str) -> dict:
+    """Catalog status breakdown across all marketplaces (active/inactive/stock)."""
+    conn = get_db()
+    _ensure_catalog_extra(conn)
+    rows = conn.execute(
+        "SELECT status, quantity FROM product_catalog WHERE user_email = ?", (user_email,)
+    ).fetchall()
+    conn.close()
+    total = len(rows)
+    active = sum(1 for r in rows if (r["status"] or "").lower() == "active")
+    in_stock = sum(1 for r in rows if (r["quantity"] or 0) > 0)
+    return {"total": total, "active": active, "inactive": total - active, "in_stock": in_stock}
 
 
 def get_catalog(user_email: str, marketplace: str) -> list:

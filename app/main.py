@@ -334,13 +334,35 @@ def _today_iso() -> str:
     return _d.date.today().isoformat()
 
 
+def _sales_overview(email: str) -> dict:
+    """From the tracked listings' latest snapshots: how many sell + total revenue."""
+    from app.db import list_tracked_listings, get_snapshots
+    tracked = list_tracked_listings(email)
+    selling, revenue = 0, 0.0
+    for l in tracked:
+        snaps = get_snapshots(l["id"], email)
+        if not snaps:
+            continue
+        last = snaps[-1]
+        if (last.get("units_ordered") or 0) > 0:
+            selling += 1
+            revenue += last.get("revenue") or 0
+    return {"tracked": len(tracked), "selling": selling, "revenue": round(revenue, 2)}
+
+
 @app.get("/api/compliance/scan")
 async def compliance_scan(request: Request):
-    """Conformity Watchdog — scan the user's catalog against Amazon rules."""
+    """Conformity Watchdog — scan the user's catalog against Amazon rules,
+    with a catalog (active/inactive/stock) + sales overview."""
     from app.services.compliance import scan_listings, detect_degradation
-    from app.db import record_health_snapshot, get_health_history
+    from app.db import record_health_snapshot, get_health_history, get_catalog_overview
     email = request.state.user_email
     report = scan_listings(_gather_catalog_for_scan(email))
+    try:
+        report["catalog_overview"] = get_catalog_overview(email)
+        report["sales_overview"] = _sales_overview(email)
+    except Exception:
+        pass
     # Degradation vs the previous snapshot → live alert banner (compare before
     # recording today's point). Email alerts themselves are sent by the cron.
     try:
