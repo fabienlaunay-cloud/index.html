@@ -103,6 +103,7 @@ def _init_db_pg():
     conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS quota_alert_period TEXT DEFAULT ''")
     conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS quota_full_period TEXT DEFAULT ''")
     conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS email_unsubscribed INTEGER DEFAULT 0")
+    conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS agency_enabled INTEGER DEFAULT 0")
 
     conn.execute("""
         CREATE TABLE IF NOT EXISTS amazon_credentials (
@@ -360,6 +361,10 @@ def _init_db_sqlite():
         pass
     try:
         conn.execute("ALTER TABLE users ADD COLUMN email_unsubscribed INTEGER DEFAULT 0")
+    except Exception:
+        pass
+    try:
+        conn.execute("ALTER TABLE users ADD COLUMN agency_enabled INTEGER DEFAULT 0")
     except Exception:
         pass
 

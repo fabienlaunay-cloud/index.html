@@ -174,7 +174,7 @@ def is_admin(email: str) -> bool:
 def list_users() -> list:
     conn = get_db()
     rows = conn.execute(
-        """SELECT u.email, u.name, u.is_active, u.is_admin, u.plan, u.created_at,
+        """SELECT u.email, u.name, u.is_active, u.is_admin, u.plan, u.agency_enabled, u.created_at,
                   CASE WHEN ac.user_email IS NOT NULL THEN 1 ELSE 0 END AS has_amazon
            FROM users u
            LEFT JOIN amazon_credentials ac ON ac.user_email = u.email

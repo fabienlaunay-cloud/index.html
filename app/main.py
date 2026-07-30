@@ -3298,10 +3298,20 @@ async def workspaces_list(request: Request):
     return {"workspaces": list_workspaces(request.state.owner_email)}
 
 
+def _require_agency(email: str):
+    from app.db import get_db
+    conn = get_db()
+    row = conn.execute("SELECT is_admin, agency_enabled FROM users WHERE email = ?", (email,)).fetchone()
+    conn.close()
+    if not (row and (row["is_admin"] or row["agency_enabled"])):
+        raise HTTPException(403, "Mode agence non activé pour ce compte")
+
+
 @app.post("/api/workspaces")
 async def workspaces_create(body: WorkspaceCreate, request: Request):
     from app.db import list_workspaces, create_workspace
     owner = request.state.owner_email
+    _require_agency(owner)
     name = (body.name or "").strip()[:60]
     if not name:
         raise HTTPException(400, "Nom d'espace requis")

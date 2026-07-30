@@ -1172,8 +1172,8 @@
         <span class="hidden sm:inline">Assistant</span>
       </button>
 
-      <!-- Workspace (client) selector -->
-      <div class="relative" id="wsSelectorWrapper">
+      <!-- Workspace (client) selector — shown only in agency mode -->
+      <div class="relative hidden" id="wsSelectorWrapper">
         <button type="button" onclick="toggleWsDropdown(event)"
           class="flex items-center gap-1.5 bg-white/10 hover:bg-white/20 border border-white/20 text-white rounded-xl px-3 h-8 text-sm transition flex-shrink-0">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V7l8-4v18"/><path d="M19 21V11l-6-4"/></svg>
@@ -4326,6 +4326,13 @@ async function initApp() {
     if (!r.ok) throw new Error();
     const data = await r.json();
     currentUser = data;
+    // Agency mode: show the client-workspace selector only when enabled
+    if (data.agency_enabled) {
+      document.getElementById('wsSelectorWrapper')?.classList.remove('hidden');
+    } else {
+      document.getElementById('wsSelectorWrapper')?.classList.add('hidden');
+      if (activeWorkspace) { activeWorkspace = ''; localStorage.removeItem('synqio_workspace'); }
+    }
     showApp(data.email);
     _initCobrowse(data.email);
     const params = new URLSearchParams(window.location.search);
@@ -4379,7 +4386,7 @@ function showApp(email) {
     document.getElementById('app').classList.remove('hidden');
     document.getElementById('adminView').classList.add('hidden');
     _resumeAmazonAuthorize();  // resume Appstore-initiated OAuth if one is pending
-    _wsLoad();  // agency workspaces — populate the client-space selector
+    if (currentUser?.agency_enabled) _wsLoad();  // agency workspaces selector
     checkHealth();
     loadUsage();
     _apiLoadConnectors();  // populate "Publier vers…" buttons in the export menu
@@ -5488,6 +5495,9 @@ function renderUsers(users) {
       <button onclick="toggleUser('${ea}', ${u.is_active ? 0 : 1})" class="text-xs px-3 py-1.5 rounded-lg border font-medium transition shrink-0 ${activeClass}">
         ${u.is_active ? '✓ Actif' : '✗ Inactif'}
       </button>
+      <button onclick="toggleAgency('${ea}', ${u.agency_enabled ? 0 : 1})" title="${u.agency_enabled ? 'Désactiver le mode agence (multi-client)' : 'Activer le mode agence (espaces clients)'}" class="text-xs px-2 py-1.5 rounded-lg border transition shrink-0 ${u.agency_enabled ? 'bg-purple-50 text-purple-600 border-purple-200 hover:bg-purple-100' : 'bg-gray-50 text-gray-400 border-gray-200 hover:bg-purple-50 hover:text-purple-500'}">
+        ${u.agency_enabled ? '🏢 Agence' : '🏢'}
+      </button>
       <button onclick="toggleAdmin('${ea}', ${u.is_admin ? 0 : 1})" title="${u.is_admin ? 'Révoquer le rôle admin' : 'Promouvoir en admin'}" class="text-xs px-2 py-1.5 rounded-lg border transition shrink-0 ${u.is_admin ? 'bg-amber-50 text-amber-600 border-amber-200 hover:bg-amber-100' : 'bg-gray-50 text-gray-400 border-gray-200 hover:bg-amber-50 hover:text-amber-500'}">
         ${u.is_admin ? '👑 Admin' : '👑'}
       </button>
@@ -5497,6 +5507,17 @@ function renderUsers(users) {
       <button onclick="deleteUser('${ea}')" class="text-red-400 hover:text-red-600 hover:bg-red-50 text-xs px-2 py-1.5 rounded-lg transition shrink-0"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg></button>
     </div>`;
   }).join('');
+}
+
+async function toggleAgency(email, enable) {
+  const r = await authFetch(`/api/admin/users/${encodeURIComponent(email)}/agency`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ agency_enabled: !!enable }),
+  });
+  if (!r.ok) { const e = await r.json().catch(()=>({})); showToast('❌', e.detail || 'Erreur', true); return; }
+  showToast('✅', enable ? `Mode agence activé pour ${email}` : `Mode agence désactivé pour ${email}`);
+  loadUsers();
 }
 
 async function changePlan(email, plan) {

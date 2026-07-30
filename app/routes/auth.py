@@ -370,7 +370,12 @@ async def me(authorization: str = Header(None)):
     # then confirm against DB so demotions take effect on next login.
     jwt_data = _decode_token_data(token_str) or {}
     admin = bool(jwt_data.get("adm")) or is_admin(email)
-    return {"email": email, "is_admin": admin}
+    # Admins always have the agency feature (for testing); others per DB flag.
+    conn = get_db()
+    row = conn.execute("SELECT agency_enabled FROM users WHERE email = ?", (email.lower(),)).fetchone()
+    conn.close()
+    agency = admin or bool(row and row["agency_enabled"])
+    return {"email": email, "is_admin": admin, "agency_enabled": agency}
 
 
 # ── Admin endpoints (JWT admin requis, pas de secret séparé) ─────────────────
@@ -463,6 +468,22 @@ async def update_plan(email: str, req: UpdatePlanRequest, authorization: str = H
     conn.commit()
     conn.close()
     return {"status": "updated", "email": email, "plan": req.plan}
+
+
+class UpdateAgencyRequest(BaseModel):
+    agency_enabled: bool
+
+
+@admin_router.patch("/users/{email}/agency")
+async def update_agency(email: str, req: UpdateAgencyRequest, authorization: str = Header(None)):
+    """Enable/disable the multi-client (agency) workspace feature for a user."""
+    _require_admin(authorization)
+    conn = get_db()
+    conn.execute("UPDATE users SET agency_enabled = ? WHERE email = ?",
+                 (1 if req.agency_enabled else 0, email.lower()))
+    conn.commit()
+    conn.close()
+    return {"status": "updated", "email": email, "agency_enabled": req.agency_enabled}
 
 
 
