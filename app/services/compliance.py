@@ -159,6 +159,7 @@ def scan_listings(listings: List[dict]) -> dict:
                 "source": l.get("_source") or "",  # "generated" (fixable) | "live"
                 "status": status or ("active" if not is_inactive else "inactive"),
                 "in_stock": bool(qty and qty > 0),
+                "price": l.get("price"),
                 "units": units,
                 "revenue": round(float(l.get("_revenue") or 0), 2),
                 "selling": units > 0,

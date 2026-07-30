@@ -329,7 +329,7 @@ def _gather_catalog_for_scan(email: str) -> list:
             merged[key] = {"sku": it.get("sku") or "", "marketplace": mkt,
                            "title": it.get("title") or "", "ean": it.get("ean") or "",
                            "asin": asin, "status": (it.get("status") or "").lower(),
-                           "quantity": it.get("quantity"),
+                           "quantity": it.get("quantity"), "price": it.get("price"),
                            "_units": s.get("units") or 0, "_revenue": s.get("revenue") or 0,
                            "_source": "live"}
     for g in _latest_listings(email):
