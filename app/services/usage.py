@@ -1,6 +1,19 @@
 from datetime import datetime
 from app.db import get_db
 
+
+def _owner(user_email: str) -> str:
+    """Attribute usage/quota to the agency owner when the key is a workspace
+    (multi-client): a ws_… data-key resolves to the account that owns it, so a
+    single plan/quota is shared across all of an agency's client workspaces."""
+    if user_email and user_email.startswith("ws_"):
+        try:
+            from app.db import workspace_owner
+            return workspace_owner(user_email) or user_email
+        except Exception:
+            return user_email
+    return user_email
+
 PLAN_QUOTAS = {
     # skus = quota mensuel sauf maintenance (annual_pool=True → quota annuel de 100)
     "starter":     {"skus": 200,  "images": 50,  "label": "Starter",          "commitment_months": 0,  "price_monthly": 390,  "price_setup": 490,  "annual_pool": False},
@@ -77,6 +90,7 @@ def log_image_regen(user_email: str, sku: str, image_id: str):
 
 
 def log_usage(user_email: str, action: str, count: int = 1):
+    user_email = _owner(user_email)
     conn = get_db()
     conn.execute(
         "INSERT INTO usage (user_email, action, count, month) VALUES (?, ?, ?, ?)",
@@ -87,6 +101,7 @@ def log_usage(user_email: str, action: str, count: int = 1):
 
 
 def get_user_usage(user_email: str, month: str = None) -> dict:
+    user_email = _owner(user_email)
     month = month or _current_month()
     conn = get_db()
     plan_row = conn.execute(

@@ -1601,3 +1601,88 @@ def get_health_history(user_email: str, limit: int = 30) -> list:
             "non_compliant": r["non_compliant"], "critical": r["critical_count"]} for r in rows]
     out.reverse()  # oldest first
     return out
+
+
+# ── Agency workspaces (multi-client isolation) ───────────────────────────────
+# A workspace id (ws_…) is used AS the user_email data-key for every content
+# table, so all existing queries become workspace-scoped for free. Usage/quota
+# resolves back to the owner (see app/services/usage.py).
+
+def _ensure_workspaces(conn):
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS workspaces (
+            id TEXT PRIMARY KEY,
+            owner_email TEXT NOT NULL,
+            name TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+
+
+def create_workspace(ws_id: str, owner_email: str, name: str) -> None:
+    conn = get_db()
+    _ensure_workspaces(conn)
+    conn.execute("INSERT INTO workspaces (id, owner_email, name) VALUES (?, ?, ?)",
+                 (ws_id, owner_email, name))
+    conn.commit()
+    conn.close()
+
+
+def list_workspaces(owner_email: str) -> list:
+    conn = get_db()
+    _ensure_workspaces(conn)
+    rows = conn.execute(
+        "SELECT id, name, created_at FROM workspaces WHERE owner_email = ? ORDER BY created_at ASC",
+        (owner_email,),
+    ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def workspace_owner(ws_id: str):
+    """Owner email for a workspace id, or None. Used to authorize scoping and to
+    attribute usage back to the agency account."""
+    if not ws_id:
+        return None
+    conn = get_db()
+    _ensure_workspaces(conn)
+    row = conn.execute("SELECT owner_email FROM workspaces WHERE id = ?", (ws_id,)).fetchone()
+    conn.close()
+    return row["owner_email"] if row else None
+
+
+def rename_workspace(ws_id: str, owner_email: str, name: str) -> bool:
+    conn = get_db()
+    _ensure_workspaces(conn)
+    cur = conn.execute("UPDATE workspaces SET name = ? WHERE id = ? AND owner_email = ?",
+                       (name, ws_id, owner_email))
+    conn.commit()
+    conn.close()
+    return cur.rowcount > 0
+
+
+# Content tables keyed by user_email that a workspace owns — cascaded on delete.
+_WORKSPACE_DATA_TABLES = (
+    "generation_history", "product_catalog", "tracked_listings", "performance_snapshots",
+    "health_snapshots", "saved_sessions", "api_keys", "webhooks", "feed_tokens",
+    "connectors", "amazon_credentials", "usage", "generated_images",
+)
+
+
+def delete_workspace(ws_id: str, owner_email: str) -> bool:
+    conn = get_db()
+    _ensure_workspaces(conn)
+    row = conn.execute("SELECT id FROM workspaces WHERE id = ? AND owner_email = ?",
+                       (ws_id, owner_email)).fetchone()
+    if not row:
+        conn.close()
+        return False
+    for table in _WORKSPACE_DATA_TABLES:
+        try:
+            conn.execute(f"DELETE FROM {table} WHERE user_email = ?", (ws_id,))
+        except Exception:
+            pass  # table may not exist yet
+    conn.execute("DELETE FROM workspaces WHERE id = ?", (ws_id,))
+    conn.commit()
+    conn.close()
+    return True

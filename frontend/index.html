@@ -1172,6 +1172,25 @@
         <span class="hidden sm:inline">Assistant</span>
       </button>
 
+      <!-- Workspace (client) selector -->
+      <div class="relative" id="wsSelectorWrapper">
+        <button type="button" onclick="toggleWsDropdown(event)"
+          class="flex items-center gap-1.5 bg-white/10 hover:bg-white/20 border border-white/20 text-white rounded-xl px-3 h-8 text-sm transition flex-shrink-0">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V7l8-4v18"/><path d="M19 21V11l-6-4"/></svg>
+          <span id="wsSelectorLabel" class="hidden sm:inline max-w-[120px] truncate">Espace personnel</span>
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <div id="wsSelectorList" class="hidden absolute right-0 top-11 rounded-xl py-2 z-50 min-w-[240px]" style="background:#0f0b1e;border:1px solid rgba(124,58,237,0.2);box-shadow:0 16px 48px rgba(0,0,0,0.5)">
+          <p class="text-white/40 text-xs px-4 pb-1.5">Espace client actif</p>
+          <div id="wsList"></div>
+          <div class="border-t border-white/10 my-1"></div>
+          <div onclick="openWorkspaceManager()" class="flex items-center gap-2 px-4 py-2 text-sm cursor-pointer rounded-lg mx-1 hover:bg-white/10" style="color:#a78bfa">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+            Gérer les espaces client
+          </div>
+        </div>
+      </div>
+
       <!-- Marketplace selector -->
       <div class="relative" id="mktSelectorWrapper">
         <button type="button" onclick="toggleMktDropdown(event)"
@@ -3525,6 +3544,26 @@
   </div>
 </div>
 
+<!-- ═══════════════════ ESPACES CLIENT (agence) ═══════════════════ -->
+<div id="wsManagerModal" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[400] p-4">
+  <div class="bg-white w-full max-w-lg rounded-3xl shadow-2xl max-h-[88vh] flex flex-col">
+    <div class="flex items-center justify-between px-7 py-5 border-b border-gray-100">
+      <div>
+        <h3 class="text-lg font-bold text-gray-900">🏢 Espaces client</h3>
+        <p class="text-xs text-gray-400 mt-0.5">Gérez un catalogue isolé par client — fiches, suivi, conformité cloisonnés</p>
+      </div>
+      <button onclick="document.getElementById('wsManagerModal').classList.add('hidden')" class="text-gray-300 hover:text-gray-600 text-2xl leading-none">✕</button>
+    </div>
+    <div class="overflow-y-auto px-7 py-5 space-y-4">
+      <div class="flex gap-2">
+        <input id="wsNewName" type="text" placeholder="Nom du client (ex : Iron, UHU…)" class="flex-1 border border-gray-200 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-purple-400" onkeydown="if(event.key==='Enter') wsCreate()">
+        <button onclick="wsCreate()" class="text-xs font-semibold text-white gradient-bg rounded-xl px-4 transition hover:opacity-90 flex-shrink-0">+ Créer</button>
+      </div>
+      <div id="wsManagerList" class="space-y-2"><p class="text-xs text-gray-300 text-center py-3">Chargement…</p></div>
+    </div>
+  </div>
+</div>
+
 <!-- ═══════════════════ SANTÉ DU CATALOGUE (Gardien de conformité) ═══════════════════ -->
 <div id="healthPanelModal" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[400] p-4">
   <div class="bg-white w-full max-w-2xl rounded-3xl shadow-2xl max-h-[88vh] flex flex-col">
@@ -4310,6 +4349,7 @@ function showApp(email) {
     document.getElementById('app').classList.remove('hidden');
     document.getElementById('adminView').classList.add('hidden');
     _resumeAmazonAuthorize();  // resume Appstore-initiated OAuth if one is pending
+    _wsLoad();  // agency workspaces — populate the client-space selector
     checkHealth();
     loadUsage();
     _apiLoadConnectors();  // populate "Publier vers…" buttons in the export menu
@@ -5082,8 +5122,11 @@ function togglePwd() {
   input.type = input.type === 'password' ? 'text' : 'password';
 }
 
+let activeWorkspace = localStorage.getItem('synqio_workspace') || '';  // '' = espace perso (agence)
+
 function authFetch(url, options = {}) {
   options.headers = { ...(options.headers || {}), 'Authorization': `Bearer ${token}` };
+  if (activeWorkspace) options.headers['X-Workspace'] = activeWorkspace;
   return fetch(API + url, options);
 }
 
@@ -12560,6 +12603,124 @@ function _auditSendToGen() {
   switchAppMode('generate');
   setStep(2);
   showToast('✅', 'Fiche chargée dans le générateur — complétez marque/catégorie puis lancez');
+}
+
+// ── Espaces client (agence multi-client) ─────────────────────────────────────
+let _workspaces = [];
+
+function toggleWsDropdown(e) {
+  e.stopPropagation();
+  const list = document.getElementById('wsSelectorList');
+  const willOpen = list.classList.contains('hidden');
+  document.getElementById('mktSelectorList')?.classList.add('hidden');
+  list.classList.toggle('hidden');
+  if (willOpen) _wsRenderDropdown();
+}
+document.addEventListener('click', e => {
+  if (!document.getElementById('wsSelectorWrapper')?.contains(e.target))
+    document.getElementById('wsSelectorList')?.classList.add('hidden');
+});
+
+async function _wsLoad() {
+  try {
+    const r = await authFetch('/api/workspaces');
+    if (!r.ok) return;
+    _workspaces = (await r.json()).workspaces || [];
+    // if the active workspace was deleted elsewhere, fall back to personal
+    if (activeWorkspace && !_workspaces.some(w => w.id === activeWorkspace)) {
+      _switchWorkspace('');
+      return;
+    }
+    _wsUpdateLabel();
+  } catch(e) {}
+}
+
+function _wsUpdateLabel() {
+  const active = _workspaces.find(w => w.id === activeWorkspace);
+  const lbl = document.getElementById('wsSelectorLabel');
+  if (lbl) lbl.textContent = active ? active.name : 'Espace personnel';
+}
+
+function _wsRenderDropdown() {
+  const box = document.getElementById('wsList');
+  const row = (id, name) => `
+    <div onclick="_switchWorkspace('${id}')" class="flex items-center gap-2 px-4 py-2 text-sm text-white hover:bg-white/10 cursor-pointer rounded-lg mx-1">
+      <span class="w-4 h-4 flex items-center justify-center flex-shrink-0">${(activeWorkspace===id)?'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>':''}</span>
+      <span class="truncate">${_esc(name)}</span>
+    </div>`;
+  let html = row('', 'Espace personnel (agence)');
+  html += _workspaces.map(w => row(w.id, w.name)).join('');
+  box.innerHTML = html;
+}
+
+function _switchWorkspace(id) {
+  if (id === activeWorkspace) { document.getElementById('wsSelectorList')?.classList.add('hidden'); return; }
+  activeWorkspace = id;
+  if (id) localStorage.setItem('synqio_workspace', id);
+  else localStorage.removeItem('synqio_workspace');
+  // Clear browser-cached working state (not workspace-scoped) so no data from the
+  // previous client leaks into the next. Server-side data is scoped and reloads.
+  ['synqio_batches','synqio_active_batch','synqio_listings','synqio_images',
+   'synqio_batch_id','synqio_ab_variants','synqio_published_skus','synqio_listing_statuses']
+    .forEach(k => localStorage.removeItem(k));
+  location.reload();
+}
+
+async function openWorkspaceManager() {
+  document.getElementById('wsSelectorList')?.classList.add('hidden');
+  document.getElementById('wsManagerModal').classList.remove('hidden');
+  await _wsLoad();
+  _wsRenderManager();
+}
+
+function _wsRenderManager() {
+  const box = document.getElementById('wsManagerList');
+  if (!_workspaces.length) {
+    box.innerHTML = '<p class="text-xs text-gray-300 text-center py-4">Aucun espace client. Créez-en un pour isoler le catalogue d\'un client.</p>';
+    return;
+  }
+  box.innerHTML = _workspaces.map(w => `
+    <div class="flex items-center gap-2 border border-gray-100 rounded-xl px-3.5 py-2.5">
+      <span class="text-sm font-medium text-gray-800 flex-1 truncate">${_esc(w.name)}</span>
+      ${activeWorkspace===w.id ? '<span class="text-[10px] font-semibold text-purple-600 bg-purple-50 rounded-full px-2 py-0.5">Actif</span>' : `<button onclick="_switchWorkspace('${w.id}')" class="text-[11px] font-semibold text-purple-600 hover:text-purple-800">Basculer</button>`}
+      <button onclick="wsRename('${w.id}','${_esc(w.name).replace(/'/g,"\\'")}')" class="text-[11px] text-gray-400 hover:text-gray-700">Renommer</button>
+      <button onclick="wsDelete('${w.id}',this)" data-armed="0" class="text-[11px] font-semibold text-red-500 hover:text-red-700">Suppr.</button>
+    </div>`).join('');
+}
+
+async function wsCreate() {
+  const inp = document.getElementById('wsNewName');
+  const name = inp.value.trim();
+  if (!name) return;
+  try {
+    const r = await authFetch('/api/workspaces', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ name }) });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.detail || 'Erreur');
+    inp.value = '';
+    await _wsLoad(); _wsRenderManager();
+    showToast('✅', `Espace « ${name} » créé`);
+  } catch(e) { showToast('❌', e.message || 'Erreur', true); }
+}
+
+async function wsRename(id, current) {
+  const name = prompt('Nouveau nom de l\'espace :', current);
+  if (name === null || !name.trim()) return;
+  try {
+    const r = await authFetch('/api/workspaces/' + id, { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ name: name.trim() }) });
+    if (!r.ok) throw new Error();
+    await _wsLoad(); _wsRenderManager(); _wsUpdateLabel();
+  } catch(e) { showToast('❌', 'Erreur lors du renommage', true); }
+}
+
+async function wsDelete(id, btn) {
+  if (btn.dataset.armed !== '1') { btn.dataset.armed='1'; btn.textContent='Confirmer ? (supprime les données)'; setTimeout(()=>{btn.dataset.armed='0';btn.textContent='Suppr.';},5000); return; }
+  try {
+    const r = await authFetch('/api/workspaces/' + id, { method:'DELETE' });
+    if (!r.ok) throw new Error();
+    if (activeWorkspace === id) { _switchWorkspace(''); return; }
+    await _wsLoad(); _wsRenderManager();
+    showToast('✅', 'Espace supprimé');
+  } catch(e) { showToast('❌', 'Erreur lors de la suppression', true); }
 }
 
 // ── Santé du catalogue (Gardien de conformité) ───────────────────────────────

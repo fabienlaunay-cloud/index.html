@@ -108,6 +108,17 @@ class AuthMiddleware(BaseHTTPMiddleware):
         if not email:
             return JSONResponse({"detail": "Session expirée, reconnectez-vous"}, status_code=401)
 
+        # owner_email = the authenticated (agency) account — used for auth, plan,
+        # quota and workspace management. user_email = the active data scope: a
+        # workspace id when one is selected AND owned by this account, else the
+        # account itself (personal space). All content queries key on user_email.
+        request.state.owner_email = email
+        ws = request.headers.get("X-Workspace", "").strip()
+        if ws.startswith("ws_"):
+            from app.db import workspace_owner
+            if workspace_owner(ws) == email:
+                request.state.user_email = ws
+                return await call_next(request)
         request.state.user_email = email
         return await call_next(request)
 
@@ -127,7 +138,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=_ALLOWED_ORIGINS,
     allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-    allow_headers=["Authorization", "Content-Type"],
+    allow_headers=["Authorization", "Content-Type", "X-Workspace", "X-Api-Key"],
     allow_credentials=True,
 )
 app.add_middleware(AuthMiddleware)
@@ -3165,6 +3176,57 @@ async def api_delete_session(session_id: str, request: Request):
     if not delete_saved_session(session_id, request.state.user_email):
         raise HTTPException(404, "Session introuvable")
     return {"ok": True}
+
+
+# ── Agency workspaces (multi-client) ─────────────────────────────────────────
+
+class WorkspaceCreate(BaseModel):
+    name: str
+
+
+class WorkspaceRename(BaseModel):
+    name: str
+
+
+@app.get("/api/workspaces")
+async def workspaces_list(request: Request):
+    """List the agency's client workspaces. Uses the owner account, so it returns
+    the same list whatever workspace is currently active."""
+    from app.db import list_workspaces
+    return {"workspaces": list_workspaces(request.state.owner_email)}
+
+
+@app.post("/api/workspaces")
+async def workspaces_create(body: WorkspaceCreate, request: Request):
+    from app.db import list_workspaces, create_workspace
+    owner = request.state.owner_email
+    name = (body.name or "").strip()[:60]
+    if not name:
+        raise HTTPException(400, "Nom d'espace requis")
+    if len(list_workspaces(owner)) >= 50:
+        raise HTTPException(400, "Maximum 50 espaces client")
+    ws_id = f"ws_{uuid4().hex}"
+    create_workspace(ws_id, owner, name)
+    return {"id": ws_id, "name": name}
+
+
+@app.patch("/api/workspaces/{ws_id}")
+async def workspaces_rename(ws_id: str, body: WorkspaceRename, request: Request):
+    from app.db import rename_workspace
+    name = (body.name or "").strip()[:60]
+    if not name:
+        raise HTTPException(400, "Nom requis")
+    if not rename_workspace(ws_id, request.state.owner_email, name):
+        raise HTTPException(404, "Espace introuvable")
+    return {"ok": True, "name": name}
+
+
+@app.delete("/api/workspaces/{ws_id}")
+async def workspaces_delete(ws_id: str, request: Request):
+    from app.db import delete_workspace
+    if not delete_workspace(ws_id, request.state.owner_email):
+        raise HTTPException(404, "Espace introuvable")
+    return {"deleted": True}
 
 
 # ── Public API keys & webhooks management (session-authed, feeds the UI) ─────
