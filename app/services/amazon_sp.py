@@ -649,79 +649,116 @@ async def fetch_seller_catalog(
              "bullet_points": [], "images": []},
         ]
 
-    creds = _get_sp_credentials(user_email)
-    marketplace_id = MARKETPLACE_IDS.get(marketplace, MARKETPLACE_IDS[Marketplace.AMAZON_FR])
+    # searchListingsItems rejects a catalog-wide listing ("InvalidInput"). The
+    # reliable way to dump a seller's whole catalog is the Reports API report
+    # GET_MERCHANT_LISTINGS_ALL_DATA — a TSV with sku, item-name, asin, price and
+    # image-url. Fetch it via the same request→poll→document→download flow.
+    return await _fetch_catalog_via_report(user_email, marketplace)
 
-    lwa_token = await _get_lwa_token(creds)
-    loop = asyncio.get_event_loop()
-    temp_creds = await loop.run_in_executor(None, lambda: _assume_role(creds))
 
-    seller_id = creds["seller_id"]
-    semaphore = asyncio.Semaphore(1)
+def _parse_merchant_listings_tsv(text: str) -> list:
+    """Parse GET_MERCHANT_LISTINGS_ALL_DATA (tab-separated) into catalog items."""
+    lines = [l for l in text.split("\n") if l.strip()]
+    if len(lines) < 2:
+        return []
+    headers = [h.strip().lower() for h in lines[0].split("\t")]
+    def idx(*names):
+        for n in names:
+            if n in headers:
+                return headers.index(n)
+        return -1
+    i_sku = idx("seller-sku", "sku")
+    i_name = idx("item-name", "title")
+    i_asin = idx("asin1", "asin", "product-id")
+    i_img = idx("image-url", "main-image-url")
+    i_price = idx("price")
     items = []
-    page_token = None
-    page_count = 0
-    max_pages = 50
-
-    while page_count < max_pages:
-        async with semaphore:
-            # searchListingsItems: 'attributes' is not a valid includedData for
-            # the SEARCH operation (only for single-SKU reads) → it 400s. Use
-            # 'summaries' (title, asin, brand, main image) which the search
-            # accepts; pageSize is required-ish and must be 1-20.
-            url = (
-                f"{_sp_endpoint()}/listings/2021-08-01/items/{seller_id}"
-                f"?marketplaceIds={marketplace_id}&pageSize=20&includedData=summaries"
-            )
-            if page_token:
-                url += f"&pageToken={page_token}"
-
-            headers = _sign_request("GET", url, b"", temp_creds, lwa_token)
-            async with httpx.AsyncClient(timeout=30) as client:
-                resp = await client.get(url, headers=headers)
-                if not resp.is_success:
-                    # Surface Amazon's real message instead of a raw stack trace
-                    raise RuntimeError(f"Amazon {resp.status_code} : {resp.text[:280]}")
-                data = resp.json()
-
-            for item in data.get("items", []):
-                sku = item.get("sku", "")
-                if not sku:
-                    continue
-                summary = (item.get("summaries") or [{}])[0]
-                asin = summary.get("asin", "")
-                title = summary.get("itemName", "")
-                attrs = item.get("attributes", {}) or {}
-
-                # EAN from attributes
-                ean = ""
-                for ext_id in attrs.get("externally_assigned_product_identifier", []):
-                    if str(ext_id.get("type", "")).upper() == "EAN":
-                        ean = ext_id.get("value", "")
-                        break
-
-                # Rich content so the seller can work on the listing directly
-                brand = _first_attr(attrs, "brand") or summary.get("brandName", "") or ""
-                description = _first_attr(attrs, "product_description") or ""
-                bullets = [b.get("value", "") for b in (attrs.get("bullet_point") or [])
-                           if isinstance(b, dict) and b.get("value")]
-                images = _extract_catalog_images(summary, attrs)
-
-                items.append({
-                    "sku": sku, "asin": asin, "ean": ean, "title": title,
-                    "brand": brand, "description": description,
-                    "bullet_points": bullets, "images": images,
-                })
-
-            page_token = data.get("pagination", {}).get("nextPageToken")
-            page_count += 1
-
-            if not page_token:
-                break
-
-            await asyncio.sleep(0.5)
-
+    for line in lines[1:]:
+        cols = line.split("\t")
+        def get(i):
+            return cols[i].strip() if 0 <= i < len(cols) else ""
+        sku = get(i_sku)
+        if not sku:
+            continue
+        price = None
+        raw_price = get(i_price)
+        if raw_price:
+            try:
+                price = round(float(raw_price.replace(",", ".")), 2)
+            except ValueError:
+                price = None
+        img = get(i_img)
+        items.append({
+            "sku": sku, "asin": get(i_asin), "ean": "", "title": get(i_name),
+            "brand": "", "description": "", "bullet_points": [],
+            "images": [img] if img.startswith("http") else [],
+            "price": price,
+        })
     return items
+
+
+async def _fetch_catalog_via_report(user_email: str, marketplace: Marketplace,
+                                     max_wait: float = 90.0) -> list:
+    creds = _get_sp_credentials(user_email)
+    if not creds.get("refresh_token"):
+        raise RuntimeError("Compte Amazon non connecté")
+    lwa = await _get_lwa_token(creds)
+    loop = asyncio.get_event_loop()
+    temp = await loop.run_in_executor(None, lambda: _assume_role(creds))
+    base = f"{_sp_endpoint()}/reports/2021-06-30"
+    mkid = MARKETPLACE_IDS.get(marketplace, MARKETPLACE_IDS[Marketplace.AMAZON_FR])
+
+    r = await _sp_signed("POST", f"{base}/reports", {
+        "reportType": "GET_MERCHANT_LISTINGS_ALL_DATA",
+        "marketplaceIds": [mkid],
+    }, lwa, temp)
+    if not r.is_success:
+        raise RuntimeError(f"Amazon {r.status_code} : {r.text[:280]}")
+    report_id = r.json().get("reportId")
+    if not report_id:
+        raise RuntimeError("reportId absent de la réponse Amazon")
+
+    waited, delay, doc_id = 0.0, 3.0, None
+    while waited < max_wait:
+        await asyncio.sleep(delay)
+        waited += delay
+        delay = min(delay * 1.4, 8.0)
+        rs = await _sp_signed("GET", f"{base}/reports/{report_id}", None, lwa, temp)
+        if not rs.is_success:
+            continue
+        st = rs.json()
+        status = st.get("processingStatus")
+        if status == "DONE":
+            doc_id = st.get("reportDocumentId")
+            break
+        if status in ("CANCELLED", "FATAL"):
+            raise RuntimeError(f"Rapport Amazon {status.lower()}")
+    if not doc_id:
+        raise RuntimeError("Le rapport catalogue met trop de temps — réessayez dans une minute.")
+
+    rd = await _sp_signed("GET", f"{base}/documents/{doc_id}", None, lwa, temp)
+    if not rd.is_success:
+        raise RuntimeError("Impossible de récupérer le document du rapport catalogue")
+    doc = rd.json()
+    url = doc.get("url")
+    if not url:
+        raise RuntimeError("URL du rapport absente")
+    async with httpx.AsyncClient(timeout=60) as client:
+        dl = await client.get(url)
+    raw = dl.content
+    if doc.get("compressionAlgorithm") == "GZIP":
+        import gzip as _gz
+        raw = _gz.decompress(raw)
+    # Merchant reports are often latin-1/cp1252 encoded
+    for enc in ("utf-8", "cp1252", "latin-1"):
+        try:
+            text = raw.decode(enc)
+            break
+        except UnicodeDecodeError:
+            continue
+    else:
+        text = raw.decode("utf-8", errors="replace")
+    return _parse_merchant_listings_tsv(text)
 
 
 async def lookup_asins_by_eans(
