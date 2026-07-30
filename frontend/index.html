@@ -12583,6 +12583,10 @@ function _renderHealth(rep) {
     </div>`;
   }).join('');
 
+  const _TITLE_CODES = ['title_too_long','title_forbidden_chars','title_all_caps','title_superlative'];
+  const titleFixCount = (rep.listings || []).filter(it =>
+    it.source === 'generated' && (it.issues || []).some(i => _TITLE_CODES.includes(i.code))).length;
+
   const alertBanner = (rep.alert && rep.alert.length)
     ? `<div class="mb-4 bg-red-50 border border-red-200 rounded-2xl p-4">
          <p class="text-sm font-bold text-red-700 flex items-center gap-2">🚨 Dégradation détectée depuis la dernière vérification</p>
@@ -12606,9 +12610,28 @@ function _renderHealth(rep) {
     <div id="healthTrend" class="border border-gray-100 rounded-2xl p-3.5 mb-5"></div>
     ${rep.non_compliant === 0
       ? '<p class="text-center text-green-600 font-semibold py-6">✅ Tout votre catalogue est conforme aux règles Amazon.</p>'
-      : `<p class="text-xs text-gray-400 mb-2">Fiches à corriger (les plus urgentes en premier) :</p><div class="space-y-2">${cards}</div>
-         <div class="mt-4 bg-purple-50 rounded-xl p-3.5 text-xs text-purple-800">💡 Les titres trop longs se corrigent en masse via l'outil <strong>Conformité titres</strong> (bouton ambré dans le générateur). Régénérez les fiches concernées pour corriger bullets et mots-clés.</div>`}
+      : `${titleFixCount ? `<div class="mb-4 bg-amber-50 border border-amber-200 rounded-xl p-3.5 flex items-center gap-3">
+           <div class="flex-1"><p class="text-sm font-semibold text-amber-800">🔧 ${titleFixCount} titre(s) corrigeable(s) automatiquement</p><p class="text-xs text-amber-600 mt-0.5">SynqIO raccourcit à ≤75 car. et génère les Item Highlights, sur vos fiches générées.</p></div>
+           <button onclick="healthFixTitles(this)" class="flex-shrink-0 text-xs font-bold text-white bg-amber-500 hover:bg-amber-600 rounded-lg px-4 py-2.5 transition">Tout corriger</button>
+         </div>` : ''}
+         <p class="text-xs text-gray-400 mb-2">Fiches à corriger (les plus urgentes en premier) :</p><div class="space-y-2">${cards}</div>
+         <div class="mt-4 bg-purple-50 rounded-xl p-3.5 text-xs text-purple-800">💡 Bullets et mots-clés se corrigent en régénérant la fiche concernée dans le générateur. Après correction, ré-exportez vers Seller Central ou vos autres canaux.</div>`}
   `;
+}
+
+async function healthFixTitles(btn) {
+  btn.disabled = true; const orig = btn.textContent;
+  btn.textContent = 'Correction…';
+  try {
+    const r = await authFetch('/api/compliance/fix-titles', { method:'POST' });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.detail || 'Erreur');
+    showToast('✅', `${data.fixed} titre(s) corrigé(s)` + (data.remaining ? ` · ${data.remaining} restant(s), relancez` : ''));
+    openHealthPanel();  // re-scan → score remonte, courbe se met à jour
+  } catch(e) {
+    showToast('❌', e.message || 'Erreur lors de la correction', true);
+    btn.disabled = false; btn.textContent = orig;
+  }
 }
 
 async function healthSendDigest(btn) {

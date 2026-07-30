@@ -143,6 +143,7 @@ def scan_listings(listings: List[dict]) -> dict:
                 "sku": l.get("sku") or "",
                 "title": (l.get("title") or "")[:120],
                 "marketplace": l.get("marketplace") or "",
+                "source": l.get("_source") or "",  # "generated" (fixable) | "live"
                 "critical": crit, "warning": warn,
                 "issues": issues,
             })

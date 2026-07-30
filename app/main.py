@@ -352,6 +352,79 @@ async def compliance_history(request: Request):
     return {"history": get_health_history(request.state.user_email, limit=30)}
 
 
+_TITLE_ISSUE_CODES = {"title_too_long", "title_forbidden_chars", "title_all_caps", "title_superlative"}
+
+
+@app.post("/api/compliance/fix-titles")
+async def compliance_fix_titles(request: Request):
+    """Close the loop — auto-fix non-compliant titles across all stored
+    generations (≤75 chars + Item Highlights) and persist them. Only rewrites
+    SynqIO-generated listings (not live Amazon catalog items)."""
+    if not os.getenv("ANTHROPIC_API_KEY"):
+        raise HTTPException(503, "Service IA indisponible")
+    from app.services.compliance import check_listing
+    from app.db import get_generation, save_generation
+    from app.routes.public_api import _latest_listings
+    email = request.state.user_email
+    CAP = 40  # bound AI cost/time per click
+
+    targets = []
+    for l in _latest_listings(email):
+        if not l.get("batch_id"):
+            continue  # live-catalog-only item — cannot rewrite here
+        if any(i["code"] in _TITLE_ISSUE_CODES for i in check_listing(l)):
+            targets.append(l)
+    total_flagged = len(targets)
+    if not total_flagged:
+        return {"fixed": 0, "remaining": 0, "message": "Aucun titre à corriger."}
+    targets = targets[:CAP]
+
+    sem = asyncio.Semaphore(5)
+
+    async def _fix(l):
+        async with sem:
+            try:
+                res = await _reformat_title_core(
+                    title=l.get("title", ""), brand=l.get("brand", ""),
+                    category=l.get("category", ""), bullets=l.get("bullet_points") or [],
+                    item_highlights=l.get("item_highlights", ""),
+                    backend_keywords=l.get("backend_keywords", ""),
+                    marketplace=l.get("marketplace", "amazon_fr"))
+                return (l, res)
+            except Exception:
+                return (l, None)
+
+    results = await asyncio.gather(*[_fix(l) for l in targets])
+
+    by_batch: dict = {}
+    for l, res in results:
+        if res:
+            by_batch.setdefault(l["batch_id"], {})[l.get("sku")] = res
+
+    fixed = 0
+    for batch_id, fixes in by_batch.items():
+        gen = get_generation(batch_id, email)
+        if not gen:
+            continue
+        listings = gen.get("listings", [])
+        changed = False
+        for item in listings:
+            r = fixes.get(item.get("sku"))
+            if r:
+                item["title"] = r["title"]
+                if r.get("item_highlights"):
+                    item["item_highlights"] = r["item_highlights"]
+                if r.get("seo_score") is not None:
+                    item["seo_score"] = r["seo_score"]
+                changed = True
+                fixed += 1
+        if changed:
+            save_generation(email, batch_id, gen.get("marketplace", "amazon_fr"),
+                            listings, gen.get("label", ""))
+
+    return {"fixed": fixed, "remaining": max(0, total_flagged - fixed)}
+
+
 @app.post("/api/compliance/send-digest")
 async def compliance_send_digest(request: Request):
     """Send the weekly health digest to the current user (also used to preview it)."""
