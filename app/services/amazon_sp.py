@@ -665,9 +665,13 @@ async def fetch_seller_catalog(
 
     while page_count < max_pages:
         async with semaphore:
+            # searchListingsItems: 'attributes' is not a valid includedData for
+            # the SEARCH operation (only for single-SKU reads) → it 400s. Use
+            # 'summaries' (title, asin, brand, main image) which the search
+            # accepts; pageSize is required-ish and must be 1-20.
             url = (
                 f"{_sp_endpoint()}/listings/2021-08-01/items/{seller_id}"
-                f"?marketplaceIds={marketplace_id}&includedData=summaries,attributes"
+                f"?marketplaceIds={marketplace_id}&pageSize=20&includedData=summaries"
             )
             if page_token:
                 url += f"&pageToken={page_token}"
@@ -675,7 +679,9 @@ async def fetch_seller_catalog(
             headers = _sign_request("GET", url, b"", temp_creds, lwa_token)
             async with httpx.AsyncClient(timeout=30) as client:
                 resp = await client.get(url, headers=headers)
-                resp.raise_for_status()
+                if not resp.is_success:
+                    # Surface Amazon's real message instead of a raw stack trace
+                    raise RuntimeError(f"Amazon {resp.status_code} : {resp.text[:280]}")
                 data = resp.json()
 
             for item in data.get("items", []):

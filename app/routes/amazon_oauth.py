@@ -322,7 +322,12 @@ async def catalog_sync(request: Request, body: CatalogSyncBody):
     from app.services.amazon_sp import fetch_seller_catalog
     email = request.state.user_email
     marketplace = _parse_marketplace(body.marketplace)
-    items = await fetch_seller_catalog(email, marketplace)
+    try:
+        items = await fetch_seller_catalog(email, marketplace)
+    except RuntimeError as e:
+        raise HTTPException(502, str(e))
+    except Exception as e:
+        raise HTTPException(502, f"Synchronisation impossible : {type(e).__name__}")
     count = save_catalog_items(email, body.marketplace, items)
     # Rich payload for the working area (products the seller can edit/regenerate)
     products = [{
