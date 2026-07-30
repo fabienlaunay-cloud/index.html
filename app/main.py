@@ -1508,6 +1508,97 @@ async def _run_catalog_sales_job(job_id: str, email: str):
         _jobs[job_id].update({"status": "failed", "error": type(e).__name__})
 
 
+def _parse_business_report_asin_csv(csv_text: str) -> dict:
+    """Parse an Amazon Business Report 'Ventes et trafic par ASIN' CSV into
+    {asin: {units_ordered, revenue, sessions, conversion_rate}} — no API role
+    needed, the seller downloads it from Seller Central."""
+    import csv as _csv, io as _io, unicodedata as _ud
+    def _norm(k):
+        s = ((k or "").lower().strip().replace("﻿", "")
+             .replace("–", "-").replace("—", "-").replace("’", "'").replace("‘", "'")
+             .replace("\xa0", " "))
+        # strip accents so 'unités commandées' matches 'unites commandees'
+        return "".join(c for c in _ud.normalize("NFKD", s) if not _ud.combining(c))
+    reader = _csv.DictReader(_io.StringIO(csv_text))
+    def _pick(row, *keys):
+        for k in keys:
+            v = row.get(k, "")
+            if v and v != "-":
+                return v
+        return ""
+    def _eur(s):
+        s = (s or "").replace("€", "").replace("$", "").replace("\xa0", "").replace(" ", "").strip()
+        if "," in s and "." in s:
+            s = s.replace(".", "").replace(",", ".")
+        else:
+            s = s.replace(",", ".")
+        try:
+            return float(s)
+        except ValueError:
+            return 0.0
+    out: dict = {}
+    for raw in reader:
+        row = {_norm(k): (v.strip() if isinstance(v, str) else v) for k, v in raw.items()}
+        asin = (_pick(row, "(enfant) asin", "(child) asin", "asin enfant", "child asin",
+                      "(parent) asin", "(parent) asin", "asin parent", "parent asin", "asin") or "").upper()
+        if not asin or len(asin) < 5:
+            continue
+        units = int(float(_pick(row, "unites commandees", "unites commandees - total",
+                                "units ordered", "units_ordered") or 0))
+        revenue = _eur(_pick(row, "chiffre d'affaires des produits commandes",
+                             "chiffre d'affaires des produits commandes - total",
+                             "ordered product sales - total", "ordered product sales",
+                             "ventes de produits commandes", "revenue"))
+        sessions = int(float(_pick(row, "sessions", "sessions - total") or 0))
+        conv_s = _pick(row, "pourcentage de sessions d'unites - total",
+                       "pourcentage de session d'unite", "unit session percentage",
+                       "taux de conversion", "conversion rate")
+        conv = float((conv_s or "0").replace("%", "").replace(",", ".").replace(" ", "").strip() or 0) \
+            if conv_s else (round(units / sessions * 100, 2) if sessions and units else 0.0)
+        # aggregate (a report may split parent/child rows for the same asin)
+        a = out.setdefault(asin, {"units_ordered": 0, "revenue": 0.0, "sessions": 0, "conversion_rate": conv})
+        a["units_ordered"] += units
+        a["revenue"] = round(a["revenue"] + revenue, 2)
+        a["sessions"] += sessions
+        if conv:
+            a["conversion_rate"] = conv
+    return out
+
+
+@app.post("/api/catalog/sales-import-csv")
+async def catalog_sales_import_csv(request: Request):
+    """Import a Sales & Traffic-by-ASIN CSV and match it to the catalog by ASIN.
+    Universal fallback that needs no SP-API sales role."""
+    from app.db import get_catalog_summary, get_catalog, save_catalog_sales, get_catalog_sales_overview
+    body = await request.json()
+    csv_text = body.get("csv_text", "")
+    if not csv_text:
+        raise HTTPException(400, "CSV vide")
+    email = request.state.user_email
+    metrics = _parse_business_report_asin_csv(csv_text)
+    if not metrics:
+        raise HTTPException(400, "Aucune donnée de vente par ASIN détectée — utilisez le rapport « Ventes et trafic par ASIN ».")
+    asin_mkt: dict = {}
+    for mkt in (get_catalog_summary(email) or {}):
+        for it in get_catalog(email, mkt):
+            a = (it.get("asin") or "").upper()
+            if a:
+                asin_mkt[a] = mkt
+    import datetime as _d
+    end = _d.date.today().isoformat()
+    start = (_d.date.today() - _d.timedelta(days=30)).isoformat()
+    by_mkt: dict = {}
+    for asin, m in metrics.items():
+        mkt = asin_mkt.get(asin)
+        if mkt:
+            by_mkt.setdefault(mkt, {})[asin] = m
+    for mkt, mm in by_mkt.items():
+        save_catalog_sales(email, mkt, mm, start, end)
+    matched = sum(len(v) for v in by_mkt.values())
+    return {"imported": matched, "total_in_csv": len(metrics),
+            "overview": get_catalog_sales_overview(email)}
+
+
 @app.post("/api/catalog/sales-sync")
 async def catalog_sales_sync(request: Request):
     """Kick off the catalog-wide Sales & Traffic pull (background job)."""

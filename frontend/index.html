@@ -13162,17 +13162,36 @@ function _healthOverview(rep) {
     tiles += tile(so.selling, 'Fiches qui vendent', 'text-purple-600');
     tiles += tile(eur(so.revenue), 'CA (dernier relevé)', 'text-gray-800');
   }
+  const csvBtn = `<button onclick="document.getElementById('healthSalesCsv').click()" class="text-[11px] font-semibold text-gray-500 bg-gray-100 hover:bg-gray-200 rounded-lg px-3 py-1.5">📄 Importer un CSV de ventes</button>
+    <input type="file" id="healthSalesCsv" accept=".csv" class="hidden" onchange="healthImportSalesCsv(this)">`;
   const salesAction = catalogWide
-    ? `<button onclick="healthSyncSales(this)" class="text-[11px] font-semibold text-purple-600 hover:text-purple-800">↻ Actualiser les ventes</button>`
-    : `<button onclick="healthSyncSales(this)" class="text-[11px] font-semibold text-white gradient-bg rounded-lg px-3 py-1.5">📊 Croiser avec les ventes (Amazon)</button>`;
+    ? `<button onclick="healthSyncSales(this)" class="text-[11px] font-semibold text-purple-600 hover:text-purple-800">↻ Actualiser (API)</button> ${csvBtn}`
+    : `<button onclick="healthSyncSales(this)" class="text-[11px] font-semibold text-white gradient-bg rounded-lg px-3 py-1.5">📊 Croiser via API</button> ${csvBtn}`;
   const hint = (hasCat && !catalogWide)
-    ? `<p class="text-[11px] text-gray-400 mt-2">💡 Croisez chaque fiche active avec son chiffre d'affaires réel : ${salesAction} (récupère les ventes 30 jours via Amazon).</p>`
-    : `<div class="mt-2 flex justify-end">${salesAction}</div>`;
+    ? `<p class="text-[11px] text-gray-400 mt-2">💡 Croisez chaque fiche active avec son CA réel. Via l'API Amazon (nécessite le rôle Commandes) ou en important le rapport <strong>« Ventes et trafic par ASIN »</strong> (Seller Central → Rapports d'activité) :</p><div class="mt-1.5 flex gap-2 flex-wrap items-center">${salesAction}</div>`
+    : `<div class="mt-2 flex gap-2 flex-wrap items-center justify-end">${salesAction}</div>`;
   return `<div class="mb-5">
     <p class="text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-2">Vue d'ensemble</p>
     <div class="flex gap-2 flex-wrap">${tiles}</div>
     ${hint}
   </div>`;
+}
+
+async function healthImportSalesCsv(input) {
+  const file = input.files && input.files[0];
+  input.value = '';
+  if (!file) return;
+  try {
+    const csv_text = await file.text();
+    const r = await authFetch('/api/catalog/sales-import-csv', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ csv_text }),
+    });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.detail || 'Erreur');
+    showToast('✅', `${data.imported} fiche(s) croisée(s) avec les ventes (${data.total_in_csv} ASIN dans le CSV)`);
+    openHealthPanel();  // re-scan → tiles update
+  } catch(e) { showToast('❌', e.message || 'Import impossible', true); }
 }
 
 async function healthSyncSales(btn) {
