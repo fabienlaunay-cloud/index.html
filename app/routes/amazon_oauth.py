@@ -316,31 +316,12 @@ def _parse_marketplace(value: str) -> Marketplace:
 
 @router.post("/catalog/sync")
 async def catalog_sync(request: Request, body: CatalogSyncBody):
-    """Fetch the seller's online catalog from SP-API (with images and content),
-    persist the basics to product_catalog, and return the rich items so the
-    frontend can load them straight into the generator — ready to work on."""
-    from app.services.amazon_sp import fetch_seller_catalog
-    email = request.state.user_email
-    marketplace = _parse_marketplace(body.marketplace)
-    try:
-        items = await fetch_seller_catalog(email, marketplace)
-    except RuntimeError as e:
-        raise HTTPException(502, str(e))
-    except Exception as e:
-        raise HTTPException(502, f"Synchronisation impossible : {type(e).__name__}")
-    count = save_catalog_items(email, body.marketplace, items)
-    # Rich payload for the working area (products the seller can edit/regenerate)
-    products = [{
-        "sku": it.get("sku", ""),
-        "name": it.get("title", "") or it.get("sku", ""),
-        "brand": it.get("brand", "") or "",
-        "ean": it.get("ean", "") or "",
-        "description": it.get("description", "") or "",
-        "features": it.get("bullet_points", []) or [],
-        "images": it.get("images", []) or [],
-        "asin": it.get("asin", "") or "",
-    } for it in items]
-    return {"synced": count, "marketplace": body.marketplace, "products": products}
+    """Kick off the catalog sync in the background (the SP-API report can take
+    tens of seconds — too long for a single HTTP request). Returns a job_id;
+    the frontend polls GET /api/jobs/{job_id} for the products."""
+    from app.main import start_catalog_sync_job
+    job_id = start_catalog_sync_job(request.state.user_email, body.marketplace)
+    return {"job_id": job_id}
 
 
 @router.get("/catalog")

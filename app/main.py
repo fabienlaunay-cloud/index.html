@@ -1334,6 +1334,46 @@ async def generate(request: GenerationRequest, req: Request):
     return {"job_id": job_id, "total": n_total}
 
 
+async def _run_catalog_sync_job(job_id: str, email: str, marketplace_str: str):
+    """Background: pull the seller catalog via the SP-API report (slow), persist,
+    and expose the rich products. Run as a job so the long report generation
+    doesn't hit the HTTP gateway timeout."""
+    from app.services.amazon_sp import fetch_seller_catalog
+    from app.db import save_catalog_items
+    _jobs[job_id]["status"] = "running"
+    try:
+        try:
+            mkt = Marketplace(marketplace_str)
+        except ValueError:
+            mkt = Marketplace.AMAZON_FR
+        items = await fetch_seller_catalog(email, mkt)
+        count = save_catalog_items(email, marketplace_str, items)
+        products = [{
+            "sku": it.get("sku", ""),
+            "name": it.get("title", "") or it.get("sku", ""),
+            "brand": it.get("brand", "") or "",
+            "ean": it.get("ean", "") or "",
+            "description": it.get("description", "") or "",
+            "features": it.get("bullet_points", []) or [],
+            "images": it.get("images", []) or [],
+            "asin": it.get("asin", "") or "",
+        } for it in items]
+        _jobs[job_id].update({"status": "done",
+                              "result": {"synced": count, "marketplace": marketplace_str,
+                                         "products": products}})
+    except RuntimeError as e:
+        _jobs[job_id].update({"status": "failed", "error": str(e)})
+    except Exception as e:
+        _jobs[job_id].update({"status": "failed", "error": f"{type(e).__name__}"})
+
+
+def start_catalog_sync_job(email: str, marketplace_str: str) -> str:
+    job_id = f"catsync_{uuid4().hex[:12]}"
+    _jobs[job_id] = {"status": "pending", "created_at": time.time()}
+    asyncio.create_task(_run_catalog_sync_job(job_id, email, marketplace_str))
+    return job_id
+
+
 @app.get("/api/jobs/{job_id}")
 async def get_job(job_id: str):
     job = _jobs.get(job_id)

@@ -8962,12 +8962,29 @@ async function syncCatalog() {
   btn.disabled = true; btn.textContent = 'Synchro...';
   try {
     const marketplace = (document.getElementById('publishMarketplace')?.value) || selectedMarketplaces[0] || 'amazon_fr';
-    const r = await authFetch('/api/amazon/catalog/sync', {
+    const start = await authFetch('/api/amazon/catalog/sync', {
       method: 'POST',
       headers: {'Content-Type':'application/json'},
       body: JSON.stringify({marketplace})
     });
-    const d = await r.json();
+    const sd = await start.json();
+    if (!start.ok || !sd.job_id) throw new Error(sd.detail || 'Erreur');
+
+    // Poll the background job (the Amazon report can take up to ~90s)
+    const jobId = sd.job_id;
+    let d = null;
+    for (let i = 0; i < 45; i++) {
+      await new Promise(res => setTimeout(res, 3000));
+      const jr = await authFetch('/api/jobs/' + jobId);
+      if (!jr.ok) continue;
+      const job = await jr.json();
+      btn.textContent = 'Récupération…';
+      if (job.status === 'done') { d = job.result; break; }
+      if (job.status === 'failed') { showToast('❌', job.error || 'Erreur synchronisation', true); btn.disabled=false; btn.textContent='Synchroniser'; return; }
+    }
+    if (!d) { showToast('⏳', 'Le rapport Amazon met plus de temps que prévu — relancez dans une minute'); btn.disabled=false; btn.textContent='Synchroniser'; return; }
+
+    const r = { ok: true };
     if (r.ok) {
       document.getElementById('catalogStatus').textContent = `${d.synced} produits synchronisés`;
       const prods = d.products || [];
@@ -8982,6 +8999,7 @@ async function syncCatalog() {
         showProductsList(parsedProducts);
         const gBtn = document.getElementById('generateBtn');
         if (gBtn) gBtn.disabled = false;
+        closePublishModal();  // reveal the imported catalog behind the modal
         switchAppMode('generate');
         setStep(2);
         const withImg = prods.filter(p => (p.images || []).length).length;
