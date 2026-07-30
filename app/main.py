@@ -1494,8 +1494,15 @@ async def _run_catalog_sales_job(job_id: str, email: str):
         _jobs[job_id].update({"status": "done",
                               "result": {"saved": total_saved, "overview": overview}})
     except RuntimeError as e:
-        msg = "Le rapport ventes met trop de temps — relancez dans une minute." \
-            if str(e) == "report_pending" else str(e)
+        s = str(e)
+        if s == "report_pending":
+            msg = "Le rapport ventes met trop de temps — relancez dans une minute."
+        elif "403" in s or "Unauthorized" in s or "forbidden" in s.lower():
+            msg = ("Rôle SP-API « Commandes/Rapports » manquant sur l'app Amazon. "
+                   "Ajoutez-le dans Developer Central puis reconnectez le compte, "
+                   "ou importez le rapport de ventes en CSV (onglet Suivi).")
+        else:
+            msg = s
         _jobs[job_id].update({"status": "failed", "error": msg})
     except Exception as e:
         _jobs[job_id].update({"status": "failed", "error": type(e).__name__})
