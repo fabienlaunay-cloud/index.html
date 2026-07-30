@@ -1799,3 +1799,100 @@ def update_competitor_price(cid: str, user_email: str, price, title: str, rating
         )
     conn.commit()
     conn.close()
+
+
+# ── Catalog-wide sales (Sales & Traffic per ASIN, matched to the catalog) ─────
+
+def _ensure_catalog_sales(conn):
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS catalog_sales (
+            user_email TEXT NOT NULL,
+            marketplace TEXT NOT NULL,
+            asin TEXT NOT NULL,
+            units_ordered INTEGER DEFAULT 0,
+            revenue REAL DEFAULT 0,
+            sessions INTEGER DEFAULT 0,
+            conversion_rate REAL DEFAULT 0,
+            period_start DATE,
+            period_end DATE,
+            synced_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (user_email, marketplace, asin)
+        )
+    """)
+
+
+def save_catalog_sales(user_email: str, marketplace: str, metrics_by_asin: dict,
+                       period_start: str, period_end: str) -> int:
+    conn = get_db()
+    _ensure_catalog_sales(conn)
+    is_pg = bool(os.getenv("DATABASE_URL"))
+    n = 0
+    for asin, m in (metrics_by_asin or {}).items():
+        vals = (user_email, marketplace, asin.upper(),
+                int(m.get("units_ordered") or 0), float(m.get("revenue") or 0),
+                int(m.get("sessions") or 0), float(m.get("conversion_rate") or 0),
+                period_start, period_end)
+        if is_pg:
+            conn.execute(
+                """INSERT INTO catalog_sales (user_email, marketplace, asin, units_ordered, revenue,
+                       sessions, conversion_rate, period_start, period_end, synced_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                   ON CONFLICT(user_email, marketplace, asin) DO UPDATE SET
+                       units_ordered=EXCLUDED.units_ordered, revenue=EXCLUDED.revenue,
+                       sessions=EXCLUDED.sessions, conversion_rate=EXCLUDED.conversion_rate,
+                       period_start=EXCLUDED.period_start, period_end=EXCLUDED.period_end,
+                       synced_at=CURRENT_TIMESTAMP""", vals)
+        else:
+            conn.execute(
+                """INSERT OR REPLACE INTO catalog_sales (user_email, marketplace, asin, units_ordered, revenue,
+                       sessions, conversion_rate, period_start, period_end, synced_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)""", vals)
+        n += 1
+    conn.commit()
+    conn.close()
+    return n
+
+
+def get_catalog_marketplaces(user_email: str) -> list:
+    conn = get_db()
+    rows = conn.execute(
+        "SELECT DISTINCT marketplace FROM product_catalog WHERE user_email = ?", (user_email,)
+    ).fetchall()
+    conn.close()
+    return [r["marketplace"] for r in rows]
+
+
+def get_catalog_sales_overview(user_email: str) -> dict:
+    """Join the synced catalog with catalog-wide Sales & Traffic (by asin) to
+    report: how many listings sell, total revenue, and active listings with no
+    sales. Returns has_data=False when no sales have been pulled yet."""
+    conn = get_db()
+    _ensure_catalog_extra(conn)
+    _ensure_catalog_sales(conn)
+    cat = conn.execute(
+        "SELECT marketplace, asin, status FROM product_catalog WHERE user_email = ?", (user_email,)
+    ).fetchall()
+    sales = conn.execute(
+        "SELECT marketplace, asin, units_ordered, revenue FROM catalog_sales WHERE user_email = ?",
+        (user_email,),
+    ).fetchall()
+    conn.close()
+    if not sales:
+        return {"has_data": False}
+    smap = {(s["marketplace"], (s["asin"] or "").upper()): s for s in sales}
+    selling = revenue = active_no_sales = matched = 0
+    for r in cat:
+        key = (r["marketplace"], (r["asin"] or "").upper())
+        s = smap.get(key)
+        if s:
+            matched += 1
+            u = s["units_ordered"] or 0
+            if u > 0:
+                selling += 1
+                revenue += s["revenue"] or 0
+            elif (r["status"] or "").lower() == "active":
+                active_no_sales += 1
+        elif (r["status"] or "").lower() == "active":
+            active_no_sales += 1
+    return {"has_data": True, "selling": selling, "revenue": round(revenue, 2),
+            "active_no_sales": active_no_sales, "matched": matched}

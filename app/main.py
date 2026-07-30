@@ -355,12 +355,16 @@ async def compliance_scan(request: Request):
     """Conformity Watchdog — scan the user's catalog against Amazon rules,
     with a catalog (active/inactive/stock) + sales overview."""
     from app.services.compliance import scan_listings, detect_degradation
-    from app.db import record_health_snapshot, get_health_history, get_catalog_overview
+    from app.db import (record_health_snapshot, get_health_history,
+                        get_catalog_overview, get_catalog_sales_overview)
     email = request.state.user_email
     report = scan_listings(_gather_catalog_for_scan(email))
     try:
         report["catalog_overview"] = get_catalog_overview(email)
-        report["sales_overview"] = _sales_overview(email)
+        # Prefer the catalog-wide Sales & Traffic cross-reference; fall back to
+        # the tracked-listings overview until the seller pulls catalog sales.
+        cat_sales = get_catalog_sales_overview(email)
+        report["sales_overview"] = cat_sales if cat_sales.get("has_data") else _sales_overview(email)
     except Exception:
         pass
     # Degradation vs the previous snapshot → live alert banner (compare before
@@ -1402,6 +1406,48 @@ def start_catalog_sync_job(email: str, marketplace_str: str) -> str:
     _jobs[job_id] = {"status": "pending", "created_at": time.time()}
     asyncio.create_task(_run_catalog_sync_job(job_id, email, marketplace_str))
     return job_id
+
+
+async def _run_catalog_sales_job(job_id: str, email: str):
+    """Background: pull Sales & Traffic for every marketplace present in the
+    catalog and store per-ASIN metrics, then match to the catalog."""
+    import datetime as _d
+    from app.services.amazon_sp import fetch_sales_and_traffic
+    from app.db import get_catalog_marketplaces, save_catalog_sales, get_catalog_sales_overview
+    from app.models import Marketplace
+    _jobs[job_id]["status"] = "running"
+    try:
+        markets = get_catalog_marketplaces(email)
+        if not markets:
+            _jobs[job_id].update({"status": "done", "result": {"reason": "no_catalog"}})
+            return
+        end = _d.date.today()
+        start = end - _d.timedelta(days=30)
+        total_saved = 0
+        for mkt_str in markets:
+            try:
+                mkt = Marketplace(mkt_str)
+            except ValueError:
+                continue
+            metrics = await fetch_sales_and_traffic(
+                email, mkt, start.isoformat() + "T00:00:00Z", end.isoformat() + "T00:00:00Z")
+            total_saved += save_catalog_sales(email, mkt_str, metrics, start.isoformat(), end.isoformat())
+        overview = get_catalog_sales_overview(email)
+        _jobs[job_id].update({"status": "done",
+                              "result": {"saved": total_saved, "overview": overview}})
+    except RuntimeError as e:
+        _jobs[job_id].update({"status": "failed", "error": str(e)})
+    except Exception as e:
+        _jobs[job_id].update({"status": "failed", "error": type(e).__name__})
+
+
+@app.post("/api/catalog/sales-sync")
+async def catalog_sales_sync(request: Request):
+    """Kick off the catalog-wide Sales & Traffic pull (background job)."""
+    job_id = f"catsales_{uuid4().hex[:12]}"
+    _jobs[job_id] = {"status": "pending", "created_at": time.time()}
+    asyncio.create_task(_run_catalog_sales_job(job_id, request.state.user_email))
+    return {"job_id": job_id}
 
 
 @app.get("/api/jobs/{job_id}")

@@ -13079,15 +13079,17 @@ async function healthFixTitles(btn) {
 }
 
 function _healthOverview(rep) {
-  const co = rep.catalog_overview, so = rep.sales_overview;
+  const co = rep.catalog_overview, so = rep.sales_overview || {};
   const hasCat = co && co.total > 0;
-  const hasSales = so && so.tracked > 0;
-  if (!hasCat && !hasSales) return '';
+  const catalogWide = so.has_data === true;                 // Sales & Traffic on the whole catalog
+  const hasTracked = so.tracked > 0;                        // fallback: tracked listings
+  if (!hasCat && !catalogWide && !hasTracked) return '';
   const tile = (val, label, cls) => `
     <div class="flex-1 min-w-[80px] text-center bg-gray-50 rounded-xl py-2.5 px-2">
       <div class="text-xl font-bold ${cls || 'text-gray-800'}">${val}</div>
       <div class="text-[10px] text-gray-400 mt-0.5">${label}</div>
     </div>`;
+  const eur = v => Number(v).toLocaleString('fr-FR') + ' €';
   let tiles = '';
   if (hasCat) {
     tiles += tile(co.total, 'Fiches catalogue');
@@ -13095,18 +13097,49 @@ function _healthOverview(rep) {
     tiles += tile(co.inactive, 'Inactives', 'text-gray-400');
     tiles += tile(co.in_stock, 'En stock', 'text-blue-600');
   }
-  if (hasSales) {
+  if (catalogWide) {
     tiles += tile(so.selling, 'Fiches qui vendent', 'text-purple-600');
-    tiles += tile(Number(so.revenue).toLocaleString('fr-FR') + ' €', 'CA (dernier relevé)', 'text-gray-800');
+    tiles += tile(eur(so.revenue), 'CA (30 jours)', 'text-gray-800');
+    tiles += tile(so.active_no_sales, 'Actives sans vente', 'text-red-500');
+  } else if (hasTracked) {
+    tiles += tile(so.selling, 'Fiches qui vendent', 'text-purple-600');
+    tiles += tile(eur(so.revenue), 'CA (dernier relevé)', 'text-gray-800');
   }
-  const salesHint = hasCat && !hasSales
-    ? '<p class="text-[11px] text-gray-400 mt-2">💡 Connectez le suivi des ventes (onglet Suivi → Synchroniser) pour croiser vos fiches actives avec le chiffre d\'affaires.</p>'
-    : '';
+  const salesAction = catalogWide
+    ? `<button onclick="healthSyncSales(this)" class="text-[11px] font-semibold text-purple-600 hover:text-purple-800">↻ Actualiser les ventes</button>`
+    : `<button onclick="healthSyncSales(this)" class="text-[11px] font-semibold text-white gradient-bg rounded-lg px-3 py-1.5">📊 Croiser avec les ventes (Amazon)</button>`;
+  const hint = (hasCat && !catalogWide)
+    ? `<p class="text-[11px] text-gray-400 mt-2">💡 Croisez chaque fiche active avec son chiffre d'affaires réel : ${salesAction} (récupère les ventes 30 jours via Amazon).</p>`
+    : `<div class="mt-2 flex justify-end">${salesAction}</div>`;
   return `<div class="mb-5">
     <p class="text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-2">Vue d'ensemble</p>
     <div class="flex gap-2 flex-wrap">${tiles}</div>
-    ${salesHint}
+    ${hint}
   </div>`;
+}
+
+async function healthSyncSales(btn) {
+  btn.disabled = true; const orig = btn.innerHTML; btn.textContent = 'Récupération des ventes…';
+  try {
+    const start = await authFetch('/api/catalog/sales-sync', { method:'POST' });
+    const sd = await start.json();
+    if (!start.ok || !sd.job_id) throw new Error(sd.detail || 'Erreur');
+    for (let i = 0; i < 45; i++) {
+      await new Promise(r => setTimeout(r, 3000));
+      const jr = await authFetch('/api/jobs/' + sd.job_id);
+      if (!jr.ok) continue;
+      const job = await jr.json();
+      if (job.status === 'done') {
+        const r = job.result || {};
+        if (r.reason === 'no_catalog') { showToast('⚠️', 'Synchronisez d\'abord votre catalogue'); }
+        else { showToast('✅', 'Ventes récupérées et croisées avec le catalogue'); openHealthPanel(); }
+        btn.disabled = false; btn.innerHTML = orig; return;
+      }
+      if (job.status === 'failed') { showToast('❌', job.error || 'Erreur', true); btn.disabled=false; btn.innerHTML=orig; return; }
+    }
+    showToast('⏳', 'Le rapport ventes met plus de temps que prévu — relancez dans une minute');
+  } catch(e) { showToast('❌', e.message || 'Erreur', true); }
+  btn.disabled = false; btn.innerHTML = orig;
 }
 
 async function healthSendDigest(btn) {
