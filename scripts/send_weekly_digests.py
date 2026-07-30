@@ -21,7 +21,9 @@ from app.db import (get_db, get_catalog, get_catalog_summary,
                     record_health_snapshot, get_health_history)
 from app.routes.public_api import _latest_listings
 from app.services.compliance import scan_listings, detect_degradation
-from app.services.email import send_catalog_health, send_health_alert, _can_send
+from app.services.business_watchdog import scan_business
+from app.services.email import (send_catalog_health, send_health_alert,
+                                send_business_alert, _can_send)
 
 
 def _gather_catalog_for_scan(email: str) -> list:
@@ -76,7 +78,15 @@ def main() -> int:
                 pass
             if reasons and send_health_alert(email, report, reasons):
                 alerts += 1
-                print(f"[digest] ALERTE {email} — {'; '.join(reasons)}", flush=True)
+                print(f"[digest] ALERTE conformité {email} — {'; '.join(reasons)}", flush=True)
+            # Business degradation alert (sales/conversion/rank)
+            try:
+                biz = scan_business(email)
+                if biz.get("alerting") and send_business_alert(email, biz):
+                    alerts += 1
+                    print(f"[digest] ALERTE perf {email} — {biz['alerting']} fiche(s) en baisse", flush=True)
+            except Exception:
+                pass
             if send_catalog_health(email, report):
                 sent += 1
                 print(f"[digest] {email} — score {report['score']}/100, "

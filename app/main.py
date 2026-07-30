@@ -352,6 +352,13 @@ async def compliance_history(request: Request):
     return {"history": get_health_history(request.state.user_email, limit=30)}
 
 
+@app.get("/api/business/scan")
+async def business_scan(request: Request):
+    """Business Watchdog — detect declining tracked listings (sales/conversion/rank)."""
+    from app.services.business_watchdog import scan_business
+    return scan_business(request.state.user_email)
+
+
 _TITLE_ISSUE_CODES = {"title_too_long", "title_forbidden_chars", "title_all_caps", "title_superlative"}
 
 

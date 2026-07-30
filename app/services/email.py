@@ -548,3 +548,50 @@ def send_health_alert(to_email: str, report: dict, reasons: list) -> bool:
 </body></html>"""
     _send(to_email, subject, text, html)
     return True
+
+
+def send_business_alert(to_email: str, report: dict) -> bool:
+    """Proactive business alert: tracked listings whose sales/conversion/rank
+    dropped. Separate from the compliance alert — this is about revenue."""
+    if not _can_send() or _is_unsubscribed(to_email):
+        return False
+    listings = report.get("listings") or []
+    if not listings:
+        return False
+    app_url = os.getenv("APP_URL", "https://synqio.io")
+
+    blocks = ""
+    text_lines = []
+    for it in listings[:8]:
+        reasons_html = "".join(f'<li style="margin:3px 0;color:#b45309">{r}</li>' for r in it["reasons"])
+        blocks += (
+            f'<div style="border:1px solid #fde68a;background:#fffbeb;border-radius:12px;padding:12px;margin-bottom:10px">'
+            f'<p style="font-weight:600;font-size:14px;margin:0 0 4px">{(it.get("title") or it.get("sku") or "")[:70]}</p>'
+            f'<ul style="margin:0;padding-left:18px;font-size:13px">{reasons_html}</ul></div>'
+        )
+        text_lines.append(f"- {(it.get('title') or it.get('sku') or '')[:70]}: " + "; ".join(it["reasons"]))
+
+    n = len(listings)
+    subject = f"📉 Alerte performance — {n} fiche(s) en baisse"
+    text = (
+        f"Alerte performance SynqIO\n\n"
+        f"{n} de vos fiches suivies sont en recul :\n" + "\n".join(text_lines) +
+        f"\n\nOuvrez SynqIO pour analyser : {app_url}\n"
+    )
+    html = f"""<!DOCTYPE html>
+<html><head><meta charset="utf-8"></head>
+<body style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:24px;color:#1f2937">
+  <div style="background:linear-gradient(135deg,#d97706,#f59e0b);border-radius:16px;padding:22px;text-align:center;margin-bottom:22px">
+    <p style="color:white;font-size:17px;font-weight:700;margin:0">📉 Alerte performance</p>
+    <p style="color:rgba(255,255,255,0.9);font-size:13px;margin:6px 0 0">{n} fiche(s) suivie(s) en baisse</p>
+  </div>
+  {blocks}
+  <div style="text-align:center;margin-top:14px">
+    <a href="{app_url}" style="display:inline-block;background:linear-gradient(135deg,#7c3aed,#4f46e5);color:white;padding:12px 28px;border-radius:12px;font-weight:700;text-decoration:none;font-size:14px">
+      Analyser dans SynqIO →
+    </a>
+  </div>
+  {_unsubscribe_footer_html(to_email)}
+</body></html>"""
+    _send(to_email, subject, text, html)
+    return True

@@ -1843,6 +1843,7 @@
 
   <!-- ── Tracking section ─────────────────────────────────────────────────── -->
   <div id="trackSection" class="hidden">
+    <div id="bizAlertBanner" class="hidden mb-4"></div>
     <div class="grid grid-cols-12 gap-6">
 
       <!-- Left: tracked listings list -->
@@ -11743,7 +11744,31 @@ async function loadTrackListings() {
     const sum = rSum.ok ? await rSum.json() : null;
     _renderTrackList();
     _renderProofLoop(sum);
+    _loadBusinessAlerts();
   } catch(e) { /* silent */ }
+}
+
+async function _loadBusinessAlerts() {
+  const box = document.getElementById('bizAlertBanner');
+  if (!box) return;
+  try {
+    const r = await authFetch('/api/business/scan');
+    if (!r.ok) { box.classList.add('hidden'); return; }
+    const data = await r.json();
+    if (!data.alerting) { box.classList.add('hidden'); return; }
+    const items = (data.listings || []).map(it => `
+      <div class="border border-amber-200 bg-white rounded-xl p-3 mb-2 last:mb-0">
+        <p class="text-sm font-semibold text-gray-800 truncate">${_esc(it.title || it.sku || 'Fiche')}</p>
+        <ul class="mt-1 space-y-0.5">${it.reasons.map(rs => `<li class="text-xs text-amber-700 flex items-start gap-1.5"><span class="mt-1">•</span>${_esc(rs)}</li>`).join('')}</ul>
+      </div>`).join('');
+    box.innerHTML = `
+      <div class="bg-amber-50 border border-amber-200 rounded-2xl p-4">
+        <p class="text-sm font-bold text-amber-800 mb-2 flex items-center gap-2">📉 Alerte performance — ${data.alerting} fiche(s) en baisse</p>
+        ${items}
+        <p class="text-[11px] text-amber-600 mt-2">💡 Une baisse de ventes coïncide souvent avec un problème de contenu — vérifiez la conformité de ces fiches (menu → Santé du catalogue).</p>
+      </div>`;
+    box.classList.remove('hidden');
+  } catch(e) { box.classList.add('hidden'); }
 }
 
 function _renderTrackList() {
