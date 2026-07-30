@@ -44,9 +44,15 @@ def check_listing(listing: dict) -> List[dict]:
     has_keywords_field = "backend_keywords" in listing
     has_desc_field = "description" in listing
 
+    status = (listing.get("status") or "").lower()
+    is_live_inactive = status in ("inactive", "incomplete")
+
     # ── Title (always present in both sources) ───────────────────────────────
     if not title:
-        issues.append(_issue("title_missing", CRITICAL, "title", "Titre manquant"))
+        # An unpublished/inactive draft with no title is not a live compliance
+        # failure — don't cry wolf. Active listings still flag it as critical.
+        if not is_live_inactive:
+            issues.append(_issue("title_missing", CRITICAL, "title", "Titre manquant"))
     else:
         n = len(title)
         if n > TITLE_MAX:
@@ -130,24 +136,36 @@ def scan_listings(listings: List[dict]) -> dict:
     n_critical = 0
     n_warning = 0
     compliant = 0
+    counted = 0  # headline metrics cover active/published listings only
     for l in listings:
+        status = (l.get("status") or "").lower()
+        is_inactive = status in ("inactive", "incomplete")
         issues = check_listing(l)
         crit = sum(1 for i in issues if i["severity"] == CRITICAL)
         warn = sum(1 for i in issues if i["severity"] == WARNING)
-        n_critical += crit
-        n_warning += warn
-        if not issues:
-            compliant += 1
+        if not is_inactive:
+            counted += 1
+            n_critical += crit
+            n_warning += warn
+            if not issues:
+                compliant += 1
         if issues:
+            units = int(l.get("_units") or 0)
+            qty = l.get("quantity")
             results.append({
                 "sku": l.get("sku") or "",
                 "title": (l.get("title") or "")[:120],
                 "marketplace": l.get("marketplace") or "",
                 "source": l.get("_source") or "",  # "generated" (fixable) | "live"
+                "status": status or ("active" if not is_inactive else "inactive"),
+                "in_stock": bool(qty and qty > 0),
+                "units": units,
+                "revenue": round(float(l.get("_revenue") or 0), 2),
+                "selling": units > 0,
                 "critical": crit, "warning": warn,
                 "issues": issues,
             })
-    total = len(listings)
+    total = counted
     # Health score: share of compliant listings, but any critical issue caps it hard
     score = round(100 * compliant / total) if total else 100
     # sort worst first

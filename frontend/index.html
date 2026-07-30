@@ -13015,13 +13015,30 @@ function _renderHealth(rep) {
         <span class="text-xs text-gray-600">${_esc(iss.message)}</span>
       </div>`;
     }).join('');
-    return `<div class="border border-gray-100 rounded-xl p-3.5">
+    const isActive = (item.status || 'active') !== 'inactive' && (item.status || 'active') !== 'incomplete';
+    const metaBadges = [
+      isActive
+        ? '<span class="text-[9px] font-semibold px-1.5 py-0.5 rounded-full bg-green-50 text-green-600">Active</span>'
+        : '<span class="text-[9px] font-semibold px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-400">Inactive</span>',
+      item.in_stock
+        ? '<span class="text-[9px] font-semibold px-1.5 py-0.5 rounded-full bg-blue-50 text-blue-600">En stock</span>'
+        : '<span class="text-[9px] font-semibold px-1.5 py-0.5 rounded-full bg-red-50 text-red-500">Rupture</span>',
+      item.selling
+        ? `<span class="text-[9px] font-semibold px-1.5 py-0.5 rounded-full bg-purple-50 text-purple-600">${item.units} vendu${item.units>1?'s':''}</span>`
+        : '',
+    ].filter(Boolean).join(' ');
+    return `<div class="health-card border border-gray-100 rounded-xl p-3.5"
+        data-status="${isActive ? 'active' : 'inactive'}"
+        data-stock="${item.in_stock ? '1' : '0'}"
+        data-selling="${item.selling ? '1' : '0'}"
+        data-critical="${item.critical ? '1' : '0'}">
       <div class="flex items-center gap-2 mb-1">
         ${item.sku ? `<input type="checkbox" class="health-pick w-4 h-4 accent-purple-600 cursor-pointer flex-shrink-0" data-sku="${_esc(item.sku)}" onchange="_healthUpdateSelBar()">` : ''}
         <span class="text-sm font-semibold text-gray-800 truncate flex-1">${_esc(item.title || item.sku || 'Sans titre')}</span>
         ${item.critical ? `<span class="text-[10px] font-bold px-2 py-0.5 rounded-full ${_SEV_STYLE.critique.tag}">${item.critical} critique${item.critical>1?'s':''}</span>` : ''}
         ${item.warning ? `<span class="text-[10px] font-bold px-2 py-0.5 rounded-full ${_SEV_STYLE.avertissement.tag}">${item.warning}</span>` : ''}
       </div>
+      <div class="pl-6 flex items-center gap-1 mb-1">${metaBadges}</div>
       ${item.sku ? `<p class="text-[10px] text-gray-300 mb-1 pl-6">SKU ${_esc(item.sku)}${item.marketplace ? ' · ' + _esc(item.marketplace.replace('amazon_','').toUpperCase()) : ''}</p>` : ''}
       <div class="pl-6">${issues}</div>
     </div>`;
@@ -13059,17 +13076,52 @@ function _renderHealth(rep) {
            <div class="flex-1"><p class="text-sm font-semibold text-amber-800">🔧 ${titleFixCount} titre(s) corrigeable(s) automatiquement</p><p class="text-xs text-amber-600 mt-0.5">SynqIO raccourcit à ≤75 car. et génère les Item Highlights, sur vos fiches générées.</p></div>
            <button onclick="healthFixTitles(this)" class="flex-shrink-0 text-xs font-bold text-white bg-amber-500 hover:bg-amber-600 rounded-lg px-4 py-2.5 transition">Tout corriger</button>
          </div>` : ''}
-         <div class="flex items-center justify-between mb-2">
+         <div class="flex items-center justify-between mb-2 gap-2 flex-wrap">
            <p class="text-xs text-gray-400">Fiches à corriger (les plus urgentes en premier) :</p>
            <label class="text-[11px] text-gray-500 flex items-center gap-1.5 cursor-pointer"><input type="checkbox" id="healthSelectAll" class="w-3.5 h-3.5 accent-purple-600" onchange="_healthToggleAll(this)"> Tout sélectionner</label>
          </div>
-         <div class="space-y-2">${cards}</div>
+         <div class="flex items-center gap-1.5 mb-3 flex-wrap" id="healthFilters">
+           ${['toutes','actives','inactives','stock','ventes','critiques'].map((f,i) => {
+             const lbl = {toutes:'Toutes',actives:'Actives',inactives:'Inactives',stock:'En stock',ventes:'Qui vendent',critiques:'Critiques'}[f];
+             return `<button data-filter="${f}" onclick="_healthFilter('${f}',this)" class="health-filter text-[11px] font-semibold rounded-full px-3 py-1 transition ${i===0?'bg-purple-600 text-white':'bg-gray-100 text-gray-500 hover:bg-gray-200'}">${lbl}</button>`;
+           }).join('')}
+         </div>
+         <div class="space-y-2" id="healthCards">${cards}</div>
+         <p id="healthFilterEmpty" class="hidden text-center text-xs text-gray-400 py-6">Aucune fiche dans ce filtre.</p>
          <div id="healthSelBar" class="hidden sticky bottom-0 mt-3 bg-white border border-purple-200 rounded-xl p-3 shadow-lg flex items-center gap-3 flex-wrap">
            <span id="healthSelCount" class="text-sm font-semibold text-gray-800">0 sélectionnée(s)</span>
            <label class="text-[11px] text-gray-500 flex items-center gap-1.5 cursor-pointer" title="Récupère les bullet points et la description existants depuis Amazon (appel par fiche)"><input type="checkbox" id="healthEnrich" class="w-3.5 h-3.5 accent-purple-600" checked> Récupérer bullets/description depuis Amazon</label>
            <button onclick="healthWorkOnSelection(this)" class="ml-auto text-xs font-bold text-white gradient-bg rounded-lg px-4 py-2 transition hover:opacity-90">Travailler sur la sélection →</button>
          </div>`}
   `;
+}
+
+function _healthFilter(mode, btn) {
+  document.querySelectorAll('.health-filter').forEach(b => {
+    const on = b === btn;
+    b.className = 'health-filter text-[11px] font-semibold rounded-full px-3 py-1 transition ' +
+      (on ? 'bg-purple-600 text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200');
+  });
+  const test = {
+    toutes:    () => true,
+    actives:   c => c.dataset.status === 'active',
+    inactives: c => c.dataset.status === 'inactive',
+    stock:     c => c.dataset.stock === '1',
+    ventes:    c => c.dataset.selling === '1',
+    critiques: c => c.dataset.critical === '1',
+  }[mode] || (() => true);
+  let shown = 0;
+  document.querySelectorAll('.health-card').forEach(c => {
+    const ok = test(c);
+    c.classList.toggle('hidden', !ok);
+    if (ok) shown++;
+    // keep hidden cards out of any bulk selection
+    if (!ok) { const cb = c.querySelector('.health-pick'); if (cb && cb.checked) { cb.checked = false; } }
+  });
+  const empty = document.getElementById('healthFilterEmpty');
+  if (empty) empty.classList.toggle('hidden', shown !== 0);
+  const all = document.getElementById('healthSelectAll'); if (all) all.checked = false;
+  _healthUpdateSelBar();
 }
 
 function _healthSelectedSkus() {
@@ -13086,7 +13138,7 @@ function _healthUpdateSelBar() {
 }
 
 function _healthToggleAll(el) {
-  document.querySelectorAll('.health-pick').forEach(c => { c.checked = el.checked; });
+  document.querySelectorAll('.health-card:not(.hidden) .health-pick').forEach(c => { c.checked = el.checked; });
   _healthUpdateSelBar();
 }
 

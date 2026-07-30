@@ -1899,6 +1899,21 @@ def get_catalog_sales_overview(user_email: str) -> dict:
             "active_no_sales": active_no_sales, "matched": matched}
 
 
+def get_catalog_sales_map(user_email: str) -> dict:
+    """Per-ASIN sales for a seller: {(marketplace, ASIN): {units, revenue}}.
+    Used to tag each catalog listing with its own sales in the health scan."""
+    conn = get_db()
+    _ensure_catalog_sales(conn)
+    rows = conn.execute(
+        "SELECT marketplace, asin, units_ordered, revenue FROM catalog_sales WHERE user_email = ?",
+        (user_email,),
+    ).fetchall()
+    conn.close()
+    return {(r["marketplace"], (r["asin"] or "").upper()):
+            {"units": r["units_ordered"] or 0, "revenue": r["revenue"] or 0}
+            for r in rows}
+
+
 def get_catalog_rows_by_skus(user_email: str, skus: list) -> list:
     """Fetch catalog rows (sku, asin, ean, title, price, status, marketplace) for
     a set of SKUs — used to load selected listings into the generator."""

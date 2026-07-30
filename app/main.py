@@ -303,22 +303,34 @@ async def sitemap():
 
 
 def _gather_catalog_for_scan(email: str) -> list:
-    """Merge the live SP-API catalog (what is actually published — title/ean) with
-    the richest generated listing per SKU (bullets/keywords/description). The live
-    title wins when present (it is what Amazon shows and what may be non-compliant)."""
-    from app.db import get_catalog, get_catalog_summary
+    """Merge the live SP-API catalog (what is actually published — title/ean/status)
+    with the richest generated listing per SKU (bullets/keywords/description). Each
+    listing carries status/quantity/sales so the panel can filter (active, in stock,
+    selling). The live title wins when present (it is what Amazon shows).
+
+    Important: when a live catalog exists, generated listings only *enrich* matching
+    live SKUs — a generated-only draft (e.g. an audit test) never appears as its own
+    row, so the panel reflects the connected Amazon catalog, not leftover test data."""
+    from app.db import get_catalog, get_catalog_summary, get_catalog_sales_map
     from app.routes.public_api import _latest_listings
     merged: dict = {}
-    for mkt in (get_catalog_summary(email) or {}):
+    sales_map = {}
+    try:
+        sales_map = get_catalog_sales_map(email)
+    except Exception:
+        pass
+    summary = get_catalog_summary(email) or {}
+    has_live_catalog = bool(summary)
+    for mkt in summary:
         for it in get_catalog(email, mkt):
-            # The Watchdog audits LIVE listings — skip inactive/incomplete ones
-            # (they aren't published, so "missing title" etc. isn't actionable).
-            status = (it.get("status") or "").lower()
-            if status in ("inactive", "incomplete"):
-                continue
+            asin = (it.get("asin") or "").upper()
+            s = sales_map.get((mkt, asin)) or {}
             key = (mkt, it.get("sku") or "")
             merged[key] = {"sku": it.get("sku") or "", "marketplace": mkt,
                            "title": it.get("title") or "", "ean": it.get("ean") or "",
+                           "asin": asin, "status": (it.get("status") or "").lower(),
+                           "quantity": it.get("quantity"),
+                           "_units": s.get("units") or 0, "_revenue": s.get("revenue") or 0,
                            "_source": "live"}
     for g in _latest_listings(email):
         key = (g.get("marketplace") or "", g.get("sku") or "")
@@ -329,8 +341,10 @@ def _gather_catalog_for_scan(email: str) -> list:
                     base[f] = g[f]
             if not base.get("title"):
                 base["title"] = g.get("title") or ""
-        else:
-            merged[key] = {**g, "_source": "generated"}
+        elif not has_live_catalog:
+            # No Seller Central connected yet → the generated listings ARE the catalog.
+            # With a live catalog present, ignore generated-only rows (test/audit drafts).
+            merged[key] = {**g, "status": "active", "_source": "generated"}
     return list(merged.values())
 
 
