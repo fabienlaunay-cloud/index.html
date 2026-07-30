@@ -13277,13 +13277,29 @@ async function healthSyncSales(btn) {
 }
 
 async function healthSendDigest(btn) {
+  const def = (currentUser && currentUser.email) || '';
+  const to = window.prompt('Envoyer le rapport de santé du catalogue à quelle adresse email ?', def);
+  if (to === null) return;                       // cancelled
+  const dest = (to || '').trim();
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(dest)) { showToast('⚠️', 'Adresse email invalide'); return; }
   btn.disabled = true; const orig = btn.textContent; btn.textContent = 'Envoi…';
   try {
-    const r = await authFetch('/api/compliance/send-digest', { method:'POST' });
+    const r = await authFetch('/api/compliance/send-digest', {
+      method:'POST', headers:{ 'Content-Type':'application/json' },
+      body: JSON.stringify({ to: dest }),
+    });
     const data = await r.json();
     if (!r.ok) throw new Error(data.detail || 'Erreur');
-    showToast(data.sent ? '✅' : 'ℹ️', data.sent ? 'Rapport envoyé par email' : 'Email indisponible (à configurer)');
-  } catch(e) { showToast('❌', 'Erreur lors de l\'envoi', true); }
+    if (data.sent) {
+      showToast('✅', `Rapport envoyé à ${data.to} — vérifiez votre boîte mail (et les indésirables)`);
+    } else if (data.reason === 'empty_catalog') {
+      showToast('ℹ️', 'Aucune fiche à rapporter — synchronisez d\'abord le catalogue');
+    } else if (data.reason === 'smtp_unconfigured') {
+      showToast('ℹ️', 'Envoi email non configuré (SMTP) — contactez l\'administrateur');
+    } else {
+      showToast('ℹ️', `Envoi impossible vers ${data.to || dest}`);
+    }
+  } catch(e) { showToast('❌', e.message || 'Erreur lors de l\'envoi', true); }
   btn.disabled = false; btn.textContent = orig;
 }
 

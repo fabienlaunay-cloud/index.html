@@ -668,13 +668,33 @@ async def compliance_work_on(req: WorkOnRequest, request: Request):
 
 @app.post("/api/compliance/send-digest")
 async def compliance_send_digest(request: Request):
-    """Send the weekly health digest to the current user (also used to preview it)."""
+    """Send the health digest by email. Body may carry {"to": "..."} to send it to
+    a chosen address (defaults to the logged-in account) — handy to demo/preview it."""
+    import re as _re
     from app.services.compliance import scan_listings
-    from app.services.email import send_catalog_health
-    email = request.state.user_email
+    from app.services.email import send_catalog_health, _can_send
+    email = request.state.user_email  # workspace-scoped: what catalog to scan
+    owner = getattr(request.state, "owner_email", None) or email
+    to = owner
+    try:
+        body = await request.json()
+        cand = (body or {}).get("to", "").strip()
+        if cand:
+            if not _re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", cand):
+                raise HTTPException(400, "Adresse email invalide")
+            to = cand
+    except HTTPException:
+        raise
+    except Exception:
+        pass  # no/invalid body → send to the account owner
     report = scan_listings(_gather_catalog_for_scan(email))
-    sent = await asyncio.get_event_loop().run_in_executor(None, send_catalog_health, email, report)
-    return {"sent": sent, "score": report.get("score"), "non_compliant": report.get("non_compliant")}
+    if not report.get("total"):
+        return {"sent": False, "reason": "empty_catalog", "to": to}
+    if not _can_send():
+        return {"sent": False, "reason": "smtp_unconfigured", "to": to}
+    sent = await asyncio.get_event_loop().run_in_executor(None, send_catalog_health, to, report)
+    return {"sent": sent, "to": to, "score": report.get("score"),
+            "non_compliant": report.get("non_compliant")}
 
 
 @app.post("/api/admin/compliance/send-all-digests")
