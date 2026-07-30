@@ -673,6 +673,126 @@ def _extract_catalog_images(summary: dict, attrs: dict) -> list:
     return images
 
 
+async def _run_report_text(user_email: str, report_body: dict, max_wait: float = 90.0) -> str:
+    """Shared Reports API flow (request → poll → document → download → decode).
+    Returns the decoded report text. Raises RuntimeError('report_pending') if it
+    isn't ready within max_wait."""
+    creds = _get_sp_credentials(user_email)
+    if not creds.get("refresh_token"):
+        raise RuntimeError("Compte Amazon non connecté")
+    lwa = await _get_lwa_token(creds)
+    loop = asyncio.get_event_loop()
+    temp = await loop.run_in_executor(None, lambda: _assume_role(creds))
+    base = f"{_sp_endpoint()}/reports/2021-06-30"
+
+    r = await _sp_signed("POST", f"{base}/reports", report_body, lwa, temp)
+    if not r.is_success:
+        raise RuntimeError(f"Amazon {r.status_code} : {r.text[:280]}")
+    report_id = r.json().get("reportId")
+    if not report_id:
+        raise RuntimeError("reportId absent de la réponse Amazon")
+
+    waited, delay, doc_id = 0.0, 3.0, None
+    while waited < max_wait:
+        await asyncio.sleep(delay)
+        waited += delay
+        delay = min(delay * 1.4, 8.0)
+        rs = await _sp_signed("GET", f"{base}/reports/{report_id}", None, lwa, temp)
+        if not rs.is_success:
+            continue
+        st = rs.json()
+        status = st.get("processingStatus")
+        if status == "DONE":
+            doc_id = st.get("reportDocumentId")
+            break
+        if status in ("CANCELLED", "FATAL"):
+            raise RuntimeError(f"Rapport Amazon {status.lower()}")
+    if not doc_id:
+        raise RuntimeError("report_pending")
+
+    rd = await _sp_signed("GET", f"{base}/documents/{doc_id}", None, lwa, temp)
+    if not rd.is_success:
+        raise RuntimeError("Document du rapport indisponible")
+    doc = rd.json()
+    url = doc.get("url")
+    if not url:
+        raise RuntimeError("URL du rapport absente")
+    async with httpx.AsyncClient(timeout=60) as client:
+        dl = await client.get(url)
+    raw = dl.content
+    if doc.get("compressionAlgorithm") == "GZIP":
+        import gzip as _gz
+        raw = _gz.decompress(raw)
+    for enc in ("utf-8", "cp1252", "latin-1"):
+        try:
+            return raw.decode(enc)
+        except UnicodeDecodeError:
+            continue
+    return raw.decode("utf-8", errors="replace")
+
+
+def _parse_orders_tsv(text: str) -> dict:
+    """Aggregate the All-Orders report into per-ASIN sales: {asin: {units_ordered,
+    revenue, sessions, conversion_rate}}. Cancelled lines excluded."""
+    lines = [l for l in text.split("\n") if l.strip()]
+    if len(lines) < 2:
+        return {}
+    headers = [h.strip().lower() for h in lines[0].split("\t")]
+    def idx(*names):
+        for n in names:
+            if n in headers:
+                return headers.index(n)
+        return -1
+    i_asin = idx("asin")
+    i_sku = idx("sku")
+    i_qty = idx("quantity", "quantity-purchased", "number-of-items")
+    i_price = idx("item-price")
+    i_status = idx("order-status", "item-status")
+    agg: dict = {}
+    for line in lines[1:]:
+        cols = line.split("\t")
+        def get(i):
+            return cols[i].strip() if 0 <= i < len(cols) else ""
+        if get(i_status).lower() in ("cancelled", "canceled"):
+            continue
+        key = (get(i_asin) or get(i_sku)).upper()
+        if not key:
+            continue
+        try:
+            qty = int(float(get(i_qty) or 0))
+        except ValueError:
+            qty = 0
+        rawp = (get(i_price) or "0").replace(" ", "").replace("\xa0", "")
+        if "," in rawp and "." not in rawp:
+            rawp = rawp.replace(",", ".")
+        try:
+            price = float(rawp)
+        except ValueError:
+            price = 0.0
+        a = agg.setdefault(key, {"units_ordered": 0, "revenue": 0.0, "sessions": 0, "conversion_rate": 0})
+        a["units_ordered"] += qty
+        a["revenue"] += price
+    for a in agg.values():
+        a["revenue"] = round(a["revenue"], 2)
+    return agg
+
+
+async def fetch_orders_sales(user_email: str, marketplace: Marketplace,
+                             start_iso: str, end_iso: str) -> dict:
+    """Per-ASIN sales (units + revenue) from the All-Orders report — no Brand
+    Analytics role required (unlike Sales & Traffic)."""
+    if _is_demo():
+        return {}
+    mkid = MARKETPLACE_IDS.get(marketplace, MARKETPLACE_IDS[Marketplace.AMAZON_FR])
+    text = await _run_report_text(user_email, {
+        "reportType": "GET_FLAT_FILE_ALL_ORDERS_DATA_BY_ORDER_DATE_GENERAL",
+        "marketplaceIds": [mkid],
+        "dataStartTime": start_iso,
+        "dataEndTime": end_iso,
+    })
+    return _parse_orders_tsv(text)
+
+
 async def fetch_seller_catalog(
     user_email: str,
     marketplace: Marketplace,

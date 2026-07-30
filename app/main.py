@@ -1469,7 +1469,7 @@ async def _run_catalog_sales_job(job_id: str, email: str):
     """Background: pull Sales & Traffic for every marketplace present in the
     catalog and store per-ASIN metrics, then match to the catalog."""
     import datetime as _d
-    from app.services.amazon_sp import fetch_sales_and_traffic
+    from app.services.amazon_sp import fetch_orders_sales
     from app.db import get_catalog_marketplaces, save_catalog_sales, get_catalog_sales_overview
     from app.models import Marketplace
     _jobs[job_id]["status"] = "running"
@@ -1486,14 +1486,17 @@ async def _run_catalog_sales_job(job_id: str, email: str):
                 mkt = Marketplace(mkt_str)
             except ValueError:
                 continue
-            metrics = await fetch_sales_and_traffic(
+            # All-Orders report → units + revenue per ASIN (no Brand Analytics)
+            metrics = await fetch_orders_sales(
                 email, mkt, start.isoformat() + "T00:00:00Z", end.isoformat() + "T00:00:00Z")
             total_saved += save_catalog_sales(email, mkt_str, metrics, start.isoformat(), end.isoformat())
         overview = get_catalog_sales_overview(email)
         _jobs[job_id].update({"status": "done",
                               "result": {"saved": total_saved, "overview": overview}})
     except RuntimeError as e:
-        _jobs[job_id].update({"status": "failed", "error": str(e)})
+        msg = "Le rapport ventes met trop de temps — relancez dans une minute." \
+            if str(e) == "report_pending" else str(e)
+        _jobs[job_id].update({"status": "failed", "error": msg})
     except Exception as e:
         _jobs[job_id].update({"status": "failed", "error": type(e).__name__})
 
