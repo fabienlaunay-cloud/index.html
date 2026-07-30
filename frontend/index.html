@@ -12747,13 +12747,17 @@ async function cmpDelete(id, btn) {
 // ── Espaces client (agence multi-client) ─────────────────────────────────────
 let _workspaces = [];
 
-function toggleWsDropdown(e) {
+async function toggleWsDropdown(e) {
   e.stopPropagation();
   const list = document.getElementById('wsSelectorList');
   const willOpen = list.classList.contains('hidden');
   document.getElementById('mktSelectorList')?.classList.add('hidden');
   list.classList.toggle('hidden');
-  if (willOpen) _wsRenderDropdown();
+  if (willOpen) {
+    _wsRenderDropdown();          // show cached list immediately
+    await _wsLoad();              // refresh from the server…
+    _wsRenderDropdown();          // …then re-render with the fresh list
+  }
 }
 document.addEventListener('click', e => {
   if (!document.getElementById('wsSelectorWrapper')?.contains(e.target))
