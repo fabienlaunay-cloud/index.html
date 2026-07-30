@@ -822,8 +822,9 @@ def get_catalog_overview(user_email: str) -> dict:
 def get_catalog(user_email: str, marketplace: str) -> list:
     """Return all catalog items for user+marketplace as list of dicts."""
     conn = get_db()
+    _ensure_catalog_extra(conn)
     rows = conn.execute(
-        "SELECT sku, asin, ean, title, synced_at FROM product_catalog "
+        "SELECT sku, asin, ean, title, status, quantity, price, synced_at FROM product_catalog "
         "WHERE user_email = ? AND marketplace = ? ORDER BY sku",
         (user_email, marketplace),
     ).fetchall()

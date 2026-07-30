@@ -311,6 +311,11 @@ def _gather_catalog_for_scan(email: str) -> list:
     merged: dict = {}
     for mkt in (get_catalog_summary(email) or {}):
         for it in get_catalog(email, mkt):
+            # The Watchdog audits LIVE listings — skip inactive/incomplete ones
+            # (they aren't published, so "missing title" etc. isn't actionable).
+            status = (it.get("status") or "").lower()
+            if status in ("inactive", "incomplete"):
+                continue
             key = (mkt, it.get("sku") or "")
             merged[key] = {"sku": it.get("sku") or "", "marketplace": mkt,
                            "title": it.get("title") or "", "ean": it.get("ean") or "",
