@@ -1899,6 +1899,102 @@ def get_catalog_sales_overview(user_email: str) -> dict:
             "active_no_sales": active_no_sales, "matched": matched}
 
 
+def get_catalog_insights(user_email: str) -> dict:
+    """Business insights for Santé du catalogue — joins the synced catalog with
+    per-ASIN sales. Returns top-revenue fiches, weakest active fiches, stock-outs on
+    selling fiches, count of active fiches with no sales, per-marketplace breakdown
+    and the count of fiches missing an EAN. has_data flags whether sales are known."""
+    conn = get_db()
+    _ensure_catalog_extra(conn)
+    _ensure_catalog_sales(conn)
+    cat = conn.execute(
+        "SELECT marketplace, sku, asin, ean, title, status, quantity, price "
+        "FROM product_catalog WHERE user_email = ?", (user_email,)
+    ).fetchall()
+    sales = conn.execute(
+        "SELECT marketplace, asin, units_ordered, revenue FROM catalog_sales WHERE user_email = ?",
+        (user_email,),
+    ).fetchall()
+    conn.close()
+    smap = {(s["marketplace"], (s["asin"] or "").upper()):
+            {"units": s["units_ordered"] or 0, "revenue": s["revenue"] or 0} for s in sales}
+    has_sales = bool(sales)
+    rows = []
+    no_ean = 0
+    mkt: dict = {}
+    for c in cat:
+        status = (c["status"] or "").lower()
+        active = status not in ("inactive", "incomplete")
+        s = smap.get((c["marketplace"], (c["asin"] or "").upper())) or {}
+        units = int(s.get("units") or 0)
+        revenue = float(s.get("revenue") or 0)
+        qty = c["quantity"]
+        item = {"sku": c["sku"] or "", "asin": c["asin"] or "", "title": (c["title"] or "")[:80],
+                "marketplace": c["marketplace"], "status": "active" if active else "inactive",
+                "price": c["price"], "quantity": qty, "in_stock": bool(qty and qty > 0),
+                "units": units, "revenue": round(revenue, 2)}
+        rows.append(item)
+        if not (c["ean"] or "").strip():
+            no_ean += 1
+        m = mkt.setdefault(c["marketplace"], {"marketplace": c["marketplace"], "total": 0,
+                                              "active": 0, "selling": 0, "revenue": 0.0})
+        m["total"] += 1
+        if active:
+            m["active"] += 1
+        if units > 0:
+            m["selling"] += 1
+            m["revenue"] = round(m["revenue"] + revenue, 2)
+
+    selling = [r for r in rows if r["units"] > 0]
+    top_revenue = sorted(selling, key=lambda r: r["revenue"], reverse=True)[:5]
+    weakest_active = sorted([r for r in selling if r["status"] == "active"],
+                            key=lambda r: r["revenue"])[:5]
+    stockout_selling = [r for r in selling if not r["in_stock"]]
+    active_no_sales = [r for r in rows if r["status"] == "active" and r["units"] == 0]
+
+    return {
+        "has_data": has_sales,
+        "top_revenue": top_revenue,
+        "weakest_active": weakest_active,
+        "stockout_selling": stockout_selling,
+        "active_no_sales_count": len(active_no_sales),
+        "active_no_sales": active_no_sales[:50],
+        "no_ean_count": no_ean,
+        "by_marketplace": sorted(mkt.values(), key=lambda m: m["revenue"], reverse=True),
+    }
+
+
+def get_catalog_full_export(user_email: str) -> list:
+    """Flat rows for a CSV export: every catalog fiche with status, price, stock and
+    its sales (units/revenue) joined by ASIN."""
+    ins = get_catalog_insights(user_email)  # reuse the join to stay consistent
+    conn = get_db()
+    _ensure_catalog_extra(conn)
+    _ensure_catalog_sales(conn)
+    cat = conn.execute(
+        "SELECT marketplace, sku, asin, ean, title, status, quantity, price "
+        "FROM product_catalog WHERE user_email = ? ORDER BY marketplace, sku", (user_email,)
+    ).fetchall()
+    sales = conn.execute(
+        "SELECT marketplace, asin, units_ordered, revenue FROM catalog_sales WHERE user_email = ?",
+        (user_email,),
+    ).fetchall()
+    conn.close()
+    smap = {(s["marketplace"], (s["asin"] or "").upper()):
+            {"units": s["units_ordered"] or 0, "revenue": s["revenue"] or 0} for s in sales}
+    out = []
+    for c in cat:
+        s = smap.get((c["marketplace"], (c["asin"] or "").upper())) or {}
+        out.append({
+            "marketplace": c["marketplace"], "sku": c["sku"] or "", "asin": c["asin"] or "",
+            "ean": c["ean"] or "", "title": c["title"] or "", "status": (c["status"] or ""),
+            "quantity": c["quantity"] if c["quantity"] is not None else "",
+            "price": c["price"] if c["price"] is not None else "",
+            "units_ordered": int(s.get("units") or 0), "revenue": round(float(s.get("revenue") or 0), 2),
+        })
+    return out
+
+
 def get_catalog_sales_map(user_email: str) -> dict:
     """Per-ASIN sales for a seller: {(marketplace, ASIN): {units, revenue}}.
     Used to tag each catalog listing with its own sales in the health scan."""

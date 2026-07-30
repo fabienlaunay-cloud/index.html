@@ -375,7 +375,8 @@ async def compliance_scan(request: Request):
     with a catalog (active/inactive/stock) + sales overview."""
     from app.services.compliance import scan_listings, detect_degradation
     from app.db import (record_health_snapshot, get_health_history,
-                        get_catalog_overview, get_catalog_sales_overview)
+                        get_catalog_overview, get_catalog_sales_overview,
+                        get_catalog_insights)
     email = request.state.user_email
     report = scan_listings(_gather_catalog_for_scan(email))
     try:
@@ -384,6 +385,10 @@ async def compliance_scan(request: Request):
         # the tracked-listings overview until the seller pulls catalog sales.
         cat_sales = get_catalog_sales_overview(email)
         report["sales_overview"] = cat_sales if cat_sales.get("has_data") else _sales_overview(email)
+    except Exception:
+        pass
+    try:
+        report["insights"] = get_catalog_insights(email)
     except Exception:
         pass
     # Degradation vs the previous snapshot → live alert banner (compare before
@@ -1631,6 +1636,30 @@ async def catalog_sales_import_csv(request: Request):
     matched = sum(len(v) for v in by_mkt.values())
     return {"imported": matched, "total_in_csv": len(metrics),
             "overview": get_catalog_sales_overview(email)}
+
+
+@app.get("/api/catalog/export.csv")
+async def catalog_export_csv(request: Request):
+    """Download the full catalogue health as CSV: fiche, status, price, stock, sales."""
+    import csv as _csv, io as _io
+    from fastapi.responses import StreamingResponse
+    from app.db import get_catalog_full_export
+    rows = get_catalog_full_export(request.state.user_email)
+    buf = _io.StringIO()
+    buf.write("﻿")  # BOM so Excel opens accents/€ correctly
+    cols = ["marketplace", "sku", "asin", "ean", "title", "status",
+            "quantity", "price", "units_ordered", "revenue"]
+    headers = {"marketplace": "Marketplace", "sku": "SKU", "asin": "ASIN", "ean": "EAN",
+               "title": "Titre", "status": "Statut", "quantity": "Stock", "price": "Prix",
+               "units_ordered": "Unités vendues", "revenue": "CA"}
+    w = _csv.DictWriter(buf, fieldnames=cols, delimiter=";")
+    w.writerow(headers)
+    for r in rows:
+        w.writerow({k: r.get(k, "") for k in cols})
+    buf.seek(0)
+    return StreamingResponse(
+        iter([buf.getvalue()]), media_type="text/csv",
+        headers={"Content-Disposition": 'attachment; filename="sante-catalogue-synqio.csv"'})
 
 
 @app.post("/api/catalog/sales-sync")
