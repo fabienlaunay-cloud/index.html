@@ -352,11 +352,35 @@ async def compliance_history(request: Request):
     return {"history": get_health_history(request.state.user_email, limit=30)}
 
 
+@app.post("/api/business/sync")
+async def business_sync(request: Request):
+    """Auto-feed the tracked listings from the Amazon Sales & Traffic report (SP-API)."""
+    from app.services.business_watchdog import sync_business_snapshots
+    try:
+        res = await sync_business_snapshots(request.state.user_email)
+    except RuntimeError as e:
+        raise HTTPException(400, str(e))
+    except Exception as e:
+        raise HTTPException(502, f"Synchronisation impossible : {type(e).__name__}")
+    return res
+
+
 @app.get("/api/business/scan")
 async def business_scan(request: Request):
-    """Business Watchdog — detect declining tracked listings (sales/conversion/rank)."""
-    from app.services.business_watchdog import scan_business
-    return scan_business(request.state.user_email)
+    """Business Watchdog — detect declining tracked listings, correlated with
+    content/compliance issues on the same SKU."""
+    from app.services.business_watchdog import scan_business, annotate_content_issues
+    from app.services.compliance import scan_listings
+    email = request.state.user_email
+    report = scan_business(email)
+    if report.get("alerting"):
+        try:
+            content = scan_listings(_gather_catalog_for_scan(email))
+            bad_skus = {i.get("sku") for i in content.get("listings", []) if i.get("sku")}
+            annotate_content_issues(report, bad_skus)
+        except Exception:
+            pass
+    return report
 
 
 _TITLE_ISSUE_CODES = {"title_too_long", "title_forbidden_chars", "title_all_caps", "title_superlative"}

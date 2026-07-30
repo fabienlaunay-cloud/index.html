@@ -737,3 +737,106 @@ async def lookup_asins_by_eans(
                             result[ean_val] = asin
 
     return result
+
+
+# ── Sales & Traffic report (auto-feed the Business Watchdog) ──────────────────
+
+def parse_sales_traffic(data: dict) -> dict:
+    """Parse a GET_SALES_AND_TRAFFIC_REPORT JSON document into per-ASIN metrics.
+    Pure/deterministic — unit-testable without any network call."""
+    out: dict = {}
+    for row in (data.get("salesAndTrafficByAsin") or []):
+        asin = row.get("childAsin") or row.get("parentAsin") or row.get("asin")
+        if not asin:
+            continue
+        sales = row.get("sales") or {}
+        traffic = row.get("traffic") or {}
+        ops = sales.get("orderedProductSales") or {}
+        try:
+            revenue = float(ops.get("amount") or 0)
+        except (TypeError, ValueError):
+            revenue = 0.0
+        out[str(asin).upper()] = {
+            "units_ordered": int(sales.get("unitsOrdered") or 0),
+            "revenue": revenue,
+            "sessions": int(traffic.get("sessions") or 0),
+            "page_views": int(traffic.get("pageViews") or 0),
+            "conversion_rate": float(traffic.get("unitSessionPercentage") or 0),
+        }
+    return out
+
+
+async def _sp_signed(method: str, url: str, body: dict, lwa: str, temp: dict):
+    body_bytes = json.dumps(body).encode() if body is not None else b""
+    headers = _sign_request(method, url, body_bytes, temp, lwa)
+    async with httpx.AsyncClient(timeout=30) as client:
+        return await client.request(method, url, headers=headers, content=body_bytes or None)
+
+
+async def fetch_sales_and_traffic(user_email: str, marketplace: Marketplace,
+                                  start_iso: str, end_iso: str, max_wait: float = 50.0) -> dict:
+    """Full Reports API flow → per-ASIN metrics. Returns {} in demo mode.
+    Raises RuntimeError('report_pending') if generation didn't finish in time
+    (the caller retries later — the weekly cron has more patience)."""
+    if _is_demo():
+        return {}
+    creds = _get_sp_credentials(user_email)
+    if not creds.get("refresh_token"):
+        raise RuntimeError("Compte Amazon non connecté")
+    lwa = await _get_lwa_token(creds)
+    temp = _assume_role(creds)
+    base = f"{_sp_endpoint()}/reports/2021-06-30"
+    mkid = MARKETPLACE_IDS.get(marketplace, MARKETPLACE_IDS[Marketplace.AMAZON_FR])
+
+    # 1) request the report
+    r = await _sp_signed("POST", f"{base}/reports", {
+        "reportType": "GET_SALES_AND_TRAFFIC_REPORT",
+        "marketplaceIds": [mkid],
+        "dataStartTime": start_iso,
+        "dataEndTime": end_iso,
+        "reportOptions": {"asinGranularity": "CHILD", "dateGranularity": "WEEK"},
+    }, lwa, temp)
+    if r.status_code == 403:
+        raise RuntimeError("Rôle SP-API 'Brand Analytics' requis pour ce rapport")
+    if not r.is_success:
+        raise RuntimeError(f"Amazon a répondu {r.status_code} à la demande de rapport")
+    report_id = r.json().get("reportId")
+    if not report_id:
+        raise RuntimeError("reportId absent de la réponse Amazon")
+
+    # 2) poll until DONE (bounded)
+    waited, delay, doc_id = 0.0, 3.0, None
+    while waited < max_wait:
+        await asyncio.sleep(delay)
+        waited += delay
+        delay = min(delay * 1.5, 10.0)
+        rs = await _sp_signed("GET", f"{base}/reports/{report_id}", None, lwa, temp)
+        if not rs.is_success:
+            continue
+        st = rs.json()
+        status = st.get("processingStatus")
+        if status == "DONE":
+            doc_id = st.get("reportDocumentId")
+            break
+        if status in ("CANCELLED", "FATAL"):
+            raise RuntimeError(f"Rapport Amazon {status.lower()}")
+    if not doc_id:
+        raise RuntimeError("report_pending")
+
+    # 3) fetch the document URL
+    rd = await _sp_signed("GET", f"{base}/documents/{doc_id}", None, lwa, temp)
+    if not rd.is_success:
+        raise RuntimeError("Impossible de récupérer le document du rapport")
+    doc = rd.json()
+    url = doc.get("url")
+    if not url:
+        raise RuntimeError("URL du rapport absente")
+
+    # 4) download + (gzip?) + parse
+    async with httpx.AsyncClient(timeout=60) as client:
+        dl = await client.get(url)
+    raw = dl.content
+    if doc.get("compressionAlgorithm") == "GZIP":
+        import gzip as _gz
+        raw = _gz.decompress(raw)
+    return parse_sales_traffic(json.loads(raw.decode("utf-8", errors="replace")))

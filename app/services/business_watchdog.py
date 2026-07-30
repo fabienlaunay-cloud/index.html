@@ -11,7 +11,9 @@ base so tiny numbers don't cry wolf.
 """
 from typing import List, Optional
 
-from app.db import list_tracked_listings, get_snapshots
+import datetime
+
+from app.db import list_tracked_listings, get_snapshots, add_snapshot
 
 
 def _pct_drop(prev: float, cur: float) -> float:
@@ -80,3 +82,65 @@ def scan_business(user_email: str) -> dict:
         "alerting": len(alerting),
         "listings": alerting,
     }
+
+
+async def sync_business_snapshots(user_email: str, days: int = 7) -> dict:
+    """Auto-feed: pull the Amazon Sales & Traffic report via SP-API and write one
+    snapshot per tracked ASIN (deduped by date). Replaces the manual CSV import.
+    Returns {synced, matched} or {status:'pending'} while the report generates."""
+    from app.services.amazon_sp import fetch_sales_and_traffic
+    from app.models import Marketplace
+
+    tracked = list_tracked_listings(user_email)
+    by_asin = {(l.get("asin") or "").upper(): l for l in tracked if l.get("asin")}
+    if not by_asin:
+        return {"synced": 0, "matched": 0, "reason": "no_tracked_asins"}
+
+    mkt_str = next((l.get("marketplace") for l in tracked if l.get("marketplace")), "amazon_fr")
+    try:
+        marketplace = Marketplace(mkt_str)
+    except ValueError:
+        marketplace = Marketplace.AMAZON_FR
+
+    end = datetime.date.today()
+    start = end - datetime.timedelta(days=days)
+    start_iso = start.isoformat() + "T00:00:00Z"
+    end_iso = end.isoformat() + "T00:00:00Z"
+    end_date = end.isoformat()
+
+    try:
+        metrics = await fetch_sales_and_traffic(user_email, marketplace, start_iso, end_iso)
+    except RuntimeError as e:
+        if str(e) == "report_pending":
+            return {"status": "pending"}
+        raise
+
+    synced = 0
+    for asin, m in metrics.items():
+        listing = by_asin.get(asin)
+        if not listing:
+            continue
+        # Dedup: skip if a snapshot already exists for this listing on this date
+        existing = get_snapshots(listing["id"], user_email)
+        if any(str(s.get("snapshot_date")) == end_date for s in existing):
+            continue
+        add_snapshot(listing["id"], user_email, end_date, f"7 jours au {end_date}",
+                     m["sessions"], m["page_views"], m["units_ordered"],
+                     m["conversion_rate"], m["revenue"], "", None, "Auto SP-API")
+        synced += 1
+    return {"synced": synced, "matched": len(by_asin)}
+
+
+def annotate_content_issues(report: dict, bad_skus: set) -> dict:
+    """Correlate the business watchdog with the conformity watchdog: mark each
+    declining listing whose SKU also has a content/compliance problem. A listing
+    that is BOTH losing sales AND non-compliant is the top priority — the unique
+    signal only SynqIO can produce (it sees content and performance)."""
+    correlated = 0
+    for it in report.get("listings", []):
+        flag = bool(it.get("sku") and it["sku"] in (bad_skus or set()))
+        it["content_issue"] = flag
+        if flag:
+            correlated += 1
+    report["correlated"] = correlated
+    return report

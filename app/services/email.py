@@ -562,14 +562,20 @@ def send_business_alert(to_email: str, report: dict) -> bool:
 
     blocks = ""
     text_lines = []
-    for it in listings[:8]:
+    # Correlated listings (content + sales both down) first — top priority
+    ordered = sorted(listings, key=lambda x: 0 if x.get("content_issue") else 1)
+    for it in ordered[:8]:
         reasons_html = "".join(f'<li style="margin:3px 0;color:#b45309">{r}</li>' for r in it["reasons"])
+        prio = ('<span style="background:#dc2626;color:white;font-size:10px;font-weight:700;'
+                'border-radius:6px;padding:2px 7px;margin-left:6px">CONTENU + VENTES</span>') if it.get("content_issue") else ""
         blocks += (
-            f'<div style="border:1px solid #fde68a;background:#fffbeb;border-radius:12px;padding:12px;margin-bottom:10px">'
-            f'<p style="font-weight:600;font-size:14px;margin:0 0 4px">{(it.get("title") or it.get("sku") or "")[:70]}</p>'
+            f'<div style="border:1px solid {"#fecaca" if it.get("content_issue") else "#fde68a"};'
+            f'background:{"#fef2f2" if it.get("content_issue") else "#fffbeb"};border-radius:12px;padding:12px;margin-bottom:10px">'
+            f'<p style="font-weight:600;font-size:14px;margin:0 0 4px">{(it.get("title") or it.get("sku") or "")[:70]}{prio}</p>'
             f'<ul style="margin:0;padding-left:18px;font-size:13px">{reasons_html}</ul></div>'
         )
-        text_lines.append(f"- {(it.get('title') or it.get('sku') or '')[:70]}: " + "; ".join(it["reasons"]))
+        pre = "[PRIORITÉ contenu+ventes] " if it.get("content_issue") else ""
+        text_lines.append(f"- {pre}{(it.get('title') or it.get('sku') or '')[:70]}: " + "; ".join(it["reasons"]))
 
     n = len(listings)
     subject = f"📉 Alerte performance — {n} fiche(s) en baisse"

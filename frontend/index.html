@@ -1856,6 +1856,10 @@
             </h2>
             <button onclick="openAddTrackModal()" class="gradient-bg text-white text-xs font-semibold px-3 py-1.5 rounded-lg hover:opacity-90 transition">+ Ajouter</button>
           </div>
+          <button id="bizSyncBtn" onclick="syncBusinessData(this)" class="w-full mb-3 bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 rounded-lg py-2 text-xs font-semibold transition flex items-center justify-center gap-1.5">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>
+            Synchroniser les ventes via Amazon
+          </button>
           <div id="trackListings" class="space-y-2">
             <p class="text-center text-gray-400 text-sm py-6">Aucune fiche suivie.<br>Cliquez sur "+ Ajouter" pour commencer.</p>
           </div>
@@ -11748,6 +11752,27 @@ async function loadTrackListings() {
   } catch(e) { /* silent */ }
 }
 
+async function syncBusinessData(btn) {
+  btn.disabled = true; const orig = btn.innerHTML;
+  btn.innerHTML = '<div class="spinner" style="width:13px;height:13px;border-width:2px"></div> Synchronisation…';
+  try {
+    const r = await authFetch('/api/business/sync', { method:'POST' });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.detail || 'Erreur');
+    if (data.status === 'pending') {
+      showToast('⏳', 'Rapport Amazon en cours de génération — relancez dans quelques minutes');
+    } else if (data.reason === 'no_tracked_asins') {
+      showToast('⚠️', 'Ajoutez des fiches suivies (avec leur ASIN) avant de synchroniser');
+    } else {
+      showToast('✅', `${data.synced || 0} fiche(s) mise(s) à jour depuis Amazon`);
+      loadTrackListings();
+    }
+  } catch(e) {
+    showToast('❌', e.message || 'Synchronisation impossible', true);
+  }
+  btn.disabled = false; btn.innerHTML = orig;
+}
+
 async function _loadBusinessAlerts() {
   const box = document.getElementById('bizAlertBanner');
   if (!box) return;
@@ -11756,16 +11781,21 @@ async function _loadBusinessAlerts() {
     if (!r.ok) { box.classList.add('hidden'); return; }
     const data = await r.json();
     if (!data.alerting) { box.classList.add('hidden'); return; }
-    const items = (data.listings || []).map(it => `
-      <div class="border border-amber-200 bg-white rounded-xl p-3 mb-2 last:mb-0">
-        <p class="text-sm font-semibold text-gray-800 truncate">${_esc(it.title || it.sku || 'Fiche')}</p>
-        <ul class="mt-1 space-y-0.5">${it.reasons.map(rs => `<li class="text-xs text-amber-700 flex items-start gap-1.5"><span class="mt-1">•</span>${_esc(rs)}</li>`).join('')}</ul>
+    const ordered = [...(data.listings || [])].sort((a,b) => (b.content_issue?1:0) - (a.content_issue?1:0));
+    const items = ordered.map(it => `
+      <div class="border ${it.content_issue ? 'border-red-200 bg-red-50' : 'border-amber-200 bg-white'} rounded-xl p-3 mb-2 last:mb-0">
+        <p class="text-sm font-semibold text-gray-800 truncate flex items-center gap-2">${_esc(it.title || it.sku || 'Fiche')}
+          ${it.content_issue ? '<span class="text-[9px] font-bold text-white bg-red-600 rounded px-1.5 py-0.5 flex-shrink-0">CONTENU + VENTES</span>' : ''}</p>
+        <ul class="mt-1 space-y-0.5">${it.reasons.map(rs => `<li class="text-xs ${it.content_issue?'text-red-600':'text-amber-700'} flex items-start gap-1.5"><span class="mt-1">•</span>${_esc(rs)}</li>`).join('')}</ul>
       </div>`).join('');
+    const corr = data.correlated
+      ? `<p class="text-[11px] text-red-600 font-semibold mt-2">🎯 ${data.correlated} fiche(s) en baisse ONT AUSSI un problème de contenu → corrigez-les en priorité (menu → Santé du catalogue → Tout corriger).</p>`
+      : '<p class="text-[11px] text-amber-600 mt-2">💡 Une baisse de ventes coïncide souvent avec un problème de contenu — vérifiez la conformité (menu → Santé du catalogue).</p>';
     box.innerHTML = `
       <div class="bg-amber-50 border border-amber-200 rounded-2xl p-4">
         <p class="text-sm font-bold text-amber-800 mb-2 flex items-center gap-2">📉 Alerte performance — ${data.alerting} fiche(s) en baisse</p>
         ${items}
-        <p class="text-[11px] text-amber-600 mt-2">💡 Une baisse de ventes coïncide souvent avec un problème de contenu — vérifiez la conformité de ces fiches (menu → Santé du catalogue).</p>
+        ${corr}
       </div>`;
     box.classList.remove('hidden');
   } catch(e) { box.classList.add('hidden'); }
