@@ -21,7 +21,7 @@ from app.db import (get_db, get_catalog, get_catalog_summary,
                     record_health_snapshot, get_health_history)
 from app.routes.public_api import _latest_listings
 from app.services.compliance import scan_listings, detect_degradation
-from app.services.business_watchdog import scan_business
+from app.services.business_watchdog import scan_business, annotate_content_issues
 from app.services.email import (send_catalog_health, send_health_alert,
                                 send_business_alert, _can_send)
 
@@ -79,12 +79,16 @@ def main() -> int:
             if reasons and send_health_alert(email, report, reasons):
                 alerts += 1
                 print(f"[digest] ALERTE conformité {email} — {'; '.join(reasons)}", flush=True)
-            # Business degradation alert (sales/conversion/rank)
+            # Business degradation alert (sales/conversion/rank), correlated with content
             try:
                 biz = scan_business(email)
-                if biz.get("alerting") and send_business_alert(email, biz):
-                    alerts += 1
-                    print(f"[digest] ALERTE perf {email} — {biz['alerting']} fiche(s) en baisse", flush=True)
+                if biz.get("alerting"):
+                    bad_skus = {i.get("sku") for i in report.get("listings", []) if i.get("sku")}
+                    annotate_content_issues(biz, bad_skus)
+                    if send_business_alert(email, biz):
+                        alerts += 1
+                        tag = f", {biz['correlated']} contenu+ventes" if biz.get("correlated") else ""
+                        print(f"[digest] ALERTE perf {email} — {biz['alerting']} en baisse{tag}", flush=True)
             except Exception:
                 pass
             if send_catalog_health(email, report):
