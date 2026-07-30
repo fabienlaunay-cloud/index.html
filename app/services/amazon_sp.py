@@ -208,6 +208,50 @@ async def _get_asin_for_sku(
     return None
 
 
+async def fetch_listing_details(user_email: str, marketplace: Marketplace, skus: list) -> dict:
+    """Enrich selected SKUs with bullets/description/brand/images from the
+    single-item Listings API (getListingsItem accepts 'attributes', unlike the
+    catalog-wide search). Returns {sku: {brand, description, bullet_points, images}}."""
+    if _is_demo() or not skus:
+        return {}
+    creds = _get_sp_credentials(user_email)
+    if not creds.get("refresh_token"):
+        raise RuntimeError("Compte Amazon non connecté")
+    lwa = await _get_lwa_token(creds)
+    loop = asyncio.get_event_loop()
+    temp = await loop.run_in_executor(None, lambda: _assume_role(creds))
+    seller_id = creds["seller_id"]
+    mkid = MARKETPLACE_IDS.get(marketplace, MARKETPLACE_IDS[Marketplace.AMAZON_FR])
+    sem = asyncio.Semaphore(4)
+    out: dict = {}
+
+    async def _one(sku):
+        async with sem:
+            url = (f"{_sp_endpoint()}/listings/2021-08-01/items/{seller_id}/{sku}"
+                   f"?marketplaceIds={mkid}&includedData=summaries,attributes")
+            headers = _sign_request("GET", url, b"", temp, lwa)
+            try:
+                async with httpx.AsyncClient(timeout=30) as client:
+                    resp = await client.get(url, headers=headers)
+                if resp.status_code != 200:
+                    return
+                data = resp.json()
+            except Exception:
+                return
+            summary = (data.get("summaries") or [{}])[0]
+            attrs = data.get("attributes", {}) or {}
+            out[sku] = {
+                "brand": _first_attr(attrs, "brand") or summary.get("brandName", "") or "",
+                "description": _first_attr(attrs, "product_description") or "",
+                "bullet_points": [b.get("value", "") for b in (attrs.get("bullet_point") or [])
+                                  if isinstance(b, dict) and b.get("value")],
+                "images": _extract_catalog_images(summary, attrs),
+            }
+
+    await asyncio.gather(*[_one(s) for s in skus[:40]])
+    return out
+
+
 async def _push_aplus(
     listing: AmazonListing,
     asin: str,

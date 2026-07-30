@@ -13017,12 +13017,13 @@ function _renderHealth(rep) {
     }).join('');
     return `<div class="border border-gray-100 rounded-xl p-3.5">
       <div class="flex items-center gap-2 mb-1">
+        ${item.sku ? `<input type="checkbox" class="health-pick w-4 h-4 accent-purple-600 cursor-pointer flex-shrink-0" data-sku="${_esc(item.sku)}" onchange="_healthUpdateSelBar()">` : ''}
         <span class="text-sm font-semibold text-gray-800 truncate flex-1">${_esc(item.title || item.sku || 'Sans titre')}</span>
         ${item.critical ? `<span class="text-[10px] font-bold px-2 py-0.5 rounded-full ${_SEV_STYLE.critique.tag}">${item.critical} critique${item.critical>1?'s':''}</span>` : ''}
         ${item.warning ? `<span class="text-[10px] font-bold px-2 py-0.5 rounded-full ${_SEV_STYLE.avertissement.tag}">${item.warning}</span>` : ''}
       </div>
-      ${item.sku ? `<p class="text-[10px] text-gray-300 mb-1">SKU ${_esc(item.sku)}${item.marketplace ? ' · ' + _esc(item.marketplace.replace('amazon_','').toUpperCase()) : ''}</p>` : ''}
-      ${issues}
+      ${item.sku ? `<p class="text-[10px] text-gray-300 mb-1 pl-6">SKU ${_esc(item.sku)}${item.marketplace ? ' · ' + _esc(item.marketplace.replace('amazon_','').toUpperCase()) : ''}</p>` : ''}
+      <div class="pl-6">${issues}</div>
     </div>`;
   }).join('');
 
@@ -13058,9 +13059,65 @@ function _renderHealth(rep) {
            <div class="flex-1"><p class="text-sm font-semibold text-amber-800">🔧 ${titleFixCount} titre(s) corrigeable(s) automatiquement</p><p class="text-xs text-amber-600 mt-0.5">SynqIO raccourcit à ≤75 car. et génère les Item Highlights, sur vos fiches générées.</p></div>
            <button onclick="healthFixTitles(this)" class="flex-shrink-0 text-xs font-bold text-white bg-amber-500 hover:bg-amber-600 rounded-lg px-4 py-2.5 transition">Tout corriger</button>
          </div>` : ''}
-         <p class="text-xs text-gray-400 mb-2">Fiches à corriger (les plus urgentes en premier) :</p><div class="space-y-2">${cards}</div>
-         <div class="mt-4 bg-purple-50 rounded-xl p-3.5 text-xs text-purple-800">💡 Bullets et mots-clés se corrigent en régénérant la fiche concernée dans le générateur. Après correction, ré-exportez vers Seller Central ou vos autres canaux.</div>`}
+         <div class="flex items-center justify-between mb-2">
+           <p class="text-xs text-gray-400">Fiches à corriger (les plus urgentes en premier) :</p>
+           <label class="text-[11px] text-gray-500 flex items-center gap-1.5 cursor-pointer"><input type="checkbox" id="healthSelectAll" class="w-3.5 h-3.5 accent-purple-600" onchange="_healthToggleAll(this)"> Tout sélectionner</label>
+         </div>
+         <div class="space-y-2">${cards}</div>
+         <div id="healthSelBar" class="hidden sticky bottom-0 mt-3 bg-white border border-purple-200 rounded-xl p-3 shadow-lg flex items-center gap-3 flex-wrap">
+           <span id="healthSelCount" class="text-sm font-semibold text-gray-800">0 sélectionnée(s)</span>
+           <label class="text-[11px] text-gray-500 flex items-center gap-1.5 cursor-pointer" title="Récupère les bullet points et la description existants depuis Amazon (appel par fiche)"><input type="checkbox" id="healthEnrich" class="w-3.5 h-3.5 accent-purple-600" checked> Récupérer bullets/description depuis Amazon</label>
+           <button onclick="healthWorkOnSelection(this)" class="ml-auto text-xs font-bold text-white gradient-bg rounded-lg px-4 py-2 transition hover:opacity-90">Travailler sur la sélection →</button>
+         </div>`}
   `;
+}
+
+function _healthSelectedSkus() {
+  return [...document.querySelectorAll('.health-pick:checked')].map(c => c.dataset.sku);
+}
+
+function _healthUpdateSelBar() {
+  const n = _healthSelectedSkus().length;
+  const bar = document.getElementById('healthSelBar');
+  if (!bar) return;
+  bar.classList.toggle('hidden', n === 0);
+  const c = document.getElementById('healthSelCount');
+  if (c) c.textContent = `${n} sélectionnée(s)`;
+}
+
+function _healthToggleAll(el) {
+  document.querySelectorAll('.health-pick').forEach(c => { c.checked = el.checked; });
+  _healthUpdateSelBar();
+}
+
+async function healthWorkOnSelection(btn) {
+  const skus = _healthSelectedSkus();
+  if (!skus.length) return;
+  const enrich = document.getElementById('healthEnrich')?.checked;
+  btn.disabled = true; const orig = btn.textContent;
+  btn.textContent = enrich ? 'Récupération depuis Amazon…' : 'Chargement…';
+  try {
+    const r = await authFetch('/api/compliance/work-on', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ skus, enrich: !!enrich }),
+    });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.detail || 'Erreur');
+    const prods = data.products || [];
+    parsedProducts = prods.map(p => ({
+      sku: p.sku, name: p.name, brand: p.brand || '', category: '',
+      description: p.description || '', price: (p.price ?? null), ean: p.ean || '',
+      features: p.features || [], focus_keywords: [],
+      images: p.images || [], extra: { asin: p.asin || '' },
+    }));
+    showProductsList(parsedProducts);
+    const gBtn = document.getElementById('generateBtn'); if (gBtn) gBtn.disabled = false;
+    document.getElementById('healthPanelModal').classList.add('hidden');
+    switchAppMode('generate');
+    setStep(2);
+    const withContent = prods.filter(p => (p.features || []).length || p.description).length;
+    showToast('✅', `${prods.length} fiche(s) chargée(s)${enrich ? ` · ${withContent} enrichie(s) (bullets/description)` : ''} — prêtes à régénérer`);
+  } catch(e) { showToast('❌', e.message || 'Erreur', true); btn.disabled = false; btn.textContent = orig; }
 }
 
 async function healthFixTitles(btn) {

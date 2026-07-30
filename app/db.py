@@ -1896,3 +1896,20 @@ def get_catalog_sales_overview(user_email: str) -> dict:
             active_no_sales += 1
     return {"has_data": True, "selling": selling, "revenue": round(revenue, 2),
             "active_no_sales": active_no_sales, "matched": matched}
+
+
+def get_catalog_rows_by_skus(user_email: str, skus: list) -> list:
+    """Fetch catalog rows (sku, asin, ean, title, price, status, marketplace) for
+    a set of SKUs — used to load selected listings into the generator."""
+    if not skus:
+        return []
+    conn = get_db()
+    _ensure_catalog_extra(conn)
+    placeholders = ",".join("?" * len(skus))
+    rows = conn.execute(
+        f"SELECT sku, asin, ean, title, price, status, marketplace "
+        f"FROM product_catalog WHERE user_email = ? AND sku IN ({placeholders})",
+        (user_email, *skus),
+    ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]

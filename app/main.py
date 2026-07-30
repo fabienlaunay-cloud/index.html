@@ -595,6 +595,58 @@ async def compliance_fix_titles(request: Request):
     return {"fixed": fixed, "remaining": max(0, total_flagged - fixed)}
 
 
+class WorkOnRequest(BaseModel):
+    skus: list[str]
+    enrich: bool = False
+
+
+@app.post("/api/compliance/work-on")
+async def compliance_work_on(req: WorkOnRequest, request: Request):
+    """Load selected catalog listings into the generator to rework them. Optionally
+    enrich each with the bullets/description/images pulled per-SKU from Amazon."""
+    from app.db import get_catalog_rows_by_skus
+    email = request.state.user_email
+    skus = [s for s in (req.skus or []) if s][:40]
+    if not skus:
+        raise HTTPException(400, "Aucune fiche sélectionnée")
+    rows = get_catalog_rows_by_skus(email, skus)
+    by_sku = {r["sku"]: r for r in rows}
+
+    enriched = {}
+    if req.enrich:
+        from app.services.amazon_sp import fetch_listing_details
+        from app.models import Marketplace
+        by_mkt: dict = {}
+        for r in rows:
+            by_mkt.setdefault(r.get("marketplace") or "amazon_fr", []).append(r["sku"])
+        for mkt_str, mkt_skus in by_mkt.items():
+            try:
+                mkt = Marketplace(mkt_str)
+            except ValueError:
+                mkt = Marketplace.AMAZON_FR
+            try:
+                enriched.update(await fetch_listing_details(email, mkt, mkt_skus))
+            except Exception:
+                pass  # enrichment is best-effort; base data still returned
+
+    products = []
+    for sku in skus:
+        r = by_sku.get(sku, {"sku": sku})
+        e = enriched.get(sku, {})
+        products.append({
+            "sku": sku,
+            "name": r.get("title") or sku,
+            "brand": e.get("brand", "") or "",
+            "ean": r.get("ean") or "",
+            "price": r.get("price"),
+            "description": e.get("description", "") or "",
+            "features": e.get("bullet_points", []) or [],
+            "images": e.get("images", []) or [],
+            "asin": r.get("asin") or "",
+        })
+    return {"products": products, "enriched": len(enriched)}
+
+
 @app.post("/api/compliance/send-digest")
 async def compliance_send_digest(request: Request):
     """Send the weekly health digest to the current user (also used to preview it)."""
