@@ -322,8 +322,21 @@ def _gather_catalog_for_scan(email: str) -> list:
 async def compliance_scan(request: Request):
     """Conformity Watchdog — scan the user's catalog against Amazon rules."""
     from app.services.compliance import scan_listings
-    report = scan_listings(_gather_catalog_for_scan(request.state.user_email))
+    from app.db import record_health_snapshot
+    email = request.state.user_email
+    report = scan_listings(_gather_catalog_for_scan(email))
+    try:
+        record_health_snapshot(email, report)  # one point/day for the trend chart
+    except Exception:
+        pass
     return report
+
+
+@app.get("/api/compliance/history")
+async def compliance_history(request: Request):
+    """Catalog health score over time (for the trend chart)."""
+    from app.db import get_health_history
+    return {"history": get_health_history(request.state.user_email, limit=30)}
 
 
 @app.post("/api/compliance/send-digest")

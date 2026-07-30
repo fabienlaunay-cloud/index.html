@@ -1541,3 +1541,63 @@ def update_connector_status(user_email: str, platform: str, status: str) -> None
     )
     conn.commit()
     conn.close()
+
+
+# ── Catalog health snapshots (conformity score over time) ────────────────────
+
+def _ensure_health_snapshots(conn):
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS health_snapshots (
+            user_email TEXT NOT NULL,
+            snap_date DATE NOT NULL,
+            score INTEGER NOT NULL DEFAULT 0,
+            total INTEGER NOT NULL DEFAULT 0,
+            compliant INTEGER NOT NULL DEFAULT 0,
+            non_compliant INTEGER NOT NULL DEFAULT 0,
+            critical_count INTEGER NOT NULL DEFAULT 0,
+            warning_count INTEGER NOT NULL DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (user_email, snap_date)
+        )
+    """)
+
+
+def record_health_snapshot(user_email: str, report: dict) -> None:
+    """Store one health point per day (last scan of the day wins). Skips empty
+    catalogs so the curve only reflects real data."""
+    if not report or not report.get("total"):
+        return
+    conn = get_db()
+    _ensure_health_snapshots(conn)
+    is_pg = bool(os.getenv("DATABASE_URL"))
+    today = "CURRENT_DATE" if is_pg else "date('now')"
+    conn.execute(
+        f"""INSERT INTO health_snapshots
+            (user_email, snap_date, score, total, compliant, non_compliant, critical_count, warning_count)
+            VALUES (?, {today}, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(user_email, snap_date) DO UPDATE SET
+                score=excluded.score, total=excluded.total, compliant=excluded.compliant,
+                non_compliant=excluded.non_compliant, critical_count=excluded.critical_count,
+                warning_count=excluded.warning_count, created_at=CURRENT_TIMESTAMP""",
+        (user_email, report.get("score", 0), report.get("total", 0),
+         report.get("compliant", 0), report.get("non_compliant", 0),
+         report.get("critical_count", 0), report.get("warning_count", 0)),
+    )
+    conn.commit()
+    conn.close()
+
+
+def get_health_history(user_email: str, limit: int = 30) -> list:
+    """Return the health snapshots oldest→newest for charting."""
+    conn = get_db()
+    _ensure_health_snapshots(conn)
+    rows = conn.execute(
+        "SELECT snap_date, score, total, non_compliant, critical_count "
+        "FROM health_snapshots WHERE user_email = ? ORDER BY snap_date DESC LIMIT ?",
+        (user_email, limit),
+    ).fetchall()
+    conn.close()
+    out = [{"date": str(r["snap_date"]), "score": r["score"], "total": r["total"],
+            "non_compliant": r["non_compliant"], "critical": r["critical_count"]} for r in rows]
+    out.reverse()  # oldest first
+    return out

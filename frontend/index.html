@@ -12506,9 +12506,48 @@ async function openHealthPanel() {
     const r = await authFetch('/api/compliance/scan');
     if (!r.ok) throw new Error();
     _renderHealth(await r.json());
+    // Trend curve (best-effort — the scan just recorded today's point)
+    try {
+      const rh = await authFetch('/api/compliance/history');
+      if (rh.ok) _renderHealthTrend((await rh.json()).history || []);
+    } catch(e) {}
   } catch(e) {
     body.innerHTML = '<p class="text-sm text-red-400 text-center py-10">Erreur lors de l\'analyse — réessayez.</p>';
   }
+}
+
+function _renderHealthTrend(history) {
+  const host = document.getElementById('healthTrend');
+  if (!host) return;
+  if (!history || history.length < 2) {
+    host.innerHTML = '<p class="text-[11px] text-gray-300 text-center py-2">📈 La courbe d\'évolution apparaîtra dès votre 2ᵉ analyse — un point est enregistré à chaque scan.</p>';
+    return;
+  }
+  const pts = history.slice(-14);
+  const W = 560, H = 90, pad = 8;
+  const xs = (i) => pad + i * ((W - 2*pad) / (pts.length - 1));
+  const ys = (v) => (H - pad) - (v / 100) * (H - 2*pad);
+  const line = pts.map((p,i) => `${i?'L':'M'}${xs(i).toFixed(1)},${ys(p.score).toFixed(1)}`).join(' ');
+  const area = `${line} L${xs(pts.length-1).toFixed(1)},${H-pad} L${xs(0).toFixed(1)},${H-pad} Z`;
+  const last = pts[pts.length-1], first = pts[0];
+  const delta = last.score - first.score;
+  const dots = pts.map((p,i) => `<circle cx="${xs(i).toFixed(1)}" cy="${ys(p.score).toFixed(1)}" r="2.5" fill="#7c3aed"/>`).join('');
+  const deltaTxt = delta === 0 ? 'stable'
+    : (delta > 0 ? `<span style="color:#059669">▲ +${delta} pts</span>` : `<span style="color:#dc2626">▼ ${delta} pts</span>`);
+  host.innerHTML = `
+    <div class="flex items-center justify-between mb-1">
+      <span class="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">Évolution du score</span>
+      <span class="text-[11px] text-gray-400">${pts.length} relevés · ${deltaTxt}</span>
+    </div>
+    <svg viewBox="0 0 ${W} ${H}" width="100%" height="90" preserveAspectRatio="none">
+      <defs><linearGradient id="hgrad" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="rgba(124,58,237,0.22)"/><stop offset="100%" stop-color="rgba(124,58,237,0)"/>
+      </linearGradient></defs>
+      <line x1="${pad}" y1="${ys(90).toFixed(1)}" x2="${W-pad}" y2="${ys(90).toFixed(1)}" stroke="#d1fae5" stroke-width="1" stroke-dasharray="3 3"/>
+      <path d="${area}" fill="url(#hgrad)"/>
+      <path d="${line}" fill="none" stroke="#7c3aed" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+      ${dots}
+    </svg>`;
 }
 
 function _renderHealth(rep) {
@@ -12556,6 +12595,7 @@ function _renderHealth(rep) {
         ${rep.critical_count ? `<p class="text-xs text-red-500 mt-1 font-medium">⚠️ ${rep.critical_count} problème(s) critique(s) — à traiter en priorité</p>` : ''}
       </div>
     </div>
+    <div id="healthTrend" class="border border-gray-100 rounded-2xl p-3.5 mb-5"></div>
     ${rep.non_compliant === 0
       ? '<p class="text-center text-green-600 font-semibold py-6">✅ Tout votre catalogue est conforme aux règles Amazon.</p>'
       : `<p class="text-xs text-gray-400 mb-2">Fiches à corriger (les plus urgentes en premier) :</p><div class="space-y-2">${cards}</div>

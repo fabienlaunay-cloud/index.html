@@ -17,7 +17,7 @@ import os
 # Ensure the project root is importable when run as `python scripts/...`
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from app.db import get_db, get_catalog, get_catalog_summary
+from app.db import get_db, get_catalog, get_catalog_summary, record_health_snapshot
 from app.routes.public_api import _latest_listings
 from app.services.compliance import scan_listings
 from app.services.email import send_catalog_health, _can_send
@@ -61,6 +61,10 @@ def main() -> int:
             if not report.get("total"):
                 skipped += 1
                 continue
+            try:
+                record_health_snapshot(email, report)  # feed the weekly trend curve
+            except Exception:
+                pass
             if send_catalog_health(email, report):
                 sent += 1
                 print(f"[digest] {email} — score {report['score']}/100, "
