@@ -103,6 +103,27 @@ def check_listing(listing: dict) -> List[dict]:
     return issues
 
 
+def detect_degradation(current: dict, previous: Optional[dict]) -> List[str]:
+    """Compare a fresh scan to the previous health snapshot and return the list of
+    degradation reasons (empty = no alert). Proactive trigger: score dropped
+    sharply, new critical issues appeared, or many listings turned non-compliant.
+    `previous` is a snapshot dict from get_health_history (keys: score, critical,
+    non_compliant) or None on the very first scan."""
+    if not previous:
+        return []
+    reasons: List[str] = []
+    drop = (previous.get("score") or 0) - (current.get("score") or 0)
+    if drop >= 10:
+        reasons.append(f"Score en baisse de {drop} points ({previous.get('score')} → {current.get('score')}/100)")
+    new_crit = (current.get("critical_count") or 0) - (previous.get("critical") or 0)
+    if new_crit >= 1:
+        reasons.append(f"{new_crit} nouveau(x) problème(s) critique(s)")
+    new_nc = (current.get("non_compliant") or 0) - (previous.get("non_compliant") or 0)
+    if new_nc >= 5:
+        reasons.append(f"{new_nc} fiche(s) devenues non conformes")
+    return reasons
+
+
 def scan_listings(listings: List[dict]) -> dict:
     """Scan a catalog and return a health report."""
     results = []

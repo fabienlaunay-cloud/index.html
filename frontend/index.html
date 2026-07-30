@@ -12583,7 +12583,15 @@ function _renderHealth(rep) {
     </div>`;
   }).join('');
 
+  const alertBanner = (rep.alert && rep.alert.length)
+    ? `<div class="mb-4 bg-red-50 border border-red-200 rounded-2xl p-4">
+         <p class="text-sm font-bold text-red-700 flex items-center gap-2">🚨 Dégradation détectée depuis la dernière vérification</p>
+         <ul class="mt-2 space-y-1">${rep.alert.map(a => `<li class="text-xs text-red-600 flex items-start gap-1.5"><span class="mt-1">•</span>${_esc(a)}</li>`).join('')}</ul>
+       </div>`
+    : '';
+
   body.innerHTML = `
+    ${alertBanner}
     <div class="flex items-center gap-5 mb-5 bg-gray-50 rounded-2xl p-5">
       <div class="text-center flex-shrink-0">
         <div class="text-5xl font-black leading-none" style="color:${color}">${score}</div>

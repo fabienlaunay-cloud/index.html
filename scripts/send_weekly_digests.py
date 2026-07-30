@@ -17,10 +17,11 @@ import os
 # Ensure the project root is importable when run as `python scripts/...`
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from app.db import get_db, get_catalog, get_catalog_summary, record_health_snapshot
+from app.db import (get_db, get_catalog, get_catalog_summary,
+                    record_health_snapshot, get_health_history)
 from app.routes.public_api import _latest_listings
-from app.services.compliance import scan_listings
-from app.services.email import send_catalog_health, _can_send
+from app.services.compliance import scan_listings, detect_degradation
+from app.services.email import send_catalog_health, send_health_alert, _can_send
 
 
 def _gather_catalog_for_scan(email: str) -> list:
@@ -54,17 +55,28 @@ def main() -> int:
     emails = [r["email"] for r in conn.execute("SELECT email FROM users").fetchall()]
     conn.close()
 
-    sent = skipped = errors = 0
+    sent = skipped = errors = alerts = 0
     for email in emails:
         try:
             report = scan_listings(_gather_catalog_for_scan(email))
             if not report.get("total"):
                 skipped += 1
                 continue
+            # Compare to the previous snapshot BEFORE recording today's point
+            prev = None
+            try:
+                hist = get_health_history(email, 1)
+                prev = hist[-1] if hist else None
+            except Exception:
+                pass
+            reasons = detect_degradation(report, prev)
             try:
                 record_health_snapshot(email, report)  # feed the weekly trend curve
             except Exception:
                 pass
+            if reasons and send_health_alert(email, report, reasons):
+                alerts += 1
+                print(f"[digest] ALERTE {email} — {'; '.join(reasons)}", flush=True)
             if send_catalog_health(email, report):
                 sent += 1
                 print(f"[digest] {email} — score {report['score']}/100, "
@@ -75,8 +87,8 @@ def main() -> int:
             errors += 1
             print(f"[digest] ERREUR {email}: {type(e).__name__}: {e}", flush=True)
 
-    print(f"[digest] Terminé — {sent} envoyés, {skipped} ignorés, {errors} erreurs "
-          f"sur {len(emails)} utilisateurs.", flush=True)
+    print(f"[digest] Terminé — {sent} digests, {alerts} alertes, {skipped} ignorés, "
+          f"{errors} erreurs sur {len(emails)} utilisateurs.", flush=True)
     return 0
 
 

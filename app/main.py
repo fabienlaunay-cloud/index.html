@@ -318,13 +318,26 @@ def _gather_catalog_for_scan(email: str) -> list:
     return list(merged.values())
 
 
+def _today_iso() -> str:
+    import datetime as _d
+    return _d.date.today().isoformat()
+
+
 @app.get("/api/compliance/scan")
 async def compliance_scan(request: Request):
     """Conformity Watchdog — scan the user's catalog against Amazon rules."""
-    from app.services.compliance import scan_listings
-    from app.db import record_health_snapshot
+    from app.services.compliance import scan_listings, detect_degradation
+    from app.db import record_health_snapshot, get_health_history
     email = request.state.user_email
     report = scan_listings(_gather_catalog_for_scan(email))
+    # Degradation vs the previous snapshot → live alert banner (compare before
+    # recording today's point). Email alerts themselves are sent by the cron.
+    try:
+        hist = get_health_history(email, 2)
+        prev = next((h for h in reversed(hist) if h.get("date") != _today_iso()), None)
+        report["alert"] = detect_degradation(report, prev)
+    except Exception:
+        report["alert"] = []
     try:
         record_health_snapshot(email, report)  # one point/day for the trend chart
     except Exception:

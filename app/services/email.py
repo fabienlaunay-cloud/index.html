@@ -507,3 +507,44 @@ def send_catalog_health(to_email: str, report: dict) -> bool:
 </body></html>"""
     _send(to_email, subject, text, html)
     return True
+
+
+def send_health_alert(to_email: str, report: dict, reasons: list) -> bool:
+    """Proactive alert: the catalog degraded since the last check. Sent outside
+    the weekly digest so the seller reacts fast (e.g. an Amazon rule change)."""
+    if not _can_send() or _is_unsubscribed(to_email) or not reasons:
+        return False
+    app_url = os.getenv("APP_URL", "https://synqio.io")
+    score = report.get("score", 0)
+    reason_items = "".join(f'<li style="margin:4px 0">{r}</li>' for r in reasons)
+    reason_text = "\n".join(f"- {r}" for r in reasons)
+
+    subject = f"🚨 Alerte conformité — votre catalogue s'est dégradé (score {score}/100)"
+    text = (
+        f"Alerte du gardien de conformité SynqIO\n\n"
+        f"Votre catalogue s'est dégradé depuis la dernière vérification :\n"
+        f"{reason_text}\n\n"
+        f"Score actuel : {score}/100 · {report.get('non_compliant', 0)} fiche(s) à corriger.\n\n"
+        f"Ouvrez SynqIO pour corriger : {app_url}\n"
+    )
+    html = f"""<!DOCTYPE html>
+<html><head><meta charset="utf-8"></head>
+<body style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:24px;color:#1f2937">
+  <div style="background:linear-gradient(135deg,#dc2626,#f97316);border-radius:16px;padding:22px;text-align:center;margin-bottom:22px">
+    <p style="color:white;font-size:17px;font-weight:700;margin:0">🚨 Alerte conformité catalogue</p>
+    <p style="color:rgba(255,255,255,0.85);font-size:13px;margin:6px 0 0">Une dégradation a été détectée</p>
+  </div>
+  <p style="font-size:14px;color:#374151;margin:0 0 10px">Depuis la dernière vérification, votre catalogue s'est dégradé :</p>
+  <ul style="font-size:14px;color:#b91c1c;background:#fef2f2;border:1px solid #fecaca;border-radius:12px;padding:14px 14px 14px 30px;margin:0 0 18px">
+    {reason_items}
+  </ul>
+  <p style="font-size:13px;color:#6b7280;margin:0 0 18px">Score actuel : <strong>{score}/100</strong> · {report.get('non_compliant', 0)} fiche(s) à corriger.</p>
+  <div style="text-align:center">
+    <a href="{app_url}" style="display:inline-block;background:linear-gradient(135deg,#7c3aed,#4f46e5);color:white;padding:12px 28px;border-radius:12px;font-weight:700;text-decoration:none;font-size:14px">
+      Corriger maintenant →
+    </a>
+  </div>
+  {_unsubscribe_footer_html(to_email)}
+</body></html>"""
+    _send(to_email, subject, text, html)
+    return True
