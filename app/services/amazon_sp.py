@@ -606,6 +606,29 @@ def _demo_publish(listings: List[AmazonListing], marketplace: Marketplace, dry_r
     return PublishResult(published=len(listings), failed=0, errors=[], report=report)
 
 
+def _first_attr(attrs: dict, key: str) -> str:
+    """SP-API attributes are lists of {value, marketplace_id, …}. Return the first value."""
+    vals = attrs.get(key)
+    if isinstance(vals, list) and vals and isinstance(vals[0], dict):
+        return str(vals[0].get("value") or "").strip()
+    return ""
+
+
+def _extract_catalog_images(summary: dict, attrs: dict) -> list:
+    """Main image from the summary + additional images from attribute locators."""
+    images = []
+    main = (summary.get("mainImage") or {}).get("link", "")
+    if main:
+        images.append(main)
+    for i in range(1, 9):
+        loc = attrs.get(f"other_product_image_locator_{i}")
+        if isinstance(loc, list) and loc and isinstance(loc[0], dict):
+            url = loc[0].get("media_location") or loc[0].get("value") or ""
+            if url and url not in images:
+                images.append(url)
+    return images
+
+
 async def fetch_seller_catalog(
     user_email: str,
     marketplace: Marketplace,
@@ -617,9 +640,13 @@ async def fetch_seller_catalog(
     """
     if _is_demo():
         return [
-            {"sku": "DEMO-SKU-001", "asin": "B08XYZ1234", "ean": "3760123456789", "title": "Produit Démo 1"},
-            {"sku": "DEMO-SKU-042", "asin": "B09ABC5678", "ean": "3760987654321", "title": "Produit Démo 2"},
-            {"sku": "YOGA-MAT-007", "asin": "B07DEF9012", "ean": "3760111222333", "title": "Tapis Yoga Démo"},
+            {"sku": "DEMO-SKU-001", "asin": "B08XYZ1234", "ean": "3760123456789",
+             "title": "Produit Démo 1", "brand": "SynqIO", "description": "Description démo.",
+             "bullet_points": ["Avantage 1", "Avantage 2"],
+             "images": ["https://m.media-amazon.com/images/I/demo1.jpg"]},
+            {"sku": "YOGA-MAT-007", "asin": "B07DEF9012", "ean": "3760111222333",
+             "title": "Tapis Yoga Démo", "brand": "SynqIO", "description": "",
+             "bullet_points": [], "images": []},
         ]
 
     creds = _get_sp_credentials(user_email)
@@ -655,20 +682,30 @@ async def fetch_seller_catalog(
                 sku = item.get("sku", "")
                 if not sku:
                     continue
-                summaries = item.get("summaries", [])
-                asin = summaries[0].get("asin", "") if summaries else ""
-                title = summaries[0].get("itemName", "") if summaries else ""
+                summary = (item.get("summaries") or [{}])[0]
+                asin = summary.get("asin", "")
+                title = summary.get("itemName", "")
+                attrs = item.get("attributes", {}) or {}
 
-                # Extract EAN from attributes
+                # EAN from attributes
                 ean = ""
-                attrs = item.get("attributes", {})
-                ext_ids = attrs.get("externally_assigned_product_identifier", [])
-                for ext_id in ext_ids:
-                    if ext_id.get("type", "").upper() == "EAN":
+                for ext_id in attrs.get("externally_assigned_product_identifier", []):
+                    if str(ext_id.get("type", "")).upper() == "EAN":
                         ean = ext_id.get("value", "")
                         break
 
-                items.append({"sku": sku, "asin": asin, "ean": ean, "title": title})
+                # Rich content so the seller can work on the listing directly
+                brand = _first_attr(attrs, "brand") or summary.get("brandName", "") or ""
+                description = _first_attr(attrs, "product_description") or ""
+                bullets = [b.get("value", "") for b in (attrs.get("bullet_point") or [])
+                           if isinstance(b, dict) and b.get("value")]
+                images = _extract_catalog_images(summary, attrs)
+
+                items.append({
+                    "sku": sku, "asin": asin, "ean": ean, "title": title,
+                    "brand": brand, "description": description,
+                    "bullet_points": bullets, "images": images,
+                })
 
             page_token = data.get("pagination", {}).get("nextPageToken")
             page_count += 1

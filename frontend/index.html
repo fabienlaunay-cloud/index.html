@@ -3708,12 +3708,8 @@
 
     <!-- Option 2 : API directe -->
     <div class="border border-gray-200 rounded-xl p-4">
-      <div class="flex items-center justify-between mb-1">
+      <div class="flex items-center justify-between mb-3">
         <p class="text-sm font-semibold text-gray-800">Push direct via API</p>
-        <span class="text-xs bg-amber-100 text-amber-700 font-semibold px-2 py-0.5 rounded-full">Bêta</span>
-      </div>
-      <div class="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-3 text-xs text-amber-800">
-        ⚠️ L'accès SP-API Amazon nécessite une validation par Amazon (en cours). En attendant, utilisez l'export Flat File ci-dessus — c'est la méthode recommandée.
       </div>
 
       <!-- Comment connecter son Seller Central (guide) -->
@@ -8880,9 +8876,29 @@ async function syncCatalog() {
     const d = await r.json();
     if (r.ok) {
       document.getElementById('catalogStatus').textContent = `${d.synced} produits synchronisés`;
-      showToast('✅', `Catalogue synchronisé : ${d.synced} produits`);
+      const prods = d.products || [];
+      if (prods.length) {
+        // Load the online catalog (with photos) straight into the generator
+        parsedProducts = prods.map(p => ({
+          sku: p.sku, name: p.name, brand: p.brand || '', category: '',
+          description: p.description || '', price: null, ean: p.ean || '',
+          features: p.features || [], focus_keywords: [],
+          images: p.images || [], extra: { asin: p.asin || '' },
+        }));
+        showProductsList(parsedProducts);
+        const gBtn = document.getElementById('generateBtn');
+        if (gBtn) gBtn.disabled = false;
+        switchAppMode('generate');
+        setStep(2);
+        const withImg = prods.filter(p => (p.images || []).length).length;
+        showToast('✅', `${prods.length} produit(s) importé(s) depuis Amazon${withImg ? ` · ${withImg} avec photos` : ''} — prêts à travailler`);
+      } else {
+        showToast('✅', `Catalogue synchronisé : ${d.synced} produits`);
+      }
+    } else {
+      showToast('❌', d.detail || 'Erreur synchronisation', true);
     }
-  } catch(e) { showToast('❌', 'Erreur synchronisation'); }
+  } catch(e) { showToast('❌', 'Erreur synchronisation', true); }
   finally { btn.disabled = false; btn.textContent = 'Synchroniser'; }
 }
 
