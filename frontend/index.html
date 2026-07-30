@@ -12772,16 +12772,41 @@ function _wsRenderDropdown() {
 }
 
 function _switchWorkspace(id) {
-  if (id === activeWorkspace) { document.getElementById('wsSelectorList')?.classList.add('hidden'); return; }
+  const dd = document.getElementById('wsSelectorList');
+  if (id === activeWorkspace) { dd?.classList.add('hidden'); return; }
   activeWorkspace = id;
   if (id) localStorage.setItem('synqio_workspace', id);
   else localStorage.removeItem('synqio_workspace');
+
   // Clear browser-cached working state (not workspace-scoped) so no data from the
-  // previous client leaks into the next. Server-side data is scoped and reloads.
+  // previous client leaks into the next. Server-side data is scoped per workspace.
   ['synqio_batches','synqio_active_batch','synqio_listings','synqio_images',
    'synqio_batch_id','synqio_ab_variants','synqio_published_skus','synqio_listing_statuses']
     .forEach(k => localStorage.removeItem(k));
-  location.reload();
+
+  // Reset the generator in place — NO page reload (that flashed the login screen).
+  try {
+    _batches = []; _activeBatchIdx = -1; generatedListings = []; parsedProducts = [];
+    currentBatchId = null; activeResultsFilter = null; activeMarketplaceFilter = null;
+    for (const k of Object.keys(imagesCache)) delete imagesCache[k];
+    _renderBatchSelector();
+    document.getElementById('resultsState')?.classList.add('hidden');
+    document.getElementById('emptyState')?.classList.remove('hidden');
+    document.getElementById('productsList')?.classList.add('hidden');
+    const gBtn = document.getElementById('generateBtn'); if (gBtn) gBtn.disabled = true;
+    setStep(1);
+  } catch(e) {}
+
+  // Refresh header + owner-level widgets; other panels re-fetch on open (with the
+  // new X-Workspace header) so they're always correctly scoped.
+  _wsUpdateLabel();
+  dd?.classList.add('hidden');
+  try { loadUsage(); } catch(e) {}
+  try { _apiLoadConnectors(); } catch(e) {}
+  if (!document.getElementById('wsManagerModal')?.classList.contains('hidden')) _wsRenderManager();
+
+  const active = _workspaces.find(w => w.id === id);
+  showToast('✅', active ? `Espace « ${active.name} » actif` : 'Espace personnel actif');
 }
 
 async function openWorkspaceManager() {
