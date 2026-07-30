@@ -1358,10 +1358,17 @@ async def _run_catalog_sync_job(job_id: str, email: str, marketplace_str: str):
             "images": it.get("images", []) or [],
             "asin": it.get("asin", "") or "",
             "price": it.get("price"),
+            "status": it.get("status", "") or "",
+            "quantity": it.get("quantity"),
         } for it in items]
+        active = sum(1 for it in items if (it.get("status") or "") == "active")
+        in_stock = sum(1 for it in items if (it.get("quantity") or 0) > 0)
+        inactive = len(items) - active
         _jobs[job_id].update({"status": "done",
                               "result": {"synced": count, "marketplace": marketplace_str,
-                                         "products": products}})
+                                         "products": products,
+                                         "stats": {"total": len(items), "active": active,
+                                                   "inactive": inactive, "in_stock": in_stock}}})
     except RuntimeError as e:
         _jobs[job_id].update({"status": "failed", "error": str(e)})
     except Exception as e:

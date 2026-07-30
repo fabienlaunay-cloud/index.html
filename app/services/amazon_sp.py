@@ -672,6 +672,8 @@ def _parse_merchant_listings_tsv(text: str) -> list:
     i_asin = idx("asin1", "asin", "product-id")
     i_img = idx("image-url", "main-image-url")
     i_price = idx("price")
+    i_status = idx("status", "listing-status")
+    i_qty = idx("quantity", "afn-fulfillable-quantity")
     items = []
     for line in lines[1:]:
         cols = line.split("\t")
@@ -687,12 +689,20 @@ def _parse_merchant_listings_tsv(text: str) -> list:
                 price = round(float(raw_price.replace(",", ".")), 2)
             except ValueError:
                 price = None
+        qty = None
+        raw_qty = get(i_qty)
+        if raw_qty:
+            try:
+                qty = int(float(raw_qty))
+            except ValueError:
+                qty = None
+        status = (get(i_status) or "").strip().lower()  # active | inactive | incomplete
         img = get(i_img)
         items.append({
             "sku": sku, "asin": get(i_asin), "ean": "", "title": get(i_name),
             "brand": "", "description": "", "bullet_points": [],
             "images": [img] if img.startswith("http") else [],
-            "price": price,
+            "price": price, "status": status, "quantity": qty,
         })
     return items
 
