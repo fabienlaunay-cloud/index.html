@@ -13179,8 +13179,16 @@ async function healthWorkOnSelection(btn) {
   const skus = _healthSelectedSkus();
   if (!skus.length) return;
   const enrich = document.getElementById('healthEnrich')?.checked;
-  btn.disabled = true; const orig = btn.textContent;
-  btn.textContent = enrich ? 'Récupération depuis Amazon…' : 'Chargement…';
+  return _healthLoadSkus(skus, enrich, btn);
+}
+
+// Load an explicit list of SKUs into the generator (used by the selection bar and
+// by the insight blocks — Top 5 CA, fiches faibles, actives sans vente).
+async function _healthLoadSkus(skus, enrich, btn) {
+  skus = [...new Set((skus || []).filter(Boolean))];
+  if (!skus.length) { showToast('ℹ️', 'Aucune fiche à charger'); return; }
+  const orig = btn ? btn.innerHTML : '';
+  if (btn) { btn.disabled = true; btn.textContent = enrich ? 'Récupération depuis Amazon…' : 'Chargement…'; }
   try {
     const r = await authFetch('/api/compliance/work-on', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -13203,7 +13211,8 @@ async function healthWorkOnSelection(btn) {
     const withContent = prods.filter(p => (p.features || []).length || p.description).length;
     showToast('✅', `${prods.length} fiche(s) chargée(s)${enrich ? ` · ${withContent} enrichie(s) (bullets/description)` : ''} — prêtes à régénérer`);
     if (data.note) setTimeout(() => showToast('ℹ️', data.note), 1200);
-  } catch(e) { showToast('❌', e.message || 'Erreur', true); btn.disabled = false; btn.textContent = orig; }
+  } catch(e) { showToast('❌', e.message || 'Erreur', true); }
+  if (btn) { btn.disabled = false; btn.innerHTML = orig; }
 }
 
 async function healthFixTitles(btn) {
@@ -13273,6 +13282,15 @@ function _healthInsights(rep) {
       <span class="text-[10px] text-gray-300">${mkt(r.marketplace)}</span>
       <span class="text-xs font-semibold text-gray-800 whitespace-nowrap">${right}</span>
     </div>`;
+  // Registry of SKUs per block so the "Retravailler" buttons can push them to the
+  // generator without inlining (possibly quote-containing) SKUs into onclick.
+  const skusOf = arr => (arr || []).map(r => r.sku).filter(Boolean);
+  window._hBlocks = {
+    top: skusOf(ins.top_revenue), weak: skusOf(ins.weakest_active),
+    nosale: skusOf(ins.active_no_sales), stockout: skusOf(ins.stockout_selling),
+  };
+  const workBtn = (key, n) => n ? `<button onclick="_healthLoadSkus(window._hBlocks['${key}'], false, this)"
+      class="text-[10px] font-bold text-white gradient-bg rounded-lg px-2.5 py-1 whitespace-nowrap hover:opacity-90">↻ Retravailler (${n})</button>` : '';
   let out = '';
 
   // ── Export / print bar (always available with a catalog) ──────────────────
@@ -13285,28 +13303,29 @@ function _healthInsights(rep) {
   // ── Stock-out on a SELLING fiche — strongest alert ────────────────────────
   if (ins.stockout_selling && ins.stockout_selling.length) {
     out += `<div class="mb-4 bg-red-50 border border-red-200 rounded-2xl p-4">
-        <p class="text-sm font-bold text-red-700 flex items-center gap-2">⚠️ ${ins.stockout_selling.length} fiche(s) en rupture alors qu'elle(s) vendent — manque à gagner immédiat</p>
+        <div class="flex items-center gap-2"><p class="text-sm font-bold text-red-700 flex-1">⚠️ ${ins.stockout_selling.length} fiche(s) en rupture alors qu'elle(s) vendent — manque à gagner immédiat</p>${workBtn('stockout', window._hBlocks.stockout.length)}</div>
         <div class="mt-2">${ins.stockout_selling.slice(0, 8).map(r => line(r, `${r.units} vendu${r.units > 1 ? 's' : ''} · stock 0`)).join('')}</div>
       </div>`;
   }
 
   if (ins.has_data) {
     // ── Top / weakest revenue ───────────────────────────────────────────────
-    const topBox = (title, rows, emptyTxt, accent) => `<div class="flex-1 min-w-[240px] border border-gray-100 rounded-2xl p-3.5">
-        <p class="text-xs font-bold ${accent} mb-1.5">${title}</p>
+    const topBox = (title, rows, emptyTxt, accent, key) => `<div class="flex-1 min-w-[240px] border border-gray-100 rounded-2xl p-3.5">
+        <div class="flex items-center gap-2 mb-1.5"><p class="text-xs font-bold ${accent} flex-1">${title}</p>${workBtn(key, window._hBlocks[key].length)}</div>
         ${rows && rows.length ? rows.map(r => line(r, eur(r.revenue))).join('') : `<p class="text-[11px] text-gray-400 py-2">${emptyTxt}</p>`}
       </div>`;
     out += `<div class="flex gap-3 flex-wrap mb-4">
-        ${topBox('🏆 Top 5 CA', ins.top_revenue, 'Aucune vente connue', 'text-green-600')}
-        ${topBox('📉 5 fiches actives les plus faibles', ins.weakest_active, 'Aucune vente connue', 'text-amber-600')}
+        ${topBox('🏆 Top 5 CA', ins.top_revenue, 'Aucune vente connue', 'text-green-600', 'top')}
+        ${topBox('📉 5 fiches actives les plus faibles', ins.weakest_active, 'Aucune vente connue', 'text-amber-600', 'weak')}
       </div>`;
 
     // ── Active fiches with zero sales ───────────────────────────────────────
     if (ins.active_no_sales_count) {
       const list = ins.active_no_sales || [];
+      const shown = window._hBlocks.nosale.length;
       out += `<div class="mb-4 border border-gray-100 rounded-2xl p-3.5">
-          <p class="text-xs font-bold text-red-500 mb-1.5">🔴 ${ins.active_no_sales_count} fiche(s) active(s) sans aucune vente</p>
-          <p class="text-[11px] text-gray-400 mb-2">Elles consomment de la visibilité sans rien rapporter — candidates prioritaires à réoptimiser.</p>
+          <div class="flex items-center gap-2 mb-1.5"><p class="text-xs font-bold text-red-500 flex-1">🔴 ${ins.active_no_sales_count} fiche(s) active(s) sans aucune vente</p>${workBtn('nosale', shown)}</div>
+          <p class="text-[11px] text-gray-400 mb-2">Elles consomment de la visibilité sans rien rapporter — candidates prioritaires à réoptimiser.${ins.active_no_sales_count > shown ? ` Le bouton retravaille les ${shown} premières.` : ''}</p>
           ${list.slice(0, 8).map(r => line(r, r.price != null ? eur(r.price) : '—')).join('')}
           ${ins.active_no_sales_count > 8 ? `<p class="text-[11px] text-gray-400 mt-2">+ ${ins.active_no_sales_count - 8} autre(s)…</p>` : ''}
         </div>`;
