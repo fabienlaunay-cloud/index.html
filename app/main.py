@@ -1559,12 +1559,20 @@ def _parse_business_report_asin_csv(csv_text: str) -> dict:
         # strip accents so 'unités commandées' matches 'unites commandees'
         return "".join(c for c in _ud.normalize("NFKD", s) if not _ud.combining(c))
     reader = _csv.DictReader(_io.StringIO(csv_text))
-    def _pick(row, *keys):
-        for k in keys:
-            v = row.get(k, "")
-            if v and v != "-":
-                return v
+    def _find(row, includes, excludes=()):
+        """Value of the first column whose (normalised) name contains every token
+        in `includes` and none in `excludes`. Column order is irrelevant, so both
+        'ASIN (enfant)' and '(Enfant) ASIN' match, and '… - B2B' columns are skipped."""
+        for k, v in row.items():
+            if all(t in k for t in includes) and not any(t in k for t in excludes):
+                if v not in (None, "", "-"):
+                    return v
         return ""
+    def _num(s):
+        try:
+            return float((s or "").replace("%", "").replace(",", ".").replace(" ", "").strip() or 0)
+        except ValueError:
+            return 0.0
     def _eur(s):
         s = (s or "").replace("€", "").replace("$", "").replace("\xa0", "").replace(" ", "").strip()
         if "," in s and "." in s:
@@ -1578,29 +1586,27 @@ def _parse_business_report_asin_csv(csv_text: str) -> dict:
     out: dict = {}
     for raw in reader:
         row = {_norm(k): (v.strip() if isinstance(v, str) else v) for k, v in raw.items()}
-        asin = (_pick(row, "(enfant) asin", "(child) asin", "asin enfant", "child asin",
-                      "(parent) asin", "(parent) asin", "asin parent", "parent asin", "asin") or "").upper()
+        # ASIN: prefer the child/variation ASIN (what maps to a catalog fiche),
+        # fall back to parent, then any 'asin' column. Order-independent.
+        asin = (_find(row, ["asin", "enfant"]) or _find(row, ["asin", "child"])
+                or _find(row, ["asin", "parent"]) or _find(row, ["asin"], ["b2b"]) or "").upper()
         if not asin or len(asin) < 5:
             continue
-        units = int(float(_pick(row, "unites commandees", "unites commandees - total",
-                                "units ordered", "units_ordered") or 0))
-        revenue = _eur(_pick(row, "chiffre d'affaires des produits commandes",
-                             "chiffre d'affaires des produits commandes - total",
-                             "ordered product sales - total", "ordered product sales",
-                             "ventes de produits commandes", "revenue"))
-        sessions = int(float(_pick(row, "sessions", "sessions - total") or 0))
-        conv_s = _pick(row, "pourcentage de sessions d'unites - total",
-                       "pourcentage de session d'unite", "unit session percentage",
-                       "taux de conversion", "conversion rate")
-        conv = float((conv_s or "0").replace("%", "").replace(",", ".").replace(" ", "").strip() or 0) \
-            if conv_s else (round(units / sessions * 100, 2) if sessions and units else 0.0)
-        # aggregate (a report may split parent/child rows for the same asin)
-        a = out.setdefault(asin, {"units_ordered": 0, "revenue": 0.0, "sessions": 0, "conversion_rate": conv})
+        # Units / revenue are per-SKU → summed; sessions are per-ASIN and repeat
+        # across a child's SKU rows → take the max (summing would double-count).
+        units = int(_num(_find(row, ["unites", "commandees"], ["b2b"])
+                         or _find(row, ["units", "ordered"], ["b2b"])))
+        revenue = _eur(_find(row, ["ventes", "produits", "commandes"], ["b2b", "nombre", "total de"])
+                       or _find(row, ["chiffre", "affaires", "commandes"], ["b2b"])
+                       or _find(row, ["ordered", "product", "sales"], ["b2b"]))
+        sessions = int(_num(_find(row, ["sessions", "total"], ["b2b", "pourcentage", "vues"])
+                            or _find(row, ["sessions"], ["b2b", "pourcentage", "vues"])))
+        a = out.setdefault(asin, {"units_ordered": 0, "revenue": 0.0, "sessions": 0, "conversion_rate": 0.0})
         a["units_ordered"] += units
         a["revenue"] = round(a["revenue"] + revenue, 2)
-        a["sessions"] += sessions
-        if conv:
-            a["conversion_rate"] = conv
+        a["sessions"] = max(a["sessions"], sessions)
+    for a in out.values():
+        a["conversion_rate"] = round(a["units_ordered"] / a["sessions"] * 100, 2) if a["sessions"] else 0.0
     return out
 
 
