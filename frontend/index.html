@@ -13033,16 +13033,19 @@ function _renderHealth(rep) {
         ? `<span class="text-[9px] font-semibold px-1.5 py-0.5 rounded-full bg-purple-50 text-purple-600">${item.units} vendu${item.units>1?'s':''}${item.revenue?` · ${Number(item.revenue).toLocaleString('fr-FR',{maximumFractionDigits:0})} €`:''}</span>`
         : '',
     ].filter(Boolean).join(' ');
+    const isCompliant = item.compliant || (!item.critical && !item.warning);
     return `<div class="health-card border border-gray-100 rounded-xl p-3.5"
         data-status="${isActive ? 'active' : 'inactive'}"
         data-stock="${item.in_stock ? '1' : '0'}"
         data-selling="${item.selling ? '1' : '0'}"
-        data-critical="${item.critical ? '1' : '0'}">
+        data-critical="${item.critical ? '1' : '0'}"
+        data-compliant="${isCompliant ? '1' : '0'}">
       <div class="flex items-center gap-2 mb-1">
         ${item.sku ? `<input type="checkbox" class="health-pick w-4 h-4 accent-purple-600 cursor-pointer flex-shrink-0" data-sku="${_esc(item.sku)}" onchange="_healthUpdateSelBar()">` : ''}
         <span class="text-sm font-semibold text-gray-800 truncate flex-1">${_esc(item.title || item.sku || 'Sans titre')}</span>
         ${item.critical ? `<span class="text-[10px] font-bold px-2 py-0.5 rounded-full ${_SEV_STYLE.critique.tag}">${item.critical} critique${item.critical>1?'s':''}</span>` : ''}
         ${item.warning ? `<span class="text-[10px] font-bold px-2 py-0.5 rounded-full ${_SEV_STYLE.avertissement.tag}">${item.warning}</span>` : ''}
+        ${isCompliant ? '<span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-green-50 text-green-600">✓ Conforme</span>' : ''}
       </div>
       <div class="pl-6 flex items-center gap-1 mb-1">${metaBadges}</div>
       ${item.sku ? `<p class="text-[10px] text-gray-300 mb-1 pl-6">SKU ${_esc(item.sku)}${item.marketplace ? ' · ' + _esc(item.marketplace.replace('amazon_','').toUpperCase()) : ''}</p>` : ''}
@@ -13099,28 +13102,28 @@ function _renderHealth(rep) {
     ${_healthInsights(rep)}
     <div id="healthTrend" class="border border-gray-100 rounded-2xl p-3.5 mb-5"></div>
     ${rep.non_compliant === 0
-      ? '<p class="text-center text-green-600 font-semibold py-6">✅ Tout votre catalogue est conforme aux règles Amazon.</p>'
-      : `${titleFixCount ? `<div class="mb-4 bg-amber-50 border border-amber-200 rounded-xl p-3.5 flex items-center gap-3">
+      ? '<div class="mb-4 bg-green-50 border border-green-100 rounded-xl p-3.5 text-center"><p class="text-sm font-semibold text-green-700">✅ Tout votre catalogue est conforme aux règles Amazon.</p><p class="text-[11px] text-green-600 mt-0.5">Vous pouvez tout de même parcourir, filtrer et sélectionner vos fiches ci-dessous.</p></div>'
+      : (titleFixCount ? `<div class="mb-4 bg-amber-50 border border-amber-200 rounded-xl p-3.5 flex items-center gap-3">
            <div class="flex-1"><p class="text-sm font-semibold text-amber-800">🔧 ${titleFixCount} titre(s) corrigeable(s) automatiquement</p><p class="text-xs text-amber-600 mt-0.5">SynqIO raccourcit à ≤75 car. et génère les Item Highlights, sur vos fiches générées.</p></div>
            <button onclick="healthFixTitles(this)" class="flex-shrink-0 text-xs font-bold text-white bg-amber-500 hover:bg-amber-600 rounded-lg px-4 py-2.5 transition">Tout corriger</button>
-         </div>` : ''}
-         <div class="flex items-center justify-between mb-2 gap-2 flex-wrap">
-           <p class="text-xs text-gray-400">Fiches à corriger (les plus urgentes en premier) :</p>
-           <label class="text-[11px] text-gray-500 flex items-center gap-1.5 cursor-pointer"><input type="checkbox" id="healthSelectAll" class="w-3.5 h-3.5 accent-purple-600" onchange="_healthToggleAll(this)"> Tout sélectionner</label>
-         </div>
-         <div class="flex items-center gap-1.5 mb-3 flex-wrap" id="healthFilters">
-           ${['toutes','actives','inactives','stock','ventes','invendues','critiques'].map((f,i) => {
-             const lbl = {toutes:'Toutes',actives:'Actives',inactives:'Inactives',stock:'En stock',ventes:'Qui vendent',invendues:'Sans vente',critiques:'Critiques'}[f];
-             return `<button data-filter="${f}" onclick="_healthFilter('${f}',this)" class="health-filter text-[11px] font-semibold rounded-full px-3 py-1 transition ${i===0?'bg-purple-600 text-white':'bg-gray-100 text-gray-500 hover:bg-gray-200'}">${lbl}</button>`;
-           }).join('')}
-         </div>
-         <div class="space-y-2" id="healthCards">${cards}</div>
-         <p id="healthFilterEmpty" class="hidden text-center text-xs text-gray-400 py-6">Aucune fiche dans ce filtre.</p>
-         <div id="healthSelBar" class="hidden sticky bottom-0 mt-3 bg-white border border-purple-200 rounded-xl p-3 shadow-lg flex items-center gap-3 flex-wrap">
-           <span id="healthSelCount" class="text-sm font-semibold text-gray-800">0 sélectionnée(s)</span>
-           <label class="text-[11px] text-gray-500 flex items-center gap-1.5 cursor-pointer" title="Récupère les bullet points et la description existants depuis Amazon (appel par fiche)"><input type="checkbox" id="healthEnrich" class="w-3.5 h-3.5 accent-purple-600" checked> Récupérer bullets/description depuis Amazon</label>
-           <button onclick="healthWorkOnSelection(this)" class="ml-auto text-xs font-bold text-white gradient-bg rounded-lg px-4 py-2 transition hover:opacity-90">Travailler sur la sélection →</button>
-         </div>`}
+         </div>` : '')}
+    <div class="flex items-center justify-between mb-2 gap-2 flex-wrap">
+      <p class="text-xs text-gray-400">Vos fiches (à corriger en premier) — cochez pour retravailler :</p>
+      <label class="text-[11px] text-gray-500 flex items-center gap-1.5 cursor-pointer"><input type="checkbox" id="healthSelectAll" class="w-3.5 h-3.5 accent-purple-600" onchange="_healthToggleAll(this)"> Tout sélectionner</label>
+    </div>
+    <div class="flex items-center gap-1.5 mb-3 flex-wrap" id="healthFilters">
+      ${['toutes','a_corriger','actives','inactives','stock','ventes','invendues','critiques'].map((f,i) => {
+        const lbl = {toutes:'Toutes',a_corriger:'À corriger',actives:'Actives',inactives:'Inactives',stock:'En stock',ventes:'Qui vendent',invendues:'Sans vente',critiques:'Critiques'}[f];
+        return `<button data-filter="${f}" onclick="_healthFilter('${f}',this)" class="health-filter text-[11px] font-semibold rounded-full px-3 py-1 transition ${i===0?'bg-purple-600 text-white':'bg-gray-100 text-gray-500 hover:bg-gray-200'}">${lbl}</button>`;
+      }).join('')}
+    </div>
+    <div class="space-y-2" id="healthCards">${cards}</div>
+    <p id="healthFilterEmpty" class="hidden text-center text-xs text-gray-400 py-6">Aucune fiche dans ce filtre.</p>
+    <div id="healthSelBar" class="hidden sticky bottom-0 mt-3 bg-white border border-purple-200 rounded-xl p-3 shadow-lg flex items-center gap-3 flex-wrap">
+      <span id="healthSelCount" class="text-sm font-semibold text-gray-800">0 sélectionnée(s)</span>
+      <label class="text-[11px] text-gray-500 flex items-center gap-1.5 cursor-pointer" title="Récupère les bullet points et la description existants depuis Amazon (appel par fiche)"><input type="checkbox" id="healthEnrich" class="w-3.5 h-3.5 accent-purple-600" checked> Récupérer bullets/description depuis Amazon</label>
+      <button onclick="healthWorkOnSelection(this)" class="ml-auto text-xs font-bold text-white gradient-bg rounded-lg px-4 py-2 transition hover:opacity-90">Travailler sur la sélection →</button>
+    </div>
   `;
 }
 
@@ -13131,7 +13134,8 @@ function _healthFilter(mode, btn) {
       (on ? 'bg-purple-600 text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200');
   });
   const test = {
-    toutes:    () => true,
+    toutes:     () => true,
+    a_corriger: c => c.dataset.compliant === '0',
     actives:   c => c.dataset.status === 'active',
     inactives: c => c.dataset.status === 'inactive',
     stock:     c => c.dataset.stock === '1',

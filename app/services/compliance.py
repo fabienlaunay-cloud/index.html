@@ -160,23 +160,25 @@ def scan_listings(listings: List[dict]) -> dict:
                 b = by_code.setdefault(i["code"], {"label": i["message"].split(" —")[0].split(" :")[0],
                                                    "severity": i["severity"], "count": 0})
                 b["count"] += 1
-        if issues:
-            units = int(l.get("_units") or 0)
-            qty = l.get("quantity")
-            results.append({
-                "sku": l.get("sku") or "",
-                "title": (l.get("title") or "")[:120],
-                "marketplace": l.get("marketplace") or "",
-                "source": l.get("_source") or "",  # "generated" (fixable) | "live"
-                "status": status or ("active" if not is_inactive else "inactive"),
-                "in_stock": bool(qty and qty > 0),
-                "price": l.get("price"),
-                "units": units,
-                "revenue": round(float(l.get("_revenue") or 0), 2),
-                "selling": units > 0,
-                "critical": crit, "warning": warn,
-                "issues": issues,
-            })
+        # Every fiche is returned (not only the ones with issues) so the panel can
+        # browse & filter the whole catalog — compliant ones carry an empty issue list.
+        units = int(l.get("_units") or 0)
+        qty = l.get("quantity")
+        results.append({
+            "sku": l.get("sku") or "",
+            "title": (l.get("title") or "")[:120],
+            "marketplace": l.get("marketplace") or "",
+            "source": l.get("_source") or "",  # "generated" (fixable) | "live"
+            "status": status or ("active" if not is_inactive else "inactive"),
+            "in_stock": bool(qty and qty > 0),
+            "price": l.get("price"),
+            "units": units,
+            "revenue": round(float(l.get("_revenue") or 0), 2),
+            "selling": units > 0,
+            "compliant": not issues,
+            "critical": crit, "warning": warn,
+            "issues": issues,
+        })
     total = counted
     # Severity-weighted health score: a fiche that only needs a minor improvement
     # (a warning) still counts for most of its weight — only criticals hurt hard.

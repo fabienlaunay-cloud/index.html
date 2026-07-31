@@ -468,9 +468,10 @@ def send_catalog_health(to_email: str, report: dict) -> bool:
     color = "#059669" if score >= 90 else ("#d97706" if score >= 70 else "#dc2626")
     app_url = os.getenv("APP_URL", "https://synqio.io")
 
-    # Top 5 listings to fix
+    # Top 5 listings to fix (only the non-compliant ones — the list now carries all fiches)
     rows = ""
-    for item in report.get("listings", [])[:5]:
+    to_fix = [it for it in report.get("listings", []) if not it.get("compliant")]
+    for item in to_fix[:5]:
         first = (item.get("issues") or [{}])[0].get("message", "")
         rows += (
             f'<tr><td style="padding:8px 0;font-size:13px;color:#374151">'
