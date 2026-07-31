@@ -208,10 +208,13 @@ async def _get_asin_for_sku(
     return None
 
 
-async def fetch_listing_details(user_email: str, marketplace: Marketplace, skus: list) -> dict:
+async def fetch_listing_details(user_email: str, marketplace: Marketplace, skus: list,
+                                limit: int = 60, errors: list = None) -> dict:
     """Enrich selected SKUs with bullets/description/brand/images from the
     single-item Listings API (getListingsItem accepts 'attributes', unlike the
-    catalog-wide search). Returns {sku: {brand, description, bullet_points, images}}."""
+    catalog-wide search). Returns {sku: {brand, description, bullet_points, images}}.
+    Bounded to `limit` per-SKU calls to stay under the HTTP timeout; if `errors` is
+    a list, the first non-200 status is appended so the caller can explain failures."""
     if _is_demo() or not skus:
         return {}
     creds = _get_sp_credentials(user_email)
@@ -234,21 +237,26 @@ async def fetch_listing_details(user_email: str, marketplace: Marketplace, skus:
                 async with httpx.AsyncClient(timeout=30) as client:
                     resp = await client.get(url, headers=headers)
                 if resp.status_code != 200:
+                    if errors is not None:
+                        errors.append(resp.status_code)
                     return
                 data = resp.json()
             except Exception:
+                if errors is not None:
+                    errors.append("network")
                 return
             summary = (data.get("summaries") or [{}])[0]
             attrs = data.get("attributes", {}) or {}
             out[sku] = {
                 "brand": _first_attr(attrs, "brand") or summary.get("brandName", "") or "",
+                "title": summary.get("itemName", "") or "",
                 "description": _first_attr(attrs, "product_description") or "",
                 "bullet_points": [b.get("value", "") for b in (attrs.get("bullet_point") or [])
                                   if isinstance(b, dict) and b.get("value")],
                 "images": _extract_catalog_images(summary, attrs),
             }
 
-    await asyncio.gather(*[_one(s) for s in skus[:40]])
+    await asyncio.gather(*[_one(s) for s in skus[:max(1, limit)]])
     return out
 
 

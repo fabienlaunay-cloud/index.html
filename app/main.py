@@ -636,28 +636,49 @@ async def compliance_work_on(req: WorkOnRequest, request: Request):
     enrich each with the bullets/description/images pulled per-SKU from Amazon."""
     from app.db import get_catalog_rows_by_skus
     email = request.state.user_email
-    skus = [s for s in (req.skus or []) if s][:40]
+    skus = [s for s in (req.skus or []) if s]
     if not skus:
         raise HTTPException(400, "Aucune fiche sélectionnée")
     rows = get_catalog_rows_by_skus(email, skus)
     by_sku = {r["sku"]: r for r in rows}
 
-    enriched = {}
+    # Enrichment calls Amazon once per SKU, so it's bounded to keep the request
+    # under the gateway timeout; the base data (title/price/ean) loads for ALL
+    # selected fiches regardless.
+    ENRICH_MAX = 60
+    enriched: dict = {}
+    enrich_note = ""
     if req.enrich:
         from app.services.amazon_sp import fetch_listing_details
         from app.models import Marketplace
+        errs: list = []
+        remaining = ENRICH_MAX
         by_mkt: dict = {}
         for r in rows:
             by_mkt.setdefault(r.get("marketplace") or "amazon_fr", []).append(r["sku"])
         for mkt_str, mkt_skus in by_mkt.items():
+            if remaining <= 0:
+                break
             try:
                 mkt = Marketplace(mkt_str)
             except ValueError:
                 mkt = Marketplace.AMAZON_FR
             try:
-                enriched.update(await fetch_listing_details(email, mkt, mkt_skus))
+                res = await fetch_listing_details(email, mkt, mkt_skus, limit=remaining, errors=errs)
+                enriched.update(res)
+                remaining -= len(mkt_skus)
+            except RuntimeError as e:
+                enrich_note = str(e)
             except Exception:
                 pass  # enrichment is best-effort; base data still returned
+        if not enriched and not enrich_note:
+            if any(e in (403, 401) for e in errs):
+                enrich_note = ("Enrichissement refusé par Amazon (rôle « Product Listing » "
+                               "manquant sur l'app). Les fiches sont chargées sans bullets/description.")
+            elif errs:
+                enrich_note = "Enrichissement indisponible pour le moment — fiches chargées sans contenu Amazon."
+        elif len(skus) > ENRICH_MAX:
+            enrich_note = f"Enrichissement limité aux {ENRICH_MAX} premières fiches (appel Amazon par fiche)."
 
     products = []
     for sku in skus:
@@ -665,7 +686,7 @@ async def compliance_work_on(req: WorkOnRequest, request: Request):
         e = enriched.get(sku, {})
         products.append({
             "sku": sku,
-            "name": r.get("title") or sku,
+            "name": e.get("title") or r.get("title") or sku,
             "brand": e.get("brand", "") or "",
             "ean": r.get("ean") or "",
             "price": r.get("price"),
@@ -674,7 +695,8 @@ async def compliance_work_on(req: WorkOnRequest, request: Request):
             "images": e.get("images", []) or [],
             "asin": r.get("asin") or "",
         })
-    return {"products": products, "enriched": len(enriched)}
+    return {"products": products, "enriched": len(enriched),
+            "total": len(products), "note": enrich_note}
 
 
 @app.post("/api/compliance/send-digest")

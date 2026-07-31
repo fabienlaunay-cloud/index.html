@@ -13198,6 +13198,7 @@ async function healthWorkOnSelection(btn) {
     setStep(2);
     const withContent = prods.filter(p => (p.features || []).length || p.description).length;
     showToast('✅', `${prods.length} fiche(s) chargée(s)${enrich ? ` · ${withContent} enrichie(s) (bullets/description)` : ''} — prêtes à régénérer`);
+    if (data.note) setTimeout(() => showToast('ℹ️', data.note), 1200);
   } catch(e) { showToast('❌', e.message || 'Erreur', true); btn.disabled = false; btn.textContent = orig; }
 }
 
