@@ -1575,22 +1575,18 @@ async def _run_catalog_sales_job(job_id: str, email: str):
         _jobs[job_id].update({"status": "failed", "error": type(e).__name__})
 
 
-def _parse_business_report_asin_csv(csv_text: str) -> dict:
-    """Parse an Amazon Business Report 'Ventes et trafic par ASIN' CSV into
-    {asin: {units_ordered, revenue, sessions, conversion_rate}} — no API role
-    needed, the seller downloads it from Seller Central."""
+def _parse_business_report_rows(csv_text: str) -> list:
+    """Parse an Amazon Business Report 'Ventes et trafic par ASIN' CSV into a list
+    of per-row records {sku, asin, units, revenue, sessions}. Order-independent
+    column detection, B2B columns skipped, FR/EN accents handled."""
     import csv as _csv, io as _io, unicodedata as _ud
     def _norm(k):
         s = ((k or "").lower().strip().replace("﻿", "")
              .replace("–", "-").replace("—", "-").replace("’", "'").replace("‘", "'")
              .replace("\xa0", " "))
-        # strip accents so 'unités commandées' matches 'unites commandees'
         return "".join(c for c in _ud.normalize("NFKD", s) if not _ud.combining(c))
     reader = _csv.DictReader(_io.StringIO(csv_text))
     def _find(row, includes, excludes=()):
-        """Value of the first column whose (normalised) name contains every token
-        in `includes` and none in `excludes`. Column order is irrelevant, so both
-        'ASIN (enfant)' and '(Enfant) ASIN' match, and '… - B2B' columns are skipped."""
         for k, v in row.items():
             if all(t in k for t in includes) and not any(t in k for t in excludes):
                 if v not in (None, "", "-"):
@@ -1611,17 +1607,14 @@ def _parse_business_report_asin_csv(csv_text: str) -> dict:
             return float(s)
         except ValueError:
             return 0.0
-    out: dict = {}
+    rows = []
     for raw in reader:
         row = {_norm(k): (v.strip() if isinstance(v, str) else v) for k, v in raw.items()}
-        # ASIN: prefer the child/variation ASIN (what maps to a catalog fiche),
-        # fall back to parent, then any 'asin' column. Order-independent.
         asin = (_find(row, ["asin", "enfant"]) or _find(row, ["asin", "child"])
                 or _find(row, ["asin", "parent"]) or _find(row, ["asin"], ["b2b"]) or "").upper()
-        if not asin or len(asin) < 5:
+        sku = (_find(row, ["sku"], ["b2b"]) or "").strip()
+        if not asin and not sku:
             continue
-        # Units / revenue are per-SKU → summed; sessions are per-ASIN and repeat
-        # across a child's SKU rows → take the max (summing would double-count).
         units = int(_num(_find(row, ["unites", "commandees"], ["b2b"])
                          or _find(row, ["units", "ordered"], ["b2b"])))
         revenue = _eur(_find(row, ["ventes", "produits", "commandes"], ["b2b", "nombre", "total de"])
@@ -1629,46 +1622,102 @@ def _parse_business_report_asin_csv(csv_text: str) -> dict:
                        or _find(row, ["ordered", "product", "sales"], ["b2b"]))
         sessions = int(_num(_find(row, ["sessions", "total"], ["b2b", "pourcentage", "vues"])
                             or _find(row, ["sessions"], ["b2b", "pourcentage", "vues"])))
+        rows.append({"sku": sku, "asin": asin, "units": units,
+                     "revenue": round(revenue, 2), "sessions": sessions})
+    return rows
+
+
+def _parse_business_report_asin_csv(csv_text: str) -> dict:
+    """Aggregate the report per child ASIN: {asin: {units_ordered, revenue,
+    sessions, conversion_rate}}. Units/revenue summed, sessions maxed (they repeat
+    across a child's SKU rows)."""
+    out: dict = {}
+    for r in _parse_business_report_rows(csv_text):
+        asin = r["asin"]
+        if not asin or len(asin) < 5:
+            continue
         a = out.setdefault(asin, {"units_ordered": 0, "revenue": 0.0, "sessions": 0, "conversion_rate": 0.0})
-        a["units_ordered"] += units
-        a["revenue"] = round(a["revenue"] + revenue, 2)
-        a["sessions"] = max(a["sessions"], sessions)
+        a["units_ordered"] += r["units"]
+        a["revenue"] = round(a["revenue"] + r["revenue"], 2)
+        a["sessions"] = max(a["sessions"], r["sessions"])
     for a in out.values():
         a["conversion_rate"] = round(a["units_ordered"] / a["sessions"] * 100, 2) if a["sessions"] else 0.0
     return out
 
 
+
+
 @app.post("/api/catalog/sales-import-csv")
 async def catalog_sales_import_csv(request: Request):
-    """Import a Sales & Traffic-by-ASIN CSV and match it to the catalog by ASIN.
-    Universal fallback that needs no SP-API sales role."""
-    from app.db import get_catalog_summary, get_catalog, save_catalog_sales, get_catalog_sales_overview
+    """Import a Sales & Traffic report CSV and cross-reference it with the catalog.
+    Matches primarily by SKU (both sides carry it reliably), falling back to ASIN,
+    and backfills the catalog's child ASIN from the report so the sales tiles line
+    up even when the sync stored a wrong/empty ASIN. Needs no SP-API sales role."""
+    from app.db import (get_catalog_summary, get_catalog, save_catalog_sales,
+                        get_catalog_sales_overview, backfill_catalog_asins)
     body = await request.json()
     csv_text = body.get("csv_text", "")
     if not csv_text:
         raise HTTPException(400, "CSV vide")
     email = request.state.user_email
-    metrics = _parse_business_report_asin_csv(csv_text)
-    if not metrics:
-        raise HTTPException(400, "Aucune donnée de vente par ASIN détectée — utilisez le rapport « Ventes et trafic par ASIN ».")
-    asin_mkt: dict = {}
-    for mkt in (get_catalog_summary(email) or {}):
-        for it in get_catalog(email, mkt):
-            a = (it.get("asin") or "").upper()
-            if a:
-                asin_mkt[a] = mkt
+    rows = _parse_business_report_rows(csv_text)
+    if not rows:
+        raise HTTPException(400, "Aucune donnée de vente détectée — utilisez le rapport « Ventes et trafic par ASIN ».")
+
+    # Aggregate the report by SKU and by ASIN (units/revenue summed, sessions maxed).
+    def _agg(store, key, r):
+        a = store.setdefault(key, {"units_ordered": 0, "revenue": 0.0, "sessions": 0,
+                                   "conversion_rate": 0.0, "asin": r["asin"]})
+        a["units_ordered"] += r["units"]
+        a["revenue"] = round(a["revenue"] + r["revenue"], 2)
+        a["sessions"] = max(a["sessions"], r["sessions"])
+        if r["asin"]:
+            a["asin"] = r["asin"]
+    by_sku: dict = {}
+    by_asin: dict = {}
+    asin_count = set()
+    for r in rows:
+        if r["sku"]:
+            _agg(by_sku, r["sku"].upper(), r)
+        if r["asin"]:
+            _agg(by_asin, r["asin"].upper(), r)
+            asin_count.add(r["asin"].upper())
+
     import datetime as _d
     end = _d.date.today().isoformat()
     start = (_d.date.today() - _d.timedelta(days=30)).isoformat()
-    by_mkt: dict = {}
-    for asin, m in metrics.items():
-        mkt = asin_mkt.get(asin)
-        if mkt:
-            by_mkt.setdefault(mkt, {})[asin] = m
+
+    by_mkt: dict = {}           # marketplace -> {asin: metrics} to persist
+    backfill: dict = {}         # marketplace -> {sku: asin} to repair catalog
+    matched = 0
+    for mkt in (get_catalog_summary(email) or {}):
+        for it in get_catalog(email, mkt):
+            sku = (it.get("sku") or "").strip()
+            catalog_asin = (it.get("asin") or "").upper()
+            m = by_sku.get(sku.upper()) if sku else None       # reliable: match by SKU
+            if not m and catalog_asin:
+                m = by_asin.get(catalog_asin)                  # fallback: match by ASIN
+            if not m:
+                continue
+            store_asin = catalog_asin or (m.get("asin") or "").upper()
+            if not store_asin:
+                continue
+            metrics = {k: m[k] for k in ("units_ordered", "revenue", "sessions", "conversion_rate")}
+            metrics["conversion_rate"] = round(metrics["units_ordered"] / metrics["sessions"] * 100, 2) \
+                if metrics["sessions"] else 0.0
+            by_mkt.setdefault(mkt, {})[store_asin] = metrics
+            if not catalog_asin and sku:                       # sync had no ASIN → repair it
+                backfill.setdefault(mkt, {})[sku] = store_asin
+            matched += 1
+
     for mkt, mm in by_mkt.items():
         save_catalog_sales(email, mkt, mm, start, end)
-    matched = sum(len(v) for v in by_mkt.values())
-    return {"imported": matched, "total_in_csv": len(metrics),
+    repaired = 0
+    for mkt, updates in backfill.items():
+        repaired += backfill_catalog_asins(email, mkt, updates)
+
+    return {"imported": matched, "total_in_csv": len(asin_count),
+            "repaired_asins": repaired,
             "overview": get_catalog_sales_overview(email)}
 
 

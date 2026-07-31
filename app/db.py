@@ -1995,6 +1995,27 @@ def get_catalog_full_export(user_email: str) -> list:
     return out
 
 
+def backfill_catalog_asins(user_email: str, marketplace: str, sku_to_asin: dict) -> int:
+    """Set the child ASIN on catalog fiches that were synced without one, using the
+    SKU→ASIN mapping from an imported Sales & Traffic report. Only fills blanks."""
+    if not sku_to_asin:
+        return 0
+    conn = get_db()
+    _ensure_catalog_extra(conn)
+    n = 0
+    for sku, asin in sku_to_asin.items():
+        if not sku or not asin:
+            continue
+        cur = conn.execute(
+            "UPDATE product_catalog SET asin = ? "
+            "WHERE user_email = ? AND marketplace = ? AND sku = ? AND (asin IS NULL OR asin = '')",
+            (asin, user_email, marketplace, sku))
+        n += cur.rowcount or 0
+    conn.commit()
+    conn.close()
+    return n
+
+
 def get_catalog_sales_map(user_email: str) -> dict:
     """Per-ASIN sales for a seller: {(marketplace, ASIN): {units, revenue}}.
     Used to tag each catalog listing with its own sales in the health scan."""

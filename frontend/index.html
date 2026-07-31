@@ -13383,7 +13383,12 @@ async function healthImportSalesCsv(input) {
     });
     const data = await r.json();
     if (!r.ok) throw new Error(data.detail || 'Erreur');
-    showToast('✅', `${data.imported} fiche(s) croisée(s) avec les ventes (${data.total_in_csv} ASIN dans le CSV)`);
+    if (data.imported > 0) {
+      const rep = data.repaired_asins ? ` · ${data.repaired_asins} ASIN réparé(s)` : '';
+      showToast('✅', `${data.imported} fiche(s) croisée(s) avec les ventes${rep} (${data.total_in_csv} ASIN dans le CSV)`);
+    } else {
+      showToast('⚠️', `Aucune fiche croisée : les SKU/ASIN du CSV (${data.total_in_csv}) ne correspondent pas au catalogue. Resynchronisez le catalogue puis réimportez.`, true);
+    }
     openHealthPanel();  // re-scan → tiles update
   } catch(e) { showToast('❌', e.message || 'Import impossible', true); }
 }
