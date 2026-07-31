@@ -825,19 +825,29 @@ def _parse_merchant_listings_tsv(text: str) -> list:
     lines = [l for l in text.split("\n") if l.strip()]
     if len(lines) < 2:
         return []
-    headers = [h.strip().lower() for h in lines[0].split("\t")]
+    import unicodedata as _ud
+    def _h(h):
+        s = h.strip().lower().replace("﻿", "").replace("_", "-").replace(" ", "-")
+        return "".join(c for c in _ud.normalize("NFKD", s) if not _ud.combining(c))
+    headers = [_h(h) for h in lines[0].split("\t")]
     def idx(*names):
+        # exact match first, then substring (report headers are localised per marketplace)
         for n in names:
             if n in headers:
                 return headers.index(n)
+        for n in names:
+            for i, h in enumerate(headers):
+                if n in h:
+                    return i
         return -1
-    i_sku = idx("seller-sku", "sku")
-    i_name = idx("item-name", "title")
+    i_sku = idx("seller-sku", "sku", "sku-du-vendeur")
+    i_name = idx("item-name", "nom-de-larticle", "nom-de-l-article", "nom-article",
+                 "intitule", "titre", "title")
     i_asin = idx("asin1", "asin", "product-id")
-    i_img = idx("image-url", "main-image-url")
-    i_price = idx("price")
-    i_status = idx("status", "listing-status")
-    i_qty = idx("quantity", "afn-fulfillable-quantity")
+    i_img = idx("image-url", "main-image-url", "url-image")
+    i_price = idx("price", "prix")
+    i_status = idx("status", "listing-status", "statut", "etat")
+    i_qty = idx("quantity", "afn-fulfillable-quantity", "quantite")
     items = []
     for line in lines[1:]:
         cols = line.split("\t")
@@ -860,7 +870,15 @@ def _parse_merchant_listings_tsv(text: str) -> list:
                 qty = int(float(raw_qty))
             except ValueError:
                 qty = None
-        status = (get(i_status) or "").strip().lower()  # active | inactive | incomplete
+        raw_status = (get(i_status) or "").strip().lower()  # localised: active/actif, inactive/inactif…
+        if raw_status.startswith(("activ", "actif")):
+            status = "active"
+        elif raw_status.startswith(("inactiv", "inactif")):
+            status = "inactive"
+        elif raw_status.startswith(("incomplet", "incomplete")):
+            status = "incomplete"
+        else:
+            status = raw_status
         img = get(i_img)
         items.append({
             "sku": sku, "asin": get(i_asin), "ean": "", "title": get(i_name),

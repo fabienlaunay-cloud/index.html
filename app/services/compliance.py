@@ -136,7 +136,10 @@ def scan_listings(listings: List[dict]) -> dict:
     n_critical = 0
     n_warning = 0
     compliant = 0
-    counted = 0  # headline metrics cover active/published listings only
+    needs_improvement = 0  # fiches with warnings only (no critical)
+    critical_fiches = 0    # fiches with at least one critical
+    counted = 0            # headline metrics cover active/published listings only
+    by_code: dict = {}     # code -> {"label", "severity", "count"}
     for l in listings:
         status = (l.get("status") or "").lower()
         is_inactive = status in ("inactive", "incomplete")
@@ -149,6 +152,14 @@ def scan_listings(listings: List[dict]) -> dict:
             n_warning += warn
             if not issues:
                 compliant += 1
+            elif crit:
+                critical_fiches += 1
+            else:
+                needs_improvement += 1
+            for i in issues:
+                b = by_code.setdefault(i["code"], {"label": i["message"].split(" —")[0].split(" :")[0],
+                                                   "severity": i["severity"], "count": 0})
+                b["count"] += 1
         if issues:
             units = int(l.get("_units") or 0)
             qty = l.get("quantity")
@@ -167,16 +178,24 @@ def scan_listings(listings: List[dict]) -> dict:
                 "issues": issues,
             })
     total = counted
-    # Health score: share of compliant listings, but any critical issue caps it hard
-    score = round(100 * compliant / total) if total else 100
+    # Severity-weighted health score: a fiche that only needs a minor improvement
+    # (a warning) still counts for most of its weight — only criticals hurt hard.
+    # A perfect catalog = 100; warnings-only ≈ 70; all-critical = 0.
+    score = round(100 * (compliant + 0.7 * needs_improvement) / total) if total else 100
     # sort worst first
     results.sort(key=lambda r: (r["critical"], r["warning"]), reverse=True)
+    breakdown = sorted(
+        [{"code": c, **v} for c, v in by_code.items()],
+        key=lambda b: (0 if b["severity"] == CRITICAL else 1, -b["count"]))
     return {
         "score": score,
         "total": total,
         "compliant": compliant,
+        "needs_improvement": needs_improvement,
+        "critical_fiches": critical_fiches,
         "non_compliant": total - compliant,
         "critical_count": n_critical,
         "warning_count": n_warning,
+        "breakdown": breakdown,
         "listings": results,
     }

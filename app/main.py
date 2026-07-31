@@ -326,12 +326,18 @@ def _gather_catalog_for_scan(email: str) -> list:
             asin = (it.get("asin") or "").upper()
             s = sales_map.get((mkt, asin)) or {}
             key = (mkt, it.get("sku") or "")
-            merged[key] = {"sku": it.get("sku") or "", "marketplace": mkt,
-                           "title": it.get("title") or "", "ean": it.get("ean") or "",
-                           "asin": asin, "status": (it.get("status") or "").lower(),
-                           "quantity": it.get("quantity"), "price": it.get("price"),
-                           "_units": s.get("units") or 0, "_revenue": s.get("revenue") or 0,
-                           "_source": "live"}
+            entry = {"sku": it.get("sku") or "", "marketplace": mkt,
+                     "title": it.get("title") or "",
+                     "asin": asin, "status": (it.get("status") or "").lower(),
+                     "quantity": it.get("quantity"), "price": it.get("price"),
+                     "_units": s.get("units") or 0, "_revenue": s.get("revenue") or 0,
+                     "_source": "live"}
+            # The catalog sync report (GET_MERCHANT_LISTINGS_ALL_DATA) does NOT carry
+            # the EAN — a blank here means "unknown", not "missing on Amazon". Only
+            # flag EAN when we actually have the field (e.g. a real value synced).
+            if (it.get("ean") or "").strip():
+                entry["ean"] = it.get("ean")
+            merged[key] = entry
     for g in _latest_listings(email):
         key = (g.get("marketplace") or "", g.get("sku") or "")
         if key in merged:
