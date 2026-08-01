@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="fr"><head><meta charset="UTF-8">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { width:1920px; height:1080px; overflow:hidden; font-family:'Segoe UI', system-ui, -apple-system, sans-serif; }
+  .stage { width:1920px; height:1080px; position:relative; overflow:hidden;
+    background: linear-gradient(125deg, #0f0c29 0%, #2b2160 48%, #1c1740 100%); }
+  .dots { position:absolute; inset:0; background-image:radial-gradient(circle, rgba(255,255,255,0.05) 1.5px, transparent 1.5px); background-size:48px 48px;
+    opacity:0; animation: fadein 7s linear both; }
+  .glow { position:absolute; border-radius:50%; filter:blur(130px); opacity:0; }
+  .g1 { width:820px; height:820px; background:rgba(124,58,237,0.34); top:-60px; left:560px; animation: gA 7s linear both; }
+  .g2 { width:640px; height:640px; background:rgba(99,102,241,0.24); bottom:-160px; right:180px; animation: gB 7s linear both; }
+
+  .center { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; z-index:5; }
+  .brand { display:flex; align-items:center; gap:28px; margin-bottom:26px; }
+  .mark { width:130px; height:130px; border-radius:33px; background:linear-gradient(135deg,#8b5cf6,#4f46e5);
+    display:flex; align-items:center; justify-content:center; box-shadow:0 20px 60px rgba(124,58,237,0.6);
+    opacity:0; transform:scale(.6); animation: logo 7s cubic-bezier(.2,.9,.2,1) both; }
+  .bname { color:white; font-size:96px; font-weight:800; letter-spacing:-3px; opacity:0; transform:translateX(40px);
+    animation: word 7s cubic-bezier(.2,.9,.2,1) both; }
+  h1 { color:white; font-size:52px; font-weight:800; letter-spacing:-1.4px; opacity:0; transform:translateY(24px);
+    animation: tag 7s ease-out both; margin-bottom:34px; text-align:center; }
+  h1 .grad { background:linear-gradient(90deg,#a78bfa,#c4b5fd); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+  .chips { display:flex; gap:15px; }
+  .chip { display:inline-flex; align-items:center; gap:11px; background:rgba(255,255,255,0.06);
+    border:1px solid rgba(255,255,255,0.15); border-radius:15px; padding:13px 24px;
+    color:rgba(255,255,255,0.92); font-size:27px; font-weight:700; opacity:0; transform:translateY(18px) scale(.9); }
+  .chip .d { width:14px; height:14px; border-radius:50%; }
+  .chip.primary { background:rgba(255,153,0,0.13); border-color:rgba(255,153,0,0.45); color:#ffca7a; }
+  .c1{animation:chip 7s ease-out both} .c2{animation:chip2 7s ease-out both} .c3{animation:chip3 7s ease-out both}
+  .c4{animation:chip4 7s ease-out both} .c5{animation:chip5 7s ease-out both} .c6{animation:chip6 7s ease-out both}
+  .cta { position:absolute; bottom:120px; left:0; right:0; text-align:center; color:#fff; font-size:34px; font-weight:700;
+    opacity:0; transform:translateY(16px); animation: cta 7s ease-out both; }
+  .cta .b { color:#c4b5fd; }
+
+  @keyframes fadein { 0%{opacity:0} 12%{opacity:1} 100%{opacity:1} }
+  @keyframes gA { 0%{opacity:0} 14%{opacity:1} 88%{opacity:1} 100%{opacity:.85} }
+  @keyframes gB { 0%{opacity:0} 20%{opacity:1} 100%{opacity:1} }
+  @keyframes logo { 0%{opacity:0;transform:scale(.6)} 6%{opacity:0;transform:scale(.6)} 20%{opacity:1;transform:scale(1.06)} 26%{transform:scale(1)} 100%{opacity:1;transform:scale(1)} }
+  @keyframes word { 0%{opacity:0;transform:translateX(40px)} 16%{opacity:0;transform:translateX(40px)} 30%{opacity:1;transform:translateX(0)} 100%{opacity:1;transform:translateX(0)} }
+  @keyframes tag { 0%{opacity:0;transform:translateY(24px)} 30%{opacity:0;transform:translateY(24px)} 42%{opacity:1;transform:translateY(0)} 100%{opacity:1;transform:translateY(0)} }
+  @keyframes chip  { 0%{opacity:0;transform:translateY(18px) scale(.9)} 44%{opacity:0;transform:translateY(18px) scale(.9)} 52%{opacity:1;transform:translateY(0) scale(1)} 100%{opacity:1} }
+  @keyframes chip2 { 0%{opacity:0;transform:translateY(18px) scale(.9)} 47%{opacity:0;transform:translateY(18px) scale(.9)} 55%{opacity:1;transform:translateY(0) scale(1)} 100%{opacity:1} }
+  @keyframes chip3 { 0%{opacity:0;transform:translateY(18px) scale(.9)} 50%{opacity:0;transform:translateY(18px) scale(.9)} 58%{opacity:1;transform:translateY(0) scale(1)} 100%{opacity:1} }
+  @keyframes chip4 { 0%{opacity:0;transform:translateY(18px) scale(.9)} 53%{opacity:0;transform:translateY(18px) scale(.9)} 61%{opacity:1;transform:translateY(0) scale(1)} 100%{opacity:1} }
+  @keyframes chip5 { 0%{opacity:0;transform:translateY(18px) scale(.9)} 56%{opacity:0;transform:translateY(18px) scale(.9)} 64%{opacity:1;transform:translateY(0) scale(1)} 100%{opacity:1} }
+  @keyframes chip6 { 0%{opacity:0;transform:translateY(18px) scale(.9)} 59%{opacity:0;transform:translateY(18px) scale(.9)} 67%{opacity:1;transform:translateY(0) scale(1)} 100%{opacity:1} }
+  @keyframes cta { 0%{opacity:0;transform:translateY(16px)} 80%{opacity:0;transform:translateY(16px)} 90%{opacity:1;transform:translateY(0)} 100%{opacity:1} }
+</style></head>
+<body>
+<div class="stage">
+  <div class="dots"></div>
+  <div class="glow g1"></div><div class="glow g2"></div>
+  <div class="center">
+    <div class="brand">
+      <div class="mark"><svg width="76" height="76" viewBox="0 0 24 24" fill="none"><path d="M12 2L2 7l10 5 10-5-10-5z" stroke="white" stroke-width="1.8" stroke-linejoin="round"/><path d="M2 17l10 5 10-5M2 12l10 5 10-5" stroke="white" stroke-width="1.8" stroke-linejoin="round"/></svg></div>
+      <span class="bname">SynqIO</span>
+    </div>
+    <h1>Le hub produit global — <span class="grad">optimisé Amazon</span>, diffusé partout</h1>
+    <div class="chips">
+      <span class="chip primary c1"><span class="d" style="background:#ff9900"></span>Amazon</span>
+      <span class="chip c2"><span class="d" style="background:#38bdf8"></span>Site web</span>
+      <span class="chip c3"><span class="d" style="background:#95bf47"></span>Shopify</span>
+      <span class="chip c4"><span class="d" style="background:#a78bfa"></span>PIM</span>
+      <span class="chip c5"><span class="d" style="background:#34d399"></span>API</span>
+      <span class="chip c6"><span class="d" style="background:#ea4335"></span>Google Shopping</span>
+    </div>
+  </div>
+  <div class="cta">Fiches produits Amazon générées par IA — <span class="b">Abonnez-vous 🔔</span></div>
+</div>
+</body></html>
