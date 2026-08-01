@@ -9,28 +9,32 @@
   }
   .dots { position:absolute; inset:0; background-image:radial-gradient(circle, rgba(255,255,255,0.055) 1.4px, transparent 1.4px); background-size:46px 46px; }
   .glow { position:absolute; border-radius:50%; filter:blur(120px); }
-  .g1 { width:760px; height:760px; background:rgba(124,58,237,0.32); top:-160px; left:600px; }
-  .g2 { width:620px; height:620px; background:rgba(99,102,241,0.24); bottom:-220px; right:120px; }
-  .g3 { width:520px; height:520px; background:rgba(168,85,247,0.18); top:120px; left:-140px; }
+  .g1 { width:760px; height:760px; background:rgba(124,58,237,0.30); top:-160px; left:600px; }
+  .g2 { width:620px; height:620px; background:rgba(99,102,241,0.22); bottom:-220px; right:120px; }
+  .g3 { width:520px; height:520px; background:rgba(168,85,247,0.16); top:120px; left:-140px; }
 
-  /* YouTube "safe area" visible on every device: centred 1546 x 423.
-     Everything meaningful lives inside this box. */
+  /* YouTube safe area visible on every device: centred 1546 x 423. */
   .safe {
     position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
     width:1546px; height:423px; z-index:10;
     display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center;
   }
-  .brand { display:flex; align-items:center; gap:26px; margin-bottom:30px; }
-  .mark { width:104px; height:104px; border-radius:27px; background:linear-gradient(135deg,#8b5cf6,#4f46e5);
-    display:flex; align-items:center; justify-content:center; box-shadow:0 16px 44px rgba(124,58,237,0.55); }
-  .bname { color:white; font-size:74px; font-weight:800; letter-spacing:-2px; }
-  h1 { color:white; font-size:60px; font-weight:800; line-height:1.12; letter-spacing:-1.5px; margin-bottom:30px; }
+  .badge { display:inline-flex; align-items:center; gap:12px; background:rgba(255,255,255,0.07);
+    border:1px solid rgba(255,255,255,0.18); border-radius:24px; padding:9px 22px;
+    color:#c4b5fd; font-size:23px; font-weight:700; margin-bottom:22px; letter-spacing:.3px; }
+  .brand { display:flex; align-items:center; gap:22px; margin-bottom:20px; }
+  .mark { width:88px; height:88px; border-radius:23px; background:linear-gradient(135deg,#8b5cf6,#4f46e5);
+    display:flex; align-items:center; justify-content:center; box-shadow:0 14px 40px rgba(124,58,237,0.55); }
+  .bname { color:white; font-size:64px; font-weight:800; letter-spacing:-2px; }
+  h1 { color:white; font-size:50px; font-weight:800; line-height:1.1; letter-spacing:-1.4px; margin-bottom:14px; }
   h1 .grad { background:linear-gradient(90deg,#a78bfa,#c4b5fd); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
-  .chips { display:flex; gap:14px; }
-  .chip { display:inline-flex; align-items:center; gap:10px; background:rgba(255,255,255,0.07);
-    border:1px solid rgba(255,255,255,0.16); border-radius:15px; padding:12px 22px;
-    color:rgba(255,255,255,0.86); font-size:24px; font-weight:600; }
-  .chip .c { color:#4ade80; font-weight:800; }
+  .sub { color:rgba(255,255,255,0.62); font-size:26px; font-weight:600; margin-bottom:26px; }
+  .chips { display:flex; gap:13px; flex-wrap:wrap; justify-content:center; max-width:1500px; }
+  .chip { display:inline-flex; align-items:center; gap:11px; background:rgba(255,255,255,0.06);
+    border:1px solid rgba(255,255,255,0.15); border-radius:14px; padding:11px 20px;
+    color:rgba(255,255,255,0.9); font-size:24px; font-weight:700; }
+  .chip .d { width:13px; height:13px; border-radius:50%; }
+  .chip.primary { background:rgba(255,153,0,0.12); border-color:rgba(255,153,0,0.45); color:#ffca7a; }
 </style></head>
 <body>
 <div class="banner">
@@ -38,17 +42,22 @@
   <div class="glow g1"></div><div class="glow g2"></div><div class="glow g3"></div>
 
   <div class="safe">
+    <div class="badge">🌐 LE HUB PRODUIT GLOBAL</div>
     <div class="brand">
       <div class="mark">
-        <svg width="62" height="62" viewBox="0 0 24 24" fill="none"><path d="M12 2L2 7l10 5 10-5-10-5z" stroke="white" stroke-width="1.8" stroke-linejoin="round"/><path d="M2 17l10 5 10-5M2 12l10 5 10-5" stroke="white" stroke-width="1.8" stroke-linejoin="round"/></svg>
+        <svg width="52" height="52" viewBox="0 0 24 24" fill="none"><path d="M12 2L2 7l10 5 10-5-10-5z" stroke="white" stroke-width="1.8" stroke-linejoin="round"/><path d="M2 17l10 5 10-5M2 12l10 5 10-5" stroke="white" stroke-width="1.8" stroke-linejoin="round"/></svg>
       </div>
       <span class="bname">SynqIO</span>
     </div>
-    <h1>Vos fiches produits <span class="grad">Amazon</span>,<br>optimisées et pilotées par IA</h1>
+    <h1>Un seul contenu produit, <span class="grad">optimisé pour Amazon</span> — diffusé partout</h1>
+    <div class="sub">Créez une fois. Poussez sur tous vos canaux.</div>
     <div class="chips">
-      <span class="chip"><span class="c">✓</span> Génération de fiches</span>
-      <span class="chip"><span class="c">✓</span> Synchro catalogue API</span>
-      <span class="chip"><span class="c">✓</span> Gardien de conformité</span>
+      <span class="chip primary"><span class="d" style="background:#ff9900"></span>Amazon</span>
+      <span class="chip"><span class="d" style="background:#38bdf8"></span>Site web</span>
+      <span class="chip"><span class="d" style="background:#95bf47"></span>Shopify</span>
+      <span class="chip"><span class="d" style="background:#a78bfa"></span>PIM</span>
+      <span class="chip"><span class="d" style="background:#34d399"></span>API</span>
+      <span class="chip"><span class="d" style="background:#ea4335"></span>Google Shopping</span>
     </div>
   </div>
 </div>
