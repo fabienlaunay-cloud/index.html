@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="fr"><head><meta charset="UTF-8">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { width:2048px; height:1152px; overflow:hidden; font-family:'Segoe UI', system-ui, -apple-system, sans-serif; }
+  .banner {
+    width:2048px; height:1152px; position:relative; overflow:hidden;
+    background: linear-gradient(125deg, #0f0c29 0%, #2b2160 48%, #1c1740 100%);
+  }
+  .dots { position:absolute; inset:0; background-image:radial-gradient(circle, rgba(255,255,255,0.055) 1.4px, transparent 1.4px); background-size:46px 46px; }
+  .glow { position:absolute; border-radius:50%; filter:blur(120px); }
+  .g1 { width:760px; height:760px; background:rgba(124,58,237,0.32); top:-160px; left:600px; }
+  .g2 { width:620px; height:620px; background:rgba(99,102,241,0.24); bottom:-220px; right:120px; }
+  .g3 { width:520px; height:520px; background:rgba(168,85,247,0.18); top:120px; left:-140px; }
+
+  /* YouTube "safe area" visible on every device: centred 1546 x 423.
+     Everything meaningful lives inside this box. */
+  .safe {
+    position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
+    width:1546px; height:423px; z-index:10;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center;
+  }
+  .brand { display:flex; align-items:center; gap:26px; margin-bottom:30px; }
+  .mark { width:104px; height:104px; border-radius:27px; background:linear-gradient(135deg,#8b5cf6,#4f46e5);
+    display:flex; align-items:center; justify-content:center; box-shadow:0 16px 44px rgba(124,58,237,0.55); }
+  .bname { color:white; font-size:74px; font-weight:800; letter-spacing:-2px; }
+  h1 { color:white; font-size:60px; font-weight:800; line-height:1.12; letter-spacing:-1.5px; margin-bottom:30px; }
+  h1 .grad { background:linear-gradient(90deg,#a78bfa,#c4b5fd); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+  .chips { display:flex; gap:14px; }
+  .chip { display:inline-flex; align-items:center; gap:10px; background:rgba(255,255,255,0.07);
+    border:1px solid rgba(255,255,255,0.16); border-radius:15px; padding:12px 22px;
+    color:rgba(255,255,255,0.86); font-size:24px; font-weight:600; }
+  .chip .c { color:#4ade80; font-weight:800; }
+</style></head>
+<body>
+<div class="banner">
+  <div class="dots"></div>
+  <div class="glow g1"></div><div class="glow g2"></div><div class="glow g3"></div>
+
+  <div class="safe">
+    <div class="brand">
+      <div class="mark">
+        <svg width="62" height="62" viewBox="0 0 24 24" fill="none"><path d="M12 2L2 7l10 5 10-5-10-5z" stroke="white" stroke-width="1.8" stroke-linejoin="round"/><path d="M2 17l10 5 10-5M2 12l10 5 10-5" stroke="white" stroke-width="1.8" stroke-linejoin="round"/></svg>
+      </div>
+      <span class="bname">SynqIO</span>
+    </div>
+    <h1>Vos fiches produits <span class="grad">Amazon</span>,<br>optimisées et pilotées par IA</h1>
+    <div class="chips">
+      <span class="chip"><span class="c">✓</span> Génération de fiches</span>
+      <span class="chip"><span class="c">✓</span> Synchro catalogue API</span>
+      <span class="chip"><span class="c">✓</span> Gardien de conformité</span>
+    </div>
+  </div>
+</div>
+</body></html>

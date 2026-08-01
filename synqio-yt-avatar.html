@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html><head><meta charset="UTF-8">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { width:800px; height:800px; overflow:hidden; font-family:'Segoe UI', system-ui, -apple-system, sans-serif; }
+  .sq {
+    width:800px; height:800px; position:relative; overflow:hidden;
+    background: linear-gradient(145deg, #7c3aed 0%, #5b3fd6 45%, #4f46e5 100%);
+    display:flex; align-items:center; justify-content:center;
+  }
+  .glow { position:absolute; border-radius:50%; filter:blur(80px); }
+  .g1 { width:460px; height:460px; background:rgba(255,255,255,0.18); top:-120px; left:-90px; }
+  .g2 { width:420px; height:420px; background:rgba(79,70,229,0.45); bottom:-130px; right:-90px; }
+  .dots { position:absolute; inset:0; background-image:radial-gradient(circle, rgba(255,255,255,0.08) 1.5px, transparent 1.5px); background-size:44px 44px; }
+  /* subtle ring hinting at the circular crop */
+  .ring { position:absolute; width:660px; height:660px; border-radius:50%; border:2px solid rgba(255,255,255,0.14); }
+  .mark {
+    width:420px; height:420px; border-radius:96px;
+    background:rgba(255,255,255,0.14); border:3px solid rgba(255,255,255,0.30);
+    display:flex; align-items:center; justify-content:center; z-index:2;
+    box-shadow:0 34px 80px rgba(0,0,0,0.30), inset 0 3px 0 rgba(255,255,255,0.18);
+  }
+</style></head>
+<body>
+<div class="sq">
+  <div class="glow g1"></div><div class="glow g2"></div><div class="dots"></div>
+  <div class="ring"></div>
+  <div class="mark">
+    <svg width="252" height="252" viewBox="0 0 24 24" fill="none">
+      <path d="M12 2L2 7l10 5 10-5-10-5z" stroke="white" stroke-width="1.7" stroke-linejoin="round"/>
+      <path d="M2 17l10 5 10-5M2 12l10 5 10-5" stroke="white" stroke-width="1.7" stroke-linejoin="round"/>
+    </svg>
+  </div>
+</div>
+</body></html>
