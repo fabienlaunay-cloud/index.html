@@ -99,7 +99,7 @@
   @keyframes b4 { 0%{transform:scaleX(0)} 48.5%{transform:scaleX(0)} 51.5%{transform:scaleX(1)} 100%{transform:scaleX(1)} }
 
   /* S5 12–16s : animated score counter + progress ring */
-  @property --n { syntax:'<integer>'; initial-value:0; inherits:false; }
+  @property --n { syntax:'<integer>'; initial-value:0; inherits:true; }
   .s5 { animation:s5 22s both; }
   @keyframes s5 { 0%{opacity:0} 54.5%{opacity:0} 56%{opacity:1} 71%{opacity:1} 72.7%{opacity:0} 100%{opacity:0} }
   .s5 h1 { color:#fff; font-size:76px; font-weight:900; letter-spacing:-2px; margin-bottom:44px;
