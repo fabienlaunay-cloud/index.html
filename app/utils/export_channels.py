@@ -358,6 +358,131 @@ def to_google_merchant_tsv(listings: List[AmazonListing], image_urls: Optional[d
     return out.getvalue().encode("utf-8")
 
 
+# ── 7. Meta (Facebook / Instagram Shopping) catalogue CSV ────────────────────
+# Same product-data spec family as Google; Meta Commerce Manager ingests CSV.
+
+def to_meta_csv(listings: List[AmazonListing], image_urls: Optional[dict] = None) -> bytes:
+    out = io.StringIO()
+    w = csv.DictWriter(out, fieldnames=[
+        "id", "title", "description", "availability", "condition", "price",
+        "link", "image_link", "additional_image_link", "brand", "gtin",
+        "item_group_id", "color", "size", "material",
+    ])
+    w.writeheader()
+    for l in _sellable(listings):
+        imgs = _images_ordered(l.sku, image_urls)
+        w.writerow({
+            "id": l.sku,
+            "title": _oneline(l.title)[:200],
+            "description": _oneline(f"{l.description} {' '.join(l.bullet_points)}")[:9999],
+            "availability": "in stock",
+            "condition": "new",
+            "price": f"{l.price:.2f} {_currency(l)}" if l.price is not None else "",
+            "link": "",  # merchant's own product URL — to fill on their site
+            "image_link": imgs[0] if imgs else "",
+            "additional_image_link": ",".join(imgs[1:11]) if len(imgs) > 1 else "",
+            "brand": _oneline(l.brand),
+            "gtin": l.ean or "",
+            "item_group_id": l.parent_sku or "",
+            "color": _oneline(l.color or ""),
+            "size": _oneline(l.size or ""),
+            "material": _oneline(l.material or ""),
+        })
+    return out.getvalue().encode("utf-8")
+
+
+# ── 8. eBay (Seller Hub / File Exchange CSV) ─────────────────────────────────
+
+def to_ebay_csv(listings: List[AmazonListing], image_urls: Optional[dict] = None) -> bytes:
+    out = io.StringIO()
+    w = csv.DictWriter(out, fieldnames=[
+        "Action", "CustomLabel", "Title", "Subtitle", "Description",
+        "PicURL", "Quantity", "StartPrice", "ConditionID",
+        "Brand", "EAN", "C:Couleur", "C:Taille", "C:Matière",
+    ])
+    w.writeheader()
+    for l in _sellable(listings):
+        imgs = _images_ordered(l.sku, image_urls)
+        w.writerow({
+            "Action": "Add",
+            "CustomLabel": l.sku,                      # eBay SKU
+            "Title": _oneline(l.title)[:80],           # eBay caps titles at 80 chars
+            "Subtitle": _oneline(_short_description(l))[:55],
+            "Description": _full_html_description(l),
+            "PicURL": "|".join(imgs[:12]),
+            "Quantity": 1,
+            "StartPrice": l.price if l.price is not None else "",
+            "ConditionID": 1000,                        # 1000 = New
+            "Brand": _oneline(l.brand),
+            "EAN": l.ean or "",
+            "C:Couleur": _oneline(l.color or ""),
+            "C:Taille": _oneline(l.size or ""),
+            "C:Matière": _oneline(l.material or ""),
+        })
+    return out.getvalue().encode("utf-8-sig")
+
+
+# ── 9. Cdiscount (Marketplace CSV) ───────────────────────────────────────────
+
+def to_cdiscount_csv(listings: List[AmazonListing], image_urls: Optional[dict] = None) -> bytes:
+    out = io.StringIO()
+    w = csv.DictWriter(out, fieldnames=[
+        "Sku vendeur", "EAN", "Marque", "Nature du produit", "Catégorie",
+        "Libellé produit", "Description courte", "Description longue",
+        "Image 1", "Image 2", "Image 3", "Image 4",
+        "Prix", "Quantité", "État", "Couleur", "Taille",
+    ], delimiter=";")
+    w.writeheader()
+    for l in _sellable(listings):
+        imgs = _images_ordered(l.sku, image_urls) + [""] * 4
+        w.writerow({
+            "Sku vendeur": l.sku,
+            "EAN": l.ean or "",
+            "Marque": _oneline(l.brand),
+            "Nature du produit": _oneline(l.category or "Standard"),
+            "Catégorie": _oneline(l.category or ""),
+            "Libellé produit": _oneline(l.title)[:132],   # Cdiscount cap
+            "Description courte": _oneline(_short_description(l))[:420],
+            "Description longue": _oneline(f"{l.description} {' '.join(l.bullet_points)}")[:5000],
+            "Image 1": imgs[0], "Image 2": imgs[1], "Image 3": imgs[2], "Image 4": imgs[3],
+            "Prix": l.price if l.price is not None else "",
+            "Quantité": 1,
+            "État": "Neuf",
+            "Couleur": _oneline(l.color or ""),
+            "Taille": _oneline(l.size or ""),
+        })
+    return out.getvalue().encode("utf-8-sig")
+
+
+# ── 10. TikTok Shop (batch upload CSV) ───────────────────────────────────────
+
+def to_tiktok_csv(listings: List[AmazonListing], image_urls: Optional[dict] = None) -> bytes:
+    out = io.StringIO()
+    w = csv.DictWriter(out, fieldnames=[
+        "seller_sku", "product_name", "product_description", "category",
+        "brand", "barcode", "price", "quantity",
+        "main_image_url", "other_images", "color", "size",
+    ])
+    w.writeheader()
+    for l in _sellable(listings):
+        imgs = _images_ordered(l.sku, image_urls)
+        w.writerow({
+            "seller_sku": l.sku,
+            "product_name": _oneline(l.title)[:255],
+            "product_description": _full_html_description(l)[:10000],
+            "category": _oneline(l.category or ""),
+            "brand": _oneline(l.brand),
+            "barcode": l.ean or "",
+            "price": l.price if l.price is not None else "",
+            "quantity": 1,
+            "main_image_url": imgs[0] if imgs else "",
+            "other_images": ",".join(imgs[1:9]) if len(imgs) > 1 else "",
+            "color": _oneline(l.color or ""),
+            "size": _oneline(l.size or ""),
+        })
+    return out.getvalue().encode("utf-8")
+
+
 # ── Registry used by the API endpoint ────────────────────────────────────────
 
 CHANNELS = {
@@ -396,5 +521,29 @@ CHANNELS = {
         "filename": "google_merchant_feed.tsv",
         "media_type": "text/tab-separated-values",
         "label": "Google Shopping (TSV)",
+    },
+    "meta": {
+        "builder": to_meta_csv,
+        "filename": "meta_catalogue.csv",
+        "media_type": "text/csv",
+        "label": "Meta — Facebook & Instagram Shopping (CSV)",
+    },
+    "ebay": {
+        "builder": to_ebay_csv,
+        "filename": "ebay_produits.csv",
+        "media_type": "text/csv",
+        "label": "eBay (CSV File Exchange)",
+    },
+    "cdiscount": {
+        "builder": to_cdiscount_csv,
+        "filename": "cdiscount_produits.csv",
+        "media_type": "text/csv",
+        "label": "Cdiscount (CSV)",
+    },
+    "tiktok": {
+        "builder": to_tiktok_csv,
+        "filename": "tiktok_shop_produits.csv",
+        "media_type": "text/csv",
+        "label": "TikTok Shop (CSV)",
     },
 }

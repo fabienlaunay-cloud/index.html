@@ -1782,6 +1782,58 @@ async def publish(request_data: PublishRequest, request: Request):
     )
 
 
+async def _run_bulk_publish_job(job_id: str, request_data: PublishRequest, email: str):
+    """Bulk publish via the Amazon Feeds API (1 upload for N fiches), with an
+    automatic per-SKU fallback while the 'Product Listing' role isn't granted."""
+    from app.services.amazon_sp import publish_via_feed
+    _jobs[job_id]["status"] = "running"
+    try:
+        try:
+            res = await publish_via_feed(
+                request_data.listings, request_data.marketplace, user_email=email)
+            mode = "feed"
+        except RuntimeError as e:
+            s = str(e)
+            if s == "feeds_forbidden":
+                # Role missing → per-SKU path still works for accounts that have it;
+                # surface the reason either way so the user knows what happened.
+                res = await publish_listings(
+                    listings=request_data.listings, marketplace=request_data.marketplace,
+                    dry_run=False, user_email=email)
+                mode = "per_sku_fallback"
+            elif s == "feed_pending":
+                _jobs[job_id].update({"status": "failed", "error":
+                    "Amazon met plus de 10 min à traiter le feed — réessayez dans quelques minutes "
+                    "(le traitement continue côté Amazon)."})
+                return
+            else:
+                raise
+        _jobs[job_id].update({"status": "done", "result": {
+            "mode": mode, **res.model_dump(),
+            **({"note": "Rôle « Product Listing » manquant pour la Feeds API — "
+                        "publication fiche par fiche utilisée à la place."}
+               if mode == "per_sku_fallback" else {}),
+        }})
+    except Exception as e:
+        _jobs[job_id].update({"status": "failed", "error": str(e)[:300] or type(e).__name__})
+
+
+@app.post("/api/publish/bulk")
+async def publish_bulk(request_data: PublishRequest, request: Request):
+    """Publish a large batch through the Feeds API as a background job.
+    Poll GET /api/jobs/{job_id} for the per-SKU report."""
+    if not request_data.listings:
+        raise HTTPException(400, "Aucune fiche à publier")
+    if request_data.dry_run:
+        return await publish_listings(
+            listings=request_data.listings, marketplace=request_data.marketplace,
+            dry_run=True, user_email=getattr(request.state, "user_email", None))
+    job_id = f"pubfeed_{uuid4().hex[:12]}"
+    _jobs[job_id] = {"status": "pending", "created_at": time.time()}
+    asyncio.create_task(_run_bulk_publish_job(job_id, request_data, request.state.user_email))
+    return {"job_id": job_id, "count": len(request_data.listings)}
+
+
 from app.utils.amazon_template_filler import fill_amazon_template
 # ── Export ────────────────────────────────────────────────────────────────────
 

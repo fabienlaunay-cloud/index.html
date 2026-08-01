@@ -641,6 +641,141 @@ async def publish_listings(
     )
 
 
+# ── Amazon Feeds API — bulk publish (JSON_LISTINGS_FEED) ─────────────────────
+# One upload carries N listings instead of N throttled per-SKU PUTs. Flow:
+# createFeedDocument → upload to presigned URL → createFeed → poll → download
+# the processing report and map its per-message issues back to SKUs.
+# Requires the 'Product Listing' role on the app (403 otherwise).
+
+_FEEDS_API = "/feeds/2021-06-30"
+
+
+def _build_listings_feed(listings: List[AmazonListing], seller_id: str,
+                         marketplace_id: str, language_tag: str) -> dict:
+    messages = []
+    for i, l in enumerate(listings, start=1):
+        payload = _listing_to_sp_payload(l, seller_id, marketplace_id, language_tag)
+        messages.append({
+            "messageId": i,
+            "sku": l.sku,
+            "operationType": "UPDATE",
+            "productType": payload["productType"],
+            "requirements": payload.get("requirements", "LISTING"),
+            "attributes": payload["attributes"],
+        })
+    return {
+        "header": {"sellerId": seller_id, "version": "2.0",
+                   "issueLocale": language_tag.replace("_", "-")},
+        "messages": messages,
+    }
+
+
+def _parse_feed_report(report: dict, listings: List[AmazonListing]) -> PublishResult:
+    """Map the JSON_LISTINGS_FEED processing report back to per-SKU outcomes."""
+    by_msg = {i + 1: l.sku for i, l in enumerate(listings)}
+    issues_by_sku: dict = {}
+    for iss in report.get("issues", []) or []:
+        sku = by_msg.get(iss.get("messageId")) or iss.get("sku") or "?"
+        issues_by_sku.setdefault(sku, []).append(iss)
+    errors, published = [], []
+    for l in listings:
+        errs = [i for i in issues_by_sku.get(l.sku, []) if (i.get("severity") or "").upper() == "ERROR"]
+        if errs:
+            errors.append({"sku": l.sku, "error": "; ".join(
+                f"{e.get('code','?')}: {e.get('message','')}" for e in errs)[:500]})
+        else:
+            warns = [i.get("message", "") for i in issues_by_sku.get(l.sku, [])]
+            published.append({"sku": l.sku, "status": "published",
+                              **({"warnings": warns[:5]} if warns else {})})
+    return PublishResult(published=len(published), failed=len(errors),
+                         errors=errors, report=published)
+
+
+async def publish_via_feed(
+    listings: List[AmazonListing],
+    marketplace: Marketplace,
+    user_email: str = None,
+    poll_timeout: float = 600.0,
+) -> PublishResult:
+    """Bulk-publish through the Feeds API. Raises RuntimeError('feeds_forbidden')
+    on 403 (missing Product Listing role) so callers can fall back / explain."""
+    if _is_demo():
+        return _demo_publish(listings, marketplace, False)
+    creds = _get_sp_credentials(user_email)
+    if not creds.get("refresh_token"):
+        raise RuntimeError("Compte Amazon non connecté")
+    marketplace_id = MARKETPLACE_IDS.get(marketplace, MARKETPLACE_IDS[Marketplace.AMAZON_FR])
+    language_tag = MARKETPLACE_LOCALES.get(marketplace, "fr_FR")
+    lwa = await _get_lwa_token(creds)
+    loop = asyncio.get_event_loop()
+    temp = await loop.run_in_executor(None, lambda: _assume_role(creds))
+    seller_id = creds["seller_id"]
+
+    def _check(resp, step):
+        if resp.status_code == 403:
+            raise RuntimeError("feeds_forbidden")
+        if resp.status_code not in (200, 201, 202):
+            raise RuntimeError(f"Feeds API {step}: HTTP {resp.status_code} — {resp.text[:300]}")
+
+    feed_body = json.dumps(_build_listings_feed(listings, seller_id, marketplace_id, language_tag)).encode("utf-8")
+    content_type = "application/json; charset=UTF-8"
+
+    async with httpx.AsyncClient(timeout=60) as client:
+        # 1. Create the input document slot
+        url = f"{_sp_endpoint()}{_FEEDS_API}/documents"
+        body = json.dumps({"contentType": content_type}).encode()
+        resp = await client.post(url, headers=_sign_request("POST", url, body, temp, lwa), content=body)
+        _check(resp, "createFeedDocument")
+        doc = resp.json()
+
+        # 2. Upload the feed content (presigned URL — no SigV4)
+        up = await client.put(doc["url"], content=feed_body, headers={"Content-Type": content_type})
+        if up.status_code not in (200, 201):
+            raise RuntimeError(f"Feeds API upload: HTTP {up.status_code}")
+
+        # 3. Create the feed
+        url = f"{_sp_endpoint()}{_FEEDS_API}/feeds"
+        body = json.dumps({"feedType": "JSON_LISTINGS_FEED",
+                           "marketplaceIds": [marketplace_id],
+                           "inputFeedDocumentId": doc["feedDocumentId"]}).encode()
+        resp = await client.post(url, headers=_sign_request("POST", url, body, temp, lwa), content=body)
+        _check(resp, "createFeed")
+        feed_id = resp.json()["feedId"]
+
+        # 4. Poll until processed
+        import time as _t
+        deadline = _t.monotonic() + poll_timeout
+        status, result_doc_id = "IN_QUEUE", None
+        while _t.monotonic() < deadline:
+            await asyncio.sleep(15)
+            url = f"{_sp_endpoint()}{_FEEDS_API}/feeds/{feed_id}"
+            resp = await client.get(url, headers=_sign_request("GET", url, b"", temp, lwa))
+            _check(resp, "getFeed")
+            data = resp.json()
+            status = data.get("processingStatus")
+            if status in ("DONE", "FATAL", "CANCELLED"):
+                result_doc_id = data.get("resultFeedDocumentId")
+                break
+        if status not in ("DONE", "FATAL"):
+            raise RuntimeError("feed_pending" if status in ("IN_QUEUE", "IN_PROGRESS")
+                               else f"Feed {status}")
+
+        # 5. Download the processing report
+        if not result_doc_id:
+            raise RuntimeError(f"Feed {status} sans rapport de traitement")
+        url = f"{_sp_endpoint()}{_FEEDS_API}/documents/{result_doc_id}"
+        resp = await client.get(url, headers=_sign_request("GET", url, b"", temp, lwa))
+        _check(resp, "getResultDocument")
+        rd = resp.json()
+        raw = (await client.get(rd["url"])).content
+        if (rd.get("compressionAlgorithm") or "").upper() == "GZIP":
+            import gzip as _gz
+            raw = _gz.decompress(raw)
+        report = json.loads(raw.decode("utf-8", errors="replace"))
+
+    return _parse_feed_report(report, listings)
+
+
 def _demo_publish(listings: List[AmazonListing], marketplace: Marketplace, dry_run: bool) -> PublishResult:
     report = []
     for listing in listings:

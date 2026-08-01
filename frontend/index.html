@@ -2677,6 +2677,22 @@
                     <div class="font-medium text-gray-800">Google Shopping</div>
                     <div class="text-xs text-gray-400 mt-0.5">Flux Merchant Center (TSV)</div>
                   </button>
+                  <button onclick="exportChannel('meta');toggleDlMenu()" class="w-full text-left px-4 py-2 text-sm hover:bg-purple-50/50 transition">
+                    <div class="font-medium text-gray-800">Meta — Facebook &amp; Instagram</div>
+                    <div class="text-xs text-gray-400 mt-0.5">Catalogue Commerce Manager (CSV)</div>
+                  </button>
+                  <button onclick="exportChannel('ebay');toggleDlMenu()" class="w-full text-left px-4 py-2 text-sm hover:bg-purple-50/50 transition">
+                    <div class="font-medium text-gray-800">eBay</div>
+                    <div class="text-xs text-gray-400 mt-0.5">CSV File Exchange (titres ≤ 80 car.)</div>
+                  </button>
+                  <button onclick="exportChannel('cdiscount');toggleDlMenu()" class="w-full text-left px-4 py-2 text-sm hover:bg-purple-50/50 transition">
+                    <div class="font-medium text-gray-800">Cdiscount</div>
+                    <div class="text-xs text-gray-400 mt-0.5">CSV marketplace (séparateur ;)</div>
+                  </button>
+                  <button onclick="exportChannel('tiktok');toggleDlMenu()" class="w-full text-left px-4 py-2 text-sm hover:bg-purple-50/50 transition">
+                    <div class="font-medium text-gray-800">TikTok Shop</div>
+                    <div class="text-xs text-gray-400 mt-0.5">CSV d'import en masse</div>
+                  </button>
                   <div id="dlPushButtons" class="border-t border-gray-100 mt-1"></div>
                 </div>
               </div>
@@ -8372,6 +8388,10 @@ const _CHANNEL_META = {
   'prestashop':      { fn: 'prestashop_produits.csv',    label: 'Export PrestaShop' },
   'akeneo':          { fn: 'akeneo_produits.csv',        label: 'Export Akeneo' },
   'google-merchant': { fn: 'google_merchant_feed.tsv',   label: 'Flux Google Shopping' },
+  'meta':            { fn: 'meta_catalogue.csv',         label: 'Catalogue Meta (FB/Insta)' },
+  'ebay':            { fn: 'ebay_produits.csv',          label: 'Export eBay' },
+  'cdiscount':       { fn: 'cdiscount_produits.csv',     label: 'Export Cdiscount' },
+  'tiktok':          { fn: 'tiktok_shop_produits.csv',   label: 'Export TikTok Shop' },
 };
 
 async function exportChannel(channel) {
@@ -9092,12 +9112,37 @@ async function publishListings() {
   const dryRun = document.getElementById('dryRunCheck').checked;
   const marketplace = document.getElementById('publishMarketplace').value;
   closePublishModal();
-  showToast('⏳', 'Publication en cours…');
-  const r = await authFetch('/api/publish', {
-    method:'POST', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({ listings: generatedListings, marketplace, dry_run: dryRun }),
-  });
-  const result = await r.json();
+  let result;
+  // Big real batches go through the Feeds API (1 upload for N fiches) as a
+  // background job; small ones and dry-runs keep the direct per-SKU path.
+  if (!dryRun && generatedListings.length >= 10) {
+    showToast('⏳', `Publication en masse de ${generatedListings.length} fiches via Amazon Feeds…`);
+    const start = await authFetch('/api/publish/bulk', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ listings: generatedListings, marketplace, dry_run: false }),
+    });
+    const sd = await start.json();
+    if (!start.ok || !sd.job_id) { showToast('❌', sd.detail || 'Erreur de publication', true); return; }
+    result = null;
+    for (let i = 0; i < 80; i++) {           // feed processing can take minutes
+      await new Promise(r => setTimeout(r, 10000));
+      const jr = await authFetch('/api/jobs/' + sd.job_id);
+      if (!jr.ok) continue;
+      const job = await jr.json();
+      if (job.status === 'done') { result = job.result; break; }
+      if (job.status === 'failed') { showToast('❌', job.error || 'Erreur de publication', true); return; }
+      if (i === 5) showToast('⏳', 'Amazon traite le lot — encore quelques minutes…');
+    }
+    if (!result) { showToast('⏳', 'Le traitement Amazon est long — revenez vérifier dans quelques minutes'); return; }
+    if (result.note) setTimeout(() => showToast('ℹ️', result.note), 1500);
+  } else {
+    showToast('⏳', 'Publication en cours…');
+    const r = await authFetch('/api/publish', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ listings: generatedListings, marketplace, dry_run: dryRun }),
+    });
+    result = await r.json();
+  }
   setStep(4);
   showPublishReport(result, dryRun);
   (result.report || []).filter(r => r.status === 'demo_published' || r.status === 'published').forEach(r => {
@@ -13483,6 +13528,8 @@ const _FEED_LABELS = {
   'google-merchant': 'Google Shopping (flux Merchant Center)',
   'shopify': 'Shopify', 'woocommerce': 'WooCommerce',
   'prestashop': 'PrestaShop', 'akeneo': 'Akeneo PIM', 'pim': 'PIM / Universel (Excel)',
+  'meta': 'Meta — Facebook & Instagram Shopping', 'ebay': 'eBay (File Exchange)',
+  'cdiscount': 'Cdiscount', 'tiktok': 'TikTok Shop',
 };
 
 function _apiRenderFeeds(data) {
