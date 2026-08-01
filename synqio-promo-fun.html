@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="fr"><head><meta charset="UTF-8">
+<style>
+  /* 22s kinetic-typography promo. All animations share the 22s timeline. */
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { width:1920px; height:1080px; overflow:hidden; font-family:'Segoe UI', system-ui, -apple-system, sans-serif; }
+  .stage { width:1920px; height:1080px; position:relative; overflow:hidden;
+    background: linear-gradient(125deg, #0f0c29 0%, #2b2160 48%, #1c1740 100%); }
+  .dots { position:absolute; inset:0; background-image:radial-gradient(circle, rgba(255,255,255,0.05) 1.5px, transparent 1.5px); background-size:48px 48px; }
+  .glow { position:absolute; border-radius:50%; filter:blur(130px); }
+  .g1 { width:820px; height:820px; background:rgba(124,58,237,0.32); top:-60px; left:560px; animation: drift 22s ease-in-out both; }
+  .g2 { width:640px; height:640px; background:rgba(99,102,241,0.22); bottom:-160px; right:180px; }
+  @keyframes drift { 0%{transform:translateX(0)} 50%{transform:translateX(-160px)} 100%{transform:translateX(60px)} }
+
+  .scene { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; opacity:0; }
+
+  /* S1 0–2.2s : hook */
+  .s1 { animation: s1 22s both; }
+  @keyframes s1 { 0%{opacity:0;transform:scale(.7)} 1.5%{opacity:1;transform:scale(1.05)} 3%{transform:scale(1)} 9%{opacity:1} 10.5%{opacity:0;transform:scale(1.15)} 100%{opacity:0} }
+  .s1 h1 { color:#fff; font-size:120px; font-weight:900; letter-spacing:-4px; }
+  .s1 .sub { color:#c4b5fd; font-size:52px; font-weight:700; margin-top:14px; }
+
+  /* S2 2.2–4.6s : pain */
+  .s2 { animation: s2 22s both; }
+  @keyframes s2 { 0%{opacity:0} 10.5%{opacity:0;transform:translateY(60px)} 12%{opacity:1;transform:translateY(0)} 19.5%{opacity:1} 21%{opacity:0;transform:translateY(-50px)} 100%{opacity:0} }
+  .s2 h1 { color:#fff; font-size:96px; font-weight:900; letter-spacing:-3px; }
+  .s2 .boxes { font-size:110px; margin-top:22px; letter-spacing:16px; }
+  .s2 .sub { color:rgba(255,255,255,.65); font-size:46px; font-weight:700; margin-top:10px; }
+
+  /* S3 4.6–7.4s : enter SynqIO */
+  .s3 { animation: s3 22s both; }
+  @keyframes s3 { 0%{opacity:0} 21%{opacity:0;transform:scale(.6) rotate(-6deg)} 23%{opacity:1;transform:scale(1.08) rotate(2deg)} 25%{transform:scale(1) rotate(0)} 32%{opacity:1} 33.6%{opacity:0;transform:scale(1.12)} 100%{opacity:0} }
+  .s3 .brand { display:flex; align-items:center; gap:30px; }
+  .s3 .mark { width:150px; height:150px; border-radius:38px; background:linear-gradient(135deg,#8b5cf6,#4f46e5);
+    display:flex; align-items:center; justify-content:center; box-shadow:0 24px 70px rgba(124,58,237,.65); }
+  .s3 .bname { color:#fff; font-size:130px; font-weight:900; letter-spacing:-4px; }
+  .s3 .sub { color:#c4b5fd; font-size:54px; font-weight:800; margin-top:24px; }
+
+  /* S4 7.4–12s : features rapid-fire */
+  .s4 { animation: s4 22s both; }
+  @keyframes s4 { 0%{opacity:0} 33.6%{opacity:0} 34.6%{opacity:1} 53%{opacity:1} 54.5%{opacity:0} 100%{opacity:0} }
+  .s4 h2 { color:rgba(255,255,255,.75); font-size:46px; font-weight:800; margin-bottom:44px; letter-spacing:.5px; }
+  .s4 .feats { display:flex; flex-direction:column; gap:26px; align-items:center; }
+  .s4 .feat { display:flex; align-items:center; gap:22px; background:rgba(255,255,255,.07); border:2px solid rgba(255,255,255,.16);
+    border-radius:24px; padding:20px 44px; color:#fff; font-size:52px; font-weight:800; opacity:0; }
+  .s4 .feat .em { font-size:58px; }
+  .f1 { animation: f1 22s both; } @keyframes f1 { 0%{opacity:0} 35.5%{opacity:0;transform:translateX(-120px)} 37%{opacity:1;transform:translateX(0)} 53%{opacity:1} 54.5%{opacity:0} 100%{opacity:0} }
+  .f2 { animation: f2 22s both; } @keyframes f2 { 0%{opacity:0} 38.5%{opacity:0;transform:translateX(120px)} 40%{opacity:1;transform:translateX(0)} 53%{opacity:1} 54.5%{opacity:0} 100%{opacity:0} }
+  .f3 { animation: f3 22s both; } @keyframes f3 { 0%{opacity:0} 41.5%{opacity:0;transform:translateX(-120px)} 43%{opacity:1;transform:translateX(0)} 53%{opacity:1} 54.5%{opacity:0} 100%{opacity:0} }
+  .f4 { animation: f4 22s both; } @keyframes f4 { 0%{opacity:0} 44.5%{opacity:0;transform:translateX(120px)} 46%{opacity:1;transform:translateX(0)} 53%{opacity:1} 54.5%{opacity:0} 100%{opacity:0} }
+
+  /* S5 12–16s : catalogue + score */
+  .s5 { animation: s5 22s both; }
+  @keyframes s5 { 0%{opacity:0} 54.5%{opacity:0;transform:scale(.85)} 56%{opacity:1;transform:scale(1)} 71%{opacity:1} 72.7%{opacity:0;transform:scale(1.1)} 100%{opacity:0} }
+  .s5 h1 { color:#fff; font-size:78px; font-weight:900; letter-spacing:-2px; margin-bottom:34px; }
+  .s5 .score { display:flex; align-items:center; gap:26px; background:rgba(255,255,255,.06); border:2px solid rgba(74,222,128,.4);
+    border-radius:28px; padding:26px 54px; }
+  .s5 .n { color:#4ade80; font-size:120px; font-weight:900; }
+  .s5 .lbl { text-align:left; color:rgba(255,255,255,.85); font-size:40px; font-weight:800; line-height:1.25; }
+
+  /* S6 16–19.4s : channels */
+  .s6 { animation: s6 22s both; }
+  @keyframes s6 { 0%{opacity:0} 72.7%{opacity:0;transform:translateY(50px)} 74.2%{opacity:1;transform:translateY(0)} 86.5%{opacity:1} 88%{opacity:0} 100%{opacity:0} }
+  .s6 h1 { color:#fff; font-size:76px; font-weight:900; letter-spacing:-2px; margin-bottom:40px; }
+  .s6 h1 .grad { background:linear-gradient(90deg,#a78bfa,#c4b5fd); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+  .s6 .chips { display:flex; gap:16px; }
+  .s6 .chip { display:inline-flex; align-items:center; gap:12px; background:rgba(255,255,255,.07); border:2px solid rgba(255,255,255,.16);
+    border-radius:18px; padding:16px 30px; color:#fff; font-size:34px; font-weight:800; }
+  .s6 .chip .d { width:16px; height:16px; border-radius:50%; }
+  .s6 .chip.primary { background:rgba(255,153,0,.13); border-color:rgba(255,153,0,.5); color:#ffca7a; }
+
+  /* S7 19.4–22s : CTA */
+  .s7 { animation: s7 22s both; }
+  @keyframes s7 { 0%{opacity:0} 88%{opacity:0;transform:scale(.8)} 89.8%{opacity:1;transform:scale(1.04)} 91.5%{transform:scale(1)} 100%{opacity:1} }
+  .s7 .brand { display:flex; align-items:center; gap:24px; margin-bottom:26px; }
+  .s7 .mark { width:110px; height:110px; border-radius:28px; background:linear-gradient(135deg,#8b5cf6,#4f46e5);
+    display:flex; align-items:center; justify-content:center; box-shadow:0 18px 55px rgba(124,58,237,.6); }
+  .s7 .bname { color:#fff; font-size:96px; font-weight:900; letter-spacing:-3px; }
+  .s7 h1 { color:#fff; font-size:60px; font-weight:900; margin-bottom:26px; }
+  .s7 .cta { display:inline-flex; align-items:center; gap:16px; background:linear-gradient(135deg,#8b5cf6,#4f46e5);
+    border-radius:22px; padding:22px 48px; color:#fff; font-size:44px; font-weight:900; box-shadow:0 18px 55px rgba(124,58,237,.5);
+    animation: pulse 22s ease-in-out both; }
+  @keyframes pulse { 0%,91%{transform:scale(1)} 93.5%{transform:scale(1.06)} 95.5%{transform:scale(1)} 97.5%{transform:scale(1.06)} 100%{transform:scale(1)} }
+  .s7 .site { color:#c4b5fd; font-size:38px; font-weight:800; margin-top:24px; }
+</style></head>
+<body>
+<div class="stage">
+  <div class="dots"></div>
+  <div class="glow g1"></div><div class="glow g2"></div>
+
+  <div class="scene s1">
+    <h1>Vendre sur Amazon&nbsp;? 🛒</h1>
+    <div class="sub">On sait ce que ça veut dire…</div>
+  </div>
+
+  <div class="scene s2">
+    <h1>Des centaines de fiches à gérer 😅</h1>
+    <div class="boxes">📦📦📦📦📦</div>
+    <div class="sub">Titres, bullets, photos, conformité… à la main ?!</div>
+  </div>
+
+  <div class="scene s3">
+    <div class="brand">
+      <div class="mark"><svg width="88" height="88" viewBox="0 0 24 24" fill="none"><path d="M12 2L2 7l10 5 10-5-10-5z" stroke="white" stroke-width="1.8" stroke-linejoin="round"/><path d="M2 17l10 5 10-5M2 12l10 5 10-5" stroke="white" stroke-width="1.8" stroke-linejoin="round"/></svg></div>
+      <span class="bname">SynqIO</span>
+    </div>
+    <div class="sub">L'IA qui bosse pour vous. 🤖</div>
+  </div>
+
+  <div class="scene s4">
+    <h2>EN QUELQUES SECONDES :</h2>
+    <div class="feats">
+      <div class="feat f1"><span class="em">✍️</span> Titres SEO ≤ 75 caractères</div>
+      <div class="feat f2"><span class="em">🎯</span> 5 bullet points qui vendent</div>
+      <div class="feat f3"><span class="em">🖼️</span> Visuels générés par IA</div>
+      <div class="feat f4"><span class="em">📄</span> Contenu A+ complet</div>
+    </div>
+  </div>
+
+  <div class="scene s5">
+    <h1>Votre catalogue, sous surveillance 🛡️</h1>
+    <div class="score">
+      <span class="n">100</span>
+      <span class="lbl">Score de conformité<br>Ventes croisées par fiche 📊</span>
+    </div>
+  </div>
+
+  <div class="scene s6">
+    <h1>Créez une fois. <span class="grad">Diffusez partout.</span> 🚀</h1>
+    <div class="chips">
+      <span class="chip primary"><span class="d" style="background:#ff9900"></span>Amazon</span>
+      <span class="chip"><span class="d" style="background:#38bdf8"></span>Site web</span>
+      <span class="chip"><span class="d" style="background:#95bf47"></span>Shopify</span>
+      <span class="chip"><span class="d" style="background:#a78bfa"></span>PIM</span>
+      <span class="chip"><span class="d" style="background:#34d399"></span>API</span>
+    </div>
+  </div>
+
+  <div class="scene s7">
+    <div class="brand">
+      <div class="mark"><svg width="66" height="66" viewBox="0 0 24 24" fill="none"><path d="M12 2L2 7l10 5 10-5-10-5z" stroke="white" stroke-width="1.8" stroke-linejoin="round"/><path d="M2 17l10 5 10-5M2 12l10 5 10-5" stroke="white" stroke-width="1.8" stroke-linejoin="round"/></svg></div>
+      <span class="bname">SynqIO</span>
+    </div>
+    <h1>Vos fiches Amazon méritent mieux. 😎</h1>
+    <div class="cta">🔔 Abonnez-vous</div>
+    <div class="site">synqio.io</div>
+  </div>
+</div>
+</body></html>
