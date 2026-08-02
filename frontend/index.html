@@ -4403,6 +4403,7 @@ function showApp(email) {
     document.getElementById('adminView').classList.add('hidden');
     _resumeAmazonAuthorize();  // resume Appstore-initiated OAuth if one is pending
     if (currentUser?.agency_enabled) _wsLoad();  // agency workspaces selector
+    _initCobrowse(email);      // live-help headset — every login path, not just reloads
     checkHealth();
     loadUsage();
     _apiLoadConnectors();  // populate "Publier vers…" buttons in the export menu
@@ -15743,11 +15744,13 @@ function _agentMic() {
 let _cobrowseReady = false;
 
 async function _initCobrowse(email) {
+  if (window._cobrowseInitDone) return;   // called from every login path — init once
+  window._cobrowseInitDone = true;
   try {
     const r = await authFetch('/api/cobrowse-config');
     if (!r.ok) return;
     const cfg = await r.json();
-    if (!cfg.license_key) return;
+    if (!cfg.license_key) { console.warn('[cobrowse] pas de clé de licence configurée'); return; }
 
     // Cobrowse.io stub (queues calls made before real SDK loads)
     if (!window.CobrowseIO) {
