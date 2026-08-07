@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="fr"><head><meta charset="UTF-8">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { width:1280px; height:720px; overflow:hidden; font-family:'Segoe UI', system-ui, -apple-system, sans-serif; }
+  .t { width:1280px; height:720px; position:relative; overflow:hidden;
+    background:
+      radial-gradient(700px 520px at 82% 18%, rgba(124,58,237,.45), transparent 60%),
+      radial-gradient(560px 460px at 12% 88%, rgba(255,153,0,.16), transparent 60%),
+      linear-gradient(125deg, #14102e 0%, #2a1f5c 55%, #191243 100%); }
+  .grid { position:absolute; inset:0; opacity:.5;
+    background-image:linear-gradient(rgba(255,255,255,.04) 1px, transparent 1px),
+                     linear-gradient(90deg, rgba(255,255,255,.04) 1px, transparent 1px);
+    background-size:90px 90px; }
+
+  .left { position:absolute; left:56px; top:84px; z-index:10; }
+  .brand { display:flex; align-items:center; gap:13px; margin-bottom:28px; }
+  .mark { width:54px; height:54px; border-radius:14px; background:linear-gradient(135deg,#8b5cf6,#4f46e5);
+    display:flex; align-items:center; justify-content:center; box-shadow:0 8px 24px rgba(124,58,237,.6); }
+  .bname { color:#fff; font-size:34px; font-weight:800; letter-spacing:-1px; }
+  h1 { color:#fff; font-size:78px; font-weight:900; line-height:1.04; letter-spacing:-3px;
+    text-shadow:0 6px 30px rgba(0,0,0,.5); }
+  h1 .amz { color:#ff9900; }
+  .punch { display:inline-block; margin-top:20px; background:linear-gradient(100deg,#a78bfa,#7c3aed);
+    color:#fff; font-size:64px; font-weight:900; letter-spacing:-2px; line-height:1;
+    padding:16px 28px 22px; border-radius:22px; transform:rotate(-2deg);
+    box-shadow:0 18px 50px rgba(124,58,237,.55), inset 0 -5px 0 rgba(0,0,0,.22); }
+  .punch .sp { color:#ffd166; }
+  .chip { position:absolute; left:60px; bottom:64px; display:inline-flex; align-items:center; gap:12px;
+    background:rgba(255,255,255,.08); border:2.5px solid rgba(167,139,250,.65); border-radius:16px;
+    padding:12px 24px; color:#e9e4ff; font-size:28px; font-weight:800; letter-spacing:.5px; z-index:10; }
+  .dotg { width:16px; height:16px; border-radius:50%; background:#4ade80; box-shadow:0 0 16px #4ade80; }
+
+  /* Right: URL pill → arrow → finished fiche card */
+  .urlpill { position:absolute; right:388px; top:120px; z-index:9; transform:rotate(-3deg);
+    background:#fff; border-radius:16px; padding:14px 22px; display:flex; align-items:center; gap:12px;
+    box-shadow:0 18px 44px rgba(0,0,0,.45); }
+  .urlpill .u { color:#374151; font-size:26px; font-weight:800; font-family:monospace; }
+  .flow { position:absolute; right:300px; top:130px; z-index:9; transform:rotate(28deg); }
+  .cardw { position:absolute; right:56px; top:212px; width:430px; z-index:8; transform:rotate(1.5deg);
+    background:#fff; border-radius:22px; padding:24px 26px; box-shadow:0 30px 70px rgba(0,0,0,.5); }
+  .row { display:flex; gap:14px; align-items:center; margin-bottom:14px; }
+  .ph { width:92px; height:92px; border-radius:14px; background:linear-gradient(135deg,#ede9fe,#ddd6fe);
+    display:flex; align-items:center; justify-content:center; flex-shrink:0; position:relative; }
+  .ia { position:absolute; right:-12px; top:-12px; background:linear-gradient(135deg,#8b5cf6,#4f46e5);
+    color:#fff; font-size:19px; font-weight:900; border-radius:10px; padding:4px 10px;
+    box-shadow:0 8px 18px rgba(124,58,237,.5); }
+  .lns { flex:1; }
+  .ln { height:13px; border-radius:7px; background:#e5e1f8; margin-bottom:9px; }
+  .ln.a { width:94%; background:#c4b5fd; height:17px; }
+  .ln.b { width:70%; } .ln.c { width:82%; }
+  .badges { display:flex; gap:10px; }
+  .b { font-size:20px; font-weight:900; border-radius:11px; padding:7px 13px; }
+  .b1 { background:#ede9fe; color:#6d28d9; }
+  .b2 { background:#fef3c7; color:#b45309; }
+  .ok { display:inline-flex; align-items:center; gap:8px; margin-top:14px; background:#dcfce7;
+    color:#15803d; font-size:25px; font-weight:900; border-radius:12px; padding:9px 18px; border:2.5px solid #86efac; }
+</style></head>
+<body>
+<div class="t">
+  <div class="grid"></div>
+
+  <div class="left">
+    <div class="brand">
+      <div class="mark"><svg width="32" height="32" viewBox="0 0 24 24" fill="none"><path d="M12 2L2 7l10 5 10-5-10-5z" stroke="white" stroke-width="1.8" stroke-linejoin="round"/><path d="M2 17l10 5 10-5M2 12l10 5 10-5" stroke="white" stroke-width="1.8" stroke-linejoin="round"/></svg></div>
+      <span class="bname">SynqIO</span>
+    </div>
+    <h1>TES FICHES<br><span class="amz">AMAZON</span></h1>
+    <div class="punch">GÉNÉRÉES PAR IA <span class="sp">✨</span></div>
+  </div>
+
+  <div class="chip"><span class="dotg"></span>TITRES · BULLETS · A+ · VISUELS</div>
+
+  <div class="urlpill">
+    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+    <span class="u">1 URL</span>
+  </div>
+  <div class="flow">
+    <svg width="110" height="80" viewBox="0 0 110 80" fill="none">
+      <path d="M10 10 C 40 30, 60 46, 76 64" stroke="#ffb020" stroke-width="12" stroke-linecap="round" fill="none"/>
+      <path d="M46 62 L80 70 L74 36" stroke="#ffb020" stroke-width="12" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+    </svg>
+  </div>
+
+  <div class="cardw">
+    <div class="row">
+      <div class="ph">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="1.8"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.6"/><polyline points="21 15 16 10 5 21"/></svg>
+        <span class="ia">IA</span>
+      </div>
+      <div class="lns"><div class="ln a"></div><div class="ln c"></div><div class="ln b"></div></div>
+    </div>
+    <div class="badges"><span class="b b1">Titre ≤ 75 ✓</span><span class="b b2">A+ inclus</span></div>
+    <div class="ok">✓ Prête à publier</div>
+  </div>
+</div>
+</body></html>
