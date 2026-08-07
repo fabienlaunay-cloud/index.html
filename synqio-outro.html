@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="fr"><head><meta charset="UTF-8">
+<style>
+  /* 12s end-screen outro. Left = reserved zone for YouTube's clickable "next
+     video" element; right circle = reserved zone for the Subscribe element. */
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { width:1920px; height:1080px; overflow:hidden; font-family:'Segoe UI', system-ui, -apple-system, sans-serif; }
+  .stage { width:1920px; height:1080px; position:relative; overflow:hidden;
+    background:
+      radial-gradient(800px 600px at 78% 20%, rgba(124,58,237,.35), transparent 60%),
+      radial-gradient(640px 520px at 15% 85%, rgba(255,153,0,.12), transparent 60%),
+      linear-gradient(125deg, #12102f 0%, #251c52 52%, #171236 100%); }
+  .grid { position:absolute; inset:0; opacity:.5;
+    background-image:linear-gradient(rgba(255,255,255,.035) 1px, transparent 1px),
+                     linear-gradient(90deg, rgba(255,255,255,.035) 1px, transparent 1px);
+    background-size:110px 110px; animation:gm 12s linear both; }
+  @keyframes gm { 0%{background-position:0 0} 100%{background-position:160px 80px} }
+
+  .top { position:absolute; top:74px; left:0; right:0; text-align:center; z-index:10;
+    opacity:0; animation:top 12s ease-out both; }
+  @keyframes top { 0%{opacity:0;transform:translateY(26px)} 6%{opacity:1;transform:translateY(0)} 100%{opacity:1} }
+  .top h1 { color:#fff; font-size:64px; font-weight:900; letter-spacing:-2px; }
+  .top p { color:rgba(255,255,255,.55); font-size:28px; font-weight:600; margin-top:8px; }
+
+  /* Reserved zone: next-video element (16:9) */
+  .vslot { position:absolute; left:150px; top:330px; width:640px; height:360px; z-index:9;
+    border-radius:18px; border:3px dashed rgba(167,139,250,.55); background:rgba(255,255,255,.04);
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px;
+    opacity:0; transform:scale(.88); animation:vs 12s cubic-bezier(.2,.9,.2,1) both; }
+  @keyframes vs { 0%{opacity:0;transform:scale(.88)} 8%{opacity:0;transform:scale(.88)} 13%{opacity:1;transform:scale(1)} 100%{opacity:1;transform:scale(1)} }
+  .vslot svg { opacity:.8; }
+  .vslot span { color:rgba(233,228,255,.75); font-size:30px; font-weight:800; letter-spacing:.5px; }
+
+  /* Reserved zone: subscribe element (circle) */
+  .sslot { position:absolute; right:270px; top:360px; width:300px; height:300px; z-index:9;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:12px;
+    opacity:0; animation:ss 12s cubic-bezier(.2,.9,.2,1) both; }
+  @keyframes ss { 0%{opacity:0;transform:scale(.8)} 12%{opacity:0;transform:scale(.8)} 17%{opacity:1;transform:scale(1)} 100%{opacity:1} }
+  .ring { position:absolute; inset:0; border-radius:50%; border:3px dashed rgba(167,139,250,.55);
+    animation:pulse 12s ease-in-out both; }
+  @keyframes pulse { 0%,17%{transform:scale(1)} 22%{transform:scale(1.06)} 26%{transform:scale(1)}
+    60%{transform:scale(1)} 64%{transform:scale(1.06)} 68%{transform:scale(1)} 100%{transform:scale(1)} }
+  .sslot .in { width:210px; height:210px; border-radius:50%; background:rgba(255,255,255,.05);
+    display:flex; align-items:center; justify-content:center; }
+  .sslot span { color:rgba(233,228,255,.75); font-size:28px; font-weight:800; }
+
+  /* Bottom: brand + site */
+  .bottom { position:absolute; bottom:86px; left:0; right:0; text-align:center; z-index:10;
+    opacity:0; animation:bo 12s ease-out both; }
+  @keyframes bo { 0%{opacity:0;transform:translateY(24px)} 18%{opacity:0;transform:translateY(24px)} 23%{opacity:1;transform:translateY(0)} 100%{opacity:1} }
+  .brandrow { display:flex; align-items:center; justify-content:center; gap:18px; margin-bottom:14px; }
+  .mark { width:64px; height:64px; border-radius:17px; background:linear-gradient(135deg,#8b5cf6,#4f46e5);
+    display:flex; align-items:center; justify-content:center; box-shadow:0 10px 30px rgba(124,58,237,.55); }
+  .bname { color:#fff; font-size:46px; font-weight:800; letter-spacing:-1px; }
+  .site { display:inline-block; color:#fff; font-size:58px; font-weight:900; letter-spacing:1px;
+    background:linear-gradient(100deg,#ffb020,#ff9900); color:#1a1033; border-radius:18px;
+    padding:12px 34px 16px; box-shadow:0 16px 44px rgba(255,153,0,.4), inset 0 -4px 0 rgba(0,0,0,.15);
+    transform:rotate(-1deg); }
+  .tag { color:rgba(255,255,255,.6); font-size:26px; font-weight:600; margin-top:16px; }
+</style></head>
+<body>
+<div class="stage">
+  <div class="grid"></div>
+
+  <div class="top">
+    <h1>Merci d'avoir regardé !</h1>
+    <p>La suite est juste là 👇</p>
+  </div>
+
+  <div class="vslot">
+    <svg width="70" height="70" viewBox="0 0 24 24" fill="none" stroke="#c4b5fd" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="3"/><polygon points="10 9 15 12 10 15" fill="#c4b5fd" stroke="none"/></svg>
+    <span>Prochaine vidéo</span>
+  </div>
+
+  <div class="sslot">
+    <div class="ring"></div>
+    <div class="in">
+      <svg width="84" height="84" viewBox="0 0 24 24" fill="none" stroke="#c4b5fd" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+    </div>
+    <span>S'abonner</span>
+  </div>
+
+  <div class="bottom">
+    <div class="brandrow">
+      <div class="mark"><svg width="38" height="38" viewBox="0 0 24 24" fill="none"><path d="M12 2L2 7l10 5 10-5-10-5z" stroke="white" stroke-width="1.8" stroke-linejoin="round"/><path d="M2 17l10 5 10-5M2 12l10 5 10-5" stroke="white" stroke-width="1.8" stroke-linejoin="round"/></svg></div>
+      <span class="bname">SynqIO</span>
+    </div>
+    <div class="site">synqio.io</div>
+    <div class="tag">Le hub produit global — optimisé Amazon, diffusé partout</div>
+  </div>
+</div>
+</body></html>
