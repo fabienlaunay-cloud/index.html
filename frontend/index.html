@@ -3630,11 +3630,15 @@
   <div class="bg-white rounded-3xl w-full max-w-4xl max-h-[88vh] flex flex-col shadow-2xl">
     <div class="flex items-center justify-between px-7 pt-6 pb-4 border-b border-gray-100">
       <div>
-        <h3 class="text-lg font-bold text-gray-900">🖼️ Médiathèque</h3>
-        <p class="text-xs text-gray-400 mt-0.5">Toutes vos images par produit — générées par IA et vos propres photos</p>
+        <h3 class="text-lg font-bold text-gray-900">🗃️ Bibliothèque</h3>
+        <p class="text-xs text-gray-400 mt-0.5">Tout votre contenu par produit — images, photos, textes — réutilisable partout</p>
       </div>
       <div class="flex items-center gap-2">
-        <button onclick="document.getElementById('mediaUploadInput').click()" class="text-xs font-bold text-white gradient-bg rounded-lg px-3 py-2">⬆️ Ajouter une photo</button>
+        <div class="flex rounded-lg border border-gray-200 overflow-hidden text-xs font-semibold">
+          <button id="mediaTabImg" onclick="openMediaPanel('images')" class="px-3 py-2 gradient-bg text-white">🖼️ Images</button>
+          <button id="mediaTabTxt" onclick="openMediaPanel('textes')" class="px-3 py-2 bg-white text-gray-500 hover:bg-gray-50">📝 Textes</button>
+        </div>
+        <button id="mediaUploadBtn" onclick="document.getElementById('mediaUploadInput').click()" class="text-xs font-bold text-white gradient-bg rounded-lg px-3 py-2">⬆️ Ajouter une photo</button>
         <input type="file" id="mediaUploadInput" accept="image/jpeg,image/png,image/webp" class="hidden" onchange="mediaUpload(this)">
         <button onclick="document.getElementById('mediaPanelModal').classList.add('hidden')" class="text-gray-300 hover:text-gray-600 text-2xl leading-none ml-1">✕</button>
       </div>
@@ -13067,17 +13071,83 @@ function _refImageFor(rawProduct) {
 const _MEDIA_TYPE_LABELS = { hero:'Principale', lifestyle_1:'Lifestyle 1', lifestyle_2:'Lifestyle 2',
   infographic:'Infographie', detail:'Détail', dimensions:'Dimensions', packaging:'Packaging' };
 
-async function openMediaPanel() {
+async function openMediaPanel(tab) {
+  tab = tab || 'images';
   document.getElementById('mediaPanelModal').classList.remove('hidden');
+  const on = 'px-3 py-2 gradient-bg text-white', off = 'px-3 py-2 bg-white text-gray-500 hover:bg-gray-50';
+  document.getElementById('mediaTabImg').className = tab === 'images' ? on : off;
+  document.getElementById('mediaTabTxt').className = tab === 'textes' ? on : off;
+  document.getElementById('mediaUploadBtn').classList.toggle('hidden', tab !== 'images');
   const body = document.getElementById('mediaBody');
   body.innerHTML = '<p class="text-sm text-gray-400 text-center py-10">Chargement…</p>';
   try {
-    const r = await authFetch('/api/media/library');
-    if (!r.ok) throw new Error();
-    _renderMedia(await r.json());
+    if (tab === 'textes') {
+      const r = await authFetch('/api/content/library');
+      if (!r.ok) throw new Error();
+      _renderContentLib(await r.json());
+    } else {
+      const r = await authFetch('/api/media/library');
+      if (!r.ok) throw new Error();
+      _renderMedia(await r.json());
+    }
   } catch(e) {
     body.innerHTML = '<p class="text-sm text-red-500 text-center py-10">Erreur de chargement.</p>';
   }
+}
+
+function _copyTxt(btn, text) {
+  navigator.clipboard.writeText(text).then(() => {
+    const o = btn.textContent; btn.textContent = '✓'; setTimeout(() => { btn.textContent = o; }, 1200);
+  });
+}
+
+let _contentLibCache = [];
+function _renderContentLib(data) {
+  _contentLibCache = data.items || [];
+  const body = document.getElementById('mediaBody');
+  if (!_contentLibCache.length) {
+    body.innerHTML = `<div class="text-center py-12"><p class="text-4xl mb-3">📝</p>
+      <p class="text-sm text-gray-500">Aucun contenu généré pour l'instant.</p>
+      <p class="text-xs text-gray-400 mt-1.5">Générez des fiches : titres, bullets et descriptions apparaîtront ici, prêts à réutiliser.</p></div>`;
+    return;
+  }
+  body.innerHTML = `
+    <input id="contentLibSearch" oninput="_contentLibFilter(this.value)" placeholder="🔍 Filtrer par SKU, titre, marque…"
+      class="w-full text-sm border border-gray-200 rounded-xl px-4 py-2.5 mb-4 focus:outline-none focus:border-purple-400">
+    <p class="text-[11px] text-gray-400 mb-3">${_contentLibCache.length} fiche(s) — cliquez 📋 pour copier un élément, ou « Tout copier » pour la fiche complète.</p>
+    <div id="contentLibList"></div>`;
+  _contentLibFilter('');
+}
+
+function _contentLibFilter(q) {
+  q = (q || '').toLowerCase();
+  const list = document.getElementById('contentLibList');
+  const items = _contentLibCache.filter(it =>
+    !q || (it.sku + ' ' + it.title + ' ' + it.brand).toLowerCase().includes(q)).slice(0, 60);
+  const cp = t => `data-copy="${_esc(String(t).replace(/"/g, '&quot;'))}"`;
+  list.innerHTML = items.map((it, i) => {
+    const full = `${it.title}\n\n${(it.bullet_points || []).map(b => '• ' + b).join('\n')}\n\n${it.description}\n\nMots-clés : ${it.backend_keywords}`;
+    return `<div class="border border-gray-100 rounded-2xl p-4 mb-3">
+      <div class="flex items-center gap-2 mb-2">
+        <span class="text-[10px] font-mono font-bold text-gray-400">${_esc(it.sku)}${it.marketplace ? ' · ' + _esc(it.marketplace.replace('amazon_','').toUpperCase()) : ''}</span>
+        <button onclick='_copyTxt(this, ${JSON.stringify(full)})' class="ml-auto text-[10px] font-bold text-white gradient-bg rounded-lg px-2.5 py-1">Tout copier</button>
+      </div>
+      <div class="flex items-start gap-2 mb-1.5">
+        <p class="text-sm font-bold text-gray-800 flex-1">${_esc(it.title)}</p>
+        <button onclick='_copyTxt(this, ${JSON.stringify(it.title)})' class="text-xs text-gray-300 hover:text-purple-600">📋</button>
+      </div>
+      ${(it.bullet_points || []).map(b => `<div class="flex items-start gap-2 py-0.5">
+        <span class="text-xs text-gray-600 flex-1">• ${_esc(b)}</span>
+        <button onclick='_copyTxt(this, ${JSON.stringify(b)})' class="text-xs text-gray-300 hover:text-purple-600">📋</button>
+      </div>`).join('')}
+      ${it.description ? `<details class="mt-1.5"><summary class="text-[11px] text-gray-400 cursor-pointer hover:text-gray-600">Description <button onclick='event.preventDefault();_copyTxt(this, ${JSON.stringify(it.description)})' class="text-gray-300 hover:text-purple-600 ml-1">📋</button></summary>
+        <p class="text-xs text-gray-500 mt-1.5 whitespace-pre-wrap">${_esc(it.description)}</p></details>` : ''}
+      ${it.backend_keywords ? `<div class="flex items-start gap-2 mt-1.5">
+        <span class="text-[11px] text-purple-500 flex-1 font-mono">${_esc(it.backend_keywords)}</span>
+        <button onclick='_copyTxt(this, ${JSON.stringify(it.backend_keywords)})' class="text-xs text-gray-300 hover:text-purple-600">📋</button>
+      </div>` : ''}
+    </div>`;
+  }).join('') || '<p class="text-sm text-gray-400 text-center py-8">Aucune fiche ne correspond.</p>';
 }
 
 function _renderMedia(data) {

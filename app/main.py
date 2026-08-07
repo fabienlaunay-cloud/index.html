@@ -2194,6 +2194,24 @@ async def media_delete(filename: str, request: Request):
     return {"deleted": filename}
 
 
+@app.get("/api/content/library")
+async def content_library(request: Request):
+    """Text bank: the latest generated content per fiche (title, bullets,
+    description, keywords) — everything copyable/reusable."""
+    from app.routes.public_api import _latest_listings
+    items = []
+    for l in _latest_listings(request.state.user_email):
+        items.append({
+            "sku": l.get("sku") or "", "marketplace": l.get("marketplace") or "",
+            "title": l.get("title") or "", "brand": l.get("brand") or "",
+            "bullet_points": l.get("bullet_points") or [],
+            "description": l.get("description") or "",
+            "backend_keywords": l.get("backend_keywords") or "",
+            "price": l.get("price"),
+        })
+    return {"items": items, "count": len(items)}
+
+
 # ── Hub de diffusion — where every fiche lives ───────────────────────────────
 
 @app.get("/api/hub/overview")
