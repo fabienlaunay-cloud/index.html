@@ -106,6 +106,26 @@ def check_listing(listing: dict) -> List[dict]:
         issues.append(_issue("ean_missing", WARNING, "ean",
                              "EAN/GTIN manquant — recommandé dans la plupart des catégories"))
 
+    # ── Restricted phrases (banned = suppression risk, caution = review risk) ─
+    try:
+        from app.services.restricted_words import check_listing_restricted
+        hits = check_listing_restricted(listing)
+        if hits["banned"]:
+            det = "; ".join(f"« {h['phrase']} » ({h['field']})" for h in hits["banned"][:4])
+            issues.append(_issue("restricted_banned", CRITICAL, "contenu",
+                                 f"Terme(s) interdit(s) par Amazon — risque de suppression : {det}",
+                                 fixable=True))
+        # skip caution hits already reported by the title-superlative rule
+        cautions = [h for h in hits["caution"] if not (h["field"] == "titre"
+                    and any(s in h["phrase"] for s in _SUPERLATIVES))]
+        if cautions:
+            det = "; ".join(f"« {h['phrase']} » ({h['field']})" for h in cautions[:4])
+            more = f" +{len(cautions)-4} autres" if len(cautions) > 4 else ""
+            issues.append(_issue("restricted_caution", WARNING, "contenu",
+                                 f"Formulation à risque (revue Amazon) : {det}{more}", fixable=True))
+    except Exception:
+        pass
+
     return issues
 
 
