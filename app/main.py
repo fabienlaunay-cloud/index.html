@@ -1912,14 +1912,28 @@ async def fill_amazon_template_endpoint(request: Request):
 
 
 def _get_image_urls_for_skus(skus: list) -> dict:
-    """Look up which generated images exist in storage for each SKU and return their public URLs."""
+    """Look up which generated images exist in storage for each SKU and return their
+    public URLs. When a SKU has no generated 'main', its OWN uploaded photo
+    ({sku}.jpg/png/webp) fills the main slot — so '100% ma photo' flows into
+    exports, feeds and the public catalogue without any generation."""
     if not skus:
         return {}
     from app.services import storage as _storage
     from app.services.image_gen import AMAZON_IMAGE_TYPES
     base = os.getenv("PUBLIC_BASE_URL", "https://synqio.io").rstrip("/")
-    # Fetch all existing generated image keys in one call to avoid N×7 round trips
-    all_keys = set(_storage.list_keys("gen_"))
+    # Fetch all keys once to avoid N×7 round trips
+    every_key = _storage.list_keys()
+    all_keys = {k for k in every_key if k.startswith("gen_")}
+    own_by_sku = {}
+    for k in every_key:
+        if k.startswith("gen_"):
+            continue
+        stem, ext = os.path.splitext(k)
+        if ext.lower() in _IMAGE_EXTS:
+            own_by_sku.setdefault(stem, k)
+    def _url(filename):
+        cdn = _storage.public_url(filename)
+        return cdn if cdn else f"{base}/api/photos/{filename}"
     result: dict = {}
     for sku in skus:
         imgs: dict = {}
@@ -1927,8 +1941,9 @@ def _get_image_urls_for_skus(skus: list) -> dict:
             img_id = img_type["id"]
             filename = f"gen_{sku}_{img_id}.png"
             if filename in all_keys:
-                cdn = _storage.public_url(filename)
-                imgs[img_id] = cdn if cdn else f"{base}/api/photos/{filename}"
+                imgs[img_id] = _url(filename)
+        if "hero" not in imgs and sku in own_by_sku:
+            imgs["hero"] = _url(own_by_sku[sku])
         if imgs:
             result[sku] = imgs
     return result
@@ -2072,6 +2087,113 @@ async def export_channel(channel: str, listings: List[AmazonListing], request: R
     )
 
 
+# ── Médiathèque — every image (AI-generated + own uploads), per fiche ────────
+
+def _user_skus(email: str) -> set:
+    """All SKUs belonging to this account: generated listings + synced catalog."""
+    skus = set()
+    try:
+        from app.routes.public_api import _latest_listings
+        skus |= {l.get("sku") for l in _latest_listings(email) if l.get("sku")}
+    except Exception:
+        pass
+    try:
+        from app.db import get_catalog_summary, get_catalog
+        for mkt in (get_catalog_summary(email) or {}):
+            skus |= {i.get("sku") for i in get_catalog(email, mkt) if i.get("sku")}
+    except Exception:
+        pass
+    return skus
+
+
+@app.get("/api/media/library")
+async def media_library(request: Request):
+    """Media bank grouped by SKU: AI-generated images (by slot) + own uploads."""
+    from app.services import storage as _storage
+    from app.services.image_gen import AMAZON_IMAGE_TYPES
+    email = request.state.user_email
+    skus = _user_skus(email)
+    base = os.getenv("PUBLIC_BASE_URL", "https://synqio.io").rstrip("/")
+    def _url(fn):
+        cdn = _storage.public_url(fn)
+        return cdn if cdn else f"{base}/api/photos/{fn}"
+    type_ids = [t["id"] for t in AMAZON_IMAGE_TYPES]
+    items: dict = {}
+    for key in _storage.list_keys():
+        stem, ext = os.path.splitext(key)
+        if ext.lower() not in _IMAGE_EXTS:
+            continue
+        if key.startswith("gen_"):
+            # gen_{sku}_{type}.png — type is the last _-segment matching a known slot
+            body = stem[4:]
+            for tid in type_ids:
+                if body.endswith("_" + tid):
+                    sku = body[: -len(tid) - 1]
+                    if sku in skus:
+                        items.setdefault(sku, {"sku": sku, "generated": {}, "own": []})
+                        items[sku]["generated"][tid] = {"url": _url(key), "filename": key}
+                    break
+        else:
+            if stem in skus:
+                items.setdefault(stem, {"sku": stem, "generated": {}, "own": []})
+                items[stem]["own"].append({"url": _url(key), "filename": key})
+    out = sorted(items.values(), key=lambda i: i["sku"])
+    n_gen = sum(len(i["generated"]) for i in out)
+    n_own = sum(len(i["own"]) for i in out)
+    return {"items": out, "skus": len(out), "generated": n_gen, "own": n_own}
+
+
+@app.post("/api/media/upload")
+async def media_upload(request: Request, sku: str = ""):
+    """Upload one photo for a SKU (query param). Stored as {sku}.{ext} — the same
+    convention as the ZIP/Drive imports, so it feeds generation and exports."""
+    sku = (sku or "").strip()
+    if not sku:
+        raise HTTPException(400, "Paramètre sku requis")
+    if "/" in sku or "\\" in sku or sku.startswith("gen_"):
+        raise HTTPException(400, "SKU invalide")
+    content = await request.body()
+    if not content:
+        raise HTTPException(400, "Fichier vide")
+    if len(content) > 15 * 1024 * 1024:
+        raise HTTPException(413, "Image trop volumineuse (max 15 Mo)")
+    ctype = (request.headers.get("Content-Type") or "").lower()
+    ext = {"image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp"}.get(ctype)
+    if not ext:  # sniff magic bytes as fallback
+        if content[:3] == b"\xff\xd8\xff":
+            ext = ".jpg"
+        elif content[:8] == b"\x89PNG\r\n\x1a\n":
+            ext = ".png"
+        elif content[:4] == b"RIFF" and content[8:12] == b"WEBP":
+            ext = ".webp"
+        else:
+            raise HTTPException(415, "Format non supporté (JPEG, PNG ou WebP)")
+    filename = f"{sku}{ext}"
+    _save_photo(filename, content, {"jpg": "image/jpeg", "png": "image/png",
+                                    "webp": "image/webp"}[ext[1:]])
+    return {"sku": sku, "filename": filename, "url": f"/api/photos/{filename}"}
+
+
+@app.delete("/api/media/{filename}")
+async def media_delete(filename: str, request: Request):
+    """Delete one image — only if its SKU belongs to the requesting account."""
+    from app.services import storage as _storage
+    from app.services.image_gen import AMAZON_IMAGE_TYPES
+    stem, ext = os.path.splitext(filename)
+    if ext.lower() not in _IMAGE_EXTS:
+        raise HTTPException(400, "Fichier non-image")
+    sku = stem
+    if filename.startswith("gen_"):
+        body = stem[4:]
+        sku = next((body[: -len(t["id"]) - 1] for t in AMAZON_IMAGE_TYPES
+                    if body.endswith("_" + t["id"])), body)
+    if sku not in _user_skus(request.state.user_email):
+        raise HTTPException(403, "Cette image n'appartient pas à votre compte")
+    if not _storage.delete(filename):
+        raise HTTPException(404, "Image introuvable")
+    return {"deleted": filename}
+
+
 # ── Hub de diffusion — where every fiche lives ───────────────────────────────
 
 @app.get("/api/hub/overview")
@@ -2209,7 +2331,10 @@ async def public_catalogue(token: str):
     if not _rate_limit(f"cat:{token}", limit=300, window=3600):
         raise HTTPException(429, "Trop de requêtes")
     listings = _latest_listings(row["user_email"])
-    image_urls = _get_image_urls_for_skus([l.get("sku") for l in listings if l.get("sku")])
+    from app.services.image_gen import AMAZON_IMAGE_TYPES
+    raw_urls = _get_image_urls_for_skus([l.get("sku") for l in listings if l.get("sku")])
+    order = [t["id"] for t in AMAZON_IMAGE_TYPES]
+    image_urls = {sku: [d[t] for t in order if t in d] for sku, d in raw_urls.items()}
     return Response(content=_render_public_catalog(row, listings, image_urls),
                     media_type="text/html; charset=utf-8")
 

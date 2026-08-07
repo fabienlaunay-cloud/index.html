@@ -99,6 +99,26 @@ def exists(key: str) -> bool:
     return os.path.exists(os.path.join(LOCAL_DIR, key))
 
 
+def delete(key: str) -> bool:
+    """Delete a file from R2 or local disk. Returns True if it existed."""
+    try:
+        key = _safe_key(key)
+    except ValueError:
+        return False
+    if USE_R2:
+        try:
+            _get_s3().delete_object(Bucket=_R2_BUCKET, Key=key)
+            return True
+        except Exception:
+            return False
+    path = os.path.join(LOCAL_DIR, key)
+    try:
+        os.remove(path)
+        return True
+    except FileNotFoundError:
+        return False
+
+
 def list_keys(prefix: str = "") -> list[str]:
     """List stored file keys (names)."""
     if USE_R2:

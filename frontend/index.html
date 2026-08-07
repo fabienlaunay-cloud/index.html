@@ -1243,6 +1243,10 @@
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>
             Hub de diffusion
           </button>
+          <button onclick="openMediaPanel();toggleUserMenu()" class="w-full text-left px-4 py-2 text-sm transition flex items-center gap-2" style="color:rgba(255,255,255,0.65)">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+            Médiathèque
+          </button>
           <button onclick="openHealthPanel();toggleUserMenu()" class="w-full text-left px-4 py-2 text-sm transition flex items-center gap-2" style="color:rgba(255,255,255,0.65)">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/></svg>
             Santé du catalogue
@@ -2581,6 +2585,12 @@
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
                 Générer les visuels IA
               </button>
+              <select id="imgModeSelect" onchange="localStorage.setItem('synqio_img_mode', this.value)" title="Source des visuels : hybride (votre photo + décors IA), 100 % IA, ou 100 % vos photos (aucune génération)"
+                class="h-9 text-xs font-semibold text-gray-600 border border-gray-200 rounded-lg px-2 bg-white focus:outline-none focus:border-purple-400">
+                <option value="auto">🪄 Hybride — ma photo + IA</option>
+                <option value="ai">✨ 100 % IA</option>
+                <option value="own">📷 100 % mes photos</option>
+              </select>
             </div>
             <!-- Export dropdowns -->
             <div class="flex gap-2 items-center flex-wrap">
@@ -3615,6 +3625,26 @@
 </div>
 
 <!-- ═══════════════════ SANTÉ DU CATALOGUE (Gardien de conformité) ═══════════════════ -->
+<!-- ── Médiathèque ──────────────────────────────────────────────────────── -->
+<div id="mediaPanelModal" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[400] p-4">
+  <div class="bg-white rounded-3xl w-full max-w-4xl max-h-[88vh] flex flex-col shadow-2xl">
+    <div class="flex items-center justify-between px-7 pt-6 pb-4 border-b border-gray-100">
+      <div>
+        <h3 class="text-lg font-bold text-gray-900">🖼️ Médiathèque</h3>
+        <p class="text-xs text-gray-400 mt-0.5">Toutes vos images par produit — générées par IA et vos propres photos</p>
+      </div>
+      <div class="flex items-center gap-2">
+        <button onclick="document.getElementById('mediaUploadInput').click()" class="text-xs font-bold text-white gradient-bg rounded-lg px-3 py-2">⬆️ Ajouter une photo</button>
+        <input type="file" id="mediaUploadInput" accept="image/jpeg,image/png,image/webp" class="hidden" onchange="mediaUpload(this)">
+        <button onclick="document.getElementById('mediaPanelModal').classList.add('hidden')" class="text-gray-300 hover:text-gray-600 text-2xl leading-none ml-1">✕</button>
+      </div>
+    </div>
+    <div id="mediaBody" class="flex-1 overflow-y-auto px-7 py-5">
+      <p class="text-sm text-gray-400 text-center py-10">Chargement…</p>
+    </div>
+  </div>
+</div>
+
 <!-- ── Hub de diffusion ─────────────────────────────────────────────────── -->
 <div id="hubPanelModal" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[400] p-4">
   <div class="bg-white rounded-3xl w-full max-w-3xl max-h-[88vh] flex flex-col shadow-2xl">
@@ -4427,6 +4457,7 @@ function showApp(email) {
     _resumeAmazonAuthorize();  // resume Appstore-initiated OAuth if one is pending
     if (currentUser?.agency_enabled) _wsLoad();  // agency workspaces selector
     _initCobrowse(email);      // live-help headset — every login path, not just reloads
+    { const ims = document.getElementById('imgModeSelect'); if (ims) ims.value = _imgMode(); }
     checkHealth();
     loadUsage();
     _apiLoadConnectors();  // populate "Publier vers…" buttons in the export menu
@@ -7477,7 +7508,11 @@ async function generateImages(idx) {
   if (container) container.innerHTML = `<div class="flex flex-col items-center py-8 gap-3"><div class="spinner"></div><p class="text-gray-500 text-sm">Démarrage...</p><p class="text-gray-400 text-xs">7 visuels Amazon en cours de création</p></div>`;
   try {
     const rawProduct = parsedProducts.find(p => p.sku === listing.sku);
-    const referenceImageUrl = rawProduct?.images?.[0] || '';
+    if (_imgMode() === 'own') {
+      if (container) container.innerHTML = '<p class="text-blue-600 text-sm text-center py-6">📷 Mode « 100 % mes photos » : aucune génération — votre photo est utilisée telle quelle dans les exports et le catalogue.</p>';
+      return;
+    }
+    const referenceImageUrl = _refImageFor(rawProduct);
     const r = await authFetch('/api/generate-images', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ sku: listing.sku, product_name: listing.title, brand: listing.brand || '', category: listing.category || '', features: listing.bullet_points || [], color: rawProduct?.color || '', material: rawProduct?.material || '', reference_image_url: referenceImageUrl, batch_id: currentBatchId, marketplace: listing.marketplace || '' }),
@@ -7503,6 +7538,10 @@ async function generateImages(idx) {
 // ── Bulk image generation ─────────────────────────────────────────────────────
 async function generateAllImages() {
   const btn = document.getElementById('bulkGenImgBtn');
+  if (_imgMode() === 'own') {
+    showToast('📷', 'Mode « 100 % mes photos » : aucune génération — vos photos sont utilisées telles quelles dans les exports et le catalogue.');
+    return;
+  }
   const topLevel = generatedListings.filter(l => !l.parent_sku && !l.is_variation);
   const toGenerate = topLevel.filter(l => !imagesCache[l.sku] && !_activeImgJobs[l.sku]);
   if (!topLevel.length) { showToast('⚠️', 'Aucune fiche à traiter', true); return; }
@@ -7514,7 +7553,7 @@ async function generateAllImages() {
     const idx = generatedListings.indexOf(listing);
     try {
       const rawProduct = parsedProducts.find(p => p.sku === listing.sku);
-      const referenceImageUrl = rawProduct?.images?.[0] || '';
+      const referenceImageUrl = _refImageFor(rawProduct);
       const r = await authFetch('/api/generate-images', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ sku: listing.sku, product_name: listing.title, brand: listing.brand || '', category: listing.category || '', features: listing.bullet_points || [], color: rawProduct?.color || '', material: rawProduct?.material || '', reference_image_url: referenceImageUrl, batch_id: currentBatchId, marketplace: listing.marketplace || '' }),
@@ -10211,7 +10250,11 @@ async function generateImagesFromDetail() {
   imgDiv.innerHTML = `<div class="flex flex-col items-center py-8 gap-3"><div class="spinner"></div><p class="text-gray-500 text-sm">Génération des visuels en cours...</p></div>`;
   try {
     const rawProduct = parsedProducts.find(p => p.sku === listing.sku);
-    const referenceImageUrl = rawProduct?.images?.[0] || '';
+    if (_imgMode() === 'own') {
+      imgDiv.innerHTML = '<p class="text-blue-600 text-sm text-center py-6">📷 Mode « 100 % mes photos » : aucune génération — votre photo est utilisée telle quelle.</p>';
+      return;
+    }
+    const referenceImageUrl = _refImageFor(rawProduct);
     const r = await authFetch('/api/generate-images', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ sku: listing.sku, product_name: listing.title, brand: listing.brand || '', category: listing.category || '', features: listing.bullet_points || [], color: rawProduct?.color || '', material: rawProduct?.material || '', reference_image_url: referenceImageUrl, batch_id: currentBatchId, marketplace: listing.marketplace || '' }),
@@ -13009,6 +13052,103 @@ const _SEV_STYLE = {
   critique:      { dot:'#dc2626', tag:'bg-red-50 text-red-600' },
   avertissement: { dot:'#d97706', tag:'bg-amber-50 text-amber-600' },
 };
+
+// ── Mode de génération des visuels ───────────────────────────────────────────
+// 'auto' (hybride : votre photo comme base + décors IA quand une photo existe),
+// 'ai' (100 % IA, la photo est ignorée), 'own' (aucune génération : vos photos
+// alimentent directement exports, flux et catalogue public).
+function _imgMode() { return localStorage.getItem('synqio_img_mode') || 'auto'; }
+function _refImageFor(rawProduct) {
+  if (_imgMode() === 'ai') return '';
+  return rawProduct?.images?.[0] || '';
+}
+
+// ── Médiathèque ──────────────────────────────────────────────────────────────
+const _MEDIA_TYPE_LABELS = { hero:'Principale', lifestyle_1:'Lifestyle 1', lifestyle_2:'Lifestyle 2',
+  infographic:'Infographie', detail:'Détail', dimensions:'Dimensions', packaging:'Packaging' };
+
+async function openMediaPanel() {
+  document.getElementById('mediaPanelModal').classList.remove('hidden');
+  const body = document.getElementById('mediaBody');
+  body.innerHTML = '<p class="text-sm text-gray-400 text-center py-10">Chargement…</p>';
+  try {
+    const r = await authFetch('/api/media/library');
+    if (!r.ok) throw new Error();
+    _renderMedia(await r.json());
+  } catch(e) {
+    body.innerHTML = '<p class="text-sm text-red-500 text-center py-10">Erreur de chargement.</p>';
+  }
+}
+
+function _renderMedia(data) {
+  const body = document.getElementById('mediaBody');
+  const items = data.items || [];
+  if (!items.length) {
+    body.innerHTML = `<div class="text-center py-12">
+      <p class="text-4xl mb-3">🖼️</p>
+      <p class="text-sm text-gray-500">Aucune image pour l'instant.</p>
+      <p class="text-xs text-gray-400 mt-1.5">Générez des visuels IA depuis vos fiches, ou ajoutez vos propres photos<br>(nommées avec le SKU pour un rattachement automatique).</p>
+    </div>`;
+    return;
+  }
+  const thumb = (img, label, isOwn) => `
+    <div class="relative group">
+      <img src="${_esc(img.url)}" loading="lazy" class="w-24 h-24 object-cover rounded-xl border ${isOwn ? 'border-blue-200' : 'border-purple-100'}">
+      <span class="absolute bottom-1 left-1 text-[8px] font-bold px-1.5 py-0.5 rounded ${isOwn ? 'bg-blue-500' : 'bg-purple-600'} text-white">${_esc(label)}</span>
+      <div class="absolute top-1 right-1 hidden group-hover:flex gap-1">
+        <a href="${_esc(img.url)}" download target="_blank" class="w-6 h-6 bg-white/90 rounded-md flex items-center justify-center text-[11px] shadow">⬇</a>
+        <button onclick="mediaDelete('${_esc(img.filename)}')" class="w-6 h-6 bg-white/90 rounded-md flex items-center justify-center text-[11px] text-red-500 shadow">✕</button>
+      </div>
+    </div>`;
+  body.innerHTML = `
+    <p class="text-[11px] text-gray-400 mb-4">${data.skus} produit(s) · <span class="text-purple-600 font-semibold">${data.generated} image(s) IA</span> · <span class="text-blue-600 font-semibold">${data.own} photo(s) à vous</span> — survolez une image pour la télécharger ou la supprimer.</p>
+    ${items.map(it => `
+      <div class="border border-gray-100 rounded-2xl p-4 mb-3">
+        <div class="flex items-center gap-2 mb-2.5">
+          <span class="text-xs font-mono font-bold text-gray-700">${_esc(it.sku)}</span>
+          <button onclick="mediaUploadFor('${_esc(it.sku)}')" class="ml-auto text-[10px] font-semibold text-blue-600 hover:text-blue-800">+ ma photo</button>
+        </div>
+        <div class="flex gap-2 flex-wrap">
+          ${Object.entries(it.generated).map(([t, img]) => thumb(img, _MEDIA_TYPE_LABELS[t] || t, false)).join('')}
+          ${it.own.map(img => thumb(img, 'Ma photo', true)).join('')}
+        </div>
+      </div>`).join('')}`;
+}
+
+let _mediaUploadSku = null;
+function mediaUploadFor(sku) { _mediaUploadSku = sku; document.getElementById('mediaUploadInput').click(); }
+
+async function mediaUpload(input) {
+  const file = input.files && input.files[0];
+  input.value = '';
+  if (!file) { _mediaUploadSku = null; return; }
+  let sku = _mediaUploadSku;
+  _mediaUploadSku = null;
+  if (!sku) {
+    const def = file.name.replace(/\.[^.]+$/, '');
+    sku = window.prompt('Pour quel SKU est cette photo ?', def);
+    if (!sku) return;
+  }
+  try {
+    const r = await authFetch('/api/media/upload?sku=' + encodeURIComponent(sku.trim()), {
+      method: 'POST', headers: { 'Content-Type': file.type || 'application/octet-stream' }, body: file,
+    });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.detail || 'Erreur');
+    showToast('✅', `Photo ajoutée pour ${sku} — utilisée automatiquement dans les exports`);
+    openMediaPanel();
+  } catch(e) { showToast('❌', e.message || 'Upload impossible', true); }
+}
+
+async function mediaDelete(filename) {
+  if (!confirm('Supprimer cette image ?')) return;
+  try {
+    const r = await authFetch('/api/media/' + encodeURIComponent(filename), { method: 'DELETE' });
+    if (!r.ok) { const d = await r.json().catch(() => ({})); throw new Error(d.detail || 'Erreur'); }
+    showToast('✅', 'Image supprimée');
+    openMediaPanel();
+  } catch(e) { showToast('❌', e.message || 'Suppression impossible', true); }
+}
 
 // ── Hub de diffusion ─────────────────────────────────────────────────────────
 const _HUB_LABELS = {
