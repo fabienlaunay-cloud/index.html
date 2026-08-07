@@ -2016,6 +2016,131 @@ def backfill_catalog_asins(user_email: str, marketplace: str, sku_to_asin: dict)
     return n
 
 
+# ── Push journal — where every fiche was sent (hub dashboard) ────────────────
+
+def _ensure_pushes(conn):
+    if os.getenv("DATABASE_URL"):
+        conn.execute("""CREATE TABLE IF NOT EXISTS pushes (
+            id SERIAL PRIMARY KEY, user_email TEXT NOT NULL, sku TEXT NOT NULL,
+            channel TEXT NOT NULL, marketplace TEXT DEFAULT '', status TEXT DEFAULT 'ok',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)""")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_pushes_user ON pushes (user_email, channel)")
+    else:
+        conn.execute("""CREATE TABLE IF NOT EXISTS pushes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT, user_email TEXT NOT NULL, sku TEXT NOT NULL,
+            channel TEXT NOT NULL, marketplace TEXT DEFAULT '', status TEXT DEFAULT 'ok',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)""")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_pushes_user ON pushes (user_email, channel)")
+
+
+def log_pushes(user_email: str, channel: str, skus: list, status: str = "ok",
+               marketplace: str = "") -> int:
+    """Record that these SKUs were sent to a channel (publish/export/connector)."""
+    skus = [s for s in (skus or []) if s]
+    if not skus:
+        return 0
+    conn = get_db()
+    _ensure_pushes(conn)
+    for sku in skus:
+        conn.execute(
+            "INSERT INTO pushes (user_email, sku, channel, marketplace, status) VALUES (?, ?, ?, ?, ?)",
+            (user_email, sku, channel, marketplace, status))
+    conn.commit()
+    conn.close()
+    return len(skus)
+
+
+def get_push_overview(user_email: str) -> list:
+    """Per-channel diffusion summary: distinct fiches, total sends, last send."""
+    conn = get_db()
+    _ensure_pushes(conn)
+    rows = conn.execute(
+        "SELECT channel, COUNT(DISTINCT sku) AS skus, COUNT(*) AS pushes, "
+        "MAX(created_at) AS last_at FROM pushes WHERE user_email = ? "
+        "GROUP BY channel ORDER BY pushes DESC", (user_email,)).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def get_pushes_detail(user_email: str, channel: str, limit: int = 100) -> list:
+    """Latest send per SKU for one channel (what exactly lives where)."""
+    conn = get_db()
+    _ensure_pushes(conn)
+    rows = conn.execute(
+        "SELECT sku, marketplace, status, MAX(created_at) AS last_at FROM pushes "
+        "WHERE user_email = ? AND channel = ? GROUP BY sku, marketplace, status "
+        "ORDER BY last_at DESC LIMIT ?", (user_email, channel, limit)).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+# ── Public catalog links (Calaméo-style shareable catalogue) ─────────────────
+
+def _ensure_catalog_links(conn):
+    sql = """CREATE TABLE IF NOT EXISTS catalog_links (
+        user_email TEXT PRIMARY KEY, token TEXT UNIQUE NOT NULL,
+        title TEXT DEFAULT '', subtitle TEXT DEFAULT '',
+        view_count INTEGER DEFAULT 0, last_viewed_at TIMESTAMP,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)"""
+    conn.execute(sql)
+
+
+def get_or_create_catalog_link(user_email: str) -> dict:
+    import secrets
+    conn = get_db()
+    _ensure_catalog_links(conn)
+    row = conn.execute("SELECT * FROM catalog_links WHERE user_email = ?", (user_email,)).fetchone()
+    if row:
+        conn.close()
+        return dict(row)
+    token = "cat_" + secrets.token_urlsafe(18)
+    conn.execute("INSERT INTO catalog_links (user_email, token) VALUES (?, ?)", (user_email, token))
+    conn.commit()
+    row = conn.execute("SELECT * FROM catalog_links WHERE user_email = ?", (user_email,)).fetchone()
+    conn.close()
+    return dict(row)
+
+
+def regenerate_catalog_link(user_email: str) -> dict:
+    """New token → the old public URL stops working immediately."""
+    import secrets
+    conn = get_db()
+    _ensure_catalog_links(conn)
+    token = "cat_" + secrets.token_urlsafe(18)
+    conn.execute("UPDATE catalog_links SET token = ?, view_count = 0 WHERE user_email = ?",
+                 (token, user_email))
+    conn.commit()
+    row = conn.execute("SELECT * FROM catalog_links WHERE user_email = ?", (user_email,)).fetchone()
+    conn.close()
+    return dict(row) if row else get_or_create_catalog_link(user_email)
+
+
+def set_catalog_link_meta(user_email: str, title: str, subtitle: str) -> None:
+    conn = get_db()
+    _ensure_catalog_links(conn)
+    conn.execute("UPDATE catalog_links SET title = ?, subtitle = ? WHERE user_email = ?",
+                 (title[:120], subtitle[:200], user_email))
+    conn.commit()
+    conn.close()
+
+
+def resolve_catalog_token(token: str):
+    """token → (user_email, row) or None; bumps the view counter."""
+    if not token or not token.startswith("cat_"):
+        return None
+    conn = get_db()
+    _ensure_catalog_links(conn)
+    row = conn.execute("SELECT * FROM catalog_links WHERE token = ?", (token,)).fetchone()
+    if not row:
+        conn.close()
+        return None
+    conn.execute("UPDATE catalog_links SET view_count = view_count + 1, "
+                 "last_viewed_at = CURRENT_TIMESTAMP WHERE token = ?", (token,))
+    conn.commit()
+    conn.close()
+    return dict(row)
+
+
 def get_catalog_sales_map(user_email: str) -> dict:
     """Per-ASIN sales for a seller: {(marketplace, ASIN): {units, revenue}}.
     Used to tag each catalog listing with its own sales in the health scan."""

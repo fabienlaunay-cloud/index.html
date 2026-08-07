@@ -1239,6 +1239,10 @@
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 7H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
             Connecter Seller Central
           </button>
+          <button onclick="openHubPanel();toggleUserMenu()" class="w-full text-left px-4 py-2 text-sm transition flex items-center gap-2" style="color:rgba(255,255,255,0.65)">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>
+            Hub de diffusion
+          </button>
           <button onclick="openHealthPanel();toggleUserMenu()" class="w-full text-left px-4 py-2 text-sm transition flex items-center gap-2" style="color:rgba(255,255,255,0.65)">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/></svg>
             Santé du catalogue
@@ -3611,6 +3615,25 @@
 </div>
 
 <!-- ═══════════════════ SANTÉ DU CATALOGUE (Gardien de conformité) ═══════════════════ -->
+<!-- ── Hub de diffusion ─────────────────────────────────────────────────── -->
+<div id="hubPanelModal" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[400] p-4">
+  <div class="bg-white rounded-3xl w-full max-w-3xl max-h-[88vh] flex flex-col shadow-2xl">
+    <div class="flex items-center justify-between px-7 pt-6 pb-4 border-b border-gray-100">
+      <div>
+        <h3 class="text-lg font-bold text-gray-900">🗂️ Hub de diffusion</h3>
+        <p class="text-xs text-gray-400 mt-0.5">Où vivent vos fiches : publications, exports, connecteurs, flux et catalogue public</p>
+      </div>
+      <button onclick="document.getElementById('hubPanelModal').classList.add('hidden')" class="text-gray-300 hover:text-gray-600 text-2xl leading-none">✕</button>
+    </div>
+    <div id="hubBody" class="flex-1 overflow-y-auto px-7 py-5">
+      <p class="text-sm text-gray-400 text-center py-10">Chargement…</p>
+    </div>
+    <div class="px-7 py-4 border-t border-gray-100 flex justify-end">
+      <button onclick="openHubPanel()" class="text-xs font-semibold text-gray-500 bg-gray-100 hover:bg-gray-200 rounded-lg px-3 py-2 transition">↻ Actualiser</button>
+    </div>
+  </div>
+</div>
+
 <div id="healthPanelModal" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[400] p-4">
   <div class="bg-white w-full max-w-2xl rounded-3xl shadow-2xl max-h-[88vh] flex flex-col">
     <div class="flex items-center justify-between px-7 py-5 border-b border-gray-100">
@@ -12986,6 +13009,139 @@ const _SEV_STYLE = {
   critique:      { dot:'#dc2626', tag:'bg-red-50 text-red-600' },
   avertissement: { dot:'#d97706', tag:'bg-amber-50 text-amber-600' },
 };
+
+// ── Hub de diffusion ─────────────────────────────────────────────────────────
+const _HUB_LABELS = {
+  amazon: ['🟠', 'Amazon (publication API)'], shopify: ['🟢', 'Shopify'],
+  woocommerce: ['🟣', 'WooCommerce'], prestashop: ['🔵', 'PrestaShop'],
+  akeneo: ['🟪', 'Akeneo PIM'], pim: ['⬜', 'PIM / Excel'],
+  'google-merchant': ['🌈', 'Google Shopping'], meta: ['🔷', 'Meta (FB/Insta)'],
+  ebay: ['🟡', 'eBay'], cdiscount: ['🔴', 'Cdiscount'], tiktok: ['⬛', 'TikTok Shop'],
+};
+
+async function openHubPanel() {
+  document.getElementById('hubPanelModal').classList.remove('hidden');
+  const body = document.getElementById('hubBody');
+  body.innerHTML = '<p class="text-sm text-gray-400 text-center py-10">Chargement…</p>';
+  try {
+    const r = await authFetch('/api/hub/overview');
+    if (!r.ok) throw new Error();
+    _renderHub(await r.json());
+  } catch(e) {
+    body.innerHTML = '<p class="text-sm text-red-500 text-center py-10">Erreur de chargement — réessayez.</p>';
+  }
+}
+
+function _renderHub(data) {
+  const body = document.getElementById('hubBody');
+  const chans = data.channels || [];
+  const fmtDate = s => s ? new Date(s.replace(' ', 'T') + (s.includes('Z') ? '' : 'Z')).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '';
+
+  let tiles = '';
+  if (!chans.length) {
+    tiles = `<div class="text-center py-8 bg-gray-50 rounded-2xl">
+      <p class="text-3xl mb-2">📭</p>
+      <p class="text-sm text-gray-500">Aucune diffusion enregistrée pour l'instant.</p>
+      <p class="text-xs text-gray-400 mt-1">Publiez sur Amazon, exportez vers un canal ou poussez via un connecteur : tout apparaîtra ici.</p>
+    </div>`;
+  } else {
+    tiles = '<div class="grid grid-cols-2 sm:grid-cols-3 gap-3">' + chans.map(c => {
+      const [ic, lbl] = _HUB_LABELS[c.channel] || ['📤', c.channel];
+      return `<button onclick="_hubDetail('${_esc(c.channel)}')" class="text-left border border-gray-100 rounded-2xl p-4 hover:border-purple-200 hover:shadow-md transition">
+        <div class="text-2xl">${ic}</div>
+        <div class="text-2xl font-black text-gray-800 mt-1.5">${c.skus}</div>
+        <div class="text-[11px] text-gray-500 font-semibold">${_esc(lbl)}</div>
+        <div class="text-[10px] text-gray-300 mt-1">fiches · ${c.pushes} envoi(s) · ${fmtDate(c.last_at)}</div>
+      </button>`;
+    }).join('') + '</div>';
+  }
+
+  const feeds = data.feeds ? `
+    <div class="mt-4 flex items-center gap-3 border border-gray-100 rounded-2xl p-4">
+      <span class="text-2xl">🔄</span>
+      <div class="flex-1">
+        <p class="text-sm font-bold text-gray-700">Flux automatiques</p>
+        <p class="text-[11px] text-gray-400">${data.feeds.fetch_count} tirage(s)${data.feeds.last_channel ? ` · dernier : ${_esc(data.feeds.last_channel)}` : ''}${data.feeds.last_fetched_at ? ' · ' + fmtDate(data.feeds.last_fetched_at) : ''}</p>
+      </div>
+      <button onclick="document.getElementById('hubPanelModal').classList.add('hidden');openApiPanel()" class="text-[11px] font-semibold text-purple-600 hover:text-purple-800">Gérer →</button>
+    </div>` : '';
+
+  const cat = data.catalog ? `
+    <div class="mt-4 border border-purple-100 bg-purple-50/40 rounded-2xl p-4">
+      <div class="flex items-center gap-2 mb-2">
+        <span class="text-2xl">📖</span>
+        <p class="text-sm font-bold text-gray-800 flex-1">Mon catalogue en ligne</p>
+        <span class="text-[10px] font-bold text-purple-600 bg-purple-100 rounded-full px-2 py-0.5">${data.catalog.view_count} vue(s)</span>
+      </div>
+      <p class="text-[11px] text-gray-500 mb-2.5">Une page publique élégante avec tous vos produits — partagez-la à vos clients, revendeurs ou en salon. Toujours à jour.</p>
+      <div class="flex items-center gap-2 mb-2.5">
+        <code class="flex-1 text-[10px] text-gray-500 bg-white border border-gray-100 rounded-lg px-2.5 py-2 truncate">${_esc(data.catalog.url)}</code>
+        <button onclick="navigator.clipboard.writeText('${_esc(data.catalog.url)}').then(()=>showToast('','Lien copié !'))" class="text-[11px] font-bold text-white gradient-bg rounded-lg px-3 py-2">Copier</button>
+        <a href="${_esc(data.catalog.url)}" target="_blank" class="text-[11px] font-bold text-purple-600 border border-purple-200 rounded-lg px-3 py-2 hover:bg-purple-50">Ouvrir ↗</a>
+      </div>
+      <div class="flex items-center gap-2">
+        <input id="hubCatTitle" value="${_esc(data.catalog.title || '')}" placeholder="Titre du catalogue (auto si vide)" class="flex-1 text-[11px] border border-gray-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-purple-400">
+        <input id="hubCatSub" value="${_esc(data.catalog.subtitle || '')}" placeholder="Sous-titre (auto si vide)" class="flex-1 text-[11px] border border-gray-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-purple-400">
+        <button onclick="_hubSaveCatMeta(this)" class="text-[11px] font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg px-3 py-1.5">Enregistrer</button>
+      </div>
+      <button onclick="_hubRegenCatLink(this)" class="mt-2 text-[10px] text-gray-400 hover:text-red-500">↻ Régénérer le lien (révoque l'ancien)</button>
+    </div>` : '';
+
+  body.innerHTML = `
+    <p class="text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-2.5">Fiches diffusées par canal</p>
+    ${tiles}
+    <div id="hubDetailZone"></div>
+    ${feeds}
+    ${cat}`;
+}
+
+async function _hubDetail(channel) {
+  const zone = document.getElementById('hubDetailZone');
+  zone.innerHTML = '<p class="text-xs text-gray-400 py-3">Chargement…</p>';
+  try {
+    const r = await authFetch('/api/hub/pushes/' + encodeURIComponent(channel));
+    const data = await r.json();
+    const [ic, lbl] = _HUB_LABELS[channel] || ['📤', channel];
+    const rows = (data.items || []).map(i => `<tr class="border-t border-gray-50">
+        <td class="py-1.5 font-mono text-[11px] text-gray-700">${_esc(i.sku)}</td>
+        <td class="text-[10px] text-gray-400">${_esc((i.marketplace || '').replace('amazon_','').toUpperCase())}</td>
+        <td class="text-[10px] text-gray-400">${_esc(i.status || '')}</td>
+        <td class="text-[10px] text-gray-400 text-right">${_esc((i.last_at || '').slice(0, 16))}</td>
+      </tr>`).join('');
+    zone.innerHTML = `<div class="mt-3 border border-gray-100 rounded-2xl p-4">
+      <div class="flex items-center justify-between mb-2">
+        <p class="text-xs font-bold text-gray-700">${ic} ${_esc(lbl)} — dernières fiches envoyées</p>
+        <button onclick="document.getElementById('hubDetailZone').innerHTML=''" class="text-gray-300 hover:text-gray-500 text-sm">✕</button>
+      </div>
+      <div class="max-h-56 overflow-y-auto"><table class="w-full text-xs">
+        <thead><tr class="text-[10px] text-gray-400 text-left"><th class="py-1">SKU</th><th>Marché</th><th>Mode</th><th class="text-right">Dernier envoi</th></tr></thead>
+        <tbody>${rows || '<tr><td colspan="4" class="py-3 text-center text-gray-400">Aucun envoi</td></tr>'}</tbody>
+      </table></div>
+    </div>`;
+    zone.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  } catch(e) { zone.innerHTML = ''; }
+}
+
+async function _hubSaveCatMeta(btn) {
+  btn.disabled = true;
+  try {
+    await authFetch('/api/catalog-link', { method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: document.getElementById('hubCatTitle').value, subtitle: document.getElementById('hubCatSub').value }) });
+    showToast('✅', 'Catalogue mis à jour');
+  } catch(e) { showToast('❌', 'Erreur', true); }
+  btn.disabled = false;
+}
+
+async function _hubRegenCatLink(btn) {
+  if (!confirm('Régénérer le lien ? L\'ancien lien ne fonctionnera plus.')) return;
+  btn.disabled = true;
+  try {
+    const r = await authFetch('/api/catalog-link/regenerate', { method: 'POST' });
+    const d = await r.json();
+    showToast('✅', 'Nouveau lien créé');
+    openHubPanel();
+  } catch(e) { showToast('❌', 'Erreur', true); btn.disabled = false; }
+}
 
 async function openHealthPanel() {
   document.getElementById('healthPanelModal').classList.remove('hidden');

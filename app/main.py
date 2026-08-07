@@ -1770,16 +1770,30 @@ async def get_job(job_id: str):
 
 # ── Publish ───────────────────────────────────────────────────────────────────
 
+def _log_amazon_pushes(email: str, result: "PublishResult", marketplace) -> None:
+    """Journal successfully published fiches (never breaks the publish flow)."""
+    try:
+        from app.db import log_pushes
+        skus = [r.get("sku") for r in (result.report or []) if r.get("sku")]
+        log_pushes(email, "amazon", skus, status="published",
+                   marketplace=getattr(marketplace, "value", str(marketplace)))
+    except Exception:
+        pass
+
+
 @app.post("/api/publish", response_model=PublishResult)
 async def publish(request_data: PublishRequest, request: Request):
     if not request_data.listings:
         raise HTTPException(400, "Aucune fiche à publier")
-    return await publish_listings(
+    result = await publish_listings(
         listings=request_data.listings,
         marketplace=request_data.marketplace,
         dry_run=request_data.dry_run,
         user_email=getattr(request.state, "user_email", None),
     )
+    if not request_data.dry_run:
+        _log_amazon_pushes(request.state.user_email, result, request_data.marketplace)
+    return result
 
 
 async def _run_bulk_publish_job(job_id: str, request_data: PublishRequest, email: str):
@@ -1808,6 +1822,7 @@ async def _run_bulk_publish_job(job_id: str, request_data: PublishRequest, email
                 return
             else:
                 raise
+        _log_amazon_pushes(email, res, request_data.marketplace)
         _jobs[job_id].update({"status": "done", "result": {
             "mode": mode, **res.model_dump(),
             **({"note": "Rôle « Product Listing » manquant pour la Feeds API — "
@@ -2035,7 +2050,7 @@ async def export_listing_loader(listings: List[AmazonListing]):
 
 
 @app.post("/api/export/channel/{channel}")
-async def export_channel(channel: str, listings: List[AmazonListing]):
+async def export_channel(channel: str, listings: List[AmazonListing], request: Request):
     """Multichannel export — PIM / Shopify / WooCommerce / PrestaShop / Akeneo /
     Google Merchant. Generated image URLs are resolved from storage per SKU."""
     from app.utils.export_channels import CHANNELS
@@ -2045,11 +2060,158 @@ async def export_channel(channel: str, listings: List[AmazonListing]):
     if not listings:
         raise HTTPException(400, "Aucune fiche à exporter")
     image_urls = _get_image_urls_for_skus([l.sku for l in listings])
+    try:
+        from app.db import log_pushes
+        log_pushes(request.state.user_email, channel, [l.sku for l in listings], status="export")
+    except Exception:
+        pass  # journaling must never break an export
     return Response(
         content=spec["builder"](listings, image_urls=image_urls),
         media_type=spec["media_type"],
         headers={"Content-Disposition": f'attachment; filename="{spec["filename"]}"'},
     )
+
+
+# ── Hub de diffusion — where every fiche lives ───────────────────────────────
+
+@app.get("/api/hub/overview")
+async def hub_overview(request: Request):
+    """Diffusion dashboard: per-channel counts, feed stats and the public
+    catalogue link stats — the 'where are my fiches' view."""
+    from app.db import get_push_overview, get_feed_token, get_or_create_catalog_link
+    email = request.state.user_email
+    out = {"channels": get_push_overview(email)}
+    try:
+        ft = get_feed_token(email)
+        if ft:
+            out["feeds"] = {"fetch_count": ft.get("fetch_count") or 0,
+                            "last_channel": ft.get("last_channel") or "",
+                            "last_fetched_at": ft.get("last_fetched_at") or ""}
+    except Exception:
+        pass
+    try:
+        cl = get_or_create_catalog_link(email)
+        base = os.getenv("APP_URL", "https://synqio.io").rstrip("/")
+        out["catalog"] = {"url": f"{base}/catalogue/{cl['token']}",
+                          "view_count": cl.get("view_count") or 0,
+                          "last_viewed_at": cl.get("last_viewed_at") or "",
+                          "title": cl.get("title") or "", "subtitle": cl.get("subtitle") or ""}
+    except Exception:
+        pass
+    return out
+
+
+@app.get("/api/hub/pushes/{channel}")
+async def hub_pushes(channel: str, request: Request):
+    from app.db import get_pushes_detail
+    return {"channel": channel,
+            "items": get_pushes_detail(request.state.user_email, channel, limit=200)}
+
+
+class CatalogMeta(BaseModel):
+    title: str = ""
+    subtitle: str = ""
+
+
+@app.post("/api/catalog-link/regenerate")
+async def catalog_link_regenerate(request: Request):
+    from app.db import regenerate_catalog_link
+    cl = regenerate_catalog_link(request.state.user_email)
+    base = os.getenv("APP_URL", "https://synqio.io").rstrip("/")
+    return {"url": f"{base}/catalogue/{cl['token']}"}
+
+
+@app.put("/api/catalog-link")
+async def catalog_link_meta(meta: CatalogMeta, request: Request):
+    from app.db import set_catalog_link_meta
+    set_catalog_link_meta(request.state.user_email, meta.title.strip(), meta.subtitle.strip())
+    return {"ok": True}
+
+
+def _render_public_catalog(owner: dict, listings: list, image_urls: dict) -> str:
+    """Server-rendered public catalogue page (Calaméo-style shareable link)."""
+    import html as _html
+    e = _html.escape
+    brands = sorted({(l.get("brand") or "").strip() for l in listings if (l.get("brand") or "").strip()})
+    brand_label = brands[0] if len(brands) == 1 else "Notre marque"
+    title = owner.get("title") or f"Catalogue {brand_label}"
+    import datetime as _d
+    subtitle = owner.get("subtitle") or f"Collection {_d.date.today().year} — {len(listings)} produits"
+    # group by category
+    groups: dict = {}
+    for l in listings:
+        groups.setdefault((l.get("category") or "Autres").strip() or "Autres", []).append(l)
+    cur = {"amazon_fr": "€", "amazon_de": "€", "amazon_it": "€", "amazon_es": "€",
+           "amazon_be": "€", "amazon_nl": "€", "amazon_uk": "£", "amazon_pl": "zł", "amazon_se": "kr"}
+    cards = []
+    for cat, items in groups.items():
+        cards.append(f'<h2 class="cat" id="{e(cat)}">{e(cat)}<span>{len(items)}</span></h2><div class="grid">')
+        for l in items:
+            imgs = (image_urls or {}).get(l.get("sku"), []) or []
+            img = imgs[0] if imgs else ""
+            price = l.get("price")
+            sym = cur.get(l.get("marketplace") or "", "€")
+            bullets = "".join(f"<li>{e(b)}</li>" for b in (l.get("bullet_points") or [])[:3])
+            cards.append(f'''<div class="card">
+  {'<img loading="lazy" src="' + e(img) + '" alt="">' if img else '<div class="noimg">📦</div>'}
+  <div class="cbody">
+    <h3>{e(l.get("title") or l.get("sku") or "")}</h3>
+    {f'<div class="price">{price:.2f} {sym}</div>' if isinstance(price, (int, float)) else ''}
+    <ul>{bullets}</ul>
+  </div>
+</div>''')
+        cards.append("</div>")
+    toc = "".join(f'<a href="#{e(c)}">{e(c)}</a>' for c in groups)
+    return f'''<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>{e(title)}</title>
+<style>
+*{{margin:0;padding:0;box-sizing:border-box}}
+body{{font-family:'Segoe UI',system-ui,sans-serif;background:#f6f5fb;color:#1f2937}}
+.hero{{background:linear-gradient(125deg,#1a1033 0%,#3b2a75 55%,#241a4d 100%);color:#fff;text-align:center;padding:72px 24px 56px;position:relative;overflow:hidden}}
+.hero::after{{content:'';position:absolute;inset:0;background-image:radial-gradient(circle,rgba(255,255,255,.07) 1.3px,transparent 1.3px);background-size:38px 38px}}
+.hero h1{{font-size:clamp(30px,5vw,54px);font-weight:900;letter-spacing:-1px;position:relative;z-index:1}}
+.hero p{{color:rgba(255,255,255,.7);font-size:clamp(15px,2.2vw,20px);margin-top:12px;position:relative;z-index:1}}
+.toc{{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;padding:18px 24px;background:#fff;box-shadow:0 2px 12px rgba(30,20,80,.06);position:sticky;top:0;z-index:5}}
+.toc a{{color:#6d28d9;font-size:13px;font-weight:700;text-decoration:none;background:#f3efff;border-radius:999px;padding:7px 14px}}
+.wrap{{max-width:1180px;margin:0 auto;padding:34px 22px 60px}}
+.cat{{font-size:24px;font-weight:800;margin:34px 0 16px;display:flex;align-items:center;gap:10px}}
+.cat span{{font-size:12px;font-weight:800;color:#6d28d9;background:#ede9fe;border-radius:999px;padding:3px 10px}}
+.grid{{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:18px}}
+.card{{background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 6px 20px rgba(30,20,80,.07)}}
+.card img{{width:100%;aspect-ratio:1;object-fit:cover;background:#f3efff}}
+.noimg{{width:100%;aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-size:44px;background:linear-gradient(135deg,#ede9fe,#ddd6fe)}}
+.cbody{{padding:14px 16px 16px}}
+.cbody h3{{font-size:15px;font-weight:700;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}}
+.price{{color:#6d28d9;font-size:18px;font-weight:900;margin-top:7px}}
+.cbody ul{{margin-top:9px;padding-left:16px;color:#6b7280;font-size:12.5px;line-height:1.45}}
+.cbody li{{margin-bottom:3px}}
+.foot{{text-align:center;padding:34px;color:#9ca3af;font-size:13px}}
+.foot a{{color:#7c3aed;font-weight:700;text-decoration:none}}
+@media print{{.toc{{display:none}}.hero{{padding:40px}}}}
+</style></head><body>
+<div class="hero"><h1>{e(title)}</h1><p>{e(subtitle)}</p></div>
+<div class="toc">{toc}</div>
+<div class="wrap">{''.join(cards)}</div>
+<div class="foot">Catalogue généré avec <a href="https://synqio.io">SynqIO</a></div>
+</body></html>'''
+
+
+@app.get("/catalogue/{token}")
+async def public_catalogue(token: str):
+    """Public, tokenised, always-up-to-date brand catalogue (revocable link)."""
+    from app.db import resolve_catalog_token
+    from app.routes.public_api import _latest_listings
+    row = resolve_catalog_token(token)
+    if not row:
+        raise HTTPException(404, "Catalogue introuvable")
+    if not _rate_limit(f"cat:{token}", limit=300, window=3600):
+        raise HTTPException(429, "Trop de requêtes")
+    listings = _latest_listings(row["user_email"])
+    image_urls = _get_image_urls_for_skus([l.get("sku") for l in listings if l.get("sku")])
+    return Response(content=_render_public_catalog(row, listings, image_urls),
+                    media_type="text/html; charset=utf-8")
 
 
 def _bundled_listing_loader_bytes() -> Optional[bytes]:
@@ -3997,6 +4159,12 @@ async def connectors_push(platform: str, listings: List[AmazonListing], request:
     updated = sum(1 for r in results if r["action"] == "updated")
     errors = sum(1 for r in results if r["action"] == "error")
     update_connector_status(email, platform, f"{created}+{updated}ok/{errors}err")
+    try:
+        from app.db import log_pushes
+        ok_skus = [r.get("sku") for r in results if r.get("action") in ("created", "updated")]
+        log_pushes(email, platform, ok_skus, status="connector")
+    except Exception:
+        pass
     return {"created": created, "updated": updated, "errors": errors,
             "skipped": max(0, len(listings) - len(results)),
             "max_per_push": MAX_PUSH, "results": results}
