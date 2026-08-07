@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="fr"><head><meta charset="UTF-8">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { width:1280px; height:720px; overflow:hidden; font-family:'Segoe UI', system-ui, -apple-system, sans-serif; }
+  .t { width:1280px; height:720px; position:relative; overflow:hidden;
+    background:
+      radial-gradient(700px 520px at 82% 18%, rgba(124,58,237,.45), transparent 60%),
+      radial-gradient(560px 460px at 12% 88%, rgba(255,153,0,.16), transparent 60%),
+      linear-gradient(125deg, #14102e 0%, #2a1f5c 55%, #191243 100%); }
+  .grid { position:absolute; inset:0; opacity:.5;
+    background-image:linear-gradient(rgba(255,255,255,.04) 1px, transparent 1px),
+                     linear-gradient(90deg, rgba(255,255,255,.04) 1px, transparent 1px);
+    background-size:90px 90px; }
+
+  .left { position:absolute; left:56px; top:84px; z-index:10; }
+  .brand { display:flex; align-items:center; gap:13px; margin-bottom:28px; }
+  .mark { width:54px; height:54px; border-radius:14px; background:linear-gradient(135deg,#8b5cf6,#4f46e5);
+    display:flex; align-items:center; justify-content:center; box-shadow:0 8px 24px rgba(124,58,237,.6); }
+  .bname { color:#fff; font-size:34px; font-weight:800; letter-spacing:-1px; }
+  h1 { color:#fff; font-size:74px; font-weight:900; line-height:1.05; letter-spacing:-3px;
+    text-shadow:0 6px 30px rgba(0,0,0,.5); }
+  h1 .amz { color:#ff9900; }
+  .punch { display:inline-block; margin-top:20px; background:linear-gradient(100deg,#ffb020,#ff9900);
+    color:#1a1033; font-size:56px; font-weight:900; letter-spacing:-2px; line-height:1;
+    padding:16px 26px 21px; border-radius:20px; transform:rotate(-2deg);
+    box-shadow:0 18px 50px rgba(255,153,0,.45), inset 0 -5px 0 rgba(0,0,0,.18); }
+  .chip { position:absolute; left:60px; bottom:64px; display:inline-flex; align-items:center; gap:12px;
+    background:rgba(255,255,255,.08); border:2.5px solid rgba(167,139,250,.65); border-radius:16px;
+    padding:12px 24px; color:#e9e4ff; font-size:29px; font-weight:800; letter-spacing:.5px; z-index:10; }
+  .dotg { width:16px; height:16px; border-radius:50%; background:#4ade80; box-shadow:0 0 16px #4ade80; }
+
+  /* Right: deadline stamp + before/after title bars */
+  .stamp { position:absolute; right:78px; top:96px; z-index:9; transform:rotate(5deg);
+    background:#dc2626; border-radius:20px; padding:18px 30px; text-align:center;
+    box-shadow:0 22px 60px rgba(220,38,38,.5); border:5px solid rgba(255,255,255,.85); }
+  .stamp .d { color:#fff; font-size:52px; font-weight:900; line-height:1; letter-spacing:-1px; }
+  .stamp .y { color:#fecaca; font-size:26px; font-weight:800; margin-top:4px; letter-spacing:2px; }
+
+  .cardw { position:absolute; right:64px; top:300px; width:420px; z-index:8; transform:rotate(-1.5deg);
+    background:#fff; border-radius:20px; padding:26px 26px 24px;
+    box-shadow:0 30px 70px rgba(0,0,0,.5); }
+  .lbl { font-size:20px; font-weight:800; color:#9ca3af; letter-spacing:1px; margin-bottom:10px; }
+  .bar { position:relative; height:22px; border-radius:11px; margin-bottom:8px; }
+  .long { background:#fecaca; width:100%; }
+  .long::after { content:''; position:absolute; left:0; right:0; top:9px; height:5px; background:#dc2626; border-radius:3px; transform:rotate(-1.2deg); }
+  .n-red { color:#dc2626; font-size:26px; font-weight:900; margin-bottom:18px; }
+  .short { background:#bbf7d0; width:56%; }
+  .okrow { display:flex; align-items:center; justify-content:space-between; margin-top:6px; }
+  .n-green { color:#16a34a; font-size:30px; font-weight:900; }
+  .okpill { background:#dcfce7; color:#15803d; font-size:22px; font-weight:900; border-radius:12px; padding:8px 16px; border:2.5px solid #86efac; }
+</style></head>
+<body>
+<div class="t">
+  <div class="grid"></div>
+
+  <div class="left">
+    <div class="brand">
+      <div class="mark"><svg width="32" height="32" viewBox="0 0 24 24" fill="none"><path d="M12 2L2 7l10 5 10-5-10-5z" stroke="white" stroke-width="1.8" stroke-linejoin="round"/><path d="M2 17l10 5 10-5M2 12l10 5 10-5" stroke="white" stroke-width="1.8" stroke-linejoin="round"/></svg></div>
+      <span class="bname">SynqIO</span>
+    </div>
+    <h1>NOUVELLE RÈGLE<br><span class="amz">AMAZON</span> : TITRES</h1>
+    <div class="punch">75 CARACTÈRES MAX</div>
+  </div>
+
+  <div class="chip"><span class="dotg"></span>TOUT LE CATALOGUE EN 1 PASSE</div>
+
+  <div class="stamp"><div class="d">27 JUILLET</div><div class="y">DEADLINE</div></div>
+
+  <div class="cardw">
+    <div class="lbl">TON TITRE ACTUEL</div>
+    <div class="bar long"></div>
+    <div class="n-red">137 caractères ✗</div>
+    <div class="lbl">RECADRÉ PAR SYNQIO</div>
+    <div class="bar short"></div>
+    <div class="okrow"><span class="n-green">75 ✓</span><span class="okpill">Conforme</span></div>
+  </div>
+</div>
+</body></html>
