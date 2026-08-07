@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="fr"><head><meta charset="UTF-8">
+<style>
+  /* 28s promo with an interactive-demo section: an animated cursor clicks
+     through a simplified SynqIO UI (import → generate → publish to channels).
+     Timeline: 1s = 3.571%. */
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { width:1920px; height:1080px; overflow:hidden; font-family:'Segoe UI', system-ui, -apple-system, sans-serif; }
+  .stage { width:1920px; height:1080px; position:relative; overflow:hidden; background:#0d0a24; }
+  .grad { position:absolute; inset:0; background:
+    radial-gradient(900px 700px at 68% 22%, rgba(124,58,237,.28), transparent 60%),
+    radial-gradient(760px 620px at 22% 82%, rgba(79,70,229,.22), transparent 60%),
+    linear-gradient(125deg, #12102f 0%, #251c52 52%, #171236 100%); }
+  .grid { position:absolute; inset:0; opacity:.5;
+    background-image:linear-gradient(rgba(255,255,255,.035) 1px, transparent 1px),
+                     linear-gradient(90deg, rgba(255,255,255,.035) 1px, transparent 1px);
+    background-size:120px 120px; animation:gm 28s linear both; }
+  @keyframes gm { 0%{background-position:0 0} 100%{background-position:240px 120px} }
+  .orb { position:absolute; border-radius:50%; filter:blur(110px); }
+  .o1 { width:700px; height:700px; background:rgba(139,92,246,.30); top:-140px; left:640px; }
+  .o2 { width:560px; height:560px; background:rgba(56,189,248,.10); bottom:-200px; right:120px; }
+
+  .scene { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; opacity:0; }
+  .kicker { color:#a78bfa; font-size:30px; font-weight:700; letter-spacing:8px; text-transform:uppercase; }
+  .rule { height:3px; width:120px; border-radius:2px; background:linear-gradient(90deg,#8b5cf6,#4f46e5); }
+
+  /* S1 0–2.5s (0–8.9%) */
+  .s1 { animation:s1 28s both; }
+  @keyframes s1 { 0%{opacity:1} 7.6%{opacity:1} 8.9%{opacity:0} 100%{opacity:0} }
+  .s1 h1 { color:#fff; font-size:120px; font-weight:900; letter-spacing:-4px; margin:24px 0 28px;
+    opacity:0; animation:t1 28s cubic-bezier(.2,.9,.2,1) both; }
+  @keyframes t1 { 0%{opacity:0;transform:translateY(60px)} 1.5%{opacity:0;transform:translateY(60px)} 3.5%{opacity:1;transform:translateY(0)} 100%{opacity:1} }
+
+  /* S2 2.5–5s (8.9–17.9%) */
+  .s2 { animation:s2 28s both; }
+  @keyframes s2 { 0%{opacity:0} 8.9%{opacity:0} 10%{opacity:1} 16.6%{opacity:1} 17.9%{opacity:0} 100%{opacity:0} }
+  .s2 h1 { color:#fff; font-size:84px; font-weight:900; letter-spacing:-3px; margin-bottom:14px; }
+  .s2 .sub { color:rgba(255,255,255,.55); font-size:38px; font-weight:600; }
+
+  /* S3 5–8s (17.9–28.6%) */
+  .s3 { animation:s3 28s both; }
+  @keyframes s3 { 0%{opacity:0} 17.9%{opacity:0} 19.2%{opacity:1} 27.2%{opacity:1} 28.6%{opacity:0} 100%{opacity:0} }
+  .s3 .brand { display:flex; align-items:center; gap:32px; }
+  .s3 .mark { width:140px; height:140px; border-radius:36px; background:linear-gradient(135deg,#8b5cf6,#4f46e5);
+    display:flex; align-items:center; justify-content:center; box-shadow:0 24px 80px rgba(124,58,237,.55); }
+  .s3 .bname { color:#fff; font-size:128px; font-weight:900; letter-spacing:-5px; }
+  .s3 .sub { color:rgba(255,255,255,.62); font-size:44px; font-weight:700; margin-top:28px; }
+  .s3 .sub .hl { color:#a78bfa; }
+
+  /* ── DEMO UI 8–20s (28.6–71%) ─────────────────────────────────────────── */
+  .demo { position:absolute; inset:0; z-index:20; opacity:0; animation:demo 28s both; }
+  @keyframes demo { 0%{opacity:0;transform:scale(.92)} 28.6%{opacity:0;transform:scale(.92)}
+    30%{opacity:1;transform:scale(1)} 68%{opacity:1;transform:scale(1)} 71%{opacity:0;transform:scale(1.05)} 100%{opacity:0} }
+  .win { position:absolute; left:210px; top:150px; width:1500px; height:780px; border-radius:24px;
+    background:#f4f2fb; box-shadow:0 50px 120px rgba(0,0,0,.6); overflow:hidden; }
+  .chrome { height:52px; background:#e7e3f6; display:flex; align-items:center; gap:10px; padding:0 22px; }
+  .dot { width:16px; height:16px; border-radius:50%; }
+  .url { flex:1; margin-left:14px; background:#fff; border-radius:10px; height:30px; display:flex; align-items:center;
+    padding:0 16px; color:#6b7280; font-size:17px; font-weight:600; }
+  .hdr { height:74px; background:#141031; display:flex; align-items:center; gap:16px; padding:0 30px; }
+  .hmark { width:42px; height:42px; border-radius:11px; background:linear-gradient(135deg,#8b5cf6,#4f46e5);
+    display:flex; align-items:center; justify-content:center; }
+  .hname { color:#fff; font-size:26px; font-weight:800; }
+  .htab { margin-left:26px; background:#7c3aed; color:#fff; font-size:19px; font-weight:700;
+    border-radius:999px; padding:9px 24px; }
+  .htab2 { color:#9ca3af; font-size:19px; font-weight:700; padding:9px 18px; }
+
+  .body { display:flex; gap:26px; padding:28px 30px; }
+  .colL { width:430px; }
+  .cardui { background:#fff; border-radius:18px; padding:22px; box-shadow:0 6px 18px rgba(30,20,80,.08); margin-bottom:18px; }
+  .cardui .h { display:flex; align-items:center; gap:10px; color:#1f2937; font-size:21px; font-weight:700; }
+  .drop { margin-top:16px; border:2.5px dashed #c4b5fd; border-radius:14px; height:120px;
+    display:flex; align-items:center; justify-content:center; color:#8b5cf6; font-size:19px; font-weight:600;
+    position:relative; background:#faf9ff; }
+  .filechip { position:absolute; display:inline-flex; align-items:center; gap:10px; background:#ede9fe;
+    border:2px solid #c4b5fd; color:#5b21b6; font-size:19px; font-weight:800; border-radius:12px; padding:10px 18px;
+    opacity:0; transform:scale(.5); animation:fchip 28s cubic-bezier(.34,1.56,.64,1) both; }
+  @keyframes fchip { 0%{opacity:0;transform:scale(.5)} 34%{opacity:0;transform:scale(.5)} 35.2%{opacity:1;transform:scale(1)} 100%{opacity:1} }
+  .genbtn { width:100%; border-radius:16px; padding:20px 0; text-align:center; color:#fff; font-size:24px; font-weight:800;
+    background:linear-gradient(120deg,#8b5cf6,#4f46e5); box-shadow:0 10px 26px rgba(124,58,237,.35);
+    animation:genflash 28s both; }
+  @keyframes genflash { 0%,38.4%{transform:scale(1)} 39%{transform:scale(.95)} 39.6%{transform:scale(1.03)} 40.2%{transform:scale(1)} 100%{transform:scale(1)} }
+  .prog { margin-top:14px; height:12px; border-radius:6px; background:#ede9fe; overflow:hidden;
+    opacity:0; animation:progshow 28s both; }
+  @keyframes progshow { 0%,38.8%{opacity:0} 39.4%{opacity:1} 46%{opacity:1} 47%{opacity:0} 100%{opacity:0} }
+  .prog .fill { height:100%; width:100%; border-radius:6px; background:linear-gradient(90deg,#8b5cf6,#4f46e5);
+    transform-origin:left; transform:scaleX(0); animation:progfill 28s linear both; }
+  @keyframes progfill { 0%,39.2%{transform:scaleX(0)} 45.5%{transform:scaleX(1)} 100%{transform:scaleX(1)} }
+
+  .colR { flex:1; position:relative; }
+  .ready { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    color:#9ca3af; font-size:24px; font-weight:600; gap:14px; animation:readyhide 28s both; }
+  @keyframes readyhide { 0%,44%{opacity:1} 45.5%{opacity:0} 100%{opacity:0} }
+  .fiches { position:absolute; inset:0; padding-top:6px; }
+  .fiche { background:#fff; border-radius:16px; padding:16px 20px; box-shadow:0 6px 18px rgba(30,20,80,.08);
+    display:flex; align-items:center; gap:16px; margin-bottom:14px; opacity:0; transform:translateY(26px); }
+  .f1 { animation:fi1 28s cubic-bezier(.2,.9,.2,1) both; } .f2 { animation:fi2 28s cubic-bezier(.2,.9,.2,1) both; }
+  .f3 { animation:fi3 28s cubic-bezier(.2,.9,.2,1) both; }
+  @keyframes fi1 { 0%,45.5%{opacity:0;transform:translateY(26px)} 46.8%{opacity:1;transform:translateY(0)} 100%{opacity:1;transform:translateY(0)} }
+  @keyframes fi2 { 0%,47.5%{opacity:0;transform:translateY(26px)} 48.8%{opacity:1;transform:translateY(0)} 100%{opacity:1;transform:translateY(0)} }
+  @keyframes fi3 { 0%,49.5%{opacity:0;transform:translateY(26px)} 50.8%{opacity:1;transform:translateY(0)} 100%{opacity:1;transform:translateY(0)} }
+  .fph { width:64px; height:64px; border-radius:12px; background:linear-gradient(135deg,#ede9fe,#ddd6fe);
+    display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+  .flns { flex:1; }
+  .fln { height:10px; border-radius:5px; background:#e5e1f8; margin-bottom:8px; }
+  .fln.a { width:86%; background:#c4b5fd; height:13px; }
+  .fln.b { width:56%; margin-bottom:0; }
+  .fok { color:#16a34a; font-size:20px; font-weight:900; white-space:nowrap; }
+  .pubrow { position:absolute; left:0; right:0; bottom:0; display:flex; align-items:center; gap:18px; }
+  .pubbtn { border-radius:14px; padding:16px 30px; color:#fff; font-size:22px; font-weight:800;
+    background:linear-gradient(120deg,#f59e0b,#f97316); box-shadow:0 10px 26px rgba(245,158,11,.35);
+    opacity:0; animation:pubshow 28s both; }
+  @keyframes pubshow { 0%,51%{opacity:0;transform:translateY(14px)} 52.3%{opacity:1;transform:translateY(0)} 100%{opacity:1} }
+  .chan { display:inline-flex; align-items:center; gap:10px; background:#fff; border-radius:13px; padding:13px 20px;
+    font-size:20px; font-weight:800; color:#1f2937; box-shadow:0 6px 18px rgba(30,20,80,.10);
+    opacity:0; transform:translateX(-26px) scale(.85); }
+  .chan .cd { width:13px; height:13px; border-radius:50%; }
+  .chan .ck { color:#16a34a; font-weight:900; opacity:0; }
+  .ch1 { animation:ch1 28s cubic-bezier(.34,1.56,.64,1) both; } .ch2 { animation:ch2 28s cubic-bezier(.34,1.56,.64,1) both; }
+  .ch3 { animation:ch3 28s cubic-bezier(.34,1.56,.64,1) both; }
+  @keyframes ch1 { 0%,56.5%{opacity:0;transform:translateX(-26px) scale(.85)} 58%{opacity:1;transform:translateX(0) scale(1)} 100%{opacity:1;transform:none} }
+  @keyframes ch2 { 0%,58.5%{opacity:0;transform:translateX(-26px) scale(.85)} 60%{opacity:1;transform:translateX(0) scale(1)} 100%{opacity:1;transform:none} }
+  @keyframes ch3 { 0%,60.5%{opacity:0;transform:translateX(-26px) scale(.85)} 62%{opacity:1;transform:translateX(0) scale(1)} 100%{opacity:1;transform:none} }
+  .k1 { animation:k1 28s both; } .k2 { animation:k2 28s both; } .k3 { animation:k3 28s both; }
+  @keyframes k1 { 0%,63%{opacity:0} 64%{opacity:1} 100%{opacity:1} }
+  @keyframes k2 { 0%,64.5%{opacity:0} 65.5%{opacity:1} 100%{opacity:1} }
+  @keyframes k3 { 0%,66%{opacity:0} 67%{opacity:1} 100%{opacity:1} }
+
+  /* Cursor + click ripples */
+  .cursor { position:absolute; z-index:40; width:40px; height:40px; opacity:0;
+    filter:drop-shadow(0 4px 10px rgba(0,0,0,.5)); animation:cur 28s linear both; }
+  @keyframes cur {
+    0%,29.5% { opacity:0; transform:translate(1050px,930px); }
+    30.5%    { opacity:1; transform:translate(1050px,930px); }
+    33%      { transform:translate(500px,585px); }     /* drop zone */
+    33.5%    { transform:translate(500px,585px) scale(.85); }
+    34%      { transform:translate(500px,585px) scale(1); }
+    35.5%    { transform:translate(500px,585px); }
+    38%      { transform:translate(505px,772px); }     /* generate btn */
+    38.6%    { transform:translate(505px,772px) scale(.85); }
+    39.2%    { transform:translate(505px,772px) scale(1); }
+    43%      { transform:translate(760px,700px); }     /* drift while generating */
+    52%      { transform:translate(800px,845px); }
+    55%      { transform:translate(800px,845px); }     /* publish btn */
+    55.6%    { transform:translate(800px,845px) scale(.85); }
+    56.2%    { transform:translate(800px,845px) scale(1); }
+    60%      { transform:translate(1080px,845px); }
+    66%      { opacity:1; transform:translate(1080px,845px); }
+    68%      { opacity:0; transform:translate(1080px,845px); }
+    100%     { opacity:0; transform:translate(1080px,845px); }
+  }
+  .ripple { position:absolute; z-index:39; width:70px; height:70px; border-radius:50%;
+    border:5px solid #8b5cf6; opacity:0; }
+  .r1 { left:472px; top:558px; animation:r1 28s ease-out both; }
+  @keyframes r1 { 0%,33.4%{opacity:0;transform:scale(.3)} 33.8%{opacity:.9;transform:scale(.5)} 35.2%{opacity:0;transform:scale(1.6)} 100%{opacity:0} }
+  .r2 { left:477px; top:745px; animation:r2 28s ease-out both; }
+  @keyframes r2 { 0%,38.5%{opacity:0;transform:scale(.3)} 38.9%{opacity:.9;transform:scale(.5)} 40.3%{opacity:0;transform:scale(1.6)} 100%{opacity:0} }
+  .r3 { left:772px; top:818px; animation:r3 28s ease-out both; border-color:#f59e0b; }
+  @keyframes r3 { 0%,55.5%{opacity:0;transform:scale(.3)} 55.9%{opacity:.9;transform:scale(.5)} 57.3%{opacity:0;transform:scale(1.6)} 100%{opacity:0} }
+
+  /* S5 20–23.8s (71–85%) */
+  .s5 { animation:s5 28s both; }
+  @keyframes s5 { 0%{opacity:0} 71%{opacity:0} 72.4%{opacity:1} 83.6%{opacity:1} 85%{opacity:0} 100%{opacity:0} }
+  .s5 h1 { color:#fff; font-size:84px; font-weight:900; letter-spacing:-2.5px; margin-bottom:20px; }
+  .s5 h1 .gradt { background:linear-gradient(90deg,#a78bfa,#38bdf8); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+  .s5 .rule { margin-bottom:44px; }
+  .s5 .tags { display:flex; align-items:center; }
+  .s5 .tag { color:rgba(255,255,255,.88); font-size:34px; font-weight:800; letter-spacing:4px; text-transform:uppercase; padding:0 32px; }
+  .s5 .tag.am { color:#ffca7a; }
+  .s5 .sep { width:1.5px; height:44px; background:rgba(255,255,255,.22); }
+
+  /* S6 23.8–28s (85–100%) */
+  .s6 { animation:s6 28s both; }
+  @keyframes s6 { 0%{opacity:0} 85%{opacity:0} 86.6%{opacity:1} 100%{opacity:1} }
+  .s6 .brand { display:flex; align-items:center; gap:26px; margin-bottom:28px; }
+  .s6 .mark { width:104px; height:104px; border-radius:27px; background:linear-gradient(135deg,#8b5cf6,#4f46e5);
+    display:flex; align-items:center; justify-content:center; box-shadow:0 18px 60px rgba(124,58,237,.55); }
+  .s6 .bname { color:#fff; font-size:92px; font-weight:900; letter-spacing:-3px; }
+  .s6 h1 { color:rgba(255,255,255,.85); font-size:44px; font-weight:700; margin-bottom:36px; }
+  .s6 .cta { position:relative; overflow:hidden; display:inline-flex; align-items:center;
+    background:linear-gradient(135deg,#8b5cf6,#4f46e5); border-radius:20px; padding:24px 56px;
+    color:#fff; font-size:42px; font-weight:900; box-shadow:0 18px 60px rgba(124,58,237,.45); }
+  .s6 .cta .shine { position:absolute; top:0; bottom:0; width:90px;
+    background:linear-gradient(105deg,transparent,rgba(255,255,255,.5),transparent);
+    left:-120px; animation:shine 28s ease-in-out both; }
+  @keyframes shine { 0%,92%{left:-120px} 96%{left:110%} 100%{left:110%} }
+  .s6 .site { color:#a78bfa; font-size:36px; font-weight:800; margin-top:26px; letter-spacing:1px; }
+</style></head>
+<body>
+<div class="stage">
+  <div class="grad"></div><div class="grid"></div>
+  <div class="orb o1"></div><div class="orb o2"></div>
+
+  <div class="scene s1">
+    <div class="kicker">E-commerce</div>
+    <h1>Vendre sur Amazon&nbsp;?</h1>
+    <div class="rule"></div>
+  </div>
+
+  <div class="scene s2">
+    <h1>Des centaines de fiches à gérer.</h1>
+    <div class="sub">Titres, bullets, visuels, conformité… à la main ?</div>
+  </div>
+
+  <div class="scene s3">
+    <div class="brand">
+      <div class="mark"><svg width="82" height="82" viewBox="0 0 24 24" fill="none"><path d="M12 2L2 7l10 5 10-5-10-5z" stroke="white" stroke-width="1.8" stroke-linejoin="round"/><path d="M2 17l10 5 10-5M2 12l10 5 10-5" stroke="white" stroke-width="1.8" stroke-linejoin="round"/></svg></div>
+      <span class="bname">SynqIO</span>
+    </div>
+    <div class="sub">Regardez comme c'est simple <span class="hl">›</span></div>
+  </div>
+
+  <!-- ── Interactive demo section ── -->
+  <div class="demo">
+    <div class="win">
+      <div class="chrome">
+        <span class="dot" style="background:#f87171"></span><span class="dot" style="background:#fbbf24"></span><span class="dot" style="background:#34d399"></span>
+        <div class="url">synqio.io</div>
+      </div>
+      <div class="hdr">
+        <div class="hmark"><svg width="26" height="26" viewBox="0 0 24 24" fill="none"><path d="M12 2L2 7l10 5 10-5-10-5z" stroke="white" stroke-width="1.8" stroke-linejoin="round"/><path d="M2 17l10 5 10-5M2 12l10 5 10-5" stroke="white" stroke-width="1.8" stroke-linejoin="round"/></svg></div>
+        <span class="hname">SynqIO</span>
+        <span class="htab">✦ Générer</span>
+        <span class="htab2">Auditer</span>
+        <span class="htab2">Suivi</span>
+      </div>
+      <div class="body">
+        <div class="colL">
+          <div class="cardui">
+            <div class="h">📦 Vos produits</div>
+            <div class="drop">
+              Déposez votre fichier ici
+              <span class="filechip" style="left:50%;top:50%;transform:translate(-50%,-50%)">📄 produits.csv</span>
+            </div>
+          </div>
+          <div class="genbtn">🚀 Générer les fiches</div>
+          <div class="prog"><div class="fill"></div></div>
+        </div>
+        <div class="colR">
+          <div class="ready">
+            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#c4b5fd" stroke-width="1.6"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+            Prêt à générer
+          </div>
+          <div class="fiches">
+            <div class="fiche f1"><div class="fph"><svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="1.8"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.6"/><polyline points="21 15 16 10 5 21"/></svg></div><div class="flns"><div class="fln a"></div><div class="fln"></div><div class="fln b"></div></div><span class="fok">✓ Titre ≤ 75</span></div>
+            <div class="fiche f2"><div class="fph"><svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="1.8"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.6"/><polyline points="21 15 16 10 5 21"/></svg></div><div class="flns"><div class="fln a"></div><div class="fln"></div><div class="fln b"></div></div><span class="fok">✓ A+ inclus</span></div>
+            <div class="fiche f3"><div class="fph"><svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="1.8"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.6"/><polyline points="21 15 16 10 5 21"/></svg></div><div class="flns"><div class="fln a"></div><div class="fln"></div><div class="fln b"></div></div><span class="fok">✓ Prête</span></div>
+            <div class="pubrow">
+              <div class="pubbtn">Publier partout →</div>
+              <span class="chan ch1"><span class="cd" style="background:#ff9900"></span>Amazon <span class="ck k1">✓</span></span>
+              <span class="chan ch2"><span class="cd" style="background:#38bdf8"></span>Site web <span class="ck k2">✓</span></span>
+              <span class="chan ch3"><span class="cd" style="background:#95bf47"></span>Shopify <span class="ck k3">✓</span></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="ripple r1"></div><div class="ripple r2"></div><div class="ripple r3"></div>
+    <svg class="cursor" viewBox="0 0 24 24"><path d="M4 2 L20 12 L12.5 13.5 L16 21 L13 22.5 L9.5 15 L4 20 Z" fill="#fff" stroke="#1a1033" stroke-width="1.6" stroke-linejoin="round"/></svg>
+  </div>
+
+  <div class="scene s5">
+    <h1>Créez une fois. <span class="gradt">Diffusez partout.</span></h1>
+    <div class="rule"></div>
+    <div class="tags">
+      <span class="tag am">Amazon</span><span class="sep"></span>
+      <span class="tag">Site web</span><span class="sep"></span>
+      <span class="tag">Shopify</span><span class="sep"></span>
+      <span class="tag">PIM</span><span class="sep"></span>
+      <span class="tag">API</span>
+    </div>
+  </div>
+
+  <div class="scene s6">
+    <div class="brand">
+      <div class="mark"><svg width="64" height="64" viewBox="0 0 24 24" fill="none"><path d="M12 2L2 7l10 5 10-5-10-5z" stroke="white" stroke-width="1.8" stroke-linejoin="round"/><path d="M2 17l10 5 10-5M2 12l10 5 10-5" stroke="white" stroke-width="1.8" stroke-linejoin="round"/></svg></div>
+      <span class="bname">SynqIO</span>
+    </div>
+    <h1>Vos fiches Amazon méritent mieux.</h1>
+    <div class="cta"><span class="shine"></span>Abonnez-vous</div>
+    <div class="site">synqio.io</div>
+  </div>
+</div>
+</body></html>
