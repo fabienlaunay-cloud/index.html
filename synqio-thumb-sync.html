@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="fr"><head><meta charset="UTF-8">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { width:1280px; height:720px; overflow:hidden; font-family:'Segoe UI', system-ui, -apple-system, sans-serif; }
+  .t { width:1280px; height:720px; position:relative; overflow:hidden;
+    background:
+      radial-gradient(700px 520px at 82% 18%, rgba(124,58,237,.45), transparent 60%),
+      radial-gradient(560px 460px at 12% 88%, rgba(255,153,0,.16), transparent 60%),
+      linear-gradient(125deg, #14102e 0%, #2a1f5c 55%, #191243 100%); }
+  .grid { position:absolute; inset:0; opacity:.5;
+    background-image:linear-gradient(rgba(255,255,255,.04) 1px, transparent 1px),
+                     linear-gradient(90deg, rgba(255,255,255,.04) 1px, transparent 1px);
+    background-size:90px 90px; }
+
+  .left { position:absolute; left:56px; top:88px; z-index:10; }
+  .brand { display:flex; align-items:center; gap:13px; margin-bottom:30px; }
+  .mark { width:54px; height:54px; border-radius:14px; background:linear-gradient(135deg,#8b5cf6,#4f46e5);
+    display:flex; align-items:center; justify-content:center; box-shadow:0 8px 24px rgba(124,58,237,.6); }
+  .bname { color:#fff; font-size:34px; font-weight:800; letter-spacing:-1px; }
+  h1 { color:#fff; font-size:78px; font-weight:900; line-height:1.02; letter-spacing:-3px;
+    text-shadow:0 6px 30px rgba(0,0,0,.5); }
+  h1 .amz { color:#ff9900; }
+  .clic { display:inline-block; margin-top:18px; background:linear-gradient(100deg,#ffb020,#ff9900);
+    color:#1a1033; font-size:84px; font-weight:900; letter-spacing:-3px; line-height:1;
+    padding:14px 30px 20px; border-radius:22px; transform:rotate(-2deg);
+    box-shadow:0 18px 50px rgba(255,153,0,.45), inset 0 -5px 0 rgba(0,0,0,.18); }
+  .api { position:absolute; left:60px; bottom:64px; display:inline-flex; align-items:center; gap:12px;
+    background:rgba(255,255,255,.08); border:2.5px solid rgba(167,139,250,.65); border-radius:16px;
+    padding:12px 24px; color:#e9e4ff; font-size:30px; font-weight:800; letter-spacing:1px; z-index:10; }
+  .dotg { width:16px; height:16px; border-radius:50%; background:#4ade80; box-shadow:0 0 16px #4ade80; }
+
+  /* Right: stack of product cards + big count badge */
+  .stack { position:absolute; right:80px; top:250px; width:430px; z-index:8; }
+  .card { position:absolute; width:430px; border-radius:20px; background:#fff; padding:22px 24px;
+    box-shadow:0 30px 70px rgba(0,0,0,.5); }
+  .c3 { transform:rotate(6deg) translate(26px, 44px); opacity:.55; }
+  .c2 { transform:rotate(-5deg) translate(-20px, 22px); opacity:.75; }
+  .c1 { transform:rotate(1deg); }
+  .row { display:flex; gap:14px; align-items:center; }
+  .ph { width:84px; height:84px; border-radius:14px; background:linear-gradient(135deg,#ede9fe,#ddd6fe);
+    display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+  .lns { flex:1; }
+  .ln { height:13px; border-radius:7px; background:#e5e1f8; margin-bottom:10px; }
+  .ln.a { width:92%; background:#c4b5fd; height:16px; }
+  .ln.b { width:64%; }
+  .price { color:#111827; font-weight:900; font-size:24px; }
+  .ok { display:inline-flex; align-items:center; gap:8px; margin-top:14px; background:#dcfce7;
+    color:#15803d; font-size:20px; font-weight:800; border-radius:11px; padding:7px 14px; }
+  .count { position:absolute; right:34px; top:-52px; z-index:12; transform:rotate(3deg);
+    background:linear-gradient(135deg,#8b5cf6,#4f46e5); border-radius:20px; padding:16px 26px;
+    box-shadow:0 20px 55px rgba(124,58,237,.65); text-align:center; border:4px solid rgba(255,255,255,.85); }
+  .count .n { color:#fff; font-size:64px; font-weight:900; line-height:1; letter-spacing:-2px; }
+  .count .l { color:rgba(255,255,255,.85); font-size:22px; font-weight:800; margin-top:2px; }
+
+  /* Big arrow from the CLIC punch toward the synced cards */
+  .arrow { position:absolute; left:600px; top:430px; z-index:9; transform:rotate(-38deg) scaleY(-1); }
+</style></head>
+<body>
+<div class="t">
+  <div class="grid"></div>
+
+  <div class="left">
+    <div class="brand">
+      <div class="mark"><svg width="32" height="32" viewBox="0 0 24 24" fill="none"><path d="M12 2L2 7l10 5 10-5-10-5z" stroke="white" stroke-width="1.8" stroke-linejoin="round"/><path d="M2 17l10 5 10-5M2 12l10 5 10-5" stroke="white" stroke-width="1.8" stroke-linejoin="round"/></svg></div>
+      <span class="bname">SynqIO</span>
+    </div>
+    <h1>TOUT TON<br>CATALOGUE <span class="amz">AMAZON</span></h1>
+    <div class="clic">EN 1 CLIC</div>
+  </div>
+
+  <div class="api"><span class="dotg"></span>API SELLER CENTRAL</div>
+
+  <div class="arrow">
+    <svg width="150" height="110" viewBox="0 0 150 110" fill="none">
+      <path d="M8 14 C 60 30, 96 52, 118 84" stroke="#ffb020" stroke-width="13" stroke-linecap="round" fill="none"/>
+      <path d="M88 82 L122 92 L114 58" stroke="#ffb020" stroke-width="13" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+    </svg>
+  </div>
+
+  <div class="stack">
+    <div class="card c3"><div class="row"><div class="ph"></div><div class="lns"><div class="ln a"></div><div class="ln"></div><div class="ln b"></div></div></div></div>
+    <div class="card c2"><div class="row"><div class="ph"></div><div class="lns"><div class="ln a"></div><div class="ln"></div><div class="ln b"></div></div></div></div>
+    <div class="card c1">
+      <div class="row">
+        <div class="ph"><svg width="46" height="46" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="1.8"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.6"/><polyline points="21 15 16 10 5 21"/></svg></div>
+        <div class="lns"><div class="ln a"></div><div class="ln"></div><div class="price">24,50 €</div></div>
+      </div>
+      <div class="ok">✓ Synchronisée</div>
+    </div>
+    <div class="count"><div class="n">256</div><div class="l">FICHES</div></div>
+  </div>
+</div>
+</body></html>
