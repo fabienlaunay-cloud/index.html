@@ -2450,25 +2450,38 @@ async def _run_site_import_job(job_id: str, email: str, base: str):
                                          "boutique public (Shopify/WooCommerce), ni pages produits "
                                          "détectables via le plan du site (sitemap). Vérifiez l'URL, "
                                          "ou envoyez-la-nous pour qu'on ajoute la prise en charge.")
-            # 3. Store the product photos: first → {sku}.ext (hero), extras → {sku}__N.ext
+            # 3. Store the product photos — hero for EVERY product first, extras after.
             photos = 0
-            budget = 260
-            for p in products[:120]:
-                urls = p.pop("_imgs", []) or []
-                for j, u in enumerate(urls[:4]):
-                    if budget <= 0:
-                        break
+            from app.services import storage as _st
+            sem_dl = asyncio.Semaphore(6)
+
+            async def _dl(u, stem, j):
+                nonlocal photos
+                async with sem_dl:
+                    suffix = "" if j == 0 else f"__{j+1}"
+                    if _st.exists(f"{stem}{suffix}.jpg") or _st.exists(f"{stem}{suffix}.png"):
+                        photos += 1
+                        return  # already stored by a previous import
                     try:
                         ir = await client.get(u)
                         if ir.status_code == 200 and len(ir.content) < 8 * 1024 * 1024:
                             ext = ".png" if ir.content[:8] == b"\x89PNG\r\n\x1a\n" else ".jpg"
-                            name = f"{p['sku']}{ext}" if j == 0 else f"{p['sku']}__{j+1}{ext}"
-                            _save_photo(name, ir.content,
+                            _save_photo(f"{stem}{suffix}{ext}", ir.content,
                                         "image/png" if ext == ".png" else "image/jpeg")
                             photos += 1
-                            budget -= 1
                     except Exception:
-                        continue
+                        pass
+
+            # Pass 1: main photo of every product; Pass 2: extras within a global budget
+            tasks = [_dl(p["_imgs"][0], p["sku"], 0) for p in products if p.get("_imgs")]
+            budget = max(0, 500 - len(tasks))
+            for p in products:
+                for j, u in enumerate((p.get("_imgs") or [])[1:4], start=1):
+                    if budget <= 0:
+                        break
+                    tasks.append(_dl(u, p["sku"], j))
+                    budget -= 1
+            await asyncio.gather(*tasks)
             for p in products:
                 p.pop("_imgs", None)
         from app.db import save_generation, get_or_create_catalog_link, set_catalog_source
