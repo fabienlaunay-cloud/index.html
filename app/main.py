@@ -2612,7 +2612,9 @@ def _render_public_catalog(owner: dict, listings: list, image_urls: dict) -> str
     pages = [p[:-6] + '<i class="gr"></i></div>' for p in pages]
     n = len(pages)
     if n % 2:
-        pages.append('<div class="page blank"></div>')
+        # insert the filler BEFORE the Merci page: the back cover must be the
+        # final sheet's back face, shown ALONE when the book closes.
+        pages.insert(len(pages) - 1, '<div class="page blank"></div>')
     sheets = ""
     S = len(pages) // 2
     for k in range(S):
@@ -2695,6 +2697,7 @@ body{{font-family:'Segoe UI',system-ui,sans-serif;background:linear-gradient(125
   <button class="side next" onclick="event.stopPropagation();go(1)">&#8250;</button>
 </div>
 <div class="nav">
+  <button onclick="goStart()" title="Retour au début du catalogue">&#8635; Début</button>
   <button onclick="go(-1)">&#8249; Précédente</button>
   <span class="cnt" id="cnt"></span>
   <button onclick="go(1)">Suivante &#8250;</button>
@@ -2745,9 +2748,13 @@ function upd(){{
          drop random images (thumbnails blinking on page turns). */
       sh.style.visibility = Math.abs(k-fs)>2 ? 'hidden' : '';
     }});
-    var lbl = fs===0 ? '1' : (2*fs)+(2*fs+1<=N ? '-'+(2*fs+1) : '');
+    var lbl = fs===0 ? '1' : Math.min(2*fs,N)+(2*fs+1<=N ? '-'+(2*fs+1) : '');
     document.getElementById('cnt').textContent=lbl+' / '+N;
   }}
+}}
+function goStart(){{
+  if(pos===0)return;
+  pos=0;flipSound();upd();
 }}
 function go(d){{
   var old=pos;
