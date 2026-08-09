@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html><head><meta charset="UTF-8">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html,body { background:transparent; }
+  body { width:900px; height:300px; font-family:Georgia,'Times New Roman',serif; }
+  .wrap { width:900px; height:300px; display:flex; align-items:center; justify-content:center; gap:26px; }
+  .ic { flex-shrink:0; }
+  .tx { text-align:left; }
+  .l1 { font-size:64px; font-weight:700; letter-spacing:1px; line-height:1.05; }
+  .l2 { font-size:64px; font-style:italic; font-weight:400; letter-spacing:2px; line-height:1.1; }
+  .sub { font-size:16px; letter-spacing:6px; text-transform:uppercase; margin-top:10px; opacity:.75; font-family:'Segoe UI',sans-serif; }
+  .light { color:#ffffff; } .light .ic circle, .light .ic path, .light .ic rect { stroke:#ffffff; }
+  .dark  { color:#2a2233; } .dark .ic circle, .dark .ic path, .dark .ic rect { stroke:#2a2233; }
+</style></head>
+<body>
+<div class="wrap CLS">
+  <svg class="ic" width="150" height="150" viewBox="0 0 100 100" fill="none" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round">
+    <!-- collar ring -->
+    <circle cx="50" cy="44" r="30"/>
+    <!-- buckle -->
+    <rect x="41" y="9" width="18" height="11" rx="4"/>
+    <!-- tag -->
+    <path d="M50 74 v6"/>
+    <circle cx="50" cy="87" r="7.5"/>
+    <!-- paw on tag -->
+    <circle cx="50" cy="88.5" r="1.6" fill="currentColor" stroke="none"/>
+    <circle cx="46.8" cy="85.8" r="1.2" fill="currentColor" stroke="none"/>
+    <circle cx="53.2" cy="85.8" r="1.2" fill="currentColor" stroke="none"/>
+    <circle cx="48" cy="83.6" r="1.1" fill="currentColor" stroke="none"/>
+    <circle cx="52" cy="83.6" r="1.1" fill="currentColor" stroke="none"/>
+  </svg>
+  <div class="tx">
+    <div class="l1">Bande</div>
+    <div class="l2">de Canailles</div>
+    <div class="sub">Colliers personnalisés</div>
+  </div>
+</div>
+</body></html>
