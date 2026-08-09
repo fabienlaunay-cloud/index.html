@@ -2437,8 +2437,17 @@ def _render_public_catalog(owner: dict, listings: list, image_urls: dict) -> str
                          f'<div class="pgrid">{"".join(product_card(l) for l in chunk)}</div></div>')
     pages.append(f'<div class="page cover back">{logo}<h1>Merci</h1>{_catalog_contact_html(owner)}'
                  '<p class="credit">Catalogue généré avec SynqIO</p></div>')
+    # paper grain overlay on every page
+    pages = [p[:-6] + '<i class="gr"></i></div>' for p in pages]
     n = len(pages)
-    book = "".join(f'<div class="page-w" data-i="{i}">{p}<div class="pback"></div></div>' for i, p in enumerate(pages))
+    if n % 2:
+        pages.append('<div class="page blank"></div>')
+    sheets = ""
+    S = len(pages) // 2
+    for k in range(S):
+        sheets += (f'<div class="sheet" data-s="{k}">'
+                   f'<div class="pg f">{pages[2*k]}</div>'
+                   f'<div class="pg b">{pages[2*k+1]}</div></div>')
 
     return f'''<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -2447,36 +2456,51 @@ def _render_public_catalog(owner: dict, listings: list, image_urls: dict) -> str
 <style>
 *{{margin:0;padding:0;box-sizing:border-box}}
 body{{font-family:'Segoe UI',system-ui,sans-serif;background:linear-gradient(125deg,#171236,#2a1f5c);min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:18px}}
-.stage{{position:relative;width:min(880px,96vw);aspect-ratio:3/4;max-height:84vh;perspective:2600px}}
-.page-w{{position:absolute;inset:0;transform-origin:left center;transition:transform 1.1s cubic-bezier(.35,.06,.15,1);transform-style:preserve-3d}}
-.page-w .page{{backface-visibility:hidden}}
-.pback{{position:absolute;inset:0;border-radius:14px 6px 6px 14px;background:linear-gradient(105deg,#f4f1fc 0%,#e9e4f8 55%,#ddd5f0 100%);transform:rotateY(180deg);backface-visibility:hidden;box-shadow:inset 14px 0 24px rgba(0,0,0,.08)}}
-.page-w.moving{{z-index:99!important}}
-.page-w.moving .page,.page-w.moving .pback{{box-shadow:-34px 26px 70px rgba(0,0,0,.5);animation:bend 1.1s cubic-bezier(.35,.06,.15,1) both}}
-@keyframes bend{{0%{{transform:skewY(0) scaleX(1);border-radius:6px 14px 14px 6px}}42%{{transform:skewY(-2.4deg) scaleX(.955);border-radius:6px 30px 30px 6px}}100%{{transform:skewY(0) scaleX(1);border-radius:6px 14px 14px 6px}}}}
-.page-w.moving .page::after{{content:'';position:absolute;inset:0;pointer-events:none;background:linear-gradient(100deg,transparent 32%,rgba(255,255,255,.4) 50%,transparent 68%);animation:sheen 1.1s ease both}}
+.stage{{position:relative;width:min(1160px,96vw);aspect-ratio:3/2;max-height:82vh;perspective:3200px}}
+.stage.single{{width:min(560px,96vw);aspect-ratio:3/4;max-height:84vh;perspective:none}}
+.spine{{position:absolute;left:50%;top:2%;bottom:2%;width:0;box-shadow:0 0 34px 7px rgba(0,0,0,.4);z-index:1}}
+.single .spine{{display:none}}
+.sheet{{position:absolute;left:50%;top:0;height:100%;width:50%;transform-origin:left center;transform-style:preserve-3d;transition:transform 1.1s cubic-bezier(.35,.06,.15,1)}}
+.sheet.flip{{transform:rotateY(-180deg)}}
+.sheet.moving{{z-index:99!important}}
+.pg{{position:absolute;inset:0;backface-visibility:hidden}}
+.pg.b{{transform:rotateY(180deg)}}
+.page{{position:absolute;inset:0;background:#fff;border-radius:4px 14px 14px 4px;box-shadow:0 16px 50px rgba(0,0,0,.4);overflow:hidden;display:flex;flex-direction:column;padding:24px 26px}}
+.pg.b .page{{border-radius:14px 4px 4px 14px}}
+.page::before{{content:'';position:absolute;left:0;top:0;bottom:0;width:16px;background:linear-gradient(90deg,rgba(0,0,0,.12),transparent);pointer-events:none;z-index:2}}
+.pg.b .page::before{{left:auto;right:0;background:linear-gradient(-90deg,rgba(0,0,0,.12),transparent)}}
+.gr{{position:absolute;inset:0;pointer-events:none;opacity:.4;mix-blend-mode:overlay;z-index:1;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='140' height='140'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix type='saturate' values='0'/></filter><rect width='140' height='140' filter='url(%23n)' opacity='0.45'/></svg>")}}
+.sheet.moving .page{{animation:bend 1.1s cubic-bezier(.35,.06,.15,1) both;box-shadow:-30px 22px 60px rgba(0,0,0,.5)}}
+@keyframes bend{{0%{{transform:skewY(0) scaleX(1)}}42%{{transform:skewY(-2.2deg) scaleX(.955)}}100%{{transform:skewY(0) scaleX(1)}}}}
+.sheet.moving .pg .page::after{{content:'';position:absolute;inset:0;pointer-events:none;z-index:3;background:linear-gradient(100deg,transparent 32%,rgba(255,255,255,.38) 50%,transparent 68%);animation:sheen 1.1s ease both}}
 @keyframes sheen{{0%{{transform:translateX(-70%);opacity:0}}30%{{opacity:1}}100%{{transform:translateX(70%);opacity:0}}}}
-.page-w.flip{{transform:rotateY(-180deg)}}
-.page{{position:absolute;inset:0;background:#fff;border-radius:6px 14px 14px 6px;box-shadow:0 18px 60px rgba(0,0,0,.45);overflow:hidden;display:flex;flex-direction:column;padding:26px 28px}}
-.page::before{{content:'';position:absolute;left:0;top:0;bottom:0;width:14px;background:linear-gradient(90deg,rgba(0,0,0,.12),transparent);pointer-events:none}}
+.blank{{background:linear-gradient(150deg,#241a4d,#4c37a3)}}
 .cover{{align-items:center;justify-content:center;text-align:center;background:linear-gradient(150deg,#241a4d,#4c37a3);color:#fff}}
-.cover h1{{font-size:clamp(26px,4.5vw,44px);font-weight:900;letter-spacing:-1px;margin:14px 0 8px}}
+.cover h1{{font-size:clamp(24px,3.6vw,40px);font-weight:900;letter-spacing:-1px;margin:14px 0 8px}}
 .cover p{{color:rgba(255,255,255,.75);font-size:15px}}
 .cover .logo{{max-height:76px;max-width:220px;object-fit:contain}}
-.hintturn{{position:absolute;bottom:22px;left:0;right:0;font-size:11.5px;color:rgba(255,255,255,.5)}}
+.hintturn{{position:absolute;bottom:20px;left:0;right:0;font-size:11.5px;color:rgba(255,255,255,.5)}}
 .credit{{margin-top:22px;font-size:12px;color:rgba(255,255,255,.5)}}
-.cat{{font-size:15px;font-weight:800;color:#6d28d9;background:#f3efff;border-radius:999px;padding:6px 16px;align-self:flex-start;margin-bottom:14px}}
-.pgrid{{flex:1;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:16px;min-height:0}}
-.prd{{display:flex;flex-direction:column;min-height:0;border:1px solid #f1eefb;border-radius:12px;padding:10px;overflow:hidden}}
+.cat{{font-size:14px;font-weight:800;color:#6d28d9;background:#f3efff;border-radius:999px;padding:5px 15px;align-self:flex-start;margin-bottom:12px;z-index:2}}
+.pgrid{{flex:1;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:14px;min-height:0}}
+.prd{{display:flex;flex-direction:column;min-height:0;border:1px solid #f1eefb;border-radius:12px;padding:9px;overflow:hidden;background:#fff;z-index:2}}
 .prd img,.noimg{{width:100%;flex:1;min-height:0;object-fit:cover;border-radius:8px;background:#f3efff}}
 .prd img.zoom{{cursor:zoom-in}}
 .noimg{{display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;color:#8b7fc9;background:linear-gradient(135deg,#ede9fe,#ddd6fe)}}
-.prd h3{{font-size:12.5px;font-weight:700;color:#1f2937;line-height:1.25;margin-top:8px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}}
-.prd .price{{color:#6d28d9;font-size:14px;font-weight:900;margin-top:3px}}
-.nav{{display:flex;align-items:center;gap:18px;margin-top:16px}}
+.prd h3{{font-size:12px;font-weight:700;color:#1f2937;line-height:1.25;margin-top:7px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}}
+.prd .price{{color:#6d28d9;font-size:13.5px;font-weight:900;margin-top:2px}}
+.single .sheet{{left:0;width:100%;transform:none!important;transition:none}}
+.single .pg{{transform:none;backface-visibility:visible;opacity:0;pointer-events:none;transition:opacity .4s}}
+.single .pg.cur{{opacity:1;pointer-events:auto}}
+.single .pg .page,.single .pg.b .page{{border-radius:12px}}
+.nav{{display:flex;align-items:center;gap:16px;margin-top:16px;flex-wrap:wrap;justify-content:center}}
 .nav button{{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.25);color:#fff;border-radius:12px;padding:10px 20px;font-size:14px;font-weight:700;cursor:pointer;transition:background .15s}}
 .nav button:hover{{background:rgba(255,255,255,.22)}}
-.nav .cnt{{color:rgba(255,255,255,.65);font-size:13px;font-weight:600;min-width:64px;text-align:center}}
+.nav .cnt{{color:rgba(255,255,255,.65);font-size:13px;font-weight:600;min-width:70px;text-align:center}}
+.side{{position:absolute;top:50%;transform:translateY(-50%);z-index:40;width:54px;height:54px;border-radius:50%;background:#fff;border:none;color:#4c37a3;font-size:26px;font-weight:900;cursor:pointer;box-shadow:0 10px 30px rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;transition:transform .15s}}
+.side:hover{{transform:translateY(-50%) scale(1.12)}}
+.side.prev{{left:-27px}}.side.next{{right:-27px}}
+@media (max-width:700px){{.side.prev{{left:6px}}.side.next{{right:6px}}}}
 .contact{{display:flex;gap:16px;flex-wrap:wrap;justify-content:center;margin-top:18px}}
 .contact a{{color:#c4b5fd;font-weight:700;text-decoration:none;font-size:14px}}
 .lb{{display:none;position:fixed;inset:0;background:rgba(12,8,32,.94);z-index:50;flex-direction:column;align-items:center;justify-content:center;padding:24px}}
@@ -2487,52 +2511,78 @@ body{{font-family:'Segoe UI',system-ui,sans-serif;background:linear-gradient(125
 .lb button{{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.25);color:#fff;border-radius:12px;padding:10px 18px;font-size:14px;font-weight:700;cursor:pointer}}
 .lb .cnt{{color:rgba(255,255,255,.6);font-size:13px}}
 .lb .x{{position:absolute;top:18px;right:22px}}
-.side{{position:absolute;top:50%;transform:translateY(-50%);z-index:40;width:54px;height:54px;border-radius:50%;background:#fff;border:none;color:#4c37a3;font-size:26px;font-weight:900;cursor:pointer;box-shadow:0 10px 30px rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;transition:transform .15s}}
-.side:hover{{transform:translateY(-50%) scale(1.12)}}
-.side.prev{{left:-27px}}.side.next{{right:-27px}}
-@media (max-width:700px){{.side.prev{{left:6px}}.side.next{{right:6px}}}}
-@media print{{body{{background:#fff;display:block}}.stage{{perspective:none;width:100%;aspect-ratio:auto;max-height:none}}.page-w{{position:static;transform:none!important;page-break-after:always;height:100vh}}.page{{position:relative;box-shadow:none}}.nav,.lb,.side{{display:none!important}}}}
+@media print{{body{{background:#fff;display:block}}.stage{{perspective:none;width:100%;aspect-ratio:auto;max-height:none}}.sheet{{position:static;transform:none!important;height:auto}}.pg{{position:static;transform:none!important;opacity:1!important;page-break-after:always;height:100vh}}.page{{position:relative;box-shadow:none}}.nav,.lb,.side,.spine{{display:none!important}}}}
 </style></head><body>
-<div class="stage" id="book">{book}<button class="side prev" onclick="event.stopPropagation();go(-1)">&#8249;</button><button class="side next" onclick="event.stopPropagation();go(1)">&#8250;</button></div>
-<div class="nav">
-  <button onclick="go(-1)">‹ Précédente</button>
-  <span class="cnt" id="cnt"></span>
-  <button id="snd" onclick="sndMuted=!sndMuted;this.textContent=sndMuted?&#39;Son : coupé&#39;:&#39;Son : activé&#39;" style="font-size:12px;padding:8px 14px">Son : activé</button>
-  <button onclick="go(1)">Suivante ›</button>
+<div class="stage" id="book"><div class="spine"></div>{sheets}
+  <button class="side prev" onclick="event.stopPropagation();go(-1)">&#8249;</button>
+  <button class="side next" onclick="event.stopPropagation();go(1)">&#8250;</button>
 </div>
-<div class="lb" id="lb"><button class="x" onclick="lbClose()">✕ Fermer</button>
+<div class="nav">
+  <button onclick="go(-1)">&#8249; Précédente</button>
+  <span class="cnt" id="cnt"></span>
+  <button onclick="go(1)">Suivante &#8250;</button>
+  <button id="snd" onclick="sndMuted=!sndMuted;this.textContent=sndMuted?&#39;Son : coupé&#39;:&#39;Son : activé&#39;" style="font-size:12px;padding:8px 14px">Son : activé</button>
+</div>
+<div class="lb" id="lb"><button class="x" onclick="lbClose()">&#10005; Fermer</button>
   <img id="lbImg" src="" alt=""><div class="cap" id="lbCap"></div>
-  <div class="lnav"><button onclick="lbNav(-1)">‹</button><span class="cnt" id="lbCnt"></span><button onclick="lbNav(1)">›</button></div>
+  <div class="lnav"><button onclick="lbNav(-1)">&#8249;</button><span class="cnt" id="lbCnt"></span><button onclick="lbNav(1)">&#8250;</button></div>
 </div>
 <script>
-var N={n},cur=0,sndMuted=false,_actx=null;
+var N={n},S={S},pos=0,sndMuted=false,_actx=null;
+var stage=document.getElementById('book');
+var sheets=document.querySelectorAll('.sheet');
+var pgs=document.querySelectorAll('.pg');
+function isSingle(){{return window.innerWidth<1000}}
 function flipSound(){{
   if(sndMuted)return;
   try{{
     _actx=_actx||new (window.AudioContext||window.webkitAudioContext)();
     if(_actx.state==='suspended')_actx.resume();
     var dur=0.4,sr=_actx.sampleRate,buf=_actx.createBuffer(1,Math.floor(sr*dur),sr),d=buf.getChannelData(0);
-    for(var i=0;i<d.length;i++){{var t=i/d.length;
-      d[i]=(Math.random()*2-1)*Math.pow(1-t,1.5)*(0.18+2.4*t*(1-t));}}
+    for(var i=0;i<d.length;i++){{var t=i/d.length;d[i]=(Math.random()*2-1)*Math.pow(1-t,1.5)*(0.18+2.4*t*(1-t));}}
     var src=_actx.createBufferSource();src.buffer=buf;
     var bp=_actx.createBiquadFilter();bp.type='bandpass';bp.Q.value=0.9;
     bp.frequency.setValueAtTime(650,_actx.currentTime);
     bp.frequency.exponentialRampToValueAtTime(2800,_actx.currentTime+dur*0.75);
-    var g=_actx.createGain();g.gain.setValueAtTime(0.55,_actx.currentTime);
+    var g=_actx.createGain();g.gain.setValueAtTime(0.5,_actx.currentTime);
     g.gain.exponentialRampToValueAtTime(0.01,_actx.currentTime+dur);
     src.connect(bp);bp.connect(g);g.connect(_actx.destination);src.start();
   }}catch(e){{}}
 }}
-var pw=document.querySelectorAll('.page-w');
 function upd(){{
-  pw.forEach(function(p,k){{
-    p.classList.toggle('flip',k<cur);
-    p.style.zIndex = k<cur ? k : (N-k);
-  }});
-  document.getElementById('cnt').textContent=(cur+1)+' / '+N;
+  if(isSingle()){{
+    stage.classList.add('single');
+    pgs.forEach(function(p,i){{p.classList.toggle('cur',i===pos);}});
+    document.getElementById('cnt').textContent=(pos+1)+' / '+N;
+  }}else{{
+    stage.classList.remove('single');
+    var fs=Math.floor((pos+1)/2);
+    sheets.forEach(function(sh,k){{
+      sh.classList.toggle('flip',k<fs);
+      sh.style.zIndex = k<fs ? k : (S-k);
+    }});
+    var lbl = fs===0 ? '1' : (2*fs)+(2*fs+1<=N ? '-'+(2*fs+1) : '');
+    document.getElementById('cnt').textContent=lbl+' / '+N;
+  }}
 }}
-function go(d){{var old=cur;cur=Math.max(0,Math.min(N-1,cur+d));if(cur===old)return;var mv=pw[d>0?old:cur];if(mv){{mv.classList.add('moving');setTimeout(function(){{mv.classList.remove('moving')}},1150);}}flipSound();upd();}}
+function go(d){{
+  var old=pos;
+  if(isSingle()){{pos=Math.max(0,Math.min(N-1,pos+d));}}
+  else{{
+    var fs=Math.floor((pos+1)/2)+d;
+    fs=Math.max(0,Math.min(S,fs));
+    pos = fs===0 ? 0 : Math.min(N-1,2*fs-1);
+  }}
+  if(pos===old)return;
+  if(!isSingle()){{
+    var ofs=Math.floor((old+1)/2),nfs=Math.floor((pos+1)/2);
+    var mv=sheets[d>0?ofs:nfs];
+    if(mv){{mv.classList.add('moving');setTimeout(function(){{mv.classList.remove('moving')}},1150);}}
+  }}
+  flipSound();upd();
+}}
 upd();
+window.addEventListener('resize',upd);
 document.addEventListener('keydown',function(e){{
   if(document.getElementById('lb').classList.contains('open')){{
     if(e.key==='Escape')lbClose();if(e.key==='ArrowLeft')lbNav(-1);if(e.key==='ArrowRight')lbNav(1);
@@ -2540,7 +2590,7 @@ document.addEventListener('keydown',function(e){{
   }}
   if(e.key==='ArrowLeft')go(-1);if(e.key==='ArrowRight')go(1);
 }});
-document.getElementById('book').addEventListener('click',function(ev){{
+stage.addEventListener('click',function(ev){{
   var t=ev.target;
   if(t.classList&&t.classList.contains('zoom')){{
     try{{_lbImgs=JSON.parse(t.getAttribute('data-imgs')||'[]')}}catch(e){{_lbImgs=[t.src]}}
@@ -2553,8 +2603,8 @@ document.getElementById('book').addEventListener('click',function(ev){{
   go(ev.clientX - r.left > r.width/2 ? 1 : -1);
 }});
 var sx=null;
-document.getElementById('book').addEventListener('touchstart',function(e){{sx=e.touches[0].clientX}});
-document.getElementById('book').addEventListener('touchend',function(e){{
+stage.addEventListener('touchstart',function(e){{sx=e.touches[0].clientX}});
+stage.addEventListener('touchend',function(e){{
   if(sx===null)return;var dx=e.changedTouches[0].clientX-sx;sx=null;
   if(Math.abs(dx)>40)go(dx<0?1:-1);
 }});
