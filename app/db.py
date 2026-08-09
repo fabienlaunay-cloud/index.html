@@ -2084,10 +2084,14 @@ def _ensure_catalog_links(conn):
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)"""
     conn.execute(sql)
     for col in ("logo_url", "contact_email", "website", "phone"):
-        try:
-            conn.execute(f"ALTER TABLE catalog_links ADD COLUMN {col} TEXT DEFAULT ''")
-        except Exception:
-            pass  # column already exists
+        if os.getenv("DATABASE_URL"):
+            # PG: IF NOT EXISTS — a failed ALTER would abort the whole transaction
+            conn.execute(f"ALTER TABLE catalog_links ADD COLUMN IF NOT EXISTS {col} TEXT DEFAULT ''")
+        else:
+            try:
+                conn.execute(f"ALTER TABLE catalog_links ADD COLUMN {col} TEXT DEFAULT ''")
+            except Exception:
+                pass  # column already exists (sqlite has no IF NOT EXISTS)
 
 
 def get_or_create_catalog_link(user_email: str) -> dict:
