@@ -2589,7 +2589,7 @@ function go(d){{
   }}
   flipSound();upd();
 }}
-var NS=10,DUR=1200;
+var NS=18,DUR=1200,BLEED=0.9;
 function curlTurn(mv,d){{
   var turn=document.createElement('div');turn.className='turn';
   var fF=mv.querySelector('.pg.f'),fB=mv.querySelector('.pg.b');
@@ -2598,8 +2598,9 @@ function curlTurn(mv,d){{
   for(var i=0;i<NS;i++){{
     var st=document.createElement('div');st.className='strip';
     var cf=fF.cloneNode(true),cb=fB.cloneNode(true);
-    cf.style.clipPath='inset(0 '+(100-(i+1)*w)+'% 0 '+(i*w)+'%)';
-    cb.style.clipPath='inset(0 '+(i*w)+'% 0 '+(100-(i+1)*w)+'%)';
+    var L=Math.max(0,i*w-BLEED),R=Math.max(0,100-(i+1)*w-BLEED);
+    cf.style.clipPath='inset(0 '+R+'% 0 '+L+'%)';
+    cb.style.clipPath='inset(0 '+L+'% 0 '+R+'%)';
     st.appendChild(cf);st.appendChild(cb);turn.appendChild(st);strips.push(st);
   }}
   stage.appendChild(turn);
@@ -2609,15 +2610,15 @@ function curlTurn(mv,d){{
     var f=i/(NS-1);
     var kf = d>0 ? [
       {{transform:'rotateY(0deg)'}},
-      {{transform:'rotateY('+(-(72-30*f))+'deg)',offset:.32}},
-      {{transform:'rotateY('+(-(148-14*f))+'deg)',offset:.62}},
-      {{transform:'rotateY('+(-(181+7*f))+'deg)',offset:.85}},
+      {{transform:'rotateY('+(-(72-12*f))+'deg)',offset:.32}},
+      {{transform:'rotateY('+(-(148-5*f))+'deg)',offset:.62}},
+      {{transform:'rotateY('+(-(180.6+2.2*f))+'deg)',offset:.85}},
       {{transform:'rotateY(-180deg)'}}
     ] : [
       {{transform:'rotateY(-180deg)'}},
-      {{transform:'rotateY('+(-(108+30*f))+'deg)',offset:.32}},
-      {{transform:'rotateY('+(-(32+14*f))+'deg)',offset:.62}},
-      {{transform:'rotateY('+((1+7*f))+'deg)',offset:.85}},
+      {{transform:'rotateY('+(-(108+12*f))+'deg)',offset:.32}},
+      {{transform:'rotateY('+(-(32+5*f))+'deg)',offset:.62}},
+      {{transform:'rotateY('+((0.6+2.2*f))+'deg)',offset:.85}},
       {{transform:'rotateY(0deg)'}}
     ];
     st.animate(kf,{{duration:DUR,easing:ease,fill:'both'}});
