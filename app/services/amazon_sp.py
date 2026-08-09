@@ -73,6 +73,19 @@ def _get_sp_credentials(user_email: str = None) -> dict:
             "SELECT refresh_token, seller_id FROM amazon_credentials WHERE user_email = ?",
             (user_email,),
         ).fetchone()
+        if not row and user_email.startswith("ws_"):
+            # Client workspace without its own connection → inherit the agency
+            # owner's Seller Central connection (NOT the stale env fallback).
+            try:
+                from app.db import workspace_owner
+                owner = workspace_owner(user_email)
+                if owner:
+                    row = conn.execute(
+                        "SELECT refresh_token, seller_id FROM amazon_credentials WHERE user_email = ?",
+                        (owner,),
+                    ).fetchone()
+            except Exception:
+                pass
         conn.close()
         if row:
             from app.services.crypto import decrypt_token
