@@ -548,11 +548,36 @@ async def _publish_one(
         get_resp = await client.get(get_url, headers=get_headers)
     _log.warning(f"[SP-API] GET listing: {get_resp.status_code} | {get_resp.text[:400]}")
 
-    # ── PUT with issueLocale for localised error detail ───────────────────────
-    put_url = f"{base_url}?marketplaceIds={marketplace_id}&issueLocale={language_tag.replace('_', '-')}"
-    put_headers = _sign_request("PUT", put_url, body_bytes, temp_creds, lwa_token)
+    # ── Existing SKU → PATCH just the content fields with the REAL productType
+    # from Amazon (a full PUT would demand every category attribute → InvalidInput).
+    # New SKU → full PUT create as before.
+    existing_pt = None
+    if get_resp.status_code == 200:
+        try:
+            existing_pt = (get_resp.json().get("summaries") or [{}])[0].get("productType")
+        except Exception:
+            existing_pt = None
+    qs = f"?marketplaceIds={marketplace_id}&issueLocale={language_tag.replace('_', '-')}"
     async with httpx.AsyncClient(timeout=30) as client:
-        resp = await client.put(put_url, headers=put_headers, content=body_bytes)
+        if existing_pt:
+            attrs = payload["attributes"]
+            patches = [{"op": "replace", "path": f"/attributes/{k}", "value": attrs[k]}
+                       for k in ("item_name", "bullet_point", "product_description")
+                       if attrs.get(k)]
+            if listing.backend_keywords:
+                patches.append({"op": "replace", "path": "/attributes/generic_keyword",
+                                "value": [{"value": listing.backend_keywords[:249],
+                                           "marketplace_id": marketplace_id,
+                                           "language_tag": language_tag}]})
+            body_bytes = json.dumps({"productType": existing_pt, "patches": patches}).encode()
+            _log.warning(f"[SP-API] PATCH existing listing pt={existing_pt} patches={len(patches)}")
+            url = base_url + qs
+            resp = await client.patch(url, headers=_sign_request("PATCH", url, body_bytes, temp_creds, lwa_token),
+                                      content=body_bytes)
+        else:
+            url = base_url + qs
+            resp = await client.put(url, headers=_sign_request("PUT", url, body_bytes, temp_creds, lwa_token),
+                                    content=body_bytes)
 
     _log.warning(f"[SP-API] status: {resp.status_code} | response: {resp.text[:1000]}")
 
