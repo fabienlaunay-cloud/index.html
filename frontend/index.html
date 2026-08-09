@@ -2136,6 +2136,10 @@
     </div>
   </div>
 
+  <!-- ── In-app tabs (Hub, Bibliothèque…) — full pages, not modals ─────────── -->
+  <div id="appTabsBar" class="hidden flex items-center gap-1.5 mb-4 flex-wrap"></div>
+  <div id="appTabView" class="hidden"></div>
+
   <!-- ── Generator section ────────────────────────────────────────────────── -->
   <div id="generatorSection">
   <div class="grid grid-cols-12 gap-6">
@@ -12427,6 +12431,12 @@ async function submitCsvImport() {
 // ── Audit tool ─────────────────────────────────────────────────────────────────
 
 function switchAppMode(mode) {
+  // Leaving via the main nav closes the active in-app tab view (tabs stay in the bar)
+  if (typeof _activeAppTab !== 'undefined' && _activeAppTab) {
+    _activeAppTab = null;
+    _renderAppTabsBar();
+    document.getElementById('appTabView')?.classList.add('hidden');
+  }
   const isAudit = mode === 'audit';
   document.getElementById('auditSection').classList.toggle('hidden', !isAudit);
   document.getElementById('generatorSection').classList.toggle('hidden', isAudit);
@@ -13131,15 +13141,88 @@ function _refImageFor(rawProduct) {
 const _MEDIA_TYPE_LABELS = { hero:'Principale', lifestyle_1:'Lifestyle 1', lifestyle_2:'Lifestyle 2',
   infographic:'Infographie', detail:'Détail', dimensions:'Dimensions', packaging:'Packaging' };
 
+// ── In-app tabs — full pages inside the app instead of modals ────────────────
+let _appTabs = [];
+let _activeAppTab = null;
+
+function openAppTab(id, icon, title, renderFn) {
+  const ex = _appTabs.find(t => t.id === id);
+  if (!ex) _appTabs.push({ id, icon, title, renderFn });
+  else ex.renderFn = renderFn;
+  _activeAppTab = id;
+  _renderAppTabsBar();
+  _showActiveAppTab();
+}
+
+function _renderAppTabsBar() {
+  const bar = document.getElementById('appTabsBar');
+  if (!bar) return;
+  bar.classList.toggle('hidden', !_appTabs.length);
+  bar.innerHTML = _appTabs.map(t => `
+    <div onclick="_activateAppTab('${t.id}')" class="inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-bold cursor-pointer transition select-none ${_activeAppTab === t.id ? 'gradient-bg text-white shadow-md' : 'bg-white text-gray-600 border border-gray-200 hover:border-purple-200'}">
+      <span>${t.icon}</span>${_esc(t.title)}
+      <span onclick="event.stopPropagation();closeAppTab('${t.id}')" class="ml-1 opacity-60 hover:opacity-100 text-sm leading-none">✕</span>
+    </div>`).join('') +
+    (_activeAppTab ? `<button onclick="_activateAppTab(null)" class="text-[11px] font-semibold text-gray-400 hover:text-purple-600 px-2">← Retour au générateur</button>` : '');
+}
+
+function _activateAppTab(id) {
+  _activeAppTab = id;
+  _renderAppTabsBar();
+  _showActiveAppTab();
+}
+
+function closeAppTab(id) {
+  _appTabs = _appTabs.filter(t => t.id !== id);
+  if (_activeAppTab === id) _activeAppTab = _appTabs.length ? _appTabs[_appTabs.length - 1].id : null;
+  _renderAppTabsBar();
+  _showActiveAppTab();
+}
+
+function _showActiveAppTab() {
+  const view = document.getElementById('appTabView');
+  const t = _appTabs.find(x => x.id === _activeAppTab);
+  const gen = document.getElementById('generatorSection');
+  const step = document.getElementById('stepBar');
+  if (!t) {
+    view.classList.add('hidden');
+    gen.classList.remove('hidden');
+    if (step) step.classList.remove('hidden');
+    return;
+  }
+  gen.classList.add('hidden');
+  document.getElementById('auditSection')?.classList.add('hidden');
+  if (step) step.classList.add('hidden');
+  view.classList.remove('hidden');
+  view.innerHTML = '<div class="bg-white rounded-3xl shadow-sm border border-gray-100 p-7" id="appTabContent"></div>';
+  t.renderFn(document.getElementById('appTabContent'));
+}
+
 async function openMediaPanel(tab) {
   tab = tab || 'images';
-  document.getElementById('mediaPanelModal').classList.remove('hidden');
-  const on = 'px-3 py-2 gradient-bg text-white', off = 'px-3 py-2 bg-white text-gray-500 hover:bg-gray-50';
-  document.getElementById('mediaTabImg').className = tab === 'images' ? on : off;
-  document.getElementById('mediaTabTxt').className = tab === 'textes' ? on : off;
-  document.getElementById('mediaUploadBtn').classList.toggle('hidden', tab !== 'images');
+  openAppTab('bib', '🗃️', 'Bibliothèque', (el) => {
+    el.innerHTML = `
+      <div class="flex items-center justify-between mb-5 flex-wrap gap-3">
+        <div>
+          <h2 class="text-xl font-bold text-gray-900">🗃️ Bibliothèque</h2>
+          <p class="text-xs text-gray-400 mt-0.5">Tout votre contenu par produit — images, photos, textes — réutilisable partout</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <div class="flex rounded-lg border border-gray-200 overflow-hidden text-xs font-semibold">
+            <button id="mediaTabImg" onclick="openMediaPanel('images')" class="px-3 py-2 ${tab === 'images' ? 'gradient-bg text-white' : 'bg-white text-gray-500 hover:bg-gray-50'}">🖼️ Images</button>
+            <button id="mediaTabTxt" onclick="openMediaPanel('textes')" class="px-3 py-2 ${tab === 'textes' ? 'gradient-bg text-white' : 'bg-white text-gray-500 hover:bg-gray-50'}">📝 Textes</button>
+          </div>
+          <button id="mediaUploadBtn" onclick="document.getElementById('mediaUploadInput').click()" class="text-xs font-bold text-white gradient-bg rounded-lg px-3 py-2 ${tab === 'images' ? '' : 'hidden'}">⬆️ Ajouter une photo</button>
+          <input type="file" id="mediaUploadInput" accept="image/jpeg,image/png,image/webp" class="hidden" onchange="mediaUpload(this)">
+        </div>
+      </div>
+      <div id="mediaBody"><p class="text-sm text-gray-400 text-center py-10">Chargement…</p></div>`;
+    _loadMediaTab(tab);
+  });
+}
+
+async function _loadMediaTab(tab) {
   const body = document.getElementById('mediaBody');
-  body.innerHTML = '<p class="text-sm text-gray-400 text-center py-10">Chargement…</p>';
   try {
     if (tab === 'textes') {
       const r = await authFetch('/api/content/library');
@@ -13151,7 +13234,7 @@ async function openMediaPanel(tab) {
       _renderMedia(await r.json());
     }
   } catch(e) {
-    body.innerHTML = '<p class="text-sm text-red-500 text-center py-10">Erreur de chargement.</p>';
+    if (body) body.innerHTML = '<p class="text-sm text-red-500 text-center py-10">Erreur de chargement.</p>';
   }
 }
 
@@ -13179,35 +13262,62 @@ function _renderContentLib(data) {
   _contentLibFilter('');
 }
 
+// Copy by index into _contentLibCache — never inline text into HTML attributes
+// (French apostrophes would break the markup).
+function _copyLib(btn, i, kind, j) {
+  const it = _contentLibCache[i];
+  if (!it) return;
+  let text = '';
+  if (kind === 'title') text = it.title;
+  else if (kind === 'bullet') text = (it.bullet_points || [])[j] || '';
+  else if (kind === 'desc') text = it.description;
+  else if (kind === 'kw') text = it.backend_keywords;
+  else text = `${it.title}\n\n${(it.bullet_points || []).map(b => '• ' + b).join('\n')}\n\n${it.description}\n\nMots-clés : ${it.backend_keywords}`;
+  _copyTxt(btn, text);
+}
+
 function _contentLibFilter(q) {
   q = (q || '').toLowerCase();
   const list = document.getElementById('contentLibList');
-  const items = _contentLibCache.filter(it =>
-    !q || (it.sku + ' ' + it.title + ' ' + it.brand).toLowerCase().includes(q)).slice(0, 60);
-  const cp = t => `data-copy="${_esc(String(t).replace(/"/g, '&quot;'))}"`;
-  list.innerHTML = items.map((it, i) => {
-    const full = `${it.title}\n\n${(it.bullet_points || []).map(b => '• ' + b).join('\n')}\n\n${it.description}\n\nMots-clés : ${it.backend_keywords}`;
-    return `<div class="border border-gray-100 rounded-2xl p-4 mb-3">
+  const shown = [];
+  _contentLibCache.forEach((it, i) => {
+    if (!q || (it.sku + ' ' + it.title + ' ' + it.brand).toLowerCase().includes(q)) shown.push(i);
+  });
+  list.innerHTML = '<div class="grid grid-cols-1 md:grid-cols-2 gap-3.5">' + shown.slice(0, 60).map(i => {
+    const it = _contentLibCache[i];
+    const nb = (it.bullet_points || []).length;
+    return `<div class="border border-gray-100 rounded-2xl p-4 hover:shadow-md transition flex flex-col">
       <div class="flex items-center gap-2 mb-2">
-        <span class="text-[10px] font-mono font-bold text-gray-400">${_esc(it.sku)}${it.marketplace ? ' · ' + _esc(it.marketplace.replace('amazon_','').toUpperCase()) : ''}</span>
-        <button onclick='_copyTxt(this, ${JSON.stringify(full)})' class="ml-auto text-[10px] font-bold text-white gradient-bg rounded-lg px-2.5 py-1">Tout copier</button>
+        <span class="text-[10px] font-mono font-bold text-purple-600 bg-purple-50 rounded-md px-2 py-0.5">${_esc(it.sku)}</span>
+        ${it.marketplace ? `<span class="text-[9px] font-bold text-gray-400">${_esc(it.marketplace.replace('amazon_','').toUpperCase())}</span>` : ''}
+        ${it.brand ? `<span class="text-[9px] text-gray-300">${_esc(it.brand)}</span>` : ''}
+        <button onclick="_copyLib(this, ${i}, 'full')" class="ml-auto text-[10px] font-bold text-white gradient-bg rounded-lg px-2.5 py-1 whitespace-nowrap">Tout copier</button>
       </div>
-      <div class="flex items-start gap-2 mb-1.5">
-        <p class="text-sm font-bold text-gray-800 flex-1">${_esc(it.title)}</p>
-        <button onclick='_copyTxt(this, ${JSON.stringify(it.title)})' class="text-xs text-gray-300 hover:text-purple-600">📋</button>
+      <div class="flex items-start gap-2 mb-2">
+        <p class="text-sm font-bold text-gray-800 leading-snug flex-1">${_esc(it.title)}</p>
+        <button onclick="_copyLib(this, ${i}, 'title')" title="Copier le titre" class="text-xs text-gray-300 hover:text-purple-600 flex-shrink-0">📋</button>
       </div>
-      ${(it.bullet_points || []).map(b => `<div class="flex items-start gap-2 py-0.5">
-        <span class="text-xs text-gray-600 flex-1">• ${_esc(b)}</span>
-        <button onclick='_copyTxt(this, ${JSON.stringify(b)})' class="text-xs text-gray-300 hover:text-purple-600">📋</button>
-      </div>`).join('')}
-      ${it.description ? `<details class="mt-1.5"><summary class="text-[11px] text-gray-400 cursor-pointer hover:text-gray-600">Description <button onclick='event.preventDefault();_copyTxt(this, ${JSON.stringify(it.description)})' class="text-gray-300 hover:text-purple-600 ml-1">📋</button></summary>
-        <p class="text-xs text-gray-500 mt-1.5 whitespace-pre-wrap">${_esc(it.description)}</p></details>` : ''}
-      ${it.backend_keywords ? `<div class="flex items-start gap-2 mt-1.5">
-        <span class="text-[11px] text-purple-500 flex-1 font-mono">${_esc(it.backend_keywords)}</span>
-        <button onclick='_copyTxt(this, ${JSON.stringify(it.backend_keywords)})' class="text-xs text-gray-300 hover:text-purple-600">📋</button>
-      </div>` : ''}
+      <div class="text-[10px] text-gray-400 mb-2">${nb} bullet(s) · ${(it.description || '').length} car. de description${it.price != null ? ` · ${Number(it.price).toFixed(2)} €` : ''}</div>
+      <details class="mt-auto">
+        <summary class="text-[11px] font-semibold text-purple-500 cursor-pointer hover:text-purple-700 select-none">Voir le contenu ▾</summary>
+        <div class="mt-2 space-y-1">
+          ${(it.bullet_points || []).map((b, j) => `<div class="flex items-start gap-2">
+            <span class="text-[11px] text-gray-600 flex-1">• ${_esc(b)}</span>
+            <button onclick="_copyLib(this, ${i}, 'bullet', ${j})" class="text-[11px] text-gray-300 hover:text-purple-600 flex-shrink-0">📋</button>
+          </div>`).join('')}
+          ${it.description ? `<div class="flex items-start gap-2 pt-1.5 border-t border-gray-50">
+            <p class="text-[11px] text-gray-500 flex-1 whitespace-pre-wrap max-h-40 overflow-y-auto">${_esc(it.description)}</p>
+            <button onclick="_copyLib(this, ${i}, 'desc')" title="Copier la description" class="text-[11px] text-gray-300 hover:text-purple-600 flex-shrink-0">📋</button>
+          </div>` : ''}
+          ${it.backend_keywords ? `<div class="flex items-start gap-2 pt-1.5 border-t border-gray-50">
+            <span class="text-[10px] text-purple-500 flex-1 font-mono">${_esc(it.backend_keywords)}</span>
+            <button onclick="_copyLib(this, ${i}, 'kw')" title="Copier les mots-clés" class="text-[11px] text-gray-300 hover:text-purple-600 flex-shrink-0">📋</button>
+          </div>` : ''}
+        </div>
+      </details>
     </div>`;
-  }).join('') || '<p class="text-sm text-gray-400 text-center py-8">Aucune fiche ne correspond.</p>';
+  }).join('') + '</div>' || '<p class="text-sm text-gray-400 text-center py-8">Aucune fiche ne correspond.</p>';
+  if (!shown.length) list.innerHTML = '<p class="text-sm text-gray-400 text-center py-8">Aucune fiche ne correspond.</p>';
 }
 
 function _renderMedia(data) {
@@ -13290,15 +13400,28 @@ const _HUB_LABELS = {
 };
 
 async function openHubPanel() {
-  document.getElementById('hubPanelModal').classList.remove('hidden');
+  openAppTab('hub', '🗂️', 'Hub de diffusion', (el) => {
+    el.innerHTML = `
+      <div class="flex items-center justify-between mb-5 flex-wrap gap-3">
+        <div>
+          <h2 class="text-xl font-bold text-gray-900">🗂️ Hub de diffusion</h2>
+          <p class="text-xs text-gray-400 mt-0.5">Où vivent vos fiches : publications, exports, connecteurs, flux et catalogue public</p>
+        </div>
+        <button onclick="openHubPanel()" class="text-xs font-semibold text-gray-500 bg-gray-100 hover:bg-gray-200 rounded-lg px-3 py-2 transition">↻ Actualiser</button>
+      </div>
+      <div id="hubBody"><p class="text-sm text-gray-400 text-center py-10">Chargement…</p></div>`;
+    _loadHub();
+  });
+}
+
+async function _loadHub() {
   const body = document.getElementById('hubBody');
-  body.innerHTML = '<p class="text-sm text-gray-400 text-center py-10">Chargement…</p>';
   try {
     const r = await authFetch('/api/hub/overview');
     if (!r.ok) throw new Error();
     _renderHub(await r.json());
   } catch(e) {
-    body.innerHTML = '<p class="text-sm text-red-500 text-center py-10">Erreur de chargement — réessayez.</p>';
+    if (body) body.innerHTML = '<p class="text-sm text-red-500 text-center py-10">Erreur de chargement — réessayez.</p>';
   }
 }
 
