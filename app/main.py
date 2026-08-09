@@ -2304,109 +2304,140 @@ async def catalog_link_meta(meta: CatalogMeta, request: Request):
 
 
 def _render_public_catalog(owner: dict, listings: list, image_urls: dict) -> str:
-    """Server-rendered public catalogue page (Calaméo-style shareable link)."""
+    """Calaméo-style public flipbook: cover page, 4 products per page with 3D
+    page-turn, photo lightbox (all visuals per product), contact back page.
+    Embeddable in an <iframe> on any website."""
     import html as _html
     e = _html.escape
     brands = sorted({(l.get("brand") or "").strip() for l in listings if (l.get("brand") or "").strip()})
-    # Single brand → carry it; otherwise a neutral title (never a placeholder brand)
     title = owner.get("title") or (f"Catalogue {brands[0]}" if len(brands) == 1 else "Notre catalogue")
     import datetime as _d
     subtitle = owner.get("subtitle") or f"Collection {_d.date.today().year} — {len(listings)} produits"
-    # group by category
     groups: dict = {}
     for l in listings:
         groups.setdefault((l.get("category") or "Autres").strip() or "Autres", []).append(l)
-    cur = {"amazon_fr": "€", "amazon_de": "€", "amazon_it": "€", "amazon_es": "€",
-           "amazon_be": "€", "amazon_nl": "€", "amazon_uk": "£", "amazon_pl": "zł", "amazon_se": "kr"}
-    cards = []
+    cur = {"amazon_uk": "£", "amazon_pl": "zł", "amazon_se": "kr"}
+
+    def product_card(l):
+        imgs = (image_urls or {}).get(l.get("sku"), []) or []
+        img = imgs[0] if imgs else ""
+        price = l.get("price")
+        sym = cur.get(l.get("marketplace") or "", "€")
+        imgs_attr = e(json.dumps(imgs)) if imgs else ""
+        pic = (f'<img loading="lazy" src="{e(img)}" alt="" class="zoom" data-imgs="{imgs_attr}" '
+               f'data-title="{e(l.get("title") or "")}">' if img
+               else '<div class="noimg">Photo à venir</div>')
+        return (f'<div class="prd">{pic}<h3>{e(l.get("title") or l.get("sku") or "")}</h3>'
+                + (f'<div class="price">{price:.2f} {sym}</div>' if isinstance(price, (int, float)) else '')
+                + '</div>')
+
+    logo = f'<img class="logo" src="{e(owner.get("logo_url") or "")}" alt="">' if owner.get("logo_url") else ''
+    pages = [f'<div class="page cover">{logo}<h1>{e(title)}</h1><p>{e(subtitle)}</p>'
+             f'<span class="hintturn">Cliquez ou utilisez les flèches pour tourner les pages</span></div>']
     for cat, items in groups.items():
-        cards.append(f'<h2 class="cat" id="{e(cat)}">{e(cat)}<span>{len(items)}</span></h2><div class="grid">')
-        for l in items:
-            imgs = (image_urls or {}).get(l.get("sku"), []) or []
-            img = imgs[0] if imgs else ""
-            price = l.get("price")
-            sym = cur.get(l.get("marketplace") or "", "€")
-            bullets = "".join(f"<li>{e(b)}</li>" for b in (l.get("bullet_points") or [])[:3])
-            imgs_attr = e(json.dumps(imgs)) if imgs else ""
-            cards.append(f'''<div class="card">
-  {'<img loading="lazy" src="' + e(img) + '" alt="" class="zoom" data-imgs="' + imgs_attr + '" data-title="' + e(l.get("title") or "") + '">' if img else '<div class="noimg">Photo à venir</div>'}
-  <div class="cbody">
-    <h3>{e(l.get("title") or l.get("sku") or "")}</h3>
-    {f'<div class="price">{price:.2f} {sym}</div>' if isinstance(price, (int, float)) else ''}
-    <ul>{bullets}</ul>
-  </div>
-</div>''')
-        cards.append("</div>")
-    toc = "".join(f'<a href="#{e(c)}">{e(c)}</a>' for c in groups)
+        for i in range(0, len(items), 4):
+            chunk = items[i:i + 4]
+            pages.append(f'<div class="page"><div class="cat">{e(cat)}</div>'
+                         f'<div class="pgrid">{"".join(product_card(l) for l in chunk)}</div></div>')
+    pages.append(f'<div class="page cover back">{logo}<h1>Merci</h1>{_catalog_contact_html(owner)}'
+                 '<p class="credit">Catalogue généré avec SynqIO</p></div>')
+    n = len(pages)
+    book = "".join(f'<div class="page-w" data-i="{i}">{p}</div>' for i, p in enumerate(pages))
+
     return f'''<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex">
 <title>{e(title)}</title>
 <style>
 *{{margin:0;padding:0;box-sizing:border-box}}
-body{{font-family:'Segoe UI',system-ui,sans-serif;background:#f6f5fb;color:#1f2937}}
-.hero{{background:linear-gradient(125deg,#1a1033 0%,#3b2a75 55%,#241a4d 100%);color:#fff;text-align:center;padding:72px 24px 56px;position:relative;overflow:hidden}}
-.hero::after{{content:'';position:absolute;inset:0;background-image:radial-gradient(circle,rgba(255,255,255,.07) 1.3px,transparent 1.3px);background-size:38px 38px}}
-.hero h1{{font-size:clamp(30px,5vw,54px);font-weight:900;letter-spacing:-1px;position:relative;z-index:1}}
-.hero p{{color:rgba(255,255,255,.7);font-size:clamp(15px,2.2vw,20px);margin-top:12px;position:relative;z-index:1}}
-.toc{{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;padding:18px 24px;background:#fff;box-shadow:0 2px 12px rgba(30,20,80,.06);position:sticky;top:0;z-index:5}}
-.toc a{{color:#6d28d9;font-size:13px;font-weight:700;text-decoration:none;background:#f3efff;border-radius:999px;padding:7px 14px}}
-.wrap{{max-width:1180px;margin:0 auto;padding:34px 22px 60px}}
-.cat{{font-size:24px;font-weight:800;margin:34px 0 16px;display:flex;align-items:center;gap:10px}}
-.cat span{{font-size:12px;font-weight:800;color:#6d28d9;background:#ede9fe;border-radius:999px;padding:3px 10px}}
-.grid{{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:18px}}
-.card{{background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 6px 20px rgba(30,20,80,.07)}}
-.card img{{width:100%;aspect-ratio:1;object-fit:cover;background:#f3efff}}
-.noimg{{width:100%;aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;color:#8b7fc9;letter-spacing:.5px;background:linear-gradient(135deg,#ede9fe,#ddd6fe)}}
-.cbody{{padding:14px 16px 16px}}
-.cbody h3{{font-size:15px;font-weight:700;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}}
-.price{{color:#6d28d9;font-size:18px;font-weight:900;margin-top:7px}}
-.cbody ul{{margin-top:9px;padding-left:16px;color:#6b7280;font-size:12.5px;line-height:1.45}}
-.cbody li{{margin-bottom:3px}}
-.foot{{text-align:center;padding:34px;color:#9ca3af;font-size:13px}}
-.foot a{{color:#7c3aed;font-weight:700;text-decoration:none}}
-.hero img.logo{{max-height:84px;max-width:260px;object-fit:contain;margin:0 auto 22px;display:block;position:relative;z-index:1}}
-.card img.zoom{{cursor:zoom-in}}
-.contact{{display:flex;gap:22px;flex-wrap:wrap;justify-content:center;background:#fff;border-top:1px solid #eee;padding:26px 22px 8px}}
-.contact a{{color:#6d28d9;font-weight:700;text-decoration:none;font-size:14px}}
+body{{font-family:'Segoe UI',system-ui,sans-serif;background:linear-gradient(125deg,#171236,#2a1f5c);min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:18px}}
+.stage{{position:relative;width:min(880px,96vw);aspect-ratio:3/4;max-height:84vh;perspective:2600px}}
+.page-w{{position:absolute;inset:0;transform-origin:left center;transition:transform .75s cubic-bezier(.4,.1,.2,1);transform-style:preserve-3d;backface-visibility:hidden}}
+.page-w.flip{{transform:rotateY(-180deg)}}
+.page{{position:absolute;inset:0;background:#fff;border-radius:6px 14px 14px 6px;box-shadow:0 18px 60px rgba(0,0,0,.45);overflow:hidden;display:flex;flex-direction:column;padding:26px 28px}}
+.page::before{{content:'';position:absolute;left:0;top:0;bottom:0;width:14px;background:linear-gradient(90deg,rgba(0,0,0,.12),transparent);pointer-events:none}}
+.cover{{align-items:center;justify-content:center;text-align:center;background:linear-gradient(150deg,#241a4d,#4c37a3);color:#fff}}
+.cover h1{{font-size:clamp(26px,4.5vw,44px);font-weight:900;letter-spacing:-1px;margin:14px 0 8px}}
+.cover p{{color:rgba(255,255,255,.75);font-size:15px}}
+.cover .logo{{max-height:76px;max-width:220px;object-fit:contain}}
+.hintturn{{position:absolute;bottom:22px;left:0;right:0;font-size:11.5px;color:rgba(255,255,255,.5)}}
+.credit{{margin-top:22px;font-size:12px;color:rgba(255,255,255,.5)}}
+.cat{{font-size:15px;font-weight:800;color:#6d28d9;background:#f3efff;border-radius:999px;padding:6px 16px;align-self:flex-start;margin-bottom:14px}}
+.pgrid{{flex:1;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:16px;min-height:0}}
+.prd{{display:flex;flex-direction:column;min-height:0;border:1px solid #f1eefb;border-radius:12px;padding:10px;overflow:hidden}}
+.prd img,.noimg{{width:100%;flex:1;min-height:0;object-fit:cover;border-radius:8px;background:#f3efff}}
+.prd img.zoom{{cursor:zoom-in}}
+.noimg{{display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;color:#8b7fc9;background:linear-gradient(135deg,#ede9fe,#ddd6fe)}}
+.prd h3{{font-size:12.5px;font-weight:700;color:#1f2937;line-height:1.25;margin-top:8px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}}
+.prd .price{{color:#6d28d9;font-size:14px;font-weight:900;margin-top:3px}}
+.nav{{display:flex;align-items:center;gap:18px;margin-top:16px}}
+.nav button{{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.25);color:#fff;border-radius:12px;padding:10px 20px;font-size:14px;font-weight:700;cursor:pointer;transition:background .15s}}
+.nav button:hover{{background:rgba(255,255,255,.22)}}
+.nav .cnt{{color:rgba(255,255,255,.65);font-size:13px;font-weight:600;min-width:64px;text-align:center}}
+.contact{{display:flex;gap:16px;flex-wrap:wrap;justify-content:center;margin-top:18px}}
+.contact a{{color:#c4b5fd;font-weight:700;text-decoration:none;font-size:14px}}
 .lb{{display:none;position:fixed;inset:0;background:rgba(12,8,32,.94);z-index:50;flex-direction:column;align-items:center;justify-content:center;padding:24px}}
 .lb.open{{display:flex}}
-.lb img{{max-width:min(92vw,900px);max-height:70vh;object-fit:contain;border-radius:14px;background:#fff}}
-.lb .cap{{color:#e9e4ff;font-size:14px;font-weight:600;margin-top:14px;text-align:center;max-width:700px}}
-.lb .nav{{display:flex;gap:14px;margin-top:16px;align-items:center}}
-.lb button{{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.25);color:#fff;border-radius:12px;padding:10px 18px;font-size:15px;font-weight:700;cursor:pointer}}
+.lb img{{max-width:min(92vw,900px);max-height:68vh;object-fit:contain;border-radius:14px;background:#fff}}
+.lb .cap{{color:#e9e4ff;font-size:14px;font-weight:600;margin-top:12px;text-align:center;max-width:700px}}
+.lb .lnav{{display:flex;gap:14px;margin-top:14px;align-items:center}}
+.lb button{{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.25);color:#fff;border-radius:12px;padding:10px 18px;font-size:14px;font-weight:700;cursor:pointer}}
 .lb .cnt{{color:rgba(255,255,255,.6);font-size:13px}}
-.lb .x{{position:absolute;top:18px;right:22px;font-size:22px;padding:8px 14px}}
-@media print{{.toc{{display:none}}.hero{{padding:40px}}}}
+.lb .x{{position:absolute;top:18px;right:22px}}
+@media print{{body{{background:#fff;display:block}}.stage{{perspective:none;width:100%;aspect-ratio:auto;max-height:none}}.page-w{{position:static;transform:none!important;page-break-after:always;height:100vh}}.page{{position:relative;box-shadow:none}}.nav,.lb{{display:none!important}}}}
 </style></head><body>
-<div class="hero">{f'<img class="logo" src="{e(owner.get("logo_url") or "")}" alt="">' if owner.get("logo_url") else ''}<h1>{e(title)}</h1><p>{e(subtitle)}</p></div>
-<div class="toc">{toc}</div>
-<div class="wrap">{''.join(cards)}</div>
-{_catalog_contact_html(owner)}
-<div class="foot">Catalogue généré avec <a href="https://synqio.io">SynqIO</a></div>
+<div class="stage" id="book">{book}</div>
+<div class="nav">
+  <button onclick="go(-1)">‹ Précédente</button>
+  <span class="cnt" id="cnt"></span>
+  <button onclick="go(1)">Suivante ›</button>
+</div>
 <div class="lb" id="lb"><button class="x" onclick="lbClose()">✕ Fermer</button>
   <img id="lbImg" src="" alt=""><div class="cap" id="lbCap"></div>
-  <div class="nav"><button onclick="lbNav(-1)">‹ Précédente</button><span class="cnt" id="lbCnt"></span><button onclick="lbNav(1)">Suivante ›</button></div>
+  <div class="lnav"><button onclick="lbNav(-1)">‹</button><span class="cnt" id="lbCnt"></span><button onclick="lbNav(1)">›</button></div>
 </div>
 <script>
-var _lbImgs=[],_lbIdx=0;
-document.addEventListener('click',function(ev){{
+var N={n},cur=0;
+var pw=document.querySelectorAll('.page-w');
+function upd(){{
+  pw.forEach(function(p,k){{
+    p.classList.toggle('flip',k<cur);
+    p.style.zIndex = k<cur ? k : (N-k);
+  }});
+  document.getElementById('cnt').textContent=(cur+1)+' / '+N;
+}}
+function go(d){{cur=Math.max(0,Math.min(N-1,cur+d));upd();}}
+upd();
+document.addEventListener('keydown',function(e){{
+  if(document.getElementById('lb').classList.contains('open')){{
+    if(e.key==='Escape')lbClose();if(e.key==='ArrowLeft')lbNav(-1);if(e.key==='ArrowRight')lbNav(1);
+    return;
+  }}
+  if(e.key==='ArrowLeft')go(-1);if(e.key==='ArrowRight')go(1);
+}});
+document.getElementById('book').addEventListener('click',function(ev){{
   var t=ev.target;
   if(t.classList&&t.classList.contains('zoom')){{
     try{{_lbImgs=JSON.parse(t.getAttribute('data-imgs')||'[]')}}catch(e){{_lbImgs=[t.src]}}
     if(!_lbImgs.length)_lbImgs=[t.src];
     _lbIdx=0;document.getElementById('lbCap').textContent=t.getAttribute('data-title')||'';
     lbShow();document.getElementById('lb').classList.add('open');
+    return;
   }}
+  var r=this.getBoundingClientRect();
+  go(ev.clientX - r.left > r.width/2 ? 1 : -1);
 }});
+var sx=null;
+document.getElementById('book').addEventListener('touchstart',function(e){{sx=e.touches[0].clientX}});
+document.getElementById('book').addEventListener('touchend',function(e){{
+  if(sx===null)return;var dx=e.changedTouches[0].clientX-sx;sx=null;
+  if(Math.abs(dx)>40)go(dx<0?1:-1);
+}});
+var _lbImgs=[],_lbIdx=0;
 function lbShow(){{document.getElementById('lbImg').src=_lbImgs[_lbIdx];
   document.getElementById('lbCnt').textContent=(_lbIdx+1)+' / '+_lbImgs.length;}}
 function lbNav(d){{_lbIdx=(_lbIdx+d+_lbImgs.length)%_lbImgs.length;lbShow();}}
 function lbClose(){{document.getElementById('lb').classList.remove('open');}}
-document.addEventListener('keydown',function(e){{
-  if(!document.getElementById('lb').classList.contains('open'))return;
-  if(e.key==='Escape')lbClose();if(e.key==='ArrowLeft')lbNav(-1);if(e.key==='ArrowRight')lbNav(1);
-}});
 </script>
 </body></html>'''
 
