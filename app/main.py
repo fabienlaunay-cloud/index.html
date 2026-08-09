@@ -2791,18 +2791,21 @@ function curlTurn(mv,d){{
   var ease='cubic-bezier(.3,.05,.2,1)';
   strips.forEach(function(st,i){{
     var f=i/(NS-1);
+    /* Tiny increasing depth per strip: the overlap between neighbours is always
+       covered by exactly one strip — kills the ghost/double-image on text. */
+    var R=function(a){{return 'rotateY('+a+'deg) translateZ('+(i*0.5)+'px)';}};
     var kf = d>0 ? [
-      {{transform:'rotateY(0deg)'}},
-      {{transform:'rotateY('+(-(72-12*f))+'deg)',offset:.32}},
-      {{transform:'rotateY('+(-(148-5*f))+'deg)',offset:.62}},
-      {{transform:'rotateY('+(-(180.6+2.2*f))+'deg)',offset:.85}},
-      {{transform:'rotateY(-180deg)'}}
+      {{transform:R(0)}},
+      {{transform:R(-(72-12*f)),offset:.32}},
+      {{transform:R(-(148-5*f)),offset:.62}},
+      {{transform:R(-(180.6+2.2*f)),offset:.85}},
+      {{transform:R(-180)}}
     ] : [
-      {{transform:'rotateY(-180deg)'}},
-      {{transform:'rotateY('+(-(108+12*f))+'deg)',offset:.32}},
-      {{transform:'rotateY('+(-(32+5*f))+'deg)',offset:.62}},
-      {{transform:'rotateY('+((0.6+2.2*f))+'deg)',offset:.85}},
-      {{transform:'rotateY(0deg)'}}
+      {{transform:R(-180)}},
+      {{transform:R(-(108+12*f)),offset:.32}},
+      {{transform:R(-(32+5*f)),offset:.62}},
+      {{transform:R(0.6+2.2*f),offset:.85}},
+      {{transform:R(0)}}
     ];
     st.animate(kf,{{duration:DUR,easing:ease,fill:'both'}});
   }});
