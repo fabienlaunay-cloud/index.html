@@ -2083,7 +2083,7 @@ def _ensure_catalog_links(conn):
         view_count INTEGER DEFAULT 0, last_viewed_at TIMESTAMP,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)"""
     conn.execute(sql)
-    for col in ("logo_url", "contact_email", "website", "phone"):
+    for col in ("logo_url", "contact_email", "website", "phone", "source", "site_skus"):
         if os.getenv("DATABASE_URL"):
             # PG: IF NOT EXISTS — a failed ALTER would abort the whole transaction
             conn.execute(f"ALTER TABLE catalog_links ADD COLUMN IF NOT EXISTS {col} TEXT DEFAULT ''")
@@ -2136,6 +2136,18 @@ def set_catalog_link_meta(user_email: str, title: str, subtitle: str,
     if logo_url is not None:
         conn.execute("UPDATE catalog_links SET logo_url = ? WHERE user_email = ?",
                      (logo_url[:300], user_email))
+    conn.commit()
+    conn.close()
+
+
+def set_catalog_source(user_email: str, source: str, site_skus=None) -> None:
+    conn = get_db()
+    _ensure_catalog_links(conn)
+    conn.execute("UPDATE catalog_links SET source = ? WHERE user_email = ?", (source, user_email))
+    if site_skus is not None:
+        import json as _j
+        conn.execute("UPDATE catalog_links SET site_skus = ? WHERE user_email = ?",
+                     (_j.dumps(site_skus[:400]), user_email))
     conn.commit()
     conn.close()
 

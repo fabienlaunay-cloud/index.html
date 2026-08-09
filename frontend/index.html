@@ -13489,7 +13489,15 @@ function _renderHub(data) {
         <a href="${_esc(data.catalog.url)}" target="_blank" class="text-sm font-bold text-white gradient-bg rounded-xl px-5 py-2.5 hover:opacity-90">Ouvrir mon catalogue</a>
         <button onclick="navigator.clipboard.writeText('${_esc(data.catalog.url)}').then(()=>showToast('','Lien copié — partagez-le tel quel'))" class="text-sm font-bold text-purple-600 border-2 border-purple-200 rounded-xl px-5 py-2.5 hover:bg-purple-50 bg-white">Copier le lien</button>
       </div>
-      <details class="mt-3.5">
+      <div class="flex items-center gap-2 mb-1">
+        <span class="text-[11px] font-semibold text-gray-500">Contenu du catalogue :</span>
+        ${['app','site','auto'].map(sv => {
+          const lbl = {app:'Mes fiches générées', site:'Mon site web', auto:'Tout'}[sv];
+          const on = (data.catalog.source || 'auto') === sv;
+          return `<button onclick="_hubSetCatSource('${sv}')" class="text-[10px] font-bold rounded-full px-3 py-1 ${on ? 'gradient-bg text-white' : 'bg-white text-gray-500 border border-gray-200 hover:border-purple-200'}">${lbl}</button>`;
+        }).join('')}
+      </div>
+      <details class="mt-2.5">
       <summary class="text-[11px] font-semibold text-purple-500 cursor-pointer hover:text-purple-700 select-none">Personnalisation & partage — logo, contacts, import depuis votre site, intégration…</summary>
       <div class="mt-3">
       <div class="flex items-center gap-2 mb-2">
@@ -13566,6 +13574,17 @@ async function _hubSaveCatMeta(btn) {
     showToast('✅', 'Catalogue mis à jour — rechargez le lien public pour voir le résultat');
   } catch(e) { showToast('❌', 'Erreur', true); }
   btn.disabled = false;
+}
+
+async function _hubSetCatSource(src) {
+  try {
+    await authFetch('/api/catalog-link', { method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ source: src }) });
+    showToast('✅', src === 'site' ? 'Le catalogue affiche uniquement les produits de votre site'
+              : src === 'app' ? 'Le catalogue affiche uniquement vos fiches générées'
+              : 'Le catalogue affiche tout votre contenu');
+    openHubPanel();
+  } catch(e) { showToast('❌', 'Erreur', true); }
 }
 
 async function _hubImportSite(btn) {

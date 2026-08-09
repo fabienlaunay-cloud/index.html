@@ -1925,11 +1925,17 @@ def _get_image_urls_for_skus(skus: list) -> dict:
     every_key = _storage.list_keys()
     all_keys = {k for k in every_key if k.startswith("gen_")}
     own_by_sku = {}
+    own_extras = {}
     for k in every_key:
         if k.startswith("gen_"):
             continue
         stem, ext = os.path.splitext(k)
-        if ext.lower() in _IMAGE_EXTS:
+        if ext.lower() not in _IMAGE_EXTS:
+            continue
+        if "__" in stem:
+            base = stem.split("__")[0]
+            own_extras.setdefault(base, []).append(k)
+        else:
             own_by_sku.setdefault(stem, k)
     def _url(filename):
         cdn = _storage.public_url(filename)
@@ -1944,6 +1950,8 @@ def _get_image_urls_for_skus(skus: list) -> dict:
                 imgs[img_id] = _url(filename)
         if "hero" not in imgs and sku in own_by_sku:
             imgs["hero"] = _url(own_by_sku[sku])
+        for j, k in enumerate(sorted(own_extras.get(sku, []))):
+            imgs[f"own{j+2}"] = _url(k)
         if imgs:
             result[sku] = imgs
     return result
@@ -2238,7 +2246,8 @@ async def hub_overview(request: Request):
                           "title": cl.get("title") or "", "subtitle": cl.get("subtitle") or "",
                           "contact_email": cl.get("contact_email") or "",
                           "website": cl.get("website") or "", "phone": cl.get("phone") or "",
-                          "logo_url": cl.get("logo_url") or ""}
+                          "logo_url": cl.get("logo_url") or "",
+                          "source": cl.get("source") or "auto"}
     except Exception:
         pass
     return out
@@ -2257,6 +2266,7 @@ class CatalogMeta(BaseModel):
     contact_email: str = ""
     website: str = ""
     phone: str = ""
+    source: str = ""
 
 
 @app.post("/api/catalog-link/logo")
@@ -2309,11 +2319,17 @@ async def catalog_from_site(req: SiteImportRequest, request: Request):
     products = []
     async with httpx.AsyncClient(timeout=25, follow_redirects=True,
                                  headers={"User-Agent": "SynqIO-CatalogBot/1.0"}) as client:
-        # 1. Shopify public catalogue endpoint
+        # 1. Shopify public catalogue endpoint (paginated — fetch everything)
         try:
-            r = await client.get(f"{base}/products.json?limit=250")
-            data = r.json() if r.status_code == 200 else {}
-            for p in (data.get("products") or [])[:120]:
+            shopify_products = []
+            for pg in range(1, 4):
+                r = await client.get(f"{base}/products.json?limit=250&page={pg}")
+                data = r.json() if r.status_code == 200 else {}
+                batch = data.get("products") or []
+                shopify_products.extend(batch)
+                if len(batch) < 250 or len(shopify_products) >= 240:
+                    break
+            for p in shopify_products[:240]:
                 v = (p.get("variants") or [{}])[0]
                 sku = _re.sub(r"[^A-Za-z0-9_.-]", "-", (v.get("sku") or p.get("handle") or ""))[:60]
                 if not sku:
@@ -2326,7 +2342,7 @@ async def catalog_from_site(req: SiteImportRequest, request: Request):
                     "description": strip(p.get("body_html") or "")[:2000],
                     "bullet_points": [], "backend_keywords": "",
                     "price": float(v["price"]) if v.get("price") else None,
-                    "_img": ((p.get("images") or [{}])[0].get("src") or ""),
+                    "_imgs": [im.get("src") for im in (p.get("images") or []) if im.get("src")][:5],
                 })
         except Exception:
             pass
@@ -2350,33 +2366,38 @@ async def catalog_from_site(req: SiteImportRequest, request: Request):
                         "category": (cats[0].get("name") if cats else "")[:80],
                         "description": strip(p.get("description") or p.get("short_description") or "")[:2000],
                         "bullet_points": [], "backend_keywords": "", "price": price,
-                        "_img": (imgs[0].get("src") if imgs else ""),
+                        "_imgs": [im.get("src") for im in imgs if im.get("src")][:5],
                     })
             except Exception:
                 pass
         if not products:
             raise HTTPException(422, "Impossible de lire les produits de ce site — Shopify et "
                                      "WooCommerce sont supportés (le catalogue public doit être accessible).")
-        # 3. Store the first photo per SKU (own-photo convention → hero du flipbook)
+        # 3. Store the product photos: first → {sku}.ext (hero), extras → {sku}__N.ext
         photos = 0
-        for p in products[:60]:
-            u = p.pop("_img", "")
-            if not u:
-                continue
-            try:
-                ir = await client.get(u)
-                if ir.status_code == 200 and len(ir.content) < 8 * 1024 * 1024:
-                    ext = ".png" if ir.content[:8] == b"\x89PNG\r\n\x1a\n" else ".jpg"
-                    _save_photo(f"{p['sku']}{ext}", ir.content,
-                                "image/png" if ext == ".png" else "image/jpeg")
-                    photos += 1
-            except Exception:
-                continue
+        budget = 260
+        for p in products[:120]:
+            urls = p.pop("_imgs", []) or []
+            for j, u in enumerate(urls[:4]):
+                if budget <= 0:
+                    break
+                try:
+                    ir = await client.get(u)
+                    if ir.status_code == 200 and len(ir.content) < 8 * 1024 * 1024:
+                        ext = ".png" if ir.content[:8] == b"\x89PNG\r\n\x1a\n" else ".jpg"
+                        name = f"{p['sku']}{ext}" if j == 0 else f"{p['sku']}__{j+1}{ext}"
+                        _save_photo(name, ir.content,
+                                    "image/png" if ext == ".png" else "image/jpeg")
+                        photos += 1
+                        budget -= 1
+                except Exception:
+                    continue
         for p in products:
-            p.pop("_img", None)
-    from app.db import save_generation, get_or_create_catalog_link
+            p.pop("_imgs", None)
+    from app.db import save_generation, get_or_create_catalog_link, set_catalog_source
     batch_id = f"site_{uuid4().hex[:10]}"
     save_generation(email, batch_id, "amazon_fr", products, "Import site web")
+    set_catalog_source(email, "site", [p["sku"] for p in products])
     cl = get_or_create_catalog_link(email)
     base_url = os.getenv("APP_URL", "https://synqio.io").rstrip("/")
     return {"imported": len(products), "photos": photos,
@@ -2394,8 +2415,13 @@ async def catalog_link_regenerate(request: Request):
 @app.put("/api/catalog-link")
 async def catalog_link_meta(meta: CatalogMeta, request: Request):
     from app.db import set_catalog_link_meta
-    set_catalog_link_meta(request.state.user_email, meta.title.strip(), meta.subtitle.strip(),
-                          meta.contact_email.strip(), meta.website.strip(), meta.phone.strip())
+    if meta.source in ("auto", "app", "site"):
+        # source-only update — don't touch the text fields
+        from app.db import set_catalog_source
+        set_catalog_source(request.state.user_email, meta.source)
+    else:
+        set_catalog_link_meta(request.state.user_email, meta.title.strip(), meta.subtitle.strip(),
+                              meta.contact_email.strip(), meta.website.strip(), meta.phone.strip())
     return {"ok": True}
 
 
@@ -2731,10 +2757,25 @@ async def public_catalogue(token: str):
     if not _rate_limit(f"cat:{token}", limit=300, window=3600):
         raise HTTPException(429, "Trop de requêtes")
     listings = _latest_listings(row["user_email"])
+    # Source strict: 'site' → only the site-imported products; 'app' → only the
+    # fiches generated in the app; 'auto' (default) → everything.
+    src = (row.get("source") or "auto")
+    try:
+        site_skus = set(json.loads(row.get("site_skus") or "[]"))
+    except Exception:
+        site_skus = set()
+    if src == "site" and site_skus:
+        listings = [l for l in listings if l.get("sku") in site_skus]
+    elif src == "app" and site_skus:
+        listings = [l for l in listings if l.get("sku") not in site_skus]
     from app.services.image_gen import AMAZON_IMAGE_TYPES
     raw_urls = _get_image_urls_for_skus([l.get("sku") for l in listings if l.get("sku")])
     order = [t["id"] for t in AMAZON_IMAGE_TYPES]
-    image_urls = {sku: [d[t] for t in order if t in d] for sku, d in raw_urls.items()}
+    image_urls = {}
+    for sku, d in raw_urls.items():
+        lst = [d[t] for t in order if t in d]
+        lst += [d[k] for k in sorted(d) if k.startswith("own") and k != "hero"]
+        image_urls[sku] = lst
     return Response(content=_render_public_catalog(row, listings, image_urls),
                     media_type="text/html; charset=utf-8")
 
