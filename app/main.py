@@ -2413,7 +2413,8 @@ def _detect_catalog_theme(listings: list) -> str:
 
 
 def _catalog_deco_html(theme: str) -> str:
-    """Self-contained ambient animation layer around the book (behind it)."""
+    """Self-contained ambient layer: paw trail + a fine-line cat strolling along
+    the bottom edge — walks, sits, looks at you, walks again (pets theme)."""
     if theme == "pets":
         paw = ('<svg viewBox="0 0 40 40" fill="currentColor">'
                '<ellipse cx="20" cy="26" rx="8" ry="6.5"/>'
@@ -2421,50 +2422,97 @@ def _catalog_deco_html(theme: str) -> str:
                '<ellipse cx="31" cy="17" rx="3.4" ry="4.4"/>'
                '<ellipse cx="15" cy="11" rx="3.2" ry="4.2"/>'
                '<ellipse cx="25" cy="11" rx="3.2" ry="4.2"/></svg>')
-        # slow diagonal paw trail: (x%, y%, rotation, delay s)
         spots = [(6, 82, -18, 0), (11, 72, 10, 1.1), (16, 63, -14, 2.2), (22, 55, 12, 3.3),
                  (78, 44, 165, 5.0), (83, 35, 195, 6.1), (88, 27, 168, 7.2), (93, 18, 198, 8.3)]
         paws = "".join(
             f'<div class="paw" style="left:{x}%;top:{y}%;transform:rotate({r}deg);'
             f'animation-delay:{d}s">{paw}</div>' for x, y, r, d in spots)
-        dog = ('<svg viewBox="0 0 120 120" fill="none" stroke="currentColor" stroke-width="4" '
-               'stroke-linecap="round" stroke-linejoin="round">'
-               '<circle cx="60" cy="62" r="30"/>'
-               '<path d="M34 46 q-14 2-13 24 q0 10 9 10 q8 0 10-9"/>'
-               '<path d="M86 46 q14 2 13 24 q0 10-9 10 q-8 0-10-9"/>'
-               '<ellipse cx="60" cy="72" rx="5.5" ry="4.5" fill="currentColor" stroke="none"/>'
-               '<path d="M60 77 q0 7-8 8 M60 77 q0 7 8 8"/>'
-               '<circle cx="49" cy="56" r="2.6" fill="currentColor" stroke="none"/>'
-               '<circle cx="71" cy="56" r="2.6" fill="currentColor" stroke="none"/></svg>')
-        cat = ('<svg viewBox="0 0 120 120" fill="none" stroke="currentColor" stroke-width="4" '
-               'stroke-linecap="round" stroke-linejoin="round">'
-               '<circle cx="60" cy="68" r="26"/>'
-               '<path d="M42 50 l-6-18 16 8 M78 50 l6-18 -16 8"/>'
-               '<path d="M55 72 q5 4 10 0"/>'
-               '<circle cx="50" cy="62" r="2.4" fill="currentColor" stroke="none"/>'
-               '<circle cx="70" cy="62" r="2.4" fill="currentColor" stroke="none"/>'
-               '<path d="M30 70 h-14 M32 78 h-13 M90 70 h14 M88 78 h13"/></svg>')
-        figures = (f'<div class="fig f-dog">{dog}</div>'
-                   f'<div class="fig f-cat">{cat}</div>')
+        cat = (
+            '<div id="catwalk">'
+            '<svg class="cw" viewBox="0 0 220 130" fill="none" stroke="currentColor" '
+            'stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">'
+            '<path d="M34 72 C 20 68, 10 52, 20 38 C 25 31, 34 32, 33 40"/>'
+            '<path d="M34 72 C 60 54, 105 50, 143 55"/>'
+            '<path d="M143 55 C 150 53, 155 47, 157 40"/>'
+            '<path d="M157 40 L 162 26 L 171 34 C 175 33, 179 33, 183 35 L 192 28 L 194 42 '
+            'C 199 48, 199 56, 193 61 C 187 66, 176 67, 168 63"/>'
+            '<path d="M168 63 C 165 71, 160 76, 152 79"/>'
+            '<path d="M126 82 C 105 87, 84 86, 66 80"/>'
+            '<g class="pA"><path d="M140 79 L 150 106"/><path d="M118 83 L 112 108"/>'
+            '<path d="M74 79 L 62 105"/><path d="M52 74 L 55 102"/></g>'
+            '<g class="pB"><path d="M140 79 L 131 106"/><path d="M118 83 L 127 107"/>'
+            '<path d="M74 79 L 83 105"/><path d="M52 74 L 45 100"/></g>'
+            '</svg>'
+            '<svg class="cs" viewBox="0 0 150 160" fill="none" stroke="currentColor" '
+            'stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">'
+            '<path d="M38 140 C 34 108, 44 74, 68 58"/>'
+            '<path d="M62 52 L 60 30 L 74 40 C 79 38, 85 38, 90 40 L 104 30 L 102 52 '
+            'C 108 60, 108 72, 100 79 C 90 87, 74 87, 66 79 C 58 72, 58 60, 62 52"/>'
+            '<circle cx="74" cy="62" r="2.1" fill="currentColor" stroke="none"/>'
+            '<circle cx="90" cy="62" r="2.1" fill="currentColor" stroke="none"/>'
+            '<path d="M96 84 C 102 100, 104 120, 103 140"/>'
+            '<path d="M88 140 L 88 116"/>'
+            '<path d="M38 140 C 60 146, 90 146, 103 140"/>'
+            '<path d="M103 141 C 120 142, 132 136, 133 124"/>'
+            '</svg></div>')
+        script = '''<script>
+(function(){
+  var c=document.getElementById('catwalk');if(!c)return;
+  var x=-160,step=false;
+  c.style.left=x+'px';
+  setInterval(function(){
+    if(c.classList.contains('sit'))return;
+    step=!step;c.classList.toggle('stepB',step);
+  },300);
+  function walkTo(target,then){
+    var dist=Math.abs(target-x);
+    if(dist<10){then();return;}
+    var dur=dist/55;
+    c.classList.toggle('flip',target<x);
+    c.style.transition='left '+dur+'s linear';
+    requestAnimationFrame(function(){requestAnimationFrame(function(){c.style.left=target+'px';});});
+    setTimeout(function(){x=target;then();},dur*1000+80);
+  }
+  function next(){
+    var w=window.innerWidth;
+    var target=Math.round(w*0.08+Math.random()*w*0.72);
+    walkTo(target,function(){
+      if(Math.random()<0.72){
+        c.classList.add('sit');
+        setTimeout(function(){
+          c.classList.remove('sit');
+          setTimeout(next,450);
+        },2800+Math.random()*2800);
+      } else { next(); }
+    });
+  }
+  setTimeout(next,1500);
+})();
+</script>'''
     else:
         paws = "".join(
             f'<div class="paw dot" style="left:{x}%;top:{y}%;animation-delay:{d}s"></div>'
             for x, y, d in [(8, 80, 0), (14, 65, 1.5), (85, 30, 3), (90, 55, 4.5), (12, 25, 6), (80, 75, 7.5)])
-        figures = ""
-    return f'''<div class="deco">{figures}{paws}</div>
+        cat, script = "", ""
+    return f'''<div class="deco">{cat}{paws}</div>
 <style>
 .deco{{position:fixed;inset:0;pointer-events:none;z-index:0;color:#fff;overflow:hidden}}
 .stage,.nav{{position:relative;z-index:2}}
-.fig{{position:absolute;opacity:.13;animation:decofloat 7s ease-in-out infinite alternate}}
-.f-dog{{left:3.5%;bottom:7%;width:120px}}
-.f-cat{{right:3.5%;top:9%;width:110px;animation-delay:2.2s}}
-@keyframes decofloat{{0%{{transform:translateY(0) rotate(-2deg)}}100%{{transform:translateY(-14px) rotate(2deg)}}}}
+#catwalk{{position:absolute;bottom:4px;width:120px;opacity:.35;will-change:left}}
+#catwalk .cs{{display:none;width:82px;margin-left:16px}}
+#catwalk.sit .cw{{display:none}}
+#catwalk.sit .cs{{display:block}}
+#catwalk.flip svg{{transform:scaleX(-1)}}
+#catwalk .pB{{opacity:0}}
+#catwalk.stepB .pA{{opacity:0}}
+#catwalk.stepB .pB{{opacity:1}}
+#catwalk.stepB .cw{{translate:0 -1.5px}}
 .paw{{position:absolute;width:26px;opacity:0;animation:pawstep 10s ease-in-out infinite}}
 .paw.dot{{width:10px;height:10px;border-radius:50%;background:#fff}}
 @keyframes pawstep{{0%,4%{{opacity:0}}10%{{opacity:.15}}30%{{opacity:.12}}45%,100%{{opacity:0}}}}
-@media (max-width:900px){{.fig{{display:none}}}}
+@media (max-width:900px){{#catwalk{{display:none}}}}
 @media print{{.deco{{display:none}}}}
-</style>'''
+</style>{script}'''
 
 
 def _render_public_catalog(owner: dict, listings: list, image_urls: dict) -> str:
