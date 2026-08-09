@@ -2470,8 +2470,11 @@ body{{font-family:'Segoe UI',system-ui,sans-serif;background:linear-gradient(125
 .page::before{{content:'';position:absolute;left:0;top:0;bottom:0;width:16px;background:linear-gradient(90deg,rgba(0,0,0,.12),transparent);pointer-events:none;z-index:2}}
 .pg.b .page::before{{left:auto;right:0;background:linear-gradient(-90deg,rgba(0,0,0,.12),transparent)}}
 .gr{{position:absolute;inset:0;pointer-events:none;opacity:.4;mix-blend-mode:overlay;z-index:1;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='140' height='140'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix type='saturate' values='0'/></filter><rect width='140' height='140' filter='url(%23n)' opacity='0.45'/></svg>")}}
-.sheet.moving .page{{animation:bend 1.1s cubic-bezier(.35,.06,.15,1) both;box-shadow:-30px 22px 60px rgba(0,0,0,.5)}}
-@keyframes bend{{0%{{transform:skewY(0) scaleX(1)}}42%{{transform:skewY(-2.2deg) scaleX(.955)}}100%{{transform:skewY(0) scaleX(1)}}}}
+.sheet.moving .page{{transform-origin:left center;box-shadow:-30px 22px 60px rgba(0,0,0,.5)}}
+.sheet.moving .pg.f .page{{animation:flexf 1.15s cubic-bezier(.35,.06,.15,1) both}}
+.sheet.moving .pg.b .page{{animation:flexb 1.15s cubic-bezier(.35,.06,.15,1) both}}
+@keyframes flexf{{0%{{transform:perspective(2200px) rotateY(0)}}30%{{transform:perspective(2200px) rotateY(19deg) rotateZ(-1.6deg) skewY(-1.1deg)}}66%{{transform:perspective(2200px) rotateY(7deg) rotateZ(-.5deg)}}86%{{transform:perspective(2200px) rotateY(-3.5deg)}}94%{{transform:perspective(2200px) rotateY(1.2deg)}}100%{{transform:none}}}}
+@keyframes flexb{{0%{{transform:perspective(2200px) rotateY(0)}}30%{{transform:perspective(2200px) rotateY(-19deg) rotateZ(1.6deg) skewY(1.1deg)}}66%{{transform:perspective(2200px) rotateY(-7deg) rotateZ(.5deg)}}86%{{transform:perspective(2200px) rotateY(3.5deg)}}94%{{transform:perspective(2200px) rotateY(-1.2deg)}}100%{{transform:none}}}}
 .sheet.moving .pg .page::after{{content:'';position:absolute;inset:0;pointer-events:none;z-index:3;background:linear-gradient(100deg,transparent 32%,rgba(255,255,255,.38) 50%,transparent 68%);animation:sheen 1.1s ease both}}
 @keyframes sheen{{0%{{transform:translateX(-70%);opacity:0}}30%{{opacity:1}}100%{{transform:translateX(70%);opacity:0}}}}
 .blank{{background:linear-gradient(150deg,#241a4d,#4c37a3)}}
@@ -2538,13 +2541,13 @@ function flipSound(){{
   try{{
     _actx=_actx||new (window.AudioContext||window.webkitAudioContext)();
     if(_actx.state==='suspended')_actx.resume();
-    var dur=0.4,sr=_actx.sampleRate,buf=_actx.createBuffer(1,Math.floor(sr*dur),sr),d=buf.getChannelData(0);
-    for(var i=0;i<d.length;i++){{var t=i/d.length;d[i]=(Math.random()*2-1)*Math.pow(1-t,1.5)*(0.18+2.4*t*(1-t));}}
+    var dur=0.55,sr=_actx.sampleRate,buf=_actx.createBuffer(1,Math.floor(sr*dur),sr),d=buf.getChannelData(0);
+    for(var i=0;i<d.length;i++){{var t=i/d.length;d[i]=(Math.random()*2-1)*Math.pow(1-t,2.2)*(0.10+1.5*t*(1-t));}}
     var src=_actx.createBufferSource();src.buffer=buf;
-    var bp=_actx.createBiquadFilter();bp.type='bandpass';bp.Q.value=0.9;
-    bp.frequency.setValueAtTime(650,_actx.currentTime);
-    bp.frequency.exponentialRampToValueAtTime(2800,_actx.currentTime+dur*0.75);
-    var g=_actx.createGain();g.gain.setValueAtTime(0.5,_actx.currentTime);
+    var bp=_actx.createBiquadFilter();bp.type='bandpass';bp.Q.value=0.5;
+    bp.frequency.setValueAtTime(360,_actx.currentTime);
+    bp.frequency.exponentialRampToValueAtTime(1300,_actx.currentTime+dur*0.7);
+    var g=_actx.createGain();g.gain.setValueAtTime(0.24,_actx.currentTime);
     g.gain.exponentialRampToValueAtTime(0.01,_actx.currentTime+dur);
     src.connect(bp);bp.connect(g);g.connect(_actx.destination);src.start();
   }}catch(e){{}}
