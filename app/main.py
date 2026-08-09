@@ -2470,9 +2470,10 @@ body{{font-family:'Segoe UI',system-ui,sans-serif;background:linear-gradient(125
 .page::before{{content:'';position:absolute;left:0;top:0;bottom:0;width:16px;background:linear-gradient(90deg,rgba(0,0,0,.12),transparent);pointer-events:none;z-index:2}}
 .pg.b .page::before{{left:auto;right:0;background:linear-gradient(-90deg,rgba(0,0,0,.12),transparent)}}
 .gr{{position:absolute;inset:0;pointer-events:none;opacity:.4;mix-blend-mode:overlay;z-index:1;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='140' height='140'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix type='saturate' values='0'/></filter><rect width='140' height='140' filter='url(%23n)' opacity='0.45'/></svg>")}}
-.sheet.moving .page{{transform-origin:left center;box-shadow:-30px 22px 60px rgba(0,0,0,.5)}}
-.sheet.moving .pg.f .page{{animation:flexf 1.15s cubic-bezier(.35,.06,.15,1) both}}
-.sheet.moving .pg.b .page{{animation:flexb 1.15s cubic-bezier(.35,.06,.15,1) both}}
+.sheet.moving .page{{box-shadow:-30px 22px 60px rgba(0,0,0,.5)}}
+.turn{{position:absolute;left:50%;top:0;height:100%;width:50%;z-index:120;pointer-events:none;transform-style:preserve-3d}}
+.strip{{position:absolute;inset:0;transform-origin:left center;transform-style:preserve-3d;will-change:transform}}
+.strip .pg{{position:absolute;inset:0;backface-visibility:hidden}}
 @keyframes flexf{{0%{{transform:perspective(2200px) rotateY(0)}}30%{{transform:perspective(2200px) rotateY(19deg) rotateZ(-1.6deg) skewY(-1.1deg)}}66%{{transform:perspective(2200px) rotateY(7deg) rotateZ(-.5deg)}}86%{{transform:perspective(2200px) rotateY(-3.5deg)}}94%{{transform:perspective(2200px) rotateY(1.2deg)}}100%{{transform:none}}}}
 @keyframes flexb{{0%{{transform:perspective(2200px) rotateY(0)}}30%{{transform:perspective(2200px) rotateY(-19deg) rotateZ(1.6deg) skewY(1.1deg)}}66%{{transform:perspective(2200px) rotateY(-7deg) rotateZ(.5deg)}}86%{{transform:perspective(2200px) rotateY(3.5deg)}}94%{{transform:perspective(2200px) rotateY(-1.2deg)}}100%{{transform:none}}}}
 .sheet.moving .pg .page::after{{content:'';position:absolute;inset:0;pointer-events:none;z-index:3;background:linear-gradient(100deg,transparent 32%,rgba(255,255,255,.38) 50%,transparent 68%);animation:sheen 1.1s ease both}}
@@ -2541,15 +2542,19 @@ function flipSound(){{
   try{{
     _actx=_actx||new (window.AudioContext||window.webkitAudioContext)();
     if(_actx.state==='suspended')_actx.resume();
-    var dur=0.55,sr=_actx.sampleRate,buf=_actx.createBuffer(1,Math.floor(sr*dur),sr),d=buf.getChannelData(0);
-    for(var i=0;i<d.length;i++){{var t=i/d.length;d[i]=(Math.random()*2-1)*Math.pow(1-t,2.2)*(0.10+1.5*t*(1-t));}}
-    var src=_actx.createBufferSource();src.buffer=buf;
-    var bp=_actx.createBiquadFilter();bp.type='bandpass';bp.Q.value=0.5;
-    bp.frequency.setValueAtTime(360,_actx.currentTime);
-    bp.frequency.exponentialRampToValueAtTime(1300,_actx.currentTime+dur*0.7);
-    var g=_actx.createGain();g.gain.setValueAtTime(0.24,_actx.currentTime);
-    g.gain.exponentialRampToValueAtTime(0.01,_actx.currentTime+dur);
-    src.connect(bp);bp.connect(g);g.connect(_actx.destination);src.start();
+    var t0=_actx.currentTime;
+    function burst(start,dur,f1,f2,vol,curve){{
+      var sr=_actx.sampleRate,buf=_actx.createBuffer(1,Math.floor(sr*dur),sr),d=buf.getChannelData(0);
+      for(var i=0;i<d.length;i++){{var t=i/d.length;d[i]=(Math.random()*2-1)*Math.pow(Math.sin(Math.PI*Math.min(1,t/curve))* (1-t*0.55),2);}}
+      var src=_actx.createBufferSource();src.buffer=buf;
+      var lp=_actx.createBiquadFilter();lp.type='lowpass';lp.frequency.setValueAtTime(f2,start);lp.Q.value=0.4;
+      var hp=_actx.createBiquadFilter();hp.type='highpass';hp.frequency.value=f1;hp.Q.value=0.3;
+      var g=_actx.createGain();g.gain.setValueAtTime(vol,start);
+      g.gain.exponentialRampToValueAtTime(0.008,start+dur);
+      src.connect(hp);hp.connect(lp);lp.connect(g);g.connect(_actx.destination);src.start(start);
+    }}
+    burst(t0,0.55,200,850,0.16,0.45);        /* glissement feutré */
+    burst(t0+0.62,0.12,300,1400,0.10,0.3);   /* la feuille se pose */
   }}catch(e){{}}
 }}
 function upd(){{
@@ -2580,9 +2585,47 @@ function go(d){{
   if(!isSingle()){{
     var ofs=Math.floor((old+1)/2),nfs=Math.floor((pos+1)/2);
     var mv=sheets[d>0?ofs:nfs];
-    if(mv){{mv.classList.add('moving');setTimeout(function(){{mv.classList.remove('moving')}},1150);}}
+    if(mv)curlTurn(mv,d);
   }}
   flipSound();upd();
+}}
+var NS=10,DUR=1200;
+function curlTurn(mv,d){{
+  var turn=document.createElement('div');turn.className='turn';
+  var fF=mv.querySelector('.pg.f'),fB=mv.querySelector('.pg.b');
+  var w=100/NS;
+  var strips=[];
+  for(var i=0;i<NS;i++){{
+    var st=document.createElement('div');st.className='strip';
+    var cf=fF.cloneNode(true),cb=fB.cloneNode(true);
+    cf.style.clipPath='inset(0 '+(100-(i+1)*w)+'% 0 '+(i*w)+'%)';
+    cb.style.clipPath='inset(0 '+(i*w)+'% 0 '+(100-(i+1)*w)+'%)';
+    st.appendChild(cf);st.appendChild(cb);turn.appendChild(st);strips.push(st);
+  }}
+  stage.appendChild(turn);
+  var oldTr=mv.style.transition;mv.style.transition='none';mv.style.visibility='hidden';
+  var ease='cubic-bezier(.3,.05,.2,1)';
+  strips.forEach(function(st,i){{
+    var f=i/(NS-1);
+    var kf = d>0 ? [
+      {{transform:'rotateY(0deg)'}},
+      {{transform:'rotateY('+(-(72-30*f))+'deg)',offset:.32}},
+      {{transform:'rotateY('+(-(148-14*f))+'deg)',offset:.62}},
+      {{transform:'rotateY('+(-(181+7*f))+'deg)',offset:.85}},
+      {{transform:'rotateY(-180deg)'}}
+    ] : [
+      {{transform:'rotateY(-180deg)'}},
+      {{transform:'rotateY('+(-(108+30*f))+'deg)',offset:.32}},
+      {{transform:'rotateY('+(-(32+14*f))+'deg)',offset:.62}},
+      {{transform:'rotateY('+((1+7*f))+'deg)',offset:.85}},
+      {{transform:'rotateY(0deg)'}}
+    ];
+    st.animate(kf,{{duration:DUR,easing:ease,fill:'both'}});
+  }});
+  setTimeout(function(){{
+    turn.remove();mv.style.visibility='';
+    requestAnimationFrame(function(){{mv.style.transition=oldTr;}});
+  }},DUR+40);
 }}
 upd();
 window.addEventListener('resize',upd);
