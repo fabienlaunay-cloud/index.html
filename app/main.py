@@ -2303,11 +2303,9 @@ class SiteImportRequest(BaseModel):
 
 @app.post("/api/catalog-from-site")
 async def catalog_from_site(req: SiteImportRequest, request: Request):
-    """Import a client's products straight from their website URL (Shopify's
-    public products.json, or WooCommerce's public Store API) and build their
-    catalogue: listings saved as a batch, first image stored per SKU so the
-    flipbook shows real photos."""
-    import re as _re
+    """Start the site→catalogue import as a background job (it crawls pages and
+    downloads photos — far too slow for a synchronous request). Poll
+    GET /api/jobs/{job_id}."""
     email = request.state.user_email
     if not _rate_limit(f"{email}:site-import", limit=6, window=3600):
         raise HTTPException(429, "Limite de 6 imports/heure — réessayez plus tard")
@@ -2315,162 +2313,177 @@ async def catalog_from_site(req: SiteImportRequest, request: Request):
     if not base.startswith("http"):
         base = "https://" + base
     base = base.rstrip("/")
-    strip = lambda h: _re.sub(r"\s+", " ", _re.sub(r"<[^>]+>", " ", h or "")).strip()
-    products = []
-    async with httpx.AsyncClient(timeout=25, follow_redirects=True,
-                                 headers={"User-Agent": "SynqIO-CatalogBot/1.0"}) as client:
-        # 1. Shopify public catalogue endpoint (paginated — fetch everything)
-        try:
-            shopify_products = []
-            for pg in range(1, 4):
-                r = await client.get(f"{base}/products.json?limit=250&page={pg}")
-                data = r.json() if r.status_code == 200 else {}
-                batch = data.get("products") or []
-                shopify_products.extend(batch)
-                if len(batch) < 250 or len(shopify_products) >= 240:
-                    break
-            for p in shopify_products[:240]:
-                v = (p.get("variants") or [{}])[0]
-                sku = _re.sub(r"[^A-Za-z0-9_.-]", "-", (v.get("sku") or p.get("handle") or ""))[:60]
-                if not sku:
-                    continue
-                products.append({
-                    "sku": sku, "marketplace": "amazon_fr",
-                    "title": strip(p.get("title") or "")[:200],
-                    "brand": (p.get("vendor") or "")[:80],
-                    "category": (p.get("product_type") or "")[:80],
-                    "description": strip(p.get("body_html") or "")[:2000],
-                    "bullet_points": [], "backend_keywords": "",
-                    "price": float(v["price"]) if v.get("price") else None,
-                    "_imgs": [im.get("src") for im in (p.get("images") or []) if im.get("src")][:5],
-                })
-        except Exception:
-            pass
-        # 2. WooCommerce public Store API
-        if not products:
+    job_id = f"siteimp_{uuid4().hex[:12]}"
+    _jobs[job_id] = {"status": "pending", "created_at": time.time()}
+    asyncio.create_task(_run_site_import_job(job_id, email, base))
+    return {"job_id": job_id}
+
+
+async def _run_site_import_job(job_id: str, email: str, base: str):
+    import re as _re
+    _jobs[job_id]["status"] = "running"
+    try:
+        strip = lambda h: _re.sub(r"\s+", " ", _re.sub(r"<[^>]+>", " ", h or "")).strip()
+        products = []
+        async with httpx.AsyncClient(timeout=25, follow_redirects=True,
+                                     headers={"User-Agent": "SynqIO-CatalogBot/1.0"}) as client:
+            # 1. Shopify public catalogue endpoint (paginated — fetch everything)
             try:
-                r = await client.get(f"{base}/wp-json/wc/store/v1/products?per_page=100")
-                arr = r.json() if r.status_code == 200 else []
-                for p in (arr or [])[:120]:
-                    sku = _re.sub(r"[^A-Za-z0-9_.-]", "-", (p.get("sku") or p.get("slug") or ""))[:60]
+                shopify_products = []
+                for pg in range(1, 4):
+                    r = await client.get(f"{base}/products.json?limit=250&page={pg}")
+                    data = r.json() if r.status_code == 200 else {}
+                    batch = data.get("products") or []
+                    shopify_products.extend(batch)
+                    if len(batch) < 250 or len(shopify_products) >= 240:
+                        break
+                for p in shopify_products[:240]:
+                    v = (p.get("variants") or [{}])[0]
+                    sku = _re.sub(r"[^A-Za-z0-9_.-]", "-", (v.get("sku") or p.get("handle") or ""))[:60]
                     if not sku:
                         continue
-                    pr = (p.get("prices") or {})
-                    minor = int(pr.get("currency_minor_unit") or 2)
-                    price = int(pr["price"]) / (10 ** minor) if pr.get("price") else None
-                    cats = p.get("categories") or []
-                    imgs = p.get("images") or []
                     products.append({
                         "sku": sku, "marketplace": "amazon_fr",
-                        "title": strip(p.get("name") or "")[:200], "brand": "",
-                        "category": (cats[0].get("name") if cats else "")[:80],
-                        "description": strip(p.get("description") or p.get("short_description") or "")[:2000],
-                        "bullet_points": [], "backend_keywords": "", "price": price,
-                        "_imgs": [im.get("src") for im in imgs if im.get("src")][:5],
+                        "title": strip(p.get("title") or "")[:200],
+                        "brand": (p.get("vendor") or "")[:80],
+                        "category": (p.get("product_type") or "")[:80],
+                        "description": strip(p.get("body_html") or "")[:2000],
+                        "bullet_points": [], "backend_keywords": "",
+                        "price": float(v["price"]) if v.get("price") else None,
+                        "_imgs": [im.get("src") for im in (p.get("images") or []) if im.get("src")][:5],
                     })
             except Exception:
                 pass
-        # 3. Universal fallback: sitemap → product pages → JSON-LD/OpenGraph extractor
-        if not products:
-            try:
-                from app.utils.url_scraper import scrape_product
-                locs = []
-
-                async def _sitemap_urls(u, depth=0):
-                    if depth > 1 or len(locs) > 4000:
-                        return
-                    rr = await client.get(u)
-                    if rr.status_code != 200 or len(rr.text) > 6_000_000:
-                        return
-                    txt = rr.text
-                    urls = _re.findall(r"<loc>\s*([^<]+?)\s*</loc>", txt)
-                    if "<sitemapindex" in txt:
-                        childs = sorted(urls, key=lambda x: 0 if "produ" in x.lower() else 1)
-                        for c in childs[:6]:
-                            await _sitemap_urls(c.strip(), depth + 1)
-                    else:
-                        locs.extend(u2.strip() for u2 in urls)
-
-                for cand in (f"{base}/sitemap.xml", f"{base}/sitemap_index.xml",
-                             f"{base}/sitemap-index.xml", f"{base}/wp-sitemap.xml"):
-                    await _sitemap_urls(cand)
-                    if locs:
-                        break
-                pat = _re.compile(r"/(product|produit|produits|products|shop|boutique|item|article|fiche|p)/", _re.I)
-                prod_urls = [u for u in dict.fromkeys(locs) if pat.search(u)][:50]
-                if not prod_urls:
-                    prod_urls = [u for u in dict.fromkeys(locs)
-                                 if u.rstrip("/").count("/") >= 4][:40]
-                sem = asyncio.Semaphore(5)
-
-                async def _one(u):
-                    async with sem:
-                        try:
-                            pr = await client.get(u)
-                            if pr.status_code != 200:
-                                return None
-                            d = scrape_product(pr.text[:1_500_000], u)
-                            if not d.get("name"):
-                                return None
-                            slug = u.rstrip("/").split("/")[-1].split("?")[0]
-                            sku = _re.sub(r"[^A-Za-z0-9_.-]", "-",
-                                          str(d.get("sku") or d.get("ean") or slug))[:60]
-                            if not sku:
-                                return None
-                            return {
-                                "sku": sku, "marketplace": "amazon_fr",
-                                "title": strip(d.get("name") or "")[:200],
-                                "brand": (d.get("brand") or "")[:80], "category": "",
-                                "description": strip(d.get("description") or "")[:2000],
-                                "bullet_points": [], "backend_keywords": "",
-                                "price": d.get("price"),
-                                "_imgs": (d.get("images") or [])[:5],
-                            }
-                        except Exception:
-                            return None
-
-                got = await asyncio.gather(*[_one(u) for u in prod_urls])
-                seen = set()
-                for g in got:
-                    if g and g["sku"] not in seen:
-                        seen.add(g["sku"])
-                        products.append(g)
-            except Exception:
-                pass
-        if not products:
-            raise HTTPException(422, "Impossible de lire les produits de ce site : ni flux "
-                                     "boutique public (Shopify/WooCommerce), ni pages produits "
-                                     "détectables via le plan du site (sitemap). Vérifiez l'URL, "
-                                     "ou envoyez-la-nous pour qu'on ajoute la prise en charge.")
-        # 3. Store the product photos: first → {sku}.ext (hero), extras → {sku}__N.ext
-        photos = 0
-        budget = 260
-        for p in products[:120]:
-            urls = p.pop("_imgs", []) or []
-            for j, u in enumerate(urls[:4]):
-                if budget <= 0:
-                    break
+            # 2. WooCommerce public Store API
+            if not products:
                 try:
-                    ir = await client.get(u)
-                    if ir.status_code == 200 and len(ir.content) < 8 * 1024 * 1024:
-                        ext = ".png" if ir.content[:8] == b"\x89PNG\r\n\x1a\n" else ".jpg"
-                        name = f"{p['sku']}{ext}" if j == 0 else f"{p['sku']}__{j+1}{ext}"
-                        _save_photo(name, ir.content,
-                                    "image/png" if ext == ".png" else "image/jpeg")
-                        photos += 1
-                        budget -= 1
+                    r = await client.get(f"{base}/wp-json/wc/store/v1/products?per_page=100")
+                    arr = r.json() if r.status_code == 200 else []
+                    for p in (arr or [])[:120]:
+                        sku = _re.sub(r"[^A-Za-z0-9_.-]", "-", (p.get("sku") or p.get("slug") or ""))[:60]
+                        if not sku:
+                            continue
+                        pr = (p.get("prices") or {})
+                        minor = int(pr.get("currency_minor_unit") or 2)
+                        price = int(pr["price"]) / (10 ** minor) if pr.get("price") else None
+                        cats = p.get("categories") or []
+                        imgs = p.get("images") or []
+                        products.append({
+                            "sku": sku, "marketplace": "amazon_fr",
+                            "title": strip(p.get("name") or "")[:200], "brand": "",
+                            "category": (cats[0].get("name") if cats else "")[:80],
+                            "description": strip(p.get("description") or p.get("short_description") or "")[:2000],
+                            "bullet_points": [], "backend_keywords": "", "price": price,
+                            "_imgs": [im.get("src") for im in imgs if im.get("src")][:5],
+                        })
                 except Exception:
-                    continue
-        for p in products:
-            p.pop("_imgs", None)
-    from app.db import save_generation, get_or_create_catalog_link, set_catalog_source
-    batch_id = f"site_{uuid4().hex[:10]}"
-    save_generation(email, batch_id, "amazon_fr", products, "Import site web")
-    set_catalog_source(email, "site", [p["sku"] for p in products])
-    cl = get_or_create_catalog_link(email)
-    base_url = os.getenv("APP_URL", "https://synqio.io").rstrip("/")
-    return {"imported": len(products), "photos": photos,
-            "catalog_url": f"{base_url}/catalogue/{cl['token']}"}
+                    pass
+            # 3. Universal fallback: sitemap → product pages → JSON-LD/OpenGraph extractor
+            if not products:
+                try:
+                    from app.utils.url_scraper import scrape_product
+                    locs = []
+
+                    async def _sitemap_urls(u, depth=0):
+                        if depth > 1 or len(locs) > 4000:
+                            return
+                        rr = await client.get(u)
+                        if rr.status_code != 200 or len(rr.text) > 6_000_000:
+                            return
+                        txt = rr.text
+                        urls = _re.findall(r"<loc>\s*([^<]+?)\s*</loc>", txt)
+                        if "<sitemapindex" in txt:
+                            childs = sorted(urls, key=lambda x: 0 if "produ" in x.lower() else 1)
+                            for c in childs[:6]:
+                                await _sitemap_urls(c.strip(), depth + 1)
+                        else:
+                            locs.extend(u2.strip() for u2 in urls)
+
+                    for cand in (f"{base}/sitemap.xml", f"{base}/sitemap_index.xml",
+                                 f"{base}/sitemap-index.xml", f"{base}/wp-sitemap.xml"):
+                        await _sitemap_urls(cand)
+                        if locs:
+                            break
+                    pat = _re.compile(r"/(product|produit|produits|products|shop|boutique|item|article|fiche|p)/", _re.I)
+                    prod_urls = [u for u in dict.fromkeys(locs) if pat.search(u)][:50]
+                    if not prod_urls:
+                        prod_urls = [u for u in dict.fromkeys(locs)
+                                     if u.rstrip("/").count("/") >= 4][:40]
+                    sem = asyncio.Semaphore(5)
+
+                    async def _one(u):
+                        async with sem:
+                            try:
+                                pr = await client.get(u)
+                                if pr.status_code != 200:
+                                    return None
+                                d = scrape_product(pr.text[:1_500_000], u)
+                                if not d.get("name"):
+                                    return None
+                                slug = u.rstrip("/").split("/")[-1].split("?")[0]
+                                sku = _re.sub(r"[^A-Za-z0-9_.-]", "-",
+                                              str(d.get("sku") or d.get("ean") or slug))[:60]
+                                if not sku:
+                                    return None
+                                return {
+                                    "sku": sku, "marketplace": "amazon_fr",
+                                    "title": strip(d.get("name") or "")[:200],
+                                    "brand": (d.get("brand") or "")[:80], "category": "",
+                                    "description": strip(d.get("description") or "")[:2000],
+                                    "bullet_points": [], "backend_keywords": "",
+                                    "price": d.get("price"),
+                                    "_imgs": (d.get("images") or [])[:5],
+                                }
+                            except Exception:
+                                return None
+
+                    got = await asyncio.gather(*[_one(u) for u in prod_urls])
+                    seen = set()
+                    for g in got:
+                        if g and g["sku"] not in seen:
+                            seen.add(g["sku"])
+                            products.append(g)
+                except Exception:
+                    pass
+            if not products:
+                raise HTTPException(422, "Impossible de lire les produits de ce site : ni flux "
+                                         "boutique public (Shopify/WooCommerce), ni pages produits "
+                                         "détectables via le plan du site (sitemap). Vérifiez l'URL, "
+                                         "ou envoyez-la-nous pour qu'on ajoute la prise en charge.")
+            # 3. Store the product photos: first → {sku}.ext (hero), extras → {sku}__N.ext
+            photos = 0
+            budget = 260
+            for p in products[:120]:
+                urls = p.pop("_imgs", []) or []
+                for j, u in enumerate(urls[:4]):
+                    if budget <= 0:
+                        break
+                    try:
+                        ir = await client.get(u)
+                        if ir.status_code == 200 and len(ir.content) < 8 * 1024 * 1024:
+                            ext = ".png" if ir.content[:8] == b"\x89PNG\r\n\x1a\n" else ".jpg"
+                            name = f"{p['sku']}{ext}" if j == 0 else f"{p['sku']}__{j+1}{ext}"
+                            _save_photo(name, ir.content,
+                                        "image/png" if ext == ".png" else "image/jpeg")
+                            photos += 1
+                            budget -= 1
+                    except Exception:
+                        continue
+            for p in products:
+                p.pop("_imgs", None)
+        from app.db import save_generation, get_or_create_catalog_link, set_catalog_source
+        batch_id = f"site_{uuid4().hex[:10]}"
+        save_generation(email, batch_id, "amazon_fr", products, "Import site web")
+        set_catalog_source(email, "site", [p["sku"] for p in products])
+        cl = get_or_create_catalog_link(email)
+        base_url = os.getenv("APP_URL", "https://synqio.io").rstrip("/")
+        _jobs[job_id].update({"status": "done", "result": {
+            "imported": len(products), "photos": photos,
+            "catalog_url": f"{base_url}/catalogue/{cl['token']}"}})
+    except HTTPException as e:
+        _jobs[job_id].update({"status": "failed", "error": e.detail})
+    except Exception as e:
+        _jobs[job_id].update({"status": "failed", "error": (str(e)[:200] or type(e).__name__)})
 
 
 @app.post("/api/catalog-link/regenerate")

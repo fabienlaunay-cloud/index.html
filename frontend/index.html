@@ -13591,16 +13591,31 @@ async function _hubImportSite(btn) {
   const url = (document.getElementById('hubSiteUrl')?.value || '').trim();
   if (!url) { showToast('⚠️', 'Entrez l\'URL de votre boutique'); return; }
   btn.disabled = true; const orig = btn.textContent; btn.textContent = 'Import en cours…';
+  const safeJson = async r => { try { return await r.json(); } catch(e) { return {}; } };
   try {
     const r = await authFetch('/api/catalog-from-site', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ url }),
     });
-    const d = await r.json();
-    if (!r.ok) throw new Error(d.detail || 'Erreur');
-    showToast('✅', `${d.imported} produit(s) importés (${d.photos} photo(s)) — votre catalogue est prêt`);
-    window.open(d.catalog_url, '_blank');
-    openHubPanel();
+    const d = await safeJson(r);
+    if (!r.ok || !d.job_id) throw new Error(d.detail || `Erreur serveur (${r.status})`);
+    // L'import lit le site page par page + télécharge les photos : on suit le job
+    for (let i = 0; i < 100; i++) {
+      await new Promise(res => setTimeout(res, 3000));
+      if (i === 6) btn.textContent = 'Lecture du site…';
+      if (i === 20) btn.textContent = 'Téléchargement des photos…';
+      const jr = await authFetch('/api/jobs/' + d.job_id);
+      if (!jr.ok) continue;
+      const job = await safeJson(jr);
+      if (job.status === 'done') {
+        const res = job.result || {};
+        showToast('✅', `${res.imported} produit(s) importés (${res.photos} photo(s)) — votre catalogue est prêt`);
+        if (res.catalog_url) window.open(res.catalog_url, '_blank');
+        openHubPanel();
+        return;
+      }
+      if (job.status === 'failed') { showToast('❌', job.error || 'Import impossible', true); break; }
+    }
   } catch(e) { showToast('❌', e.message || 'Import impossible', true); }
   btn.disabled = false; btn.textContent = orig;
 }
