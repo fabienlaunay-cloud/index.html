@@ -13562,7 +13562,7 @@ async function _hubSaveCatMeta(btn) {
 function _hubCopyEmbed(url) {
   const code = `<iframe src="${url}" style="width:100%;height:85vh;border:0;border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,.15)" allowfullscreen loading="lazy" title="Catalogue produits"></iframe>`;
   navigator.clipboard.writeText(code).then(() =>
-    showToast('✅', 'Code copié — collez-le dans une page de votre site (bloc HTML) : le catalogue s\\'affiche dedans, toujours à jour'));
+    showToast('✅', "Code copié — collez-le dans une page de votre site (bloc HTML) : le catalogue s'affiche dedans, toujours à jour"));
 }
 
 async function _hubUploadLogo(input) {
