@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="fr"><head><meta charset="UTF-8">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { width:1200px; height:1200px; overflow:hidden; font-family:'Segoe UI', system-ui, -apple-system, sans-serif; }
+  .t { width:1200px; height:1200px; position:relative; overflow:hidden;
+    background:
+      radial-gradient(760px 600px at 80% 14%, rgba(124,58,237,.45), transparent 60%),
+      radial-gradient(600px 520px at 12% 90%, rgba(255,153,0,.15), transparent 60%),
+      linear-gradient(135deg, #14102e 0%, #2a1f5c 55%, #191243 100%); }
+  .grid { position:absolute; inset:0; opacity:.5;
+    background-image:linear-gradient(rgba(255,255,255,.04) 1px, transparent 1px),
+                     linear-gradient(90deg, rgba(255,255,255,.04) 1px, transparent 1px);
+    background-size:86px 86px; }
+  .brand { position:absolute; top:54px; left:56px; display:flex; align-items:center; gap:14px; }
+  .mark { width:56px; height:56px; border-radius:15px; background:linear-gradient(135deg,#8b5cf6,#4f46e5);
+    display:flex; align-items:center; justify-content:center; box-shadow:0 8px 24px rgba(124,58,237,.6); }
+  .bname { color:#fff; font-size:36px; font-weight:800; letter-spacing:-1px; }
+  .head { position:absolute; top:150px; left:56px; right:56px; z-index:10; }
+  h1 { color:#fff; font-size:78px; font-weight:900; line-height:1.06; letter-spacing:-3px;
+    text-shadow:0 6px 30px rgba(0,0,0,.5); }
+  h1 .hl { color:#a78bfa; }
+  .punch { display:inline-block; margin-top:24px; background:linear-gradient(100deg,#ffb020,#ff9900);
+    color:#1a1033; font-size:64px; font-weight:900; letter-spacing:-2px; line-height:1;
+    padding:16px 30px 22px; border-radius:22px; transform:rotate(-1.5deg);
+    box-shadow:0 18px 50px rgba(255,153,0,.45), inset 0 -5px 0 rgba(0,0,0,.18); }
+
+  .urlpill { position:absolute; left:56px; top:560px; z-index:9; transform:rotate(-2deg);
+    background:#fff; border-radius:18px; padding:18px 28px; display:flex; align-items:center; gap:14px;
+    box-shadow:0 18px 44px rgba(0,0,0,.45); }
+  .urlpill .u { color:#374151; font-size:32px; font-weight:800; font-family:monospace; }
+  .flow { position:absolute; left:220px; top:650px; z-index:9; transform:rotate(65deg); }
+
+  .bookw { position:absolute; left:50%; transform:translateX(-50%) rotate(1.5deg); bottom:150px;
+    width:900px; height:400px; z-index:8; filter:drop-shadow(0 30px 60px rgba(0,0,0,.55)); }
+  .spread { position:absolute; inset:0; display:flex; }
+  .pageL, .pageR { flex:1; background:#fff; padding:22px 20px; }
+  .pageL { border-radius:16px 3px 3px 16px; box-shadow:inset -16px 0 26px rgba(0,0,0,.10); }
+  .pageR { border-radius:3px 16px 16px 3px; box-shadow:inset 16px 0 26px rgba(0,0,0,.08); }
+  .pgrid { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; height:100%; }
+  .prd { border:1.5px solid #eee9fb; border-radius:11px; padding:9px; display:flex; flex-direction:column; }
+  .ph { flex:1; border-radius:8px; background:linear-gradient(135deg,#ede9fe,#ddd6fe);
+    display:flex; align-items:center; justify-content:center; }
+  .ln { height:8px; border-radius:4px; background:#e5e1f8; margin-top:8px; }
+  .ln.a { width:85%; background:#c4b5fd; }
+  .pr { color:#6d28d9; font-size:16px; font-weight:900; margin-top:5px; }
+  .curl { position:absolute; right:-8px; top:-12px; width:130px; height:130px; z-index:9; }
+  .foot { position:absolute; bottom:52px; left:0; right:0; text-align:center; z-index:10; }
+  .foot .chip { display:inline-flex; align-items:center; gap:12px; background:rgba(255,255,255,.08);
+    border:2.5px solid rgba(167,139,250,.65); border-radius:16px; padding:13px 28px;
+    color:#e9e4ff; font-size:30px; font-weight:800; letter-spacing:.5px; }
+  .dotg { width:16px; height:16px; border-radius:50%; background:#4ade80; box-shadow:0 0 16px #4ade80; }
+</style></head>
+<body>
+<div class="t">
+  <div class="grid"></div>
+  <div class="brand">
+    <div class="mark"><svg width="34" height="34" viewBox="0 0 24 24" fill="none"><path d="M12 2L2 7l10 5 10-5-10-5z" stroke="white" stroke-width="1.8" stroke-linejoin="round"/><path d="M2 17l10 5 10-5M2 12l10 5 10-5" stroke="white" stroke-width="1.8" stroke-linejoin="round"/></svg></div>
+    <span class="bname">SynqIO</span>
+  </div>
+  <div class="head">
+    <h1>Collez l'<span class="hl">URL</span> de votre boutique.<br>Votre catalogue est prêt.</h1>
+    <div class="punch">EN 30 SECONDES</div>
+  </div>
+
+  <div class="urlpill">
+    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+    <span class="u">maboutique.fr</span>
+  </div>
+  <div class="flow">
+    <svg width="120" height="86" viewBox="0 0 110 80" fill="none">
+      <path d="M10 10 C 40 30, 60 46, 76 64" stroke="#ffb020" stroke-width="13" stroke-linecap="round" fill="none"/>
+      <path d="M46 62 L80 70 L74 36" stroke="#ffb020" stroke-width="13" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+    </svg>
+  </div>
+
+  <div class="bookw">
+    <div class="spread">
+      <div class="pageL"><div class="pgrid">
+        <div class="prd"><div class="ph"><svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="1.8"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.6"/><polyline points="21 15 16 10 5 21"/></svg></div><div class="ln a"></div><div class="pr">24,50 €</div></div>
+        <div class="prd"><div class="ph"><svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="1.8"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.6"/><polyline points="21 15 16 10 5 21"/></svg></div><div class="ln a"></div><div class="pr">18,00 €</div></div>
+        <div class="prd"><div class="ph"><svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="1.8"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.6"/><polyline points="21 15 16 10 5 21"/></svg></div><div class="ln a"></div><div class="pr">34,50 €</div></div>
+      </div></div>
+      <div class="pageR"><div class="pgrid">
+        <div class="prd"><div class="ph"><svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="1.8"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.6"/><polyline points="21 15 16 10 5 21"/></svg></div><div class="ln a"></div><div class="pr">77,00 €</div></div>
+        <div class="prd"><div class="ph"><svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="1.8"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.6"/><polyline points="21 15 16 10 5 21"/></svg></div><div class="ln a"></div><div class="pr">12,00 €</div></div>
+        <div class="prd"><div class="ph"><svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="1.8"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.6"/><polyline points="21 15 16 10 5 21"/></svg></div><div class="ln a"></div><div class="pr">36,00 €</div></div>
+      </div></div>
+    </div>
+    <svg class="curl" viewBox="0 0 120 120" fill="none">
+      <path d="M115 5 C 70 12, 40 40, 30 90 L 115 90 Z" fill="#ede9fe" opacity="0.95"/>
+      <path d="M115 5 C 70 12, 40 40, 30 90" stroke="#c4b5fd" stroke-width="3"/>
+    </svg>
+  </div>
+
+  <div class="foot"><span class="chip"><span class="dotg"></span>FLIPBOOK · TOUJOURS À JOUR · synqio.io</span></div>
+</div>
+</body></html>
