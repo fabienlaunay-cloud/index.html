@@ -2399,6 +2399,74 @@ async def catalog_link_meta(meta: CatalogMeta, request: Request):
     return {"ok": True}
 
 
+def _detect_catalog_theme(listings: list) -> str:
+    """Detect the brand universe from listing texts to pick the ambient decor."""
+    import unicodedata
+    text = " ".join((l.get("title") or "") + " " + (l.get("category") or "") + " " +
+                    (l.get("brand") or "") for l in listings[:100]).lower()
+    text = "".join(c for c in unicodedata.normalize("NFKD", text) if not unicodedata.combining(c))
+    pets = ("chien", "chat", "dog", "cat", "collier", "laisse", "harnais", "chiot",
+            "chaton", "croquette", "medaille", "animal", "pet", "gamelle", "niche")
+    if sum(text.count(k) for k in pets) >= 3:
+        return "pets"
+    return "generic"
+
+
+def _catalog_deco_html(theme: str) -> str:
+    """Self-contained ambient animation layer around the book (behind it)."""
+    if theme == "pets":
+        paw = ('<svg viewBox="0 0 40 40" fill="currentColor">'
+               '<ellipse cx="20" cy="26" rx="8" ry="6.5"/>'
+               '<ellipse cx="9" cy="17" rx="3.4" ry="4.4"/>'
+               '<ellipse cx="31" cy="17" rx="3.4" ry="4.4"/>'
+               '<ellipse cx="15" cy="11" rx="3.2" ry="4.2"/>'
+               '<ellipse cx="25" cy="11" rx="3.2" ry="4.2"/></svg>')
+        # slow diagonal paw trail: (x%, y%, rotation, delay s)
+        spots = [(6, 82, -18, 0), (11, 72, 10, 1.1), (16, 63, -14, 2.2), (22, 55, 12, 3.3),
+                 (78, 44, 165, 5.0), (83, 35, 195, 6.1), (88, 27, 168, 7.2), (93, 18, 198, 8.3)]
+        paws = "".join(
+            f'<div class="paw" style="left:{x}%;top:{y}%;transform:rotate({r}deg);'
+            f'animation-delay:{d}s">{paw}</div>' for x, y, r, d in spots)
+        dog = ('<svg viewBox="0 0 120 120" fill="none" stroke="currentColor" stroke-width="4" '
+               'stroke-linecap="round" stroke-linejoin="round">'
+               '<circle cx="60" cy="62" r="30"/>'
+               '<path d="M34 46 q-14 2-13 24 q0 10 9 10 q8 0 10-9"/>'
+               '<path d="M86 46 q14 2 13 24 q0 10-9 10 q-8 0-10-9"/>'
+               '<ellipse cx="60" cy="72" rx="5.5" ry="4.5" fill="currentColor" stroke="none"/>'
+               '<path d="M60 77 q0 7-8 8 M60 77 q0 7 8 8"/>'
+               '<circle cx="49" cy="56" r="2.6" fill="currentColor" stroke="none"/>'
+               '<circle cx="71" cy="56" r="2.6" fill="currentColor" stroke="none"/></svg>')
+        cat = ('<svg viewBox="0 0 120 120" fill="none" stroke="currentColor" stroke-width="4" '
+               'stroke-linecap="round" stroke-linejoin="round">'
+               '<circle cx="60" cy="68" r="26"/>'
+               '<path d="M42 50 l-6-18 16 8 M78 50 l6-18 -16 8"/>'
+               '<path d="M55 72 q5 4 10 0"/>'
+               '<circle cx="50" cy="62" r="2.4" fill="currentColor" stroke="none"/>'
+               '<circle cx="70" cy="62" r="2.4" fill="currentColor" stroke="none"/>'
+               '<path d="M30 70 h-14 M32 78 h-13 M90 70 h14 M88 78 h13"/></svg>')
+        figures = (f'<div class="fig f-dog">{dog}</div>'
+                   f'<div class="fig f-cat">{cat}</div>')
+    else:
+        paws = "".join(
+            f'<div class="paw dot" style="left:{x}%;top:{y}%;animation-delay:{d}s"></div>'
+            for x, y, d in [(8, 80, 0), (14, 65, 1.5), (85, 30, 3), (90, 55, 4.5), (12, 25, 6), (80, 75, 7.5)])
+        figures = ""
+    return f'''<div class="deco">{figures}{paws}</div>
+<style>
+.deco{{position:fixed;inset:0;pointer-events:none;z-index:0;color:#fff;overflow:hidden}}
+.stage,.nav{{position:relative;z-index:2}}
+.fig{{position:absolute;opacity:.13;animation:decofloat 7s ease-in-out infinite alternate}}
+.f-dog{{left:3.5%;bottom:7%;width:120px}}
+.f-cat{{right:3.5%;top:9%;width:110px;animation-delay:2.2s}}
+@keyframes decofloat{{0%{{transform:translateY(0) rotate(-2deg)}}100%{{transform:translateY(-14px) rotate(2deg)}}}}
+.paw{{position:absolute;width:26px;opacity:0;animation:pawstep 10s ease-in-out infinite}}
+.paw.dot{{width:10px;height:10px;border-radius:50%;background:#fff}}
+@keyframes pawstep{{0%,4%{{opacity:0}}10%{{opacity:.15}}30%{{opacity:.12}}45%,100%{{opacity:0}}}}
+@media (max-width:900px){{.fig{{display:none}}}}
+@media print{{.deco{{display:none}}}}
+</style>'''
+
+
 def _render_public_catalog(owner: dict, listings: list, image_urls: dict) -> str:
     """Calaméo-style public flipbook: cover page, 4 products per page with 3D
     page-turn, photo lightbox (all visuals per product), contact back page.
@@ -2449,6 +2517,7 @@ def _render_public_catalog(owner: dict, listings: list, image_urls: dict) -> str
                    f'<div class="pg f">{pages[2*k]}</div>'
                    f'<div class="pg b">{pages[2*k+1]}</div></div>')
 
+    deco = _catalog_deco_html(_detect_catalog_theme(listings))
     return f'''<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex">
@@ -2517,6 +2586,7 @@ body{{font-family:'Segoe UI',system-ui,sans-serif;background:linear-gradient(125
 .lb .x{{position:absolute;top:18px;right:22px}}
 @media print{{body{{background:#fff;display:block}}.stage{{perspective:none;width:100%;aspect-ratio:auto;max-height:none}}.sheet{{position:static;transform:none!important;height:auto}}.pg{{position:static;transform:none!important;opacity:1!important;page-break-after:always;height:100vh}}.page{{position:relative;box-shadow:none}}.nav,.lb,.side,.spine{{display:none!important}}}}
 </style></head><body>
+{deco}
 <div class="stage" id="book"><div class="spine"></div>{sheets}
   <button class="side prev" onclick="event.stopPropagation();go(-1)">&#8249;</button>
   <button class="side next" onclick="event.stopPropagation();go(1)">&#8250;</button>
