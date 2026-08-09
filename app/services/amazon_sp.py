@@ -584,10 +584,22 @@ async def _publish_one(
     if resp.status_code >= 400:
         await _log_product_type_schema(payload["productType"], marketplace_id, lwa_token, temp_creds)
 
+    # Surface the pre-flight diagnostics to the user (they can't read server logs)
+    diag = (f"[compte={part_resp.status_code} seller_id={catalog_resp.status_code} "
+            f"lecture_fiche={get_resp.status_code} méthode={'PATCH' if existing_pt else 'PUT création'}]")
+    hint = ""
+    if catalog_resp.status_code == 400:
+        hint = " ⚠️ Le seller_id enregistré ne correspond pas au Merchant Token — déconnectez puis reconnectez Seller Central dans SynqIO."
+    elif get_resp.status_code == 403 or resp.status_code == 403:
+        hint = " ⚠️ Rôle « Product Listing » manquant sur l'app Amazon (Developer Central) — requis pour modifier une fiche."
+    elif not existing_pt and get_resp.status_code != 200:
+        hint = (" ⚠️ Fiche illisible chez Amazon (lecture=" + str(get_resp.status_code) +
+                ") → tentative de création complète, qui exige tous les attributs de la catégorie.")
     result = {
         "sku": listing.sku,
         "status": resp.status_code,
         "response": resp.json() if resp.content else {},
+        "diag": diag + hint,
     }
 
     # Push A+ content when listing is accepted and a_plus_content is present
@@ -652,6 +664,8 @@ async def publish_listings(
                         f"{e.get('code','?')}: {e.get('details') or e.get('message','')}"
                         for e in amz_errors
                     ) if amz_errors else str(result.get("response", ""))
+                    if result.get("diag"):
+                        amz_msg = f"{amz_msg} {result['diag']}"
                     errors.append({"sku": listing.sku, "status": result["status"], "error": amz_msg})
             except Exception as e:
                 errors.append({"sku": listing.sku, "error": str(e)})
