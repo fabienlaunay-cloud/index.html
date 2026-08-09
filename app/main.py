@@ -2438,7 +2438,7 @@ def _render_public_catalog(owner: dict, listings: list, image_urls: dict) -> str
     pages.append(f'<div class="page cover back">{logo}<h1>Merci</h1>{_catalog_contact_html(owner)}'
                  '<p class="credit">Catalogue généré avec SynqIO</p></div>')
     n = len(pages)
-    book = "".join(f'<div class="page-w" data-i="{i}">{p}</div>' for i, p in enumerate(pages))
+    book = "".join(f'<div class="page-w" data-i="{i}">{p}<div class="pback"></div></div>' for i, p in enumerate(pages))
 
     return f'''<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -2448,7 +2448,11 @@ def _render_public_catalog(owner: dict, listings: list, image_urls: dict) -> str
 *{{margin:0;padding:0;box-sizing:border-box}}
 body{{font-family:'Segoe UI',system-ui,sans-serif;background:linear-gradient(125deg,#171236,#2a1f5c);min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:18px}}
 .stage{{position:relative;width:min(880px,96vw);aspect-ratio:3/4;max-height:84vh;perspective:2600px}}
-.page-w{{position:absolute;inset:0;transform-origin:left center;transition:transform .75s cubic-bezier(.4,.1,.2,1);transform-style:preserve-3d;backface-visibility:hidden}}
+.page-w{{position:absolute;inset:0;transform-origin:left center;transition:transform 1.1s cubic-bezier(.35,.06,.15,1);transform-style:preserve-3d}}
+.page-w .page{{backface-visibility:hidden}}
+.pback{{position:absolute;inset:0;border-radius:14px 6px 6px 14px;background:linear-gradient(105deg,#f4f1fc 0%,#e9e4f8 55%,#ddd5f0 100%);transform:rotateY(180deg);backface-visibility:hidden;box-shadow:inset 14px 0 24px rgba(0,0,0,.08)}}
+.page-w.moving{{z-index:99!important}}
+.page-w.moving .page,.page-w.moving .pback{{box-shadow:-34px 26px 70px rgba(0,0,0,.5)}}
 .page-w.flip{{transform:rotateY(-180deg)}}
 .page{{position:absolute;inset:0;background:#fff;border-radius:6px 14px 14px 6px;box-shadow:0 18px 60px rgba(0,0,0,.45);overflow:hidden;display:flex;flex-direction:column;padding:26px 28px}}
 .page::before{{content:'';position:absolute;left:0;top:0;bottom:0;width:14px;background:linear-gradient(90deg,rgba(0,0,0,.12),transparent);pointer-events:none}}
@@ -2480,9 +2484,13 @@ body{{font-family:'Segoe UI',system-ui,sans-serif;background:linear-gradient(125
 .lb button{{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.25);color:#fff;border-radius:12px;padding:10px 18px;font-size:14px;font-weight:700;cursor:pointer}}
 .lb .cnt{{color:rgba(255,255,255,.6);font-size:13px}}
 .lb .x{{position:absolute;top:18px;right:22px}}
-@media print{{body{{background:#fff;display:block}}.stage{{perspective:none;width:100%;aspect-ratio:auto;max-height:none}}.page-w{{position:static;transform:none!important;page-break-after:always;height:100vh}}.page{{position:relative;box-shadow:none}}.nav,.lb{{display:none!important}}}}
+.side{{position:absolute;top:50%;transform:translateY(-50%);z-index:40;width:54px;height:54px;border-radius:50%;background:#fff;border:none;color:#4c37a3;font-size:26px;font-weight:900;cursor:pointer;box-shadow:0 10px 30px rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;transition:transform .15s}}
+.side:hover{{transform:translateY(-50%) scale(1.12)}}
+.side.prev{{left:-27px}}.side.next{{right:-27px}}
+@media (max-width:700px){{.side.prev{{left:6px}}.side.next{{right:6px}}}}
+@media print{{body{{background:#fff;display:block}}.stage{{perspective:none;width:100%;aspect-ratio:auto;max-height:none}}.page-w{{position:static;transform:none!important;page-break-after:always;height:100vh}}.page{{position:relative;box-shadow:none}}.nav,.lb,.side{{display:none!important}}}}
 </style></head><body>
-<div class="stage" id="book">{book}</div>
+<div class="stage" id="book">{book}<button class="side prev" onclick="event.stopPropagation();go(-1)">&#8249;</button><button class="side next" onclick="event.stopPropagation();go(1)">&#8250;</button></div>
 <div class="nav">
   <button onclick="go(-1)">‹ Précédente</button>
   <span class="cnt" id="cnt"></span>
@@ -2502,7 +2510,7 @@ function upd(){{
   }});
   document.getElementById('cnt').textContent=(cur+1)+' / '+N;
 }}
-function go(d){{cur=Math.max(0,Math.min(N-1,cur+d));upd();}}
+function go(d){{var old=cur;cur=Math.max(0,Math.min(N-1,cur+d));if(cur===old)return;var mv=pw[d>0?old:cur];if(mv){{mv.classList.add('moving');setTimeout(function(){{mv.classList.remove('moving')}},1150);}}upd();}}
 upd();
 document.addEventListener('keydown',function(e){{
   if(document.getElementById('lb').classList.contains('open')){{
