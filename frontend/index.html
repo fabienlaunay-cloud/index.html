@@ -13502,6 +13502,11 @@ function _renderHub(data) {
         <input type="file" id="hubCatLogoInput" accept="image/png,image/jpeg,image/webp" class="hidden" onchange="_hubUploadLogo(this)">
         <button onclick="_hubSaveCatMeta(this)" class="text-[11px] font-bold text-white gradient-bg rounded-lg px-3.5 py-1.5">Enregistrer</button>
       </div>
+      <div class="flex items-center gap-2 mt-2.5 pt-2.5 border-t border-purple-100">
+        <input id="hubSiteUrl" placeholder="URL de votre site (Shopify ou WooCommerce) — ex. maboutique.fr" class="flex-1 text-[11px] border border-gray-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-purple-400">
+        <button onclick="_hubImportSite(this)" class="text-[11px] font-bold text-white gradient-bg rounded-lg px-3 py-1.5 whitespace-nowrap">Générer depuis mon site</button>
+      </div>
+      <p class="text-[10px] text-gray-400 mt-1">SynqIO lit les produits publics de votre boutique et remplit le catalogue automatiquement (titres, prix, photos).</p>
       <div class="flex items-center gap-3 mt-2">
         <button onclick="_hubCopyEmbed('${_esc(data.catalog.url)}')" class="text-[10px] font-semibold text-purple-600 hover:text-purple-800">Copier le code d'intégration pour votre site web</button>
         <button onclick="_hubRegenCatLink(this)" class="text-[10px] text-gray-400 hover:text-red-500">↻ Régénérer le lien (révoque l'ancien)</button>
@@ -13557,6 +13562,24 @@ async function _hubSaveCatMeta(btn) {
     showToast('✅', 'Catalogue mis à jour — rechargez le lien public pour voir le résultat');
   } catch(e) { showToast('❌', 'Erreur', true); }
   btn.disabled = false;
+}
+
+async function _hubImportSite(btn) {
+  const url = (document.getElementById('hubSiteUrl')?.value || '').trim();
+  if (!url) { showToast('⚠️', 'Entrez l\'URL de votre boutique'); return; }
+  btn.disabled = true; const orig = btn.textContent; btn.textContent = 'Import en cours…';
+  try {
+    const r = await authFetch('/api/catalog-from-site', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url }),
+    });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.detail || 'Erreur');
+    showToast('✅', `${d.imported} produit(s) importés (${d.photos} photo(s)) — votre catalogue est prêt`);
+    window.open(d.catalog_url, '_blank');
+    openHubPanel();
+  } catch(e) { showToast('❌', e.message || 'Import impossible', true); }
+  btn.disabled = false; btn.textContent = orig;
 }
 
 function _hubCopyEmbed(url) {

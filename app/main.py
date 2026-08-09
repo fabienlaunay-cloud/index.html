@@ -2287,6 +2287,102 @@ async def catalog_link_logo(request: Request):
     return {"logo_url": f"/api/photos/{filename}"}
 
 
+class SiteImportRequest(BaseModel):
+    url: str
+
+
+@app.post("/api/catalog-from-site")
+async def catalog_from_site(req: SiteImportRequest, request: Request):
+    """Import a client's products straight from their website URL (Shopify's
+    public products.json, or WooCommerce's public Store API) and build their
+    catalogue: listings saved as a batch, first image stored per SKU so the
+    flipbook shows real photos."""
+    import re as _re
+    email = request.state.user_email
+    if not _rate_limit(f"{email}:site-import", limit=6, window=3600):
+        raise HTTPException(429, "Limite de 6 imports/heure — réessayez plus tard")
+    base = req.url.strip()
+    if not base.startswith("http"):
+        base = "https://" + base
+    base = base.rstrip("/")
+    strip = lambda h: _re.sub(r"\s+", " ", _re.sub(r"<[^>]+>", " ", h or "")).strip()
+    products = []
+    async with httpx.AsyncClient(timeout=25, follow_redirects=True,
+                                 headers={"User-Agent": "SynqIO-CatalogBot/1.0"}) as client:
+        # 1. Shopify public catalogue endpoint
+        try:
+            r = await client.get(f"{base}/products.json?limit=250")
+            data = r.json() if r.status_code == 200 else {}
+            for p in (data.get("products") or [])[:120]:
+                v = (p.get("variants") or [{}])[0]
+                sku = _re.sub(r"[^A-Za-z0-9_.-]", "-", (v.get("sku") or p.get("handle") or ""))[:60]
+                if not sku:
+                    continue
+                products.append({
+                    "sku": sku, "marketplace": "amazon_fr",
+                    "title": strip(p.get("title") or "")[:200],
+                    "brand": (p.get("vendor") or "")[:80],
+                    "category": (p.get("product_type") or "")[:80],
+                    "description": strip(p.get("body_html") or "")[:2000],
+                    "bullet_points": [], "backend_keywords": "",
+                    "price": float(v["price"]) if v.get("price") else None,
+                    "_img": ((p.get("images") or [{}])[0].get("src") or ""),
+                })
+        except Exception:
+            pass
+        # 2. WooCommerce public Store API
+        if not products:
+            try:
+                r = await client.get(f"{base}/wp-json/wc/store/v1/products?per_page=100")
+                arr = r.json() if r.status_code == 200 else []
+                for p in (arr or [])[:120]:
+                    sku = _re.sub(r"[^A-Za-z0-9_.-]", "-", (p.get("sku") or p.get("slug") or ""))[:60]
+                    if not sku:
+                        continue
+                    pr = (p.get("prices") or {})
+                    minor = int(pr.get("currency_minor_unit") or 2)
+                    price = int(pr["price"]) / (10 ** minor) if pr.get("price") else None
+                    cats = p.get("categories") or []
+                    imgs = p.get("images") or []
+                    products.append({
+                        "sku": sku, "marketplace": "amazon_fr",
+                        "title": strip(p.get("name") or "")[:200], "brand": "",
+                        "category": (cats[0].get("name") if cats else "")[:80],
+                        "description": strip(p.get("description") or p.get("short_description") or "")[:2000],
+                        "bullet_points": [], "backend_keywords": "", "price": price,
+                        "_img": (imgs[0].get("src") if imgs else ""),
+                    })
+            except Exception:
+                pass
+        if not products:
+            raise HTTPException(422, "Impossible de lire les produits de ce site — Shopify et "
+                                     "WooCommerce sont supportés (le catalogue public doit être accessible).")
+        # 3. Store the first photo per SKU (own-photo convention → hero du flipbook)
+        photos = 0
+        for p in products[:60]:
+            u = p.pop("_img", "")
+            if not u:
+                continue
+            try:
+                ir = await client.get(u)
+                if ir.status_code == 200 and len(ir.content) < 8 * 1024 * 1024:
+                    ext = ".png" if ir.content[:8] == b"\x89PNG\r\n\x1a\n" else ".jpg"
+                    _save_photo(f"{p['sku']}{ext}", ir.content,
+                                "image/png" if ext == ".png" else "image/jpeg")
+                    photos += 1
+            except Exception:
+                continue
+        for p in products:
+            p.pop("_img", None)
+    from app.db import save_generation, get_or_create_catalog_link
+    batch_id = f"site_{uuid4().hex[:10]}"
+    save_generation(email, batch_id, "amazon_fr", products, "Import site web")
+    cl = get_or_create_catalog_link(email)
+    base_url = os.getenv("APP_URL", "https://synqio.io").rstrip("/")
+    return {"imported": len(products), "photos": photos,
+            "catalog_url": f"{base_url}/catalogue/{cl['token']}"}
+
+
 @app.post("/api/catalog-link/regenerate")
 async def catalog_link_regenerate(request: Request):
     from app.db import regenerate_catalog_link
