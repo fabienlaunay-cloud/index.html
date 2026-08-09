@@ -2370,9 +2370,78 @@ async def catalog_from_site(req: SiteImportRequest, request: Request):
                     })
             except Exception:
                 pass
+        # 3. Universal fallback: sitemap → product pages → JSON-LD/OpenGraph extractor
         if not products:
-            raise HTTPException(422, "Impossible de lire les produits de ce site — Shopify et "
-                                     "WooCommerce sont supportés (le catalogue public doit être accessible).")
+            try:
+                from app.utils.url_scraper import scrape_product
+                locs = []
+
+                async def _sitemap_urls(u, depth=0):
+                    if depth > 1 or len(locs) > 4000:
+                        return
+                    rr = await client.get(u)
+                    if rr.status_code != 200 or len(rr.text) > 6_000_000:
+                        return
+                    txt = rr.text
+                    urls = _re.findall(r"<loc>\s*([^<]+?)\s*</loc>", txt)
+                    if "<sitemapindex" in txt:
+                        childs = sorted(urls, key=lambda x: 0 if "produ" in x.lower() else 1)
+                        for c in childs[:6]:
+                            await _sitemap_urls(c.strip(), depth + 1)
+                    else:
+                        locs.extend(u2.strip() for u2 in urls)
+
+                for cand in (f"{base}/sitemap.xml", f"{base}/sitemap_index.xml",
+                             f"{base}/sitemap-index.xml", f"{base}/wp-sitemap.xml"):
+                    await _sitemap_urls(cand)
+                    if locs:
+                        break
+                pat = _re.compile(r"/(product|produit|produits|products|shop|boutique|item|article|fiche|p)/", _re.I)
+                prod_urls = [u for u in dict.fromkeys(locs) if pat.search(u)][:50]
+                if not prod_urls:
+                    prod_urls = [u for u in dict.fromkeys(locs)
+                                 if u.rstrip("/").count("/") >= 4][:40]
+                sem = asyncio.Semaphore(5)
+
+                async def _one(u):
+                    async with sem:
+                        try:
+                            pr = await client.get(u)
+                            if pr.status_code != 200:
+                                return None
+                            d = scrape_product(pr.text[:1_500_000], u)
+                            if not d.get("name"):
+                                return None
+                            slug = u.rstrip("/").split("/")[-1].split("?")[0]
+                            sku = _re.sub(r"[^A-Za-z0-9_.-]", "-",
+                                          str(d.get("sku") or d.get("ean") or slug))[:60]
+                            if not sku:
+                                return None
+                            return {
+                                "sku": sku, "marketplace": "amazon_fr",
+                                "title": strip(d.get("name") or "")[:200],
+                                "brand": (d.get("brand") or "")[:80], "category": "",
+                                "description": strip(d.get("description") or "")[:2000],
+                                "bullet_points": [], "backend_keywords": "",
+                                "price": d.get("price"),
+                                "_imgs": (d.get("images") or [])[:5],
+                            }
+                        except Exception:
+                            return None
+
+                got = await asyncio.gather(*[_one(u) for u in prod_urls])
+                seen = set()
+                for g in got:
+                    if g and g["sku"] not in seen:
+                        seen.add(g["sku"])
+                        products.append(g)
+            except Exception:
+                pass
+        if not products:
+            raise HTTPException(422, "Impossible de lire les produits de ce site : ni flux "
+                                     "boutique public (Shopify/WooCommerce), ni pages produits "
+                                     "détectables via le plan du site (sitemap). Vérifiez l'URL, "
+                                     "ou envoyez-la-nous pour qu'on ajoute la prise en charge.")
         # 3. Store the product photos: first → {sku}.ext (hero), extras → {sku}__N.ext
         photos = 0
         budget = 260
