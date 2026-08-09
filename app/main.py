@@ -2450,6 +2450,17 @@ async def _run_site_import_job(job_id: str, email: str, base: str):
                                          "boutique public (Shopify/WooCommerce), ni pages produits "
                                          "détectables via le plan du site (sitemap). Vérifiez l'URL, "
                                          "ou envoyez-la-nous pour qu'on ajoute la prise en charge.")
+            # 2bis. Deduplicate SKUs (Shopify shops often reuse a SKU across
+            # products/variants) — otherwise one product's photo and another's
+            # text get merged under the same key.
+            seen_skus = set()
+            for p in products:
+                base_sku, k2 = p["sku"], 2
+                while p["sku"] in seen_skus:
+                    p["sku"] = f"{base_sku}-{k2}"
+                    k2 += 1
+                seen_skus.add(p["sku"])
+
             # 3. Store the product photos — hero for EVERY product first, extras after.
             photos = 0
             from app.services import storage as _st
@@ -2655,8 +2666,8 @@ body{{font-family:'Segoe UI',system-ui,sans-serif;background:linear-gradient(125
 .prd h3{{font-size:12px;font-weight:700;color:#1f2937;line-height:1.25;margin-top:7px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}}
 .prd .price{{color:#6d28d9;font-size:13.5px;font-weight:900;margin-top:2px}}
 .single .sheet{{left:0;width:100%;transform:none!important;transition:none}}
-.single .pg{{transform:none;backface-visibility:visible;opacity:0;pointer-events:none;transition:opacity .4s}}
-.single .pg.cur{{opacity:1;pointer-events:auto}}
+.single .pg{{transform:none;backface-visibility:visible;opacity:0;visibility:hidden;pointer-events:none;transition:opacity .4s}}
+.single .pg.cur{{opacity:1;visibility:visible;pointer-events:auto}}
 .single .pg .page,.single .pg.b .page{{border-radius:12px}}
 .nav{{display:flex;align-items:center;gap:16px;margin-top:16px;flex-wrap:wrap;justify-content:center}}
 .nav button{{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.25);color:#fff;border-radius:12px;padding:10px 20px;font-size:14px;font-weight:700;cursor:pointer;transition:background .15s}}
@@ -2730,6 +2741,9 @@ function upd(){{
     sheets.forEach(function(sh,k){{
       sh.classList.toggle('flip',k<fs);
       sh.style.zIndex = k<fs ? k : (S-k);
+      /* Only composite nearby sheets — dozens of 3D textures make Chrome
+         drop random images (thumbnails blinking on page turns). */
+      sh.style.visibility = Math.abs(k-fs)>2 ? 'hidden' : '';
     }});
     var lbl = fs===0 ? '1' : (2*fs)+(2*fs+1<=N ? '-'+(2*fs+1) : '');
     document.getElementById('cnt').textContent=lbl+' / '+N;
