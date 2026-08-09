@@ -148,6 +148,36 @@ async def login(req: LoginRequest, request: Request):
     }
 
 
+@router.post("/register")
+async def register(req: LoginRequest, request: Request):
+    """Self-service signup — required for sellers arriving from the Amazon
+    Appstore listing. Creates a starter account and logs it in."""
+    ip = _get_ip(request)
+    if not check_rate_limit(ip):
+        retry = get_retry_after(ip)
+        raise HTTPException(429, f"Trop de tentatives. Réessayez dans {retry // 60}m{retry % 60:02d}s.",
+                            headers={"Retry-After": str(retry)})
+    _validate_email(req.email)
+    if len(req.password or "") < 8:
+        raise HTTPException(400, "Mot de passe : 8 caractères minimum")
+    email = req.email.strip().lower()
+    conn = get_db()
+    row = conn.execute("SELECT 1 FROM users WHERE email = ?", (email,)).fetchone()
+    if row:
+        conn.close()
+        record_failed_attempt(ip)  # slow down account enumeration
+        raise HTTPException(409, "Un compte existe déjà avec cet email — connectez-vous")
+    from app.services.auth import hash_password
+    conn.execute(
+        "INSERT INTO users (email, password_hash, name, is_active, is_admin, plan) "
+        "VALUES (?, ?, ?, 1, 0, 'starter')",
+        (email, hash_password(req.password), ""))
+    conn.commit()
+    conn.close()
+    token = create_token(email, is_admin=False)
+    return {"token": token, "email": email, "name": "", "is_admin": False}
+
+
 def _make_invite_token(email: str) -> str:
     """Génère et stocke un token d'invitation 72h, retourne le token."""
     token = secrets.token_urlsafe(32)

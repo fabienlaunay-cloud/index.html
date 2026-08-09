@@ -280,15 +280,16 @@
             </div>
           </div>
           <button id="loginBtn" onclick="doLogin()" class="btn-login w-full text-white rounded-xl py-3.5 font-semibold text-base shadow-lg mt-2">Se connecter →</button>
+          <button id="registerBtn" onclick="doRegister()" class="hidden btn-login w-full text-white rounded-xl py-3.5 font-semibold text-base shadow-lg mt-2">Créer mon compte →</button>
         </div>
         <div class="mt-6 pt-4 border-t border-white/10 text-center space-y-2">
-          <button onclick="toggleForgotPassword()" class="text-white/40 hover:text-white/70 text-xs transition">Mot de passe oublié ?</button>
+          <button id="registerToggle" onclick="toggleRegister()" class="text-white/60 hover:text-white text-xs font-semibold transition">Pas encore de compte ? Créer un compte gratuit</button>
+          <div><button onclick="toggleForgotPassword()" class="text-white/40 hover:text-white/70 text-xs transition">Mot de passe oublié ?</button></div>
           <div id="forgotPasswordForm" class="hidden mt-2">
             <input id="forgotEmail" type="email" placeholder="votre@email.com" class="input-auth w-full rounded-xl px-4 py-2.5 text-sm mb-2" onkeydown="if(event.key==='Enter') doForgotPassword()">
             <button onclick="doForgotPassword()" class="w-full bg-white/20 hover:bg-white/30 text-white rounded-xl py-2.5 text-sm font-semibold transition">Envoyer le lien →</button>
             <div id="forgotMsg" class="hidden mt-2 bg-green-500/20 border border-green-500/30 rounded-xl px-4 py-3 text-green-300 text-xs"></div>
           </div>
-          <p class="text-white/20 text-xs">Accès réservé aux clients abonnés</p>
         </div>
       </div>
 
@@ -5138,6 +5139,39 @@ async function doLogin() {
 function showLoginError(msg) {
   const el = document.getElementById('loginError');
   el.textContent = msg; el.classList.remove('hidden');
+}
+
+let _registerMode = false;
+function toggleRegister() {
+  _registerMode = !_registerMode;
+  document.getElementById('loginBtn').classList.toggle('hidden', _registerMode);
+  document.getElementById('registerBtn').classList.toggle('hidden', !_registerMode);
+  document.getElementById('registerToggle').textContent = _registerMode
+    ? '← J\'ai déjà un compte, me connecter'
+    : 'Pas encore de compte ? Créer un compte gratuit';
+  document.getElementById('loginError').classList.add('hidden');
+}
+
+async function doRegister() {
+  const email = document.getElementById('loginEmail').value.trim();
+  const password = document.getElementById('loginPassword').value;
+  if (!email || !password) { showLoginError('Renseignez email et mot de passe'); return; }
+  if (password.length < 8) { showLoginError('Mot de passe : 8 caractères minimum'); return; }
+  const btn = document.getElementById('registerBtn');
+  btn.disabled = true; btn.textContent = 'Création…';
+  try {
+    const r = await fetch(`${API}/api/auth/register`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    });
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(data.detail || 'Erreur lors de la création du compte');
+    token = data.token;
+    localStorage.setItem('synqio_token', token);
+    currentUser = { email: data.email, is_admin: false };
+    showApp(data.email);
+  } catch (e) { showLoginError(e.message); }
+  finally { btn.disabled = false; btn.textContent = 'Créer mon compte →'; }
 }
 
 function doLogout() {
