@@ -2822,6 +2822,8 @@ document.addEventListener('keydown',function(e){{
 }});
 stage.addEventListener('click',function(ev){{
   var t=ev.target;
+  if(t.closest&&t.closest('a'))return; /* links (site, email, tel) must navigate, not flip */
+  if(t.closest&&t.closest('button'))return;
   if(t.classList&&t.classList.contains('zoom')){{
     try{{_lbImgs=JSON.parse(t.getAttribute('data-imgs')||'[]')}}catch(e){{_lbImgs=[t.src]}}
     if(!_lbImgs.length)_lbImgs=[t.src];
