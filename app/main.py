@@ -2452,7 +2452,10 @@ body{{font-family:'Segoe UI',system-ui,sans-serif;background:linear-gradient(125
 .page-w .page{{backface-visibility:hidden}}
 .pback{{position:absolute;inset:0;border-radius:14px 6px 6px 14px;background:linear-gradient(105deg,#f4f1fc 0%,#e9e4f8 55%,#ddd5f0 100%);transform:rotateY(180deg);backface-visibility:hidden;box-shadow:inset 14px 0 24px rgba(0,0,0,.08)}}
 .page-w.moving{{z-index:99!important}}
-.page-w.moving .page,.page-w.moving .pback{{box-shadow:-34px 26px 70px rgba(0,0,0,.5)}}
+.page-w.moving .page,.page-w.moving .pback{{box-shadow:-34px 26px 70px rgba(0,0,0,.5);animation:bend 1.1s cubic-bezier(.35,.06,.15,1) both}}
+@keyframes bend{{0%{{transform:skewY(0) scaleX(1);border-radius:6px 14px 14px 6px}}42%{{transform:skewY(-2.4deg) scaleX(.955);border-radius:6px 30px 30px 6px}}100%{{transform:skewY(0) scaleX(1);border-radius:6px 14px 14px 6px}}}}
+.page-w.moving .page::after{{content:'';position:absolute;inset:0;pointer-events:none;background:linear-gradient(100deg,transparent 32%,rgba(255,255,255,.4) 50%,transparent 68%);animation:sheen 1.1s ease both}}
+@keyframes sheen{{0%{{transform:translateX(-70%);opacity:0}}30%{{opacity:1}}100%{{transform:translateX(70%);opacity:0}}}}
 .page-w.flip{{transform:rotateY(-180deg)}}
 .page{{position:absolute;inset:0;background:#fff;border-radius:6px 14px 14px 6px;box-shadow:0 18px 60px rgba(0,0,0,.45);overflow:hidden;display:flex;flex-direction:column;padding:26px 28px}}
 .page::before{{content:'';position:absolute;left:0;top:0;bottom:0;width:14px;background:linear-gradient(90deg,rgba(0,0,0,.12),transparent);pointer-events:none}}
@@ -2494,6 +2497,7 @@ body{{font-family:'Segoe UI',system-ui,sans-serif;background:linear-gradient(125
 <div class="nav">
   <button onclick="go(-1)">‹ Précédente</button>
   <span class="cnt" id="cnt"></span>
+  <button id="snd" onclick="sndMuted=!sndMuted;this.textContent=sndMuted?&#39;Son : coupé&#39;:&#39;Son : activé&#39;" style="font-size:12px;padding:8px 14px">Son : activé</button>
   <button onclick="go(1)">Suivante ›</button>
 </div>
 <div class="lb" id="lb"><button class="x" onclick="lbClose()">✕ Fermer</button>
@@ -2501,7 +2505,24 @@ body{{font-family:'Segoe UI',system-ui,sans-serif;background:linear-gradient(125
   <div class="lnav"><button onclick="lbNav(-1)">‹</button><span class="cnt" id="lbCnt"></span><button onclick="lbNav(1)">›</button></div>
 </div>
 <script>
-var N={n},cur=0;
+var N={n},cur=0,sndMuted=false,_actx=null;
+function flipSound(){{
+  if(sndMuted)return;
+  try{{
+    _actx=_actx||new (window.AudioContext||window.webkitAudioContext)();
+    if(_actx.state==='suspended')_actx.resume();
+    var dur=0.4,sr=_actx.sampleRate,buf=_actx.createBuffer(1,Math.floor(sr*dur),sr),d=buf.getChannelData(0);
+    for(var i=0;i<d.length;i++){{var t=i/d.length;
+      d[i]=(Math.random()*2-1)*Math.pow(1-t,1.5)*(0.18+2.4*t*(1-t));}}
+    var src=_actx.createBufferSource();src.buffer=buf;
+    var bp=_actx.createBiquadFilter();bp.type='bandpass';bp.Q.value=0.9;
+    bp.frequency.setValueAtTime(650,_actx.currentTime);
+    bp.frequency.exponentialRampToValueAtTime(2800,_actx.currentTime+dur*0.75);
+    var g=_actx.createGain();g.gain.setValueAtTime(0.55,_actx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.01,_actx.currentTime+dur);
+    src.connect(bp);bp.connect(g);g.connect(_actx.destination);src.start();
+  }}catch(e){{}}
+}}
 var pw=document.querySelectorAll('.page-w');
 function upd(){{
   pw.forEach(function(p,k){{
@@ -2510,7 +2531,7 @@ function upd(){{
   }});
   document.getElementById('cnt').textContent=(cur+1)+' / '+N;
 }}
-function go(d){{var old=cur;cur=Math.max(0,Math.min(N-1,cur+d));if(cur===old)return;var mv=pw[d>0?old:cur];if(mv){{mv.classList.add('moving');setTimeout(function(){{mv.classList.remove('moving')}},1150);}}upd();}}
+function go(d){{var old=cur;cur=Math.max(0,Math.min(N-1,cur+d));if(cur===old)return;var mv=pw[d>0?old:cur];if(mv){{mv.classList.add('moving');setTimeout(function(){{mv.classList.remove('moving')}},1150);}}flipSound();upd();}}
 upd();
 document.addEventListener('keydown',function(e){{
   if(document.getElementById('lb').classList.contains('open')){{
