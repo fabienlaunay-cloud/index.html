@@ -2413,8 +2413,8 @@ def _detect_catalog_theme(listings: list) -> str:
 
 
 def _catalog_deco_html(theme: str) -> str:
-    """Self-contained ambient layer: paw trail + a fine-line cat strolling along
-    the bottom edge — walks, sits, looks at you, walks again (pets theme)."""
+    """Ambient layer: a discreet themed trail (paw prints for pets, soft dots
+    otherwise) crossing the backdrop in a slow loop. Nothing figurative."""
     if theme == "pets":
         paw = ('<svg viewBox="0 0 40 40" fill="currentColor">'
                '<ellipse cx="20" cy="26" rx="8" ry="6.5"/>'
@@ -2427,92 +2427,19 @@ def _catalog_deco_html(theme: str) -> str:
         paws = "".join(
             f'<div class="paw" style="left:{x}%;top:{y}%;transform:rotate({r}deg);'
             f'animation-delay:{d}s">{paw}</div>' for x, y, r, d in spots)
-        cat = (
-            '<div id="catwalk">'
-            '<svg class="cw" viewBox="0 0 220 130" fill="none" stroke="currentColor" '
-            'stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">'
-            '<path d="M34 72 C 20 68, 10 52, 20 38 C 25 31, 34 32, 33 40"/>'
-            '<path d="M34 72 C 60 54, 105 50, 143 55"/>'
-            '<path d="M143 55 C 150 53, 155 47, 157 40"/>'
-            '<path d="M157 40 L 162 26 L 171 34 C 175 33, 179 33, 183 35 L 192 28 L 194 42 '
-            'C 199 48, 199 56, 193 61 C 187 66, 176 67, 168 63"/>'
-            '<path d="M168 63 C 165 71, 160 76, 152 79"/>'
-            '<path d="M126 82 C 105 87, 84 86, 66 80"/>'
-            '<g class="pA"><path d="M140 79 L 150 106"/><path d="M118 83 L 112 108"/>'
-            '<path d="M74 79 L 62 105"/><path d="M52 74 L 55 102"/></g>'
-            '<g class="pB"><path d="M140 79 L 131 106"/><path d="M118 83 L 127 107"/>'
-            '<path d="M74 79 L 83 105"/><path d="M52 74 L 45 100"/></g>'
-            '</svg>'
-            '<svg class="cs" viewBox="0 0 150 160" fill="none" stroke="currentColor" '
-            'stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">'
-            '<path d="M38 140 C 34 108, 44 74, 68 58"/>'
-            '<path d="M62 52 L 60 30 L 74 40 C 79 38, 85 38, 90 40 L 104 30 L 102 52 '
-            'C 108 60, 108 72, 100 79 C 90 87, 74 87, 66 79 C 58 72, 58 60, 62 52"/>'
-            '<circle cx="74" cy="62" r="2.1" fill="currentColor" stroke="none"/>'
-            '<circle cx="90" cy="62" r="2.1" fill="currentColor" stroke="none"/>'
-            '<path d="M96 84 C 102 100, 104 120, 103 140"/>'
-            '<path d="M88 140 L 88 116"/>'
-            '<path d="M38 140 C 60 146, 90 146, 103 140"/>'
-            '<path d="M103 141 C 120 142, 132 136, 133 124"/>'
-            '</svg></div>')
-        script = '''<script>
-(function(){
-  var c=document.getElementById('catwalk');if(!c)return;
-  var x=-160,step=false;
-  c.style.left=x+'px';
-  setInterval(function(){
-    if(c.classList.contains('sit'))return;
-    step=!step;c.classList.toggle('stepB',step);
-  },300);
-  function walkTo(target,then){
-    var dist=Math.abs(target-x);
-    if(dist<10){then();return;}
-    var dur=dist/55;
-    c.classList.toggle('flip',target<x);
-    c.style.transition='left '+dur+'s linear';
-    requestAnimationFrame(function(){requestAnimationFrame(function(){c.style.left=target+'px';});});
-    setTimeout(function(){x=target;then();},dur*1000+80);
-  }
-  function next(){
-    var w=window.innerWidth;
-    var target=Math.round(w*0.08+Math.random()*w*0.72);
-    walkTo(target,function(){
-      if(Math.random()<0.72){
-        c.classList.add('sit');
-        setTimeout(function(){
-          c.classList.remove('sit');
-          setTimeout(next,450);
-        },2800+Math.random()*2800);
-      } else { next(); }
-    });
-  }
-  setTimeout(next,1500);
-})();
-</script>'''
     else:
         paws = "".join(
             f'<div class="paw dot" style="left:{x}%;top:{y}%;animation-delay:{d}s"></div>'
             for x, y, d in [(8, 80, 0), (14, 65, 1.5), (85, 30, 3), (90, 55, 4.5), (12, 25, 6), (80, 75, 7.5)])
-        cat, script = "", ""
-    return f'''<div class="deco">{cat}{paws}</div>
+    return f'''<div class="deco">{paws}</div>
 <style>
 .deco{{position:fixed;inset:0;pointer-events:none;z-index:0;color:#fff;overflow:hidden}}
 .stage,.nav{{position:relative;z-index:2}}
-#catwalk{{position:absolute;bottom:4px;width:120px;opacity:.35;will-change:left}}
-#catwalk .cs{{display:none;width:82px;margin-left:16px}}
-#catwalk.sit .cw{{display:none}}
-#catwalk.sit .cs{{display:block}}
-#catwalk.flip svg{{transform:scaleX(-1)}}
-#catwalk .pB{{opacity:0}}
-#catwalk.stepB .pA{{opacity:0}}
-#catwalk.stepB .pB{{opacity:1}}
-#catwalk.stepB .cw{{translate:0 -1.5px}}
 .paw{{position:absolute;width:26px;opacity:0;animation:pawstep 10s ease-in-out infinite}}
 .paw.dot{{width:10px;height:10px;border-radius:50%;background:#fff}}
 @keyframes pawstep{{0%,4%{{opacity:0}}10%{{opacity:.15}}30%{{opacity:.12}}45%,100%{{opacity:0}}}}
-@media (max-width:900px){{#catwalk{{display:none}}}}
 @media print{{.deco{{display:none}}}}
-</style>{script}'''
+</style>'''
 
 
 def _render_public_catalog(owner: dict, listings: list, image_urls: dict) -> str:
