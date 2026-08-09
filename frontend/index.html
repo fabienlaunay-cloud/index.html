@@ -3587,10 +3587,10 @@
   <div class="bg-white w-full max-w-2xl rounded-3xl shadow-2xl max-h-[88vh] flex flex-col">
     <div class="flex items-center justify-between px-7 py-5 border-b border-gray-100">
       <div>
-        <h3 class="text-lg font-bold text-gray-900">🔍 Veille concurrentielle</h3>
+        <h3 class="text-lg font-bold text-gray-900">Veille concurrentielle</h3>
         <p class="text-xs text-gray-400 mt-0.5">Surveillez les prix des concurrents et comparez-les aux vôtres</p>
       </div>
-      <button onclick="document.getElementById('competitorModal').classList.add('hidden')" class="text-gray-300 hover:text-gray-600 text-2xl leading-none">✕</button>
+      <button onclick="closeAppTab('veille')" class="text-gray-300 hover:text-gray-600 text-2xl leading-none">✕</button>
     </div>
     <div class="overflow-y-auto px-7 py-5 space-y-4">
       <div class="grid sm:grid-cols-[1fr_1fr_auto] gap-2">
@@ -3639,10 +3639,10 @@
       </div>
       <div class="flex items-center gap-2">
         <div class="flex rounded-lg border border-gray-200 overflow-hidden text-xs font-semibold">
-          <button id="mediaTabImg" onclick="openMediaPanel('images')" class="px-3 py-2 gradient-bg text-white">🖼️ Images</button>
-          <button id="mediaTabTxt" onclick="openMediaPanel('textes')" class="px-3 py-2 bg-white text-gray-500 hover:bg-gray-50">📝 Textes</button>
+          <button id="mediaTabImg" onclick="openMediaPanel('images')" class="px-3 py-2 gradient-bg text-white">Images</button>
+          <button id="mediaTabTxt" onclick="openMediaPanel('textes')" class="px-3 py-2 bg-white text-gray-500 hover:bg-gray-50">Textes</button>
         </div>
-        <button id="mediaUploadBtn" onclick="document.getElementById('mediaUploadInput').click()" class="text-xs font-bold text-white gradient-bg rounded-lg px-3 py-2">⬆️ Ajouter une photo</button>
+        <button id="mediaUploadBtn" onclick="document.getElementById('mediaUploadInput').click()" class="text-xs font-bold text-white gradient-bg rounded-lg px-3 py-2">Ajouter une photo</button>
         <input type="file" id="mediaUploadInput" accept="image/jpeg,image/png,image/webp" class="hidden" onchange="mediaUpload(this)">
         <button onclick="document.getElementById('mediaPanelModal').classList.add('hidden')" class="text-gray-300 hover:text-gray-600 text-2xl leading-none ml-1">✕</button>
       </div>
@@ -3676,10 +3676,10 @@
   <div class="bg-white w-full max-w-2xl rounded-3xl shadow-2xl max-h-[88vh] flex flex-col">
     <div class="flex items-center justify-between px-7 py-5 border-b border-gray-100">
       <div>
-        <h3 class="text-lg font-bold text-gray-900">🛡️ Santé du catalogue</h3>
+        <h3 class="text-lg font-bold text-gray-900">Santé du catalogue</h3>
         <p class="text-xs text-gray-400 mt-0.5">Le gardien de conformité analyse vos fiches face aux règles Amazon en vigueur</p>
       </div>
-      <button onclick="document.getElementById('healthPanelModal').classList.add('hidden')" class="text-gray-300 hover:text-gray-600 text-2xl leading-none">✕</button>
+      <button onclick="closeAppTab('health')" class="text-gray-300 hover:text-gray-600 text-2xl leading-none">✕</button>
     </div>
     <div class="overflow-y-auto px-7 py-5">
       <div id="healthBody"><p class="text-sm text-gray-300 text-center py-10">Analyse en cours…</p></div>
@@ -3699,7 +3699,7 @@
         <h3 class="text-lg font-bold text-gray-900">API &amp; Intégrations</h3>
         <p class="text-xs text-gray-400 mt-0.5">Connectez votre PIM, votre site ou vos outils — <a href="/api-docs.html" target="_blank" class="text-purple-600 underline hover:text-purple-800">documentation API</a></p>
       </div>
-      <button onclick="document.getElementById('apiPanelModal').classList.add('hidden')" class="text-gray-300 hover:text-gray-600 text-2xl leading-none">✕</button>
+      <button onclick="closeAppTab('api')" class="text-gray-300 hover:text-gray-600 text-2xl leading-none">✕</button>
     </div>
     <div class="overflow-y-auto px-7 py-5 space-y-7">
 
@@ -12828,8 +12828,7 @@ function _auditSendToGen() {
 
 // ── Veille concurrentielle (prix) ────────────────────────────────────────────
 async function openCompetitorPanel() {
-  document.getElementById('competitorModal').classList.remove('hidden');
-  _cmpLoad();
+  _openPanelTab('veille', 'Veille concurrentielle', 'competitorModal', _cmpLoad);
 }
 
 function _cmpFmt(p) { return (p === null || p === undefined) ? '—' : p.toFixed(2).replace('.', ',') + ' €'; }
@@ -13160,7 +13159,7 @@ function _renderAppTabsBar() {
   bar.classList.toggle('hidden', !_appTabs.length);
   bar.innerHTML = _appTabs.map(t => `
     <div onclick="_activateAppTab('${t.id}')" class="inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-bold cursor-pointer transition select-none ${_activeAppTab === t.id ? 'gradient-bg text-white shadow-md' : 'bg-white text-gray-600 border border-gray-200 hover:border-purple-200'}">
-      <span>${t.icon}</span>${_esc(t.title)}
+      ${t.icon ? `<span>${t.icon}</span>` : ''}${_esc(t.title)}
       <span onclick="event.stopPropagation();closeAppTab('${t.id}')" class="ml-1 opacity-60 hover:opacity-100 text-sm leading-none">✕</span>
     </div>`).join('') +
     (_activeAppTab ? `<button onclick="_activateAppTab(null)" class="text-[11px] font-semibold text-gray-400 hover:text-purple-600 px-2">← Retour au générateur</button>` : '');
@@ -13198,21 +13197,44 @@ function _showActiveAppTab() {
   t.renderFn(document.getElementById('appTabContent'));
 }
 
+// Mount an existing modal's inner card as a full in-app tab page. The card node
+// is moved (not cloned) so all its ids/listeners keep working; a registry keeps
+// the reference across tab re-activations (innerHTML wipes detach it).
+const _panelCards = {};
+function _openPanelTab(tabId, title, modalId, onShow) {
+  openAppTab(tabId, '', title, (el) => {
+    let card = _panelCards[modalId];
+    if (!card) {
+      const modal = document.getElementById(modalId);
+      card = modal ? modal.firstElementChild : null;
+      _panelCards[modalId] = card;
+    }
+    if (card) {
+      ['max-w-xl','max-w-2xl','max-w-3xl','max-w-4xl','max-w-5xl','shadow-2xl',
+       'max-h-[85vh]','max-h-[88vh]','max-h-[90vh]'].forEach(c => card.classList.remove(c));
+      card.classList.add('w-full');
+      el.classList.add('!p-0');
+      el.appendChild(card);
+    }
+    if (onShow) onShow();
+  });
+}
+
 async function openMediaPanel(tab) {
   tab = tab || 'images';
-  openAppTab('bib', '🗃️', 'Bibliothèque', (el) => {
+  openAppTab('bib', '', 'Bibliothèque', (el) => {
     el.innerHTML = `
       <div class="flex items-center justify-between mb-5 flex-wrap gap-3">
         <div>
-          <h2 class="text-xl font-bold text-gray-900">🗃️ Bibliothèque</h2>
+          <h2 class="text-xl font-bold text-gray-900">Bibliothèque</h2>
           <p class="text-xs text-gray-400 mt-0.5">Tout votre contenu par produit — images, photos, textes — réutilisable partout</p>
         </div>
         <div class="flex items-center gap-2">
           <div class="flex rounded-lg border border-gray-200 overflow-hidden text-xs font-semibold">
-            <button id="mediaTabImg" onclick="openMediaPanel('images')" class="px-3 py-2 ${tab === 'images' ? 'gradient-bg text-white' : 'bg-white text-gray-500 hover:bg-gray-50'}">🖼️ Images</button>
-            <button id="mediaTabTxt" onclick="openMediaPanel('textes')" class="px-3 py-2 ${tab === 'textes' ? 'gradient-bg text-white' : 'bg-white text-gray-500 hover:bg-gray-50'}">📝 Textes</button>
+            <button id="mediaTabImg" onclick="openMediaPanel('images')" class="px-3 py-2 ${tab === 'images' ? 'gradient-bg text-white' : 'bg-white text-gray-500 hover:bg-gray-50'}">Images</button>
+            <button id="mediaTabTxt" onclick="openMediaPanel('textes')" class="px-3 py-2 ${tab === 'textes' ? 'gradient-bg text-white' : 'bg-white text-gray-500 hover:bg-gray-50'}">Textes</button>
           </div>
-          <button id="mediaUploadBtn" onclick="document.getElementById('mediaUploadInput').click()" class="text-xs font-bold text-white gradient-bg rounded-lg px-3 py-2 ${tab === 'images' ? '' : 'hidden'}">⬆️ Ajouter une photo</button>
+          <button id="mediaUploadBtn" onclick="document.getElementById('mediaUploadInput').click()" class="text-xs font-bold text-white gradient-bg rounded-lg px-3 py-2 ${tab === 'images' ? '' : 'hidden'}">Ajouter une photo</button>
           <input type="file" id="mediaUploadInput" accept="image/jpeg,image/png,image/webp" class="hidden" onchange="mediaUpload(this)">
         </div>
       </div>
@@ -13400,11 +13422,11 @@ const _HUB_LABELS = {
 };
 
 async function openHubPanel() {
-  openAppTab('hub', '🗂️', 'Hub de diffusion', (el) => {
+  openAppTab('hub', '', 'Hub de diffusion', (el) => {
     el.innerHTML = `
       <div class="flex items-center justify-between mb-5 flex-wrap gap-3">
         <div>
-          <h2 class="text-xl font-bold text-gray-900">🗂️ Hub de diffusion</h2>
+          <h2 class="text-xl font-bold text-gray-900">Hub de diffusion</h2>
           <p class="text-xs text-gray-400 mt-0.5">Où vivent vos fiches : publications, exports, connecteurs, flux et catalogue public</p>
         </div>
         <button onclick="openHubPanel()" class="text-xs font-semibold text-gray-500 bg-gray-100 hover:bg-gray-200 rounded-lg px-3 py-2 transition">↻ Actualiser</button>
@@ -13537,7 +13559,7 @@ async function _hubRegenCatLink(btn) {
 }
 
 async function openHealthPanel() {
-  document.getElementById('healthPanelModal').classList.remove('hidden');
+  _openPanelTab('health', 'Santé du catalogue', 'healthPanelModal', null);
   const body = document.getElementById('healthBody');
   body.innerHTML = '<p class="text-sm text-gray-300 text-center py-10">Analyse de votre catalogue en cours…</p>';
   try {
@@ -14065,7 +14087,7 @@ async function healthSendDigest(btn) {
 // ── API & Intégrations (clés API + webhooks) ─────────────────────────────────
 
 async function openApiPanel() {
-  document.getElementById('apiPanelModal').classList.remove('hidden');
+  _openPanelTab('api', 'API & Intégrations', 'apiPanelModal', null);
   document.getElementById('apiNewKeyBox').classList.add('hidden');
   document.getElementById('apiNewHookBox').classList.add('hidden');
   _apiLoadKeys();
