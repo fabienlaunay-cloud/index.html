@@ -13490,10 +13490,17 @@ function _renderHub(data) {
         <button onclick="navigator.clipboard.writeText('${_esc(data.catalog.url)}').then(()=>showToast('','Lien copié !'))" class="text-[11px] font-bold text-white gradient-bg rounded-lg px-3 py-2">Copier</button>
         <a href="${_esc(data.catalog.url)}" target="_blank" class="text-[11px] font-bold text-purple-600 border border-purple-200 rounded-lg px-3 py-2 hover:bg-purple-50">Ouvrir ↗</a>
       </div>
-      <div class="flex items-center gap-2">
+      <div class="flex items-center gap-2 mb-2">
         <input id="hubCatTitle" value="${_esc(data.catalog.title || '')}" placeholder="Titre du catalogue (auto si vide)" class="flex-1 text-[11px] border border-gray-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-purple-400">
         <input id="hubCatSub" value="${_esc(data.catalog.subtitle || '')}" placeholder="Sous-titre (auto si vide)" class="flex-1 text-[11px] border border-gray-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-purple-400">
-        <button onclick="_hubSaveCatMeta(this)" class="text-[11px] font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg px-3 py-1.5">Enregistrer</button>
+      </div>
+      <div class="flex items-center gap-2 flex-wrap">
+        <input id="hubCatSite" value="${_esc(data.catalog.website || '')}" placeholder="Site web (ex. mamarque.fr)" class="flex-1 min-w-[140px] text-[11px] border border-gray-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-purple-400">
+        <input id="hubCatEmail" value="${_esc(data.catalog.contact_email || '')}" placeholder="Email de contact" class="flex-1 min-w-[140px] text-[11px] border border-gray-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-purple-400">
+        <input id="hubCatPhone" value="${_esc(data.catalog.phone || '')}" placeholder="Téléphone" class="w-32 text-[11px] border border-gray-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-purple-400">
+        <button onclick="document.getElementById('hubCatLogoInput').click()" class="text-[11px] font-semibold ${data.catalog.logo_url ? 'text-green-600 bg-green-50' : 'text-gray-600 bg-gray-100 hover:bg-gray-200'} rounded-lg px-3 py-1.5">${data.catalog.logo_url ? 'Logo ajouté — changer' : 'Ajouter mon logo'}</button>
+        <input type="file" id="hubCatLogoInput" accept="image/png,image/jpeg,image/webp" class="hidden" onchange="_hubUploadLogo(this)">
+        <button onclick="_hubSaveCatMeta(this)" class="text-[11px] font-bold text-white gradient-bg rounded-lg px-3.5 py-1.5">Enregistrer</button>
       </div>
       <button onclick="_hubRegenCatLink(this)" class="mt-2 text-[10px] text-gray-400 hover:text-red-500">↻ Régénérer le lien (révoque l'ancien)</button>
     </div>` : '';
@@ -13537,10 +13544,30 @@ async function _hubSaveCatMeta(btn) {
   btn.disabled = true;
   try {
     await authFetch('/api/catalog-link', { method: 'PUT', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title: document.getElementById('hubCatTitle').value, subtitle: document.getElementById('hubCatSub').value }) });
-    showToast('✅', 'Catalogue mis à jour');
+      body: JSON.stringify({
+        title: document.getElementById('hubCatTitle').value,
+        subtitle: document.getElementById('hubCatSub').value,
+        website: document.getElementById('hubCatSite')?.value || '',
+        contact_email: document.getElementById('hubCatEmail')?.value || '',
+        phone: document.getElementById('hubCatPhone')?.value || '',
+      }) });
+    showToast('✅', 'Catalogue mis à jour — rechargez le lien public pour voir le résultat');
   } catch(e) { showToast('❌', 'Erreur', true); }
   btn.disabled = false;
+}
+
+async function _hubUploadLogo(input) {
+  const file = input.files && input.files[0];
+  input.value = '';
+  if (!file) return;
+  try {
+    const r = await authFetch('/api/catalog-link/logo', {
+      method: 'POST', headers: { 'Content-Type': file.type || 'application/octet-stream' }, body: file });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.detail || 'Erreur');
+    showToast('✅', 'Logo ajouté au catalogue');
+    openHubPanel();
+  } catch(e) { showToast('❌', e.message || 'Upload impossible', true); }
 }
 
 async function _hubRegenCatLink(btn) {

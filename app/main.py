@@ -2235,7 +2235,10 @@ async def hub_overview(request: Request):
         out["catalog"] = {"url": f"{base}/catalogue/{cl['token']}",
                           "view_count": cl.get("view_count") or 0,
                           "last_viewed_at": cl.get("last_viewed_at") or "",
-                          "title": cl.get("title") or "", "subtitle": cl.get("subtitle") or ""}
+                          "title": cl.get("title") or "", "subtitle": cl.get("subtitle") or "",
+                          "contact_email": cl.get("contact_email") or "",
+                          "website": cl.get("website") or "", "phone": cl.get("phone") or "",
+                          "logo_url": cl.get("logo_url") or ""}
     except Exception:
         pass
     return out
@@ -2251,6 +2254,37 @@ async def hub_pushes(channel: str, request: Request):
 class CatalogMeta(BaseModel):
     title: str = ""
     subtitle: str = ""
+    contact_email: str = ""
+    website: str = ""
+    phone: str = ""
+
+
+@app.post("/api/catalog-link/logo")
+async def catalog_link_logo(request: Request):
+    """Upload the brand logo shown on the public catalogue (PNG/JPEG/WebP)."""
+    import hashlib
+    from app.db import set_catalog_link_meta, get_or_create_catalog_link
+    content = await request.body()
+    if not content:
+        raise HTTPException(400, "Fichier vide")
+    if len(content) > 5 * 1024 * 1024:
+        raise HTTPException(413, "Logo trop volumineux (max 5 Mo)")
+    if content[:8] == b"\x89PNG\r\n\x1a\n":
+        ext, ct = ".png", "image/png"
+    elif content[:3] == b"\xff\xd8\xff":
+        ext, ct = ".jpg", "image/jpeg"
+    elif content[:4] == b"RIFF" and content[8:12] == b"WEBP":
+        ext, ct = ".webp", "image/webp"
+    else:
+        raise HTTPException(415, "Format non supporté (PNG, JPEG ou WebP)")
+    email = request.state.user_email
+    filename = f"catlogo_{hashlib.md5(email.encode()).hexdigest()[:16]}{ext}"
+    _save_photo(filename, content, ct)
+    cl = get_or_create_catalog_link(email)
+    set_catalog_link_meta(email, cl.get("title") or "", cl.get("subtitle") or "",
+                          cl.get("contact_email") or "", cl.get("website") or "",
+                          cl.get("phone") or "", logo_url=f"/api/photos/{filename}")
+    return {"logo_url": f"/api/photos/{filename}"}
 
 
 @app.post("/api/catalog-link/regenerate")
@@ -2264,7 +2298,8 @@ async def catalog_link_regenerate(request: Request):
 @app.put("/api/catalog-link")
 async def catalog_link_meta(meta: CatalogMeta, request: Request):
     from app.db import set_catalog_link_meta
-    set_catalog_link_meta(request.state.user_email, meta.title.strip(), meta.subtitle.strip())
+    set_catalog_link_meta(request.state.user_email, meta.title.strip(), meta.subtitle.strip(),
+                          meta.contact_email.strip(), meta.website.strip(), meta.phone.strip())
     return {"ok": True}
 
 
@@ -2292,8 +2327,9 @@ def _render_public_catalog(owner: dict, listings: list, image_urls: dict) -> str
             price = l.get("price")
             sym = cur.get(l.get("marketplace") or "", "€")
             bullets = "".join(f"<li>{e(b)}</li>" for b in (l.get("bullet_points") or [])[:3])
+            imgs_attr = e(json.dumps(imgs)) if imgs else ""
             cards.append(f'''<div class="card">
-  {'<img loading="lazy" src="' + e(img) + '" alt="">' if img else '<div class="noimg">Photo à venir</div>'}
+  {'<img loading="lazy" src="' + e(img) + '" alt="" class="zoom" data-imgs="' + imgs_attr + '" data-title="' + e(l.get("title") or "") + '">' if img else '<div class="noimg">Photo à venir</div>'}
   <div class="cbody">
     <h3>{e(l.get("title") or l.get("sku") or "")}</h3>
     {f'<div class="price">{price:.2f} {sym}</div>' if isinstance(price, (int, float)) else ''}
@@ -2329,13 +2365,65 @@ body{{font-family:'Segoe UI',system-ui,sans-serif;background:#f6f5fb;color:#1f29
 .cbody li{{margin-bottom:3px}}
 .foot{{text-align:center;padding:34px;color:#9ca3af;font-size:13px}}
 .foot a{{color:#7c3aed;font-weight:700;text-decoration:none}}
+.hero img.logo{{max-height:84px;max-width:260px;object-fit:contain;margin:0 auto 22px;display:block;position:relative;z-index:1}}
+.card img.zoom{{cursor:zoom-in}}
+.contact{{display:flex;gap:22px;flex-wrap:wrap;justify-content:center;background:#fff;border-top:1px solid #eee;padding:26px 22px 8px}}
+.contact a{{color:#6d28d9;font-weight:700;text-decoration:none;font-size:14px}}
+.lb{{display:none;position:fixed;inset:0;background:rgba(12,8,32,.94);z-index:50;flex-direction:column;align-items:center;justify-content:center;padding:24px}}
+.lb.open{{display:flex}}
+.lb img{{max-width:min(92vw,900px);max-height:70vh;object-fit:contain;border-radius:14px;background:#fff}}
+.lb .cap{{color:#e9e4ff;font-size:14px;font-weight:600;margin-top:14px;text-align:center;max-width:700px}}
+.lb .nav{{display:flex;gap:14px;margin-top:16px;align-items:center}}
+.lb button{{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.25);color:#fff;border-radius:12px;padding:10px 18px;font-size:15px;font-weight:700;cursor:pointer}}
+.lb .cnt{{color:rgba(255,255,255,.6);font-size:13px}}
+.lb .x{{position:absolute;top:18px;right:22px;font-size:22px;padding:8px 14px}}
 @media print{{.toc{{display:none}}.hero{{padding:40px}}}}
 </style></head><body>
-<div class="hero"><h1>{e(title)}</h1><p>{e(subtitle)}</p></div>
+<div class="hero">{f'<img class="logo" src="{e(owner.get("logo_url") or "")}" alt="">' if owner.get("logo_url") else ''}<h1>{e(title)}</h1><p>{e(subtitle)}</p></div>
 <div class="toc">{toc}</div>
 <div class="wrap">{''.join(cards)}</div>
+{_catalog_contact_html(owner)}
 <div class="foot">Catalogue généré avec <a href="https://synqio.io">SynqIO</a></div>
+<div class="lb" id="lb"><button class="x" onclick="lbClose()">✕ Fermer</button>
+  <img id="lbImg" src="" alt=""><div class="cap" id="lbCap"></div>
+  <div class="nav"><button onclick="lbNav(-1)">‹ Précédente</button><span class="cnt" id="lbCnt"></span><button onclick="lbNav(1)">Suivante ›</button></div>
+</div>
+<script>
+var _lbImgs=[],_lbIdx=0;
+document.addEventListener('click',function(ev){{
+  var t=ev.target;
+  if(t.classList&&t.classList.contains('zoom')){{
+    try{{_lbImgs=JSON.parse(t.getAttribute('data-imgs')||'[]')}}catch(e){{_lbImgs=[t.src]}}
+    if(!_lbImgs.length)_lbImgs=[t.src];
+    _lbIdx=0;document.getElementById('lbCap').textContent=t.getAttribute('data-title')||'';
+    lbShow();document.getElementById('lb').classList.add('open');
+  }}
+}});
+function lbShow(){{document.getElementById('lbImg').src=_lbImgs[_lbIdx];
+  document.getElementById('lbCnt').textContent=(_lbIdx+1)+' / '+_lbImgs.length;}}
+function lbNav(d){{_lbIdx=(_lbIdx+d+_lbImgs.length)%_lbImgs.length;lbShow();}}
+function lbClose(){{document.getElementById('lb').classList.remove('open');}}
+document.addEventListener('keydown',function(e){{
+  if(!document.getElementById('lb').classList.contains('open'))return;
+  if(e.key==='Escape')lbClose();if(e.key==='ArrowLeft')lbNav(-1);if(e.key==='ArrowRight')lbNav(1);
+}});
+</script>
 </body></html>'''
+
+
+def _catalog_contact_html(owner: dict) -> str:
+    import html as _html
+    e = _html.escape
+    parts = []
+    if owner.get("website"):
+        url = owner["website"] if owner["website"].startswith("http") else "https://" + owner["website"]
+        label = url.replace("https://", "").replace("http://", "").rstrip("/")
+        parts.append(f'<a href="{e(url)}" target="_blank" rel="noopener">{e(label)}</a>')
+    if owner.get("contact_email"):
+        parts.append(f'<a href="mailto:{e(owner["contact_email"])}">{e(owner["contact_email"])}</a>')
+    if owner.get("phone"):
+        parts.append(f'<a href="tel:{e(owner["phone"])}">{e(owner["phone"])}</a>')
+    return f'<div class="contact">{"".join(parts)}</div>' if parts else ''
 
 
 @app.get("/catalogue/{token}")

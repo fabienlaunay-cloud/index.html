@@ -2083,6 +2083,11 @@ def _ensure_catalog_links(conn):
         view_count INTEGER DEFAULT 0, last_viewed_at TIMESTAMP,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)"""
     conn.execute(sql)
+    for col in ("logo_url", "contact_email", "website", "phone"):
+        try:
+            conn.execute(f"ALTER TABLE catalog_links ADD COLUMN {col} TEXT DEFAULT ''")
+        except Exception:
+            pass  # column already exists
 
 
 def get_or_create_catalog_link(user_email: str) -> dict:
@@ -2115,11 +2120,18 @@ def regenerate_catalog_link(user_email: str) -> dict:
     return dict(row) if row else get_or_create_catalog_link(user_email)
 
 
-def set_catalog_link_meta(user_email: str, title: str, subtitle: str) -> None:
+def set_catalog_link_meta(user_email: str, title: str, subtitle: str,
+                          contact_email: str = "", website: str = "",
+                          phone: str = "", logo_url=None) -> None:
     conn = get_db()
     _ensure_catalog_links(conn)
-    conn.execute("UPDATE catalog_links SET title = ?, subtitle = ? WHERE user_email = ?",
-                 (title[:120], subtitle[:200], user_email))
+    conn.execute("UPDATE catalog_links SET title = ?, subtitle = ?, contact_email = ?, "
+                 "website = ?, phone = ? WHERE user_email = ?",
+                 (title[:120], subtitle[:200], contact_email[:120], website[:200],
+                  phone[:40], user_email))
+    if logo_url is not None:
+        conn.execute("UPDATE catalog_links SET logo_url = ? WHERE user_email = ?",
+                     (logo_url[:300], user_email))
     conn.commit()
     conn.close()
 
