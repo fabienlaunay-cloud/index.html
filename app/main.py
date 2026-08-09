@@ -2273,8 +2273,8 @@ def _render_public_catalog(owner: dict, listings: list, image_urls: dict) -> str
     import html as _html
     e = _html.escape
     brands = sorted({(l.get("brand") or "").strip() for l in listings if (l.get("brand") or "").strip()})
-    brand_label = brands[0] if len(brands) == 1 else "Notre marque"
-    title = owner.get("title") or f"Catalogue {brand_label}"
+    # Single brand → carry it; otherwise a neutral title (never a placeholder brand)
+    title = owner.get("title") or (f"Catalogue {brands[0]}" if len(brands) == 1 else "Notre catalogue")
     import datetime as _d
     subtitle = owner.get("subtitle") or f"Collection {_d.date.today().year} — {len(listings)} produits"
     # group by category
@@ -2293,7 +2293,7 @@ def _render_public_catalog(owner: dict, listings: list, image_urls: dict) -> str
             sym = cur.get(l.get("marketplace") or "", "€")
             bullets = "".join(f"<li>{e(b)}</li>" for b in (l.get("bullet_points") or [])[:3])
             cards.append(f'''<div class="card">
-  {'<img loading="lazy" src="' + e(img) + '" alt="">' if img else '<div class="noimg">📦</div>'}
+  {'<img loading="lazy" src="' + e(img) + '" alt="">' if img else '<div class="noimg">Photo à venir</div>'}
   <div class="cbody">
     <h3>{e(l.get("title") or l.get("sku") or "")}</h3>
     {f'<div class="price">{price:.2f} {sym}</div>' if isinstance(price, (int, float)) else ''}
@@ -2321,7 +2321,7 @@ body{{font-family:'Segoe UI',system-ui,sans-serif;background:#f6f5fb;color:#1f29
 .grid{{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:18px}}
 .card{{background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 6px 20px rgba(30,20,80,.07)}}
 .card img{{width:100%;aspect-ratio:1;object-fit:cover;background:#f3efff}}
-.noimg{{width:100%;aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-size:44px;background:linear-gradient(135deg,#ede9fe,#ddd6fe)}}
+.noimg{{width:100%;aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;color:#8b7fc9;letter-spacing:.5px;background:linear-gradient(135deg,#ede9fe,#ddd6fe)}}
 .cbody{{padding:14px 16px 16px}}
 .cbody h3{{font-size:15px;font-weight:700;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}}
 .price{{color:#6d28d9;font-size:18px;font-weight:900;margin-top:7px}}
