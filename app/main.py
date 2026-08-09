@@ -1933,8 +1933,8 @@ def _get_image_urls_for_skus(skus: list) -> dict:
         if ext.lower() not in _IMAGE_EXTS:
             continue
         if "__" in stem:
-            base = stem.split("__")[0]
-            own_extras.setdefault(base, []).append(k)
+            sku_base = stem.split("__")[0]   # NB: don't shadow the URL `base` above!
+            own_extras.setdefault(sku_base, []).append(k)
         else:
             own_by_sku.setdefault(stem, k)
     def _url(filename):
