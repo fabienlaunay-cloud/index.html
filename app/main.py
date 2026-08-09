@@ -2452,9 +2452,6 @@ def _render_public_catalog(owner: dict, listings: list, image_urls: dict) -> str
     title = owner.get("title") or (f"Catalogue {brands[0]}" if len(brands) == 1 else "Notre catalogue")
     import datetime as _d
     subtitle = owner.get("subtitle") or f"Collection {_d.date.today().year} — {len(listings)} produits"
-    groups: dict = {}
-    for l in listings:
-        groups.setdefault((l.get("category") or "Autres").strip() or "Autres", []).append(l)
     cur = {"amazon_uk": "£", "amazon_pl": "zł", "amazon_se": "kr"}
 
     def product_card(l):
@@ -2463,7 +2460,7 @@ def _render_public_catalog(owner: dict, listings: list, image_urls: dict) -> str
         price = l.get("price")
         sym = cur.get(l.get("marketplace") or "", "€")
         imgs_attr = e(json.dumps(imgs)) if imgs else ""
-        pic = (f'<img loading="lazy" src="{e(img)}" alt="" class="zoom" data-imgs="{imgs_attr}" '
+        pic = (f'<img src="{e(img)}" alt="" class="zoom" data-imgs="{imgs_attr}" '
                f'data-title="{e(l.get("title") or "")}">' if img
                else '<div class="noimg">Photo à venir</div>')
         return (f'<div class="prd">{pic}<h3>{e(l.get("title") or l.get("sku") or "")}</h3>'
@@ -2473,11 +2470,10 @@ def _render_public_catalog(owner: dict, listings: list, image_urls: dict) -> str
     logo = f'<img class="logo" src="{e(owner.get("logo_url") or "")}" alt="">' if owner.get("logo_url") else ''
     pages = [f'<div class="page cover">{logo}<h1>{e(title)}</h1><p>{e(subtitle)}</p>'
              f'<span class="hintturn">Cliquez ou utilisez les flèches pour tourner les pages</span></div>']
-    for cat, items in groups.items():
-        for i in range(0, len(items), 4):
-            chunk = items[i:i + 4]
-            pages.append(f'<div class="page"><div class="cat">{e(cat)}</div>'
-                         f'<div class="pgrid">{"".join(product_card(l) for l in chunk)}</div></div>')
+    for i in range(0, len(listings), 4):
+        chunk = listings[i:i + 4]
+        pages.append(f'<div class="page">'
+                     f'<div class="pgrid">{"".join(product_card(l) for l in chunk)}</div></div>')
     pages.append(f'<div class="page cover back">{logo}<h1>Merci</h1>{_catalog_contact_html(owner)}'
                  '<p class="credit">Catalogue généré avec SynqIO</p></div>')
     # paper grain overlay on every page
