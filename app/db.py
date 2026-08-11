@@ -104,6 +104,13 @@ def _init_db_pg():
     conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS quota_full_period TEXT DEFAULT ''")
     conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS email_unsubscribed INTEGER DEFAULT 0")
     conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS agency_enabled INTEGER DEFAULT 0")
+    # Inscription self-service : identité, type de compte et état du paiement
+    conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS first_name TEXT DEFAULT ''")
+    conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS last_name TEXT DEFAULT ''")
+    conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS company TEXT DEFAULT ''")
+    conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS account_type TEXT DEFAULT ''")
+    conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS signup_status TEXT DEFAULT 'active'")
+    conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS stripe_customer_id TEXT DEFAULT ''")
 
     conn.execute("""
         CREATE TABLE IF NOT EXISTS amazon_credentials (
@@ -367,6 +374,19 @@ def _init_db_sqlite():
         conn.execute("ALTER TABLE users ADD COLUMN agency_enabled INTEGER DEFAULT 0")
     except Exception:
         pass
+    # Inscription self-service : identité, type de compte et état du paiement
+    for _col, _decl in (
+        ("first_name", "TEXT DEFAULT ''"),
+        ("last_name", "TEXT DEFAULT ''"),
+        ("company", "TEXT DEFAULT ''"),
+        ("account_type", "TEXT DEFAULT ''"),
+        ("signup_status", "TEXT DEFAULT 'active'"),
+        ("stripe_customer_id", "TEXT DEFAULT ''"),
+    ):
+        try:
+            conn.execute(f"ALTER TABLE users ADD COLUMN {_col} {_decl}")
+        except Exception:
+            pass
 
     conn.execute("""
         CREATE TABLE IF NOT EXISTS amazon_credentials (

@@ -57,6 +57,23 @@ class CreateUserRequest(BaseModel):
     name: str = ""
 
 
+class RegisterRequest(BaseModel):
+    first_name: str = ""
+    last_name: str = ""
+    email: str
+    password: str
+    company: str = ""
+    account_type: str = "brand"
+    plan: str = "starter"
+    accept_terms: bool = False
+
+
+class ResumeCheckoutRequest(BaseModel):
+    email: str
+    password: str
+    plan: str = ""
+
+
 class SetupRequest(BaseModel):
     email: str
     password: str
@@ -135,6 +152,15 @@ async def login(req: LoginRequest, request: Request):
     _validate_email(req.email)
     user = authenticate_user(req.email, req.password)
     if not user:
+        # Identifiants bons mais inscription jamais réglée : on le dit clairement
+        # plutôt que de renvoyer « mot de passe incorrect » à un client qui a
+        # abandonné en cours de paiement.
+        if _pending_row(req.email, req.password):
+            raise HTTPException(
+                402,
+                "Votre inscription n'est pas finalisée : le paiement n'a pas été "
+                "encaissé. Reprenez-le pour activer votre compte.",
+            )
         record_failed_attempt(ip)
         raise HTTPException(401, "Email ou mot de passe incorrect")
     clear_attempts(ip)
@@ -148,34 +174,155 @@ async def login(req: LoginRequest, request: Request):
     }
 
 
+@router.get("/plans")
+async def signup_plans():
+    """Catalogue d'offres du tunnel d'inscription (public)."""
+    from app.services.billing import public_plans, is_configured
+    return {"plans": public_plans(), "payment_ready": is_configured()}
+
+
+def _pending_row(email: str, password: str):
+    """Renvoie la ligne d'un compte en attente de paiement si le mot de passe
+    est bon, sinon None. Utilisé pour proposer la reprise du paiement."""
+    from app.services.auth import verify_password
+    conn = get_db()
+    row = conn.execute("SELECT * FROM users WHERE email = ?", (email.lower().strip(),)).fetchone()
+    conn.close()
+    if not row:
+        return None
+    row = dict(row)
+    if (row.get("signup_status") or "active") != "pending_payment":
+        return None
+    if not verify_password(password, row["password_hash"]):
+        return None
+    return row
+
+
+def _start_checkout(email: str, plan: str, name: str) -> dict:
+    """Crée la session de paiement. En cas d'échec (Stripe absent ou en erreur),
+    le compte reste en attente et l'équipe est prévenue — on n'ouvre jamais
+    l'accès sans encaissement."""
+    from app.services import billing
+    if not billing.is_configured():
+        _notify_admin_manual_signup(email, plan, "Stripe non configuré")
+        return {
+            "status": "pending_manual",
+            "message": "Votre compte est créé. Le paiement en ligne est momentanément "
+                       "indisponible — notre équipe vous contacte pour finaliser.",
+        }
+    try:
+        url = billing.create_checkout_session(email, plan, name)
+        return {"status": "checkout", "checkout_url": url}
+    except Exception as exc:  # réseau, clé invalide, plan refusé côté Stripe…
+        from app.logger import log
+        log.error(f"[register] création du paiement impossible pour {email} : {exc}")
+        _notify_admin_manual_signup(email, plan, str(exc)[:200])
+        return {
+            "status": "pending_manual",
+            "message": "Votre compte est créé mais le paiement n'a pas pu démarrer. "
+                       "Notre équipe vous contacte pour finaliser l'inscription.",
+        }
+
+
+def _notify_admin_manual_signup(email: str, plan: str, reason: str):
+    try:
+        from app.services.email import send_contact
+        send_contact(
+            name=f"Inscription à finaliser — {email}",
+            email=email,
+            message=f"Compte créé en attente de paiement.\nPlan choisi : {plan}\nMotif : {reason}",
+        )
+    except Exception:
+        pass
+
+
 @router.post("/register")
-async def register(req: LoginRequest, request: Request):
-    """Self-service signup — required for sellers arriving from the Amazon
-    Appstore listing. Creates a starter account and logs it in."""
+async def register(req: RegisterRequest, request: Request):
+    """Inscription self-service. Le compte est créé **inactif** : l'accès n'est
+    ouvert qu'au retour du webhook Stripe confirmant le paiement."""
+    from app.services.billing import SIGNUP_PLANS, ACCOUNT_TYPES
+
+    ip = _get_ip(request)
+    if not check_rate_limit(ip):
+        retry = get_retry_after(ip)
+        raise HTTPException(429, f"Trop de tentatives. Réessayez dans {retry // 60}m{retry % 60:02d}s.",
+                            headers={"Retry-After": str(retry)})
+
+    first = (req.first_name or "").strip()
+    last = (req.last_name or "").strip()
+    company = (req.company or "").strip()
+    if not first or not last:
+        raise HTTPException(400, "Prénom et nom sont obligatoires")
+    if not req.accept_terms:
+        raise HTTPException(400, "Vous devez accepter les conditions d'utilisation pour continuer")
+    if req.account_type not in ACCOUNT_TYPES:
+        raise HTTPException(400, "Type de compte invalide")
+    if req.plan not in SIGNUP_PLANS:
+        raise HTTPException(400, "Offre invalide")
+    _validate_email(req.email)
+    _validate_password(req.password)
+
+    email = req.email.strip().lower()
+    name = f"{first} {last}".strip()
+
+    conn = get_db()
+    row = conn.execute(
+        "SELECT signup_status FROM users WHERE email = ?", (email,)
+    ).fetchone()
+    if row:
+        conn.close()
+        record_failed_attempt(ip)  # ralentit l'énumération de comptes
+        if (dict(row).get("signup_status") or "active") == "pending_payment":
+            raise HTTPException(
+                409,
+                "Un compte existe déjà avec cet email et attend son paiement — "
+                "reprenez-le depuis l'écran de connexion.",
+            )
+        raise HTTPException(409, "Un compte existe déjà avec cet email — connectez-vous")
+
+    conn.execute(
+        "INSERT INTO users (email, password_hash, name, first_name, last_name, company, "
+        "account_type, is_active, is_admin, plan, signup_status) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?, 0, 0, ?, 'pending_payment')",
+        (email, hash_password(req.password), name, first, last, company,
+         req.account_type, req.plan),
+    )
+    conn.commit()
+    conn.close()
+
+    result = _start_checkout(email, req.plan, name)
+    result["email"] = email
+    return result
+
+
+@router.post("/resume-checkout")
+async def resume_checkout(req: ResumeCheckoutRequest, request: Request):
+    """Relance le paiement d'un compte créé mais jamais réglé."""
+    from app.services.billing import SIGNUP_PLANS
+
     ip = _get_ip(request)
     if not check_rate_limit(ip):
         retry = get_retry_after(ip)
         raise HTTPException(429, f"Trop de tentatives. Réessayez dans {retry // 60}m{retry % 60:02d}s.",
                             headers={"Retry-After": str(retry)})
     _validate_email(req.email)
-    if len(req.password or "") < 8:
-        raise HTTPException(400, "Mot de passe : 8 caractères minimum")
-    email = req.email.strip().lower()
-    conn = get_db()
-    row = conn.execute("SELECT 1 FROM users WHERE email = ?", (email,)).fetchone()
-    if row:
+    row = _pending_row(req.email, req.password)
+    if not row:
+        record_failed_attempt(ip)
+        raise HTTPException(401, "Email ou mot de passe incorrect")
+
+    plan = req.plan if req.plan in SIGNUP_PLANS else (row.get("plan") or "starter")
+    if plan not in SIGNUP_PLANS:
+        plan = "starter"
+    if plan != row.get("plan"):
+        conn = get_db()
+        conn.execute("UPDATE users SET plan = ? WHERE email = ?", (plan, row["email"]))
+        conn.commit()
         conn.close()
-        record_failed_attempt(ip)  # slow down account enumeration
-        raise HTTPException(409, "Un compte existe déjà avec cet email — connectez-vous")
-    from app.services.auth import hash_password
-    conn.execute(
-        "INSERT INTO users (email, password_hash, name, is_active, is_admin, plan) "
-        "VALUES (?, ?, ?, 1, 0, 'starter')",
-        (email, hash_password(req.password), ""))
-    conn.commit()
-    conn.close()
-    token = create_token(email, is_admin=False)
-    return {"token": token, "email": email, "name": "", "is_admin": False}
+
+    result = _start_checkout(row["email"], plan, row.get("name") or "")
+    result["email"] = row["email"]
+    return result
 
 
 def _make_invite_token(email: str) -> str:

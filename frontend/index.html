@@ -280,10 +280,13 @@
             </div>
           </div>
           <button id="loginBtn" onclick="doLogin()" class="btn-login w-full text-white rounded-xl py-3.5 font-semibold text-base shadow-lg mt-2">Se connecter →</button>
-          <button id="registerBtn" onclick="doRegister()" class="hidden btn-login w-full text-white rounded-xl py-3.5 font-semibold text-base shadow-lg mt-2">Créer mon compte →</button>
+          <div id="resumePayBox" class="hidden bg-amber-500/15 border border-amber-500/30 rounded-xl p-4 text-center">
+            <p class="text-amber-200 text-xs leading-relaxed mb-3">Votre compte est créé mais le paiement n'a pas été finalisé. Reprenez-le pour activer votre accès.</p>
+            <button id="resumePayBtn" onclick="doResumePayment()" class="w-full bg-amber-500 hover:bg-amber-600 text-white rounded-xl py-2.5 text-sm font-semibold transition">Reprendre le paiement →</button>
+          </div>
         </div>
         <div class="mt-6 pt-4 border-t border-white/10 text-center space-y-2">
-          <button id="registerToggle" onclick="toggleRegister()" class="text-white/60 hover:text-white text-xs font-semibold transition">Pas encore de compte ? Créer un compte gratuit</button>
+          <button id="registerToggle" onclick="openSignup()" class="text-white/60 hover:text-white text-xs font-semibold transition">Pas encore de compte ? Créer mon compte</button>
           <div><button onclick="toggleForgotPassword()" class="text-white/40 hover:text-white/70 text-xs transition">Mot de passe oublié ?</button></div>
           <div id="forgotPasswordForm" class="hidden mt-2">
             <input id="forgotEmail" type="email" placeholder="votre@email.com" class="input-auth w-full rounded-xl px-4 py-2.5 text-sm mb-2" onkeydown="if(event.key==='Enter') doForgotPassword()">
@@ -297,6 +300,121 @@
   </div>
 </div>
 
+
+<!-- ═══════════════════ SIGNUP MODAL ═══════════════════ -->
+<style>
+  .acct-chip { border:1px solid rgba(255,255,255,0.14); background:rgba(255,255,255,0.05); color:rgba(255,255,255,0.65);
+               border-radius:12px; padding:10px 12px; font-size:12px; font-weight:600; transition:all .18s; cursor:pointer; }
+  .acct-chip:hover { background:rgba(255,255,255,0.09); color:#fff; }
+  .acct-chip.on { background:linear-gradient(135deg,#7c3aed,#4f46e5); border-color:transparent; color:#fff;
+                  box-shadow:0 4px 14px rgba(124,58,237,.38); }
+  .plan-pick { border:1.5px solid rgba(255,255,255,0.12); background:rgba(255,255,255,0.04); transition:all .18s; cursor:pointer; }
+  .plan-pick:hover { border-color:rgba(167,139,250,.5); background:rgba(255,255,255,0.07); }
+  .plan-pick.on { border-color:#a78bfa; background:rgba(124,58,237,0.18); box-shadow:0 6px 24px rgba(124,58,237,.28); }
+  .plan-pick .tick { opacity:0; transition:opacity .18s; }
+  .plan-pick.on .tick { opacity:1; }
+</style>
+<div id="signupModal" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-[210] overflow-y-auto p-4">
+  <div class="relative w-full max-w-3xl mx-auto my-8">
+    <button onclick="closeSignup()" class="absolute -top-3 -right-3 w-10 h-10 bg-gray-800 hover:bg-gray-700 rounded-full text-white flex items-center justify-center text-lg transition z-10">✕</button>
+    <div class="login-card rounded-3xl p-8">
+
+      <div class="text-center mb-6">
+        <div class="w-14 h-14 gradient-bg rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
+          <svg viewBox="0 0 24 24" fill="none" width="26" height="26"><path d="M12 2L2 7l10 5 10-5-10-5z" stroke="white" stroke-width="1.8" stroke-linejoin="round"/><path d="M2 17l10 5 10-5M2 12l10 5 10-5" stroke="white" stroke-width="1.8" stroke-linejoin="round"/></svg>
+        </div>
+        <h3 class="text-white text-2xl font-bold">Créer mon compte SynqIO</h3>
+        <p id="signupSub" class="text-white/50 mt-1 text-sm">Étape 1 sur 2 — vos informations</p>
+      </div>
+
+      <div class="flex gap-2 mb-6">
+        <div id="signupBar1" class="h-1 flex-1 rounded-full gradient-bg"></div>
+        <div id="signupBar2" class="h-1 flex-1 rounded-full gradient-bg" style="opacity:.25"></div>
+      </div>
+
+      <div id="signupError" class="hidden mb-4 bg-red-500/20 border border-red-500/30 rounded-xl px-4 py-3 text-red-300 text-sm text-center"></div>
+      <div id="signupNotice" class="hidden mb-4 bg-green-500/15 border border-green-500/30 rounded-xl px-4 py-3 text-green-200 text-sm text-center"></div>
+
+      <!-- ÉTAPE 1 — identité -->
+      <div id="signupStep1" class="space-y-4">
+        <div class="grid sm:grid-cols-2 gap-4">
+          <div>
+            <label class="text-white/70 text-sm font-medium block mb-1.5">Prénom</label>
+            <input id="suFirst" type="text" placeholder="Camille" class="input-auth w-full rounded-xl px-4 py-3 text-sm">
+          </div>
+          <div>
+            <label class="text-white/70 text-sm font-medium block mb-1.5">Nom</label>
+            <input id="suLast" type="text" placeholder="Durand" class="input-auth w-full rounded-xl px-4 py-3 text-sm">
+          </div>
+        </div>
+        <div>
+          <label class="text-white/70 text-sm font-medium block mb-1.5">Email professionnel</label>
+          <input id="suEmail" type="email" placeholder="vous@votre-marque.com" class="input-auth w-full rounded-xl px-4 py-3 text-sm">
+        </div>
+        <div>
+          <label class="text-white/70 text-sm font-medium block mb-1.5">Société <span class="text-white/30">(optionnel)</span></label>
+          <input id="suCompany" type="text" placeholder="Votre marque ou votre agence" class="input-auth w-full rounded-xl px-4 py-3 text-sm">
+        </div>
+        <div>
+          <label class="text-white/70 text-sm font-medium block mb-2">Vous êtes…</label>
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            <button type="button" data-acct="brand"    onclick="_suType('brand')"    class="acct-chip on">Marque / vendeur</button>
+            <button type="button" data-acct="agency"   onclick="_suType('agency')"   class="acct-chip">Agence</button>
+            <button type="button" data-acct="reseller" onclick="_suType('reseller')" class="acct-chip">Revendeur</button>
+            <button type="button" data-acct="other"    onclick="_suType('other')"    class="acct-chip">Autre</button>
+          </div>
+          <p id="suAgencyHint" class="hidden text-purple-300 text-xs mt-2">Les agences gèrent un catalogue isolé par client — on active vos espaces client à la première connexion.</p>
+        </div>
+        <div class="grid sm:grid-cols-2 gap-4">
+          <div>
+            <label class="text-white/70 text-sm font-medium block mb-1.5">Mot de passe</label>
+            <input id="suPass" type="password" placeholder="12 caractères min. + 1 spécial" class="input-auth w-full rounded-xl px-4 py-3 text-sm">
+          </div>
+          <div>
+            <label class="text-white/70 text-sm font-medium block mb-1.5">Confirmation</label>
+            <input id="suPass2" type="password" placeholder="Retapez le mot de passe" class="input-auth w-full rounded-xl px-4 py-3 text-sm" onkeydown="if(event.key==='Enter') suNext()">
+          </div>
+        </div>
+        <label class="flex items-start gap-3 text-white/60 text-xs leading-relaxed cursor-pointer">
+          <input id="suTerms" type="checkbox" class="mt-0.5 w-4 h-4 accent-purple-500 flex-shrink-0">
+          <span>J'accepte les <a href="/cgu.html" target="_blank" class="text-purple-300 underline">Conditions Générales d'Utilisation</a> et la <a href="/politique-confidentialite.html" target="_blank" class="text-purple-300 underline">politique de confidentialité</a> de SynqIO.</span>
+        </label>
+        <button onclick="suNext()" class="btn-login w-full text-white rounded-xl py-3.5 font-semibold text-base shadow-lg mt-2">Continuer — choisir mon offre →</button>
+        <div class="text-center pt-2">
+          <button onclick="closeSignup();showLoginModal()" class="text-white/50 hover:text-white text-xs font-semibold transition">Déjà client ? Se connecter</button>
+        </div>
+      </div>
+
+      <!-- ÉTAPE 2 — offre et paiement -->
+      <div id="signupStep2" class="hidden">
+        <div id="signupPlans" class="grid sm:grid-cols-2 gap-3 mb-4"></div>
+
+        <div class="rounded-2xl px-4 py-3 mb-4 text-xs leading-relaxed" style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);color:rgba(255,255,255,0.6)">
+          Plus de 2 000 SKU, un besoin sur mesure ou une question avant de payer ?
+          <a href="https://calendly.com/fl-synqio/30min" target="_blank" class="text-purple-300 font-semibold underline">Nous contacter</a> —
+          on construit l'offre avec vous, sans engagement.
+        </div>
+
+        <div class="rounded-2xl p-4 mb-4" style="background:rgba(124,58,237,0.14);border:1px solid rgba(167,139,250,0.3)">
+          <div class="flex items-baseline justify-between gap-3 mb-1">
+            <span class="text-white/70 text-sm">Premier paiement</span>
+            <span id="suRecapTotal" class="text-white font-black text-2xl">—</span>
+          </div>
+          <p id="suRecapDetail" class="text-white/50 text-xs"></p>
+        </div>
+
+        <button id="suPayBtn" onclick="doSignup()" class="btn-login w-full text-white rounded-xl py-3.5 font-semibold text-base shadow-lg">Payer et activer mon compte →</button>
+        <p class="text-white/35 text-[11px] text-center mt-3 leading-relaxed">
+          Paiement sécurisé par Stripe — carte bancaire ou prélèvement SEPA. Vous recevez votre facture et un email de confirmation dès l'encaissement.
+        </p>
+        <div class="text-center pt-3">
+          <button onclick="_signupStep(1)" class="text-white/50 hover:text-white text-xs font-semibold transition">← Revenir à mes informations</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
 
 <!-- ═══════════════════ LANDING PAGE ═══════════════════ -->
 <div id="login-screen" class="fixed inset-0 z-50 overflow-y-auto">
@@ -314,7 +432,8 @@
         <a href="/integrations.html" class="text-gray-500 hover:text-gray-900 text-sm font-medium transition hidden sm:block">Intégrations</a>
         <a href="https://calendly.com/fl-synqio/30min" target="_blank" class="text-gray-500 hover:text-gray-900 text-sm font-medium transition hidden sm:block">Réserver une démo</a>
         <div data-lang-switch></div>
-        <button onclick="showLoginModal()" class="btn-login px-5 py-2.5 rounded-xl text-white text-sm font-semibold shadow">Se connecter →</button>
+        <button onclick="showLoginModal()" class="text-gray-500 hover:text-gray-900 text-sm font-medium transition px-2">Se connecter</button>
+        <button onclick="openSignup()" class="btn-login px-5 py-2.5 rounded-xl text-white text-sm font-semibold shadow">Créer un compte →</button>
       </div>
     </div>
   </header>
@@ -425,17 +544,21 @@
     <p class="text-base text-gray-400 max-w-2xl mx-auto mb-12">
       Et ce contenu ne s'arrête pas à Amazon : poussez-le aussi vers <a href="/integrations.html" class="text-purple-600 font-semibold hover:text-purple-800 transition">votre site, votre PIM et Google Shopping →</a>
     </p>
-    <div class="flex flex-wrap gap-4 justify-center mb-14">
-      <a href="https://calendly.com/fl-synqio/30min" target="_blank"
+    <div class="flex flex-wrap gap-4 justify-center mb-4">
+      <button onclick="openSignup()"
          class="px-8 py-4 rounded-2xl text-white font-bold text-lg gradient-bg transition">
-        Réserver une démo gratuite →
-      </a>
-      <button onclick="showLoginModal()"
+        Créer mon compte →
+      </button>
+      <a href="https://calendly.com/fl-synqio/30min" target="_blank"
          class="px-8 py-4 rounded-2xl text-purple-700 font-semibold text-lg transition bg-white"
          style="border:1.5px solid rgba(124,58,237,0.25);box-shadow:0 2px 12px rgba(124,58,237,0.08)">
-        Accès client →
-      </button>
+        Réserver une démo gratuite →
+      </a>
     </div>
+    <p class="text-gray-400 text-sm mb-14">
+      Compte actif en 5 minutes, paiement sécurisé — ou
+      <button onclick="showLoginModal()" class="text-purple-600 font-semibold hover:text-purple-800 transition">accès client si vous avez déjà un compte →</button>
+    </p>
     <div class="flex flex-wrap gap-3 justify-center">
       <span class="bg-white border border-gray-200 rounded-full pl-3 pr-4 py-2 text-gray-600 text-sm flex items-center gap-2 shadow-sm">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
@@ -829,10 +952,10 @@
           <p class="text-gray-900 font-bold text-sm">880 € · puis 390 €/mois</p>
           <p class="text-gray-400 text-xs mt-1">Équivalent externalisé ~4 000 – 6 000 €/mois</p>
         </div>
-        <a href="https://buy.stripe.com/eVq3cvg0s5hUg8N8Yl7Vm0a" target="_blank"
+        <button onclick="openSignup('starter')"
            class="block w-full text-center py-3.5 rounded-2xl font-semibold transition text-sm border-2 border-purple-500 text-purple-600 hover:bg-purple-50">
-          Commencer — 490 € setup
-        </a>
+             Commencer — 490 € setup
+           </button>
       </div>
 
       <!-- Business (Recommended) -->
@@ -856,10 +979,10 @@
           <p class="text-gray-900 font-bold text-sm">1 780 € · puis 790 €/mois</p>
           <p class="text-gray-400 text-xs mt-1">Équivalent externalisé ~12 000 – 20 000 €/mois</p>
         </div>
-        <a href="https://buy.stripe.com/28E6oH8y09yag8N2zX7Vm0b" target="_blank"
+        <button onclick="openSignup('business')"
            class="block w-full text-center py-3.5 rounded-2xl text-white font-bold transition hover:opacity-90 gradient-bg shadow-lg text-sm">
-          Commencer — 990 € setup
-        </a>
+             Commencer — 990 € setup
+           </button>
       </div>
 
       <!-- Scale -->
@@ -884,10 +1007,10 @@
           <p class="text-gray-900 font-bold text-sm">3 480 € · puis 1 490 €/mois</p>
           <p class="text-gray-400 text-xs mt-1">Équivalent externalisé ~35 000 – 50 000 €/mois</p>
         </div>
-        <a href="https://buy.stripe.com/8x2eVd4hKh0C1dT0rP7Vm0c" target="_blank"
+        <button onclick="openSignup('scale')"
            class="block w-full text-center py-3.5 rounded-2xl font-semibold transition text-sm border-2 border-purple-500 text-purple-600 hover:bg-purple-50">
-          Commencer — 1 990 € setup
-        </a>
+             Commencer — 1 990 € setup
+           </button>
       </div>
     </div>
 
@@ -924,10 +1047,10 @@
             <p class="text-gray-900 font-bold text-sm">Self-serve · actif en 5 min</p>
           </div>
           <!-- STRIPE_MAINTENANCE_LINK -->
-          <a href="https://buy.stripe.com/cNifZh15ybGi7Ch6Qd7Vm0d" target="_blank"
+          <button onclick="openSignup('maintenance')"
              class="block w-full text-center py-3 rounded-2xl font-semibold transition text-sm gradient-bg text-white hover:opacity-90">
-            Commencer — 99 €/mois
-          </a>
+               Commencer — 99 €/mois
+             </button>
         </div>
       </div>
     </div>
@@ -4454,6 +4577,8 @@ function showLoginScreen() {
 
 function showLoginModal() {
   document.getElementById('loginModal').classList.remove('hidden');
+  document.getElementById('loginError').classList.add('hidden');
+  document.getElementById('resumePayBox').classList.add('hidden');
   checkNeedsSetup();
 }
 
@@ -5132,7 +5257,14 @@ async function doLogin() {
       body: JSON.stringify({ email, password }),
     });
     const data = await r.json();
+    // 402 = compte créé mais jamais réglé → on propose de reprendre le paiement
+    if (r.status === 402) {
+      showLoginError(data.detail || "Inscription non finalisée");
+      document.getElementById('resumePayBox').classList.remove('hidden');
+      return;
+    }
     if (!r.ok) throw new Error(data.detail || 'Erreur');
+    document.getElementById('resumePayBox').classList.add('hidden');
     token = data.token;
     localStorage.setItem('synqio_token', token);
     currentUser = { email: data.email, is_admin: data.is_admin };
@@ -5141,43 +5273,205 @@ async function doLogin() {
   finally { btn.disabled = false; btn.textContent = 'Se connecter →'; }
 }
 
-function showLoginError(msg) {
-  const el = document.getElementById('loginError');
-  el.textContent = msg; el.classList.remove('hidden');
-}
-
-let _registerMode = false;
-function toggleRegister() {
-  _registerMode = !_registerMode;
-  document.getElementById('loginBtn').classList.toggle('hidden', _registerMode);
-  document.getElementById('registerBtn').classList.toggle('hidden', !_registerMode);
-  document.getElementById('registerToggle').textContent = _registerMode
-    ? '← J\'ai déjà un compte, me connecter'
-    : 'Pas encore de compte ? Créer un compte gratuit';
-  document.getElementById('loginError').classList.add('hidden');
-}
-
-async function doRegister() {
+/* Reprise du paiement depuis l'écran de connexion. */
+async function doResumePayment() {
   const email = document.getElementById('loginEmail').value.trim();
   const password = document.getElementById('loginPassword').value;
-  if (!email || !password) { showLoginError('Renseignez email et mot de passe'); return; }
-  if (password.length < 8) { showLoginError('Mot de passe : 8 caractères minimum'); return; }
-  const btn = document.getElementById('registerBtn');
-  btn.disabled = true; btn.textContent = 'Création…';
+  const btn = document.getElementById('resumePayBtn');
+  btn.disabled = true; btn.textContent = 'Redirection…';
   try {
-    const r = await fetch(`${API}/api/auth/register`, {
+    const r = await fetch(`${API}/api/auth/resume-checkout`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password }),
     });
     const data = await r.json().catch(() => ({}));
-    if (!r.ok) throw new Error(data.detail || 'Erreur lors de la création du compte');
-    token = data.token;
-    localStorage.setItem('synqio_token', token);
-    currentUser = { email: data.email, is_admin: false };
-    showApp(data.email);
+    if (!r.ok) throw new Error(data.detail || 'Reprise impossible');
+    if (data.checkout_url) { window.location.href = data.checkout_url; return; }
+    showLoginError(data.message || "Notre équipe vous contacte pour finaliser l'inscription.");
   } catch (e) { showLoginError(e.message); }
-  finally { btn.disabled = false; btn.textContent = 'Créer mon compte →'; }
+  finally { btn.disabled = false; btn.textContent = 'Reprendre le paiement →'; }
 }
+
+function showLoginError(msg) {
+  const el = document.getElementById('loginError');
+  el.className = 'mb-4 bg-red-500/20 border border-red-500/30 rounded-xl px-4 py-3 text-red-300 text-sm text-center';
+  el.textContent = msg;
+}
+
+/* ══════════════════ TUNNEL D'INSCRIPTION ══════════════════
+   Identité → offre → paiement Stripe. Le compte n'est activé qu'au retour
+   du webhook de paiement : rien n'ouvre l'accès côté navigateur. */
+
+let _suPlans = [], _suPlan = '', _suType_ = 'brand';
+
+function openSignup(plan) {
+  document.getElementById('loginModal').classList.add('hidden');
+  document.getElementById('signupModal').classList.remove('hidden');
+  document.body.style.overflow = 'hidden';
+  _suErr(''); _suNotice('');
+  if (plan) _suPlan = plan;
+  _signupStep(1);
+  _suLoadPlans();
+}
+
+function closeSignup() {
+  document.getElementById('signupModal').classList.add('hidden');
+  document.body.style.overflow = '';
+}
+
+function _suErr(msg) {
+  const el = document.getElementById('signupError');
+  if (!msg) { el.classList.add('hidden'); return; }
+  el.textContent = msg; el.classList.remove('hidden');
+  el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+}
+
+function _suNotice(msg) {
+  const el = document.getElementById('signupNotice');
+  if (!msg) { el.classList.add('hidden'); return; }
+  el.textContent = msg; el.classList.remove('hidden');
+}
+
+function _signupStep(n) {
+  document.getElementById('signupStep1').classList.toggle('hidden', n !== 1);
+  document.getElementById('signupStep2').classList.toggle('hidden', n !== 2);
+  document.getElementById('signupSub').textContent = n === 1
+    ? 'Étape 1 sur 2 — vos informations'
+    : 'Étape 2 sur 2 — votre offre';
+  document.getElementById('signupBar2').style.opacity = n === 2 ? '1' : '.25';
+  document.getElementById('signupModal').scrollTop = 0;
+}
+
+function _suType(t) {
+  _suType_ = t;
+  document.querySelectorAll('[data-acct]').forEach(b => b.classList.toggle('on', b.dataset.acct === t));
+  document.getElementById('suAgencyHint').classList.toggle('hidden', t !== 'agency');
+}
+
+async function _suLoadPlans() {
+  if (_suPlans.length) { _suRenderPlans(); return; }
+  try {
+    const r = await fetch(`${API}/api/auth/plans`);
+    const d = await r.json();
+    _suPlans = d.plans || [];
+    if (!_suPlan) {
+      const rec = _suPlans.find(p => p.recommended);
+      _suPlan = rec ? rec.slug : (_suPlans[0] || {}).slug || '';
+    }
+    _suRenderPlans();
+  } catch (e) { _suErr('Impossible de charger les offres — réessayez dans un instant'); }
+}
+
+function _suRenderPlans() {
+  const box = document.getElementById('signupPlans');
+  if (!box) return;
+  box.innerHTML = _suPlans.map(p => `
+    <button type="button" onclick="_suPickPlan('${p.slug}')" data-plan="${p.slug}" class="plan-pick rounded-2xl p-4 text-left">
+      <div class="flex items-start justify-between gap-2 mb-1">
+        <div>
+          <p class="text-white font-bold text-base">${p.label}</p>
+          <p class="text-white/40 text-xs">${p.tagline}</p>
+        </div>
+        ${p.recommended ? '<span class="text-[10px] font-bold text-white px-2 py-1 rounded-full gradient-bg whitespace-nowrap">Recommandé</span>' : '<span class="tick text-purple-300 text-lg leading-none">●</span>'}
+      </div>
+      <p class="text-white font-black text-2xl mt-2">${p.monthly} €<span class="text-white/40 font-normal text-sm">/${p.interval === 'year' ? 'an' : 'mois'}</span></p>
+      <p class="text-purple-300 text-xs font-semibold mt-1">${p.skus}</p>
+      ${p.setup ? `<p class="text-white/40 text-xs mt-1">+ ${p.setup} € de setup unique</p>` : '<p class="text-white/40 text-xs mt-1">Sans frais de setup</p>'}
+      <ul class="mt-3 space-y-1">
+        ${p.features.map(f => `<li class="text-white/55 text-xs flex gap-2"><span class="text-green-400">✓</span>${f}</li>`).join('')}
+      </ul>
+    </button>`).join('');
+  _suPickPlan(_suPlan);
+}
+
+function _suPickPlan(slug) {
+  _suPlan = slug;
+  document.querySelectorAll('[data-plan]').forEach(b => b.classList.toggle('on', b.dataset.plan === slug));
+  const p = _suPlans.find(x => x.slug === slug);
+  if (!p) return;
+  document.getElementById('suRecapTotal').textContent = `${p.first_payment} €`;
+  const per = p.interval === 'year' ? 'an' : 'mois';
+  const bits = [];
+  if (p.setup) bits.push(`${p.setup} € de setup unique + ${p.monthly} € pour le premier ${per}`);
+  else bits.push(`${p.monthly} € pour le premier ${per}`);
+  bits.push(`puis ${p.monthly} €/${per}`);
+  if (p.commitment_months) bits.push(`engagement ${p.commitment_months} mois`);
+  else bits.push('sans engagement');
+  document.getElementById('suRecapDetail').textContent = bits.join(' · ');
+}
+
+function suNext() {
+  _suErr('');
+  const first = document.getElementById('suFirst').value.trim();
+  const last  = document.getElementById('suLast').value.trim();
+  const email = document.getElementById('suEmail').value.trim();
+  const pw    = document.getElementById('suPass').value;
+  const pw2   = document.getElementById('suPass2').value;
+  if (!first || !last) { _suErr('Renseignez votre prénom et votre nom'); return; }
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { _suErr('Adresse email invalide'); return; }
+  if (pw.length < 12 || !/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(pw)) {
+    _suErr('Mot de passe : 12 caractères minimum et au moins un caractère spécial'); return;
+  }
+  if (pw !== pw2) { _suErr('Les deux mots de passe ne correspondent pas'); return; }
+  if (!document.getElementById('suTerms').checked) {
+    _suErr("Vous devez accepter les conditions d'utilisation pour continuer"); return;
+  }
+  _signupStep(2);
+}
+
+async function doSignup() {
+  _suErr(''); _suNotice('');
+  if (!_suPlan) { _suErr('Choisissez une offre'); return; }
+  const btn = document.getElementById('suPayBtn');
+  btn.disabled = true; btn.textContent = 'Création du compte…';
+  try {
+    const r = await fetch(`${API}/api/auth/register`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        first_name: document.getElementById('suFirst').value.trim(),
+        last_name:  document.getElementById('suLast').value.trim(),
+        email:      document.getElementById('suEmail').value.trim(),
+        company:    document.getElementById('suCompany').value.trim(),
+        password:   document.getElementById('suPass').value,
+        account_type: _suType_,
+        plan: _suPlan,
+        accept_terms: true,
+      }),
+    });
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(data.detail || 'Erreur lors de la création du compte');
+    if (data.checkout_url) { btn.textContent = 'Redirection vers le paiement…'; window.location.href = data.checkout_url; return; }
+    // Paiement en ligne indisponible : le compte reste en attente, l'équipe prend le relais
+    document.getElementById('signupStep2').classList.add('hidden');
+    _suNotice(data.message || "Votre compte est créé. Notre équipe vous contacte pour finaliser l'inscription.");
+  } catch (e) {
+    _suErr(e.message);
+  } finally { btn.disabled = false; btn.textContent = 'Payer et activer mon compte →'; }
+}
+
+/* Retour depuis Stripe : ?signup=success ou ?signup=cancel */
+function _signupReturnFlow() {
+  const q = new URLSearchParams(location.search);
+  const s = q.get('signup');
+  if (!s) return;
+  history.replaceState({}, '', location.pathname);
+  if (s === 'success') {
+    showLoginModal();
+    const el = document.getElementById('loginError');
+    el.className = 'mb-4 bg-green-500/20 border border-green-500/30 rounded-xl px-4 py-3 text-green-200 text-sm text-center';
+    el.textContent = 'Paiement confirmé — votre compte est activé et un email de confirmation vient de partir. Connectez-vous pour démarrer.';
+  } else if (s === 'cancel') {
+    showLoginModal();
+    const email = q.get('email') || '';
+    if (email) document.getElementById('loginEmail').value = email;
+    showLoginError("Paiement annulé — votre compte est créé mais pas encore actif. Connectez-vous pour reprendre le paiement.");
+  }
+}
+/* Léger différé : laisse la séquence de démarrage (restauration de session,
+   écran de connexion) se terminer avant d'afficher le message de retour. */
+function _signupReturnFlowLater() { setTimeout(_signupReturnFlow, 250); }
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', _signupReturnFlowLater);
+else _signupReturnFlowLater();
 
 function doLogout() {
   localStorage.removeItem('synqio_token');
@@ -5600,6 +5894,11 @@ function renderUsers(users) {
       ? 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100'
       : 'bg-gray-100 text-gray-400 border-gray-200 hover:bg-gray-200';
     const ea = _escAttr(u.email);
+    const acctLabels = { brand: 'Marque / vendeur', agency: 'Agence', reseller: 'Revendeur', other: 'Autre' };
+    const acctLabel = acctLabels[u.account_type] || '';
+    const pendingBadge = (u.signup_status === 'pending_payment')
+      ? '<span title="Inscription self-service jamais réglée" class="text-xs px-2 py-1 rounded-lg bg-amber-100 text-amber-800 border border-amber-300 font-semibold shrink-0">Paiement en attente</span>'
+      : '';
     const amazonBadge = u.has_amazon
       ? `<span title="Seller Central connecté" class="text-xs px-2 py-1 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 font-medium shrink-0 flex items-center gap-1"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Amazon</span>`
       : `<span title="Seller Central non connecté — relancer l'onboarding" class="text-xs px-2 py-1 rounded-lg bg-amber-50 text-amber-600 border border-amber-200 font-medium shrink-0 cursor-pointer hover:bg-amber-100 transition" onclick="resendInvite('${ea}')">⚠ Amazon</span>`;
@@ -5609,9 +5908,10 @@ function renderUsers(users) {
         ${_esc(u.name || u.email).charAt(0).toUpperCase()}
       </div>
       <div class="flex-1 min-w-0">
-        <p class="font-medium text-gray-800 text-sm truncate">${_esc(u.name || '—')}</p>
-        <p class="text-gray-400 text-xs truncate">${_esc(u.email)}</p>
+        <p class="font-medium text-gray-800 text-sm truncate">${_esc(u.name || '—')}${u.company ? ` <span class="text-gray-400 font-normal">· ${_esc(u.company)}</span>` : ''}</p>
+        <p class="text-gray-400 text-xs truncate">${_esc(u.email)}${acctLabel ? ` · ${acctLabel}` : ''}</p>
       </div>
+      ${pendingBadge}
       ${amazonBadge}
       <select onchange="changePlan('${ea}', this.value)" class="text-xs border border-gray-200 rounded-lg px-2 py-1.5 ${pc} font-medium cursor-pointer shrink-0">
         <option value="starter" ${plan === 'starter' ? 'selected' : ''}>Starter</option>

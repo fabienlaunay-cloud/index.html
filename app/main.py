@@ -85,7 +85,7 @@ from app.routes.drive_oauth import router as drive_oauth_router
 from app.routes.agent import router as agent_router
 
 # Routes sans authentification
-PUBLIC_PATHS = {"/", "/health", "/api/auth/login", "/api/auth/register", "/api/auth/setup", "/api/auth/needs-setup", "/api/marketplaces", "/api/amazon/callback", "/api/amazon/login", "/api/drive/oauth/callback", "/api/template", "/api/auth/unsubscribe", "/api/auth/forgot-password", "/api/auth/reset-password", "/api/stripe/webhook", "/api/contact"}
+PUBLIC_PATHS = {"/", "/health", "/api/auth/login", "/api/auth/register", "/api/auth/setup", "/api/auth/needs-setup", "/api/marketplaces", "/api/amazon/callback", "/api/amazon/login", "/api/drive/oauth/callback", "/api/template", "/api/auth/unsubscribe", "/api/auth/forgot-password", "/api/auth/reset-password", "/api/stripe/webhook", "/api/contact", "/api/auth/plans", "/api/auth/resume-checkout"}
 # Invite paths are public (token-based auth)
 # /api/v1 is the public API — authenticated per-request via API key (see routes/public_api.py)
 # /api/feed/ are pull feeds — the capability token in the path is the auth (see routes/feeds.py)

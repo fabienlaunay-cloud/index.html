@@ -1,0 +1,157 @@
+"""Facturation Stripe — tunnel d'inscription self-service.
+
+Le catalogue d'offres reproduit celui de la page de tarifs. Les montants sont
+la source de vérité côté serveur : le front envoie seulement un slug de plan,
+jamais un prix, pour qu'on ne puisse pas s'inscrire à un tarif choisi
+côté navigateur.
+"""
+
+import os
+
+from app.logger import log
+
+APP_URL = os.getenv("APP_URL", "https://synqio.io")
+
+
+# ── Catalogue d'offres ───────────────────────────────────────────────────────
+# monthly / setup en euros · interval = période de facturation de l'abonnement
+SIGNUP_PLANS: dict[str, dict] = {
+    "maintenance": {
+        "label": "Pro / Maintenance",
+        "tagline": "Marque établie, catalogue stable",
+        "monthly": 99, "setup": 0, "interval": "month",
+        "skus": "100 SKU / an", "commitment_months": 12,
+        "features": [
+            "100 SKU par an (pool annuel)",
+            "Titre, bullets, mots-clés, contenu A+",
+            "Audit compte Amazon trimestriel",
+            "Support standard",
+        ],
+    },
+    "starter": {
+        "label": "Starter",
+        "tagline": "Sans engagement",
+        "monthly": 390, "setup": 490, "interval": "month",
+        "skus": "200 SKU / mois", "commitment_months": 0,
+        "features": [
+            "200 SKU par mois",
+            "7 visuels IA par produit",
+            "Push direct Amazon (SP-API)",
+            "Audit compte Amazon",
+        ],
+    },
+    "business": {
+        "label": "Business",
+        "tagline": "Engagement 3 mois",
+        "monthly": 790, "setup": 990, "interval": "month",
+        "skus": "600 SKU / mois", "commitment_months": 3,
+        "recommended": True,
+        "features": [
+            "600 SKU par mois",
+            "7 visuels IA par produit",
+            "Multi-marketplace simultané",
+            "Audit compte Amazon trimestriel",
+            "Support dédié",
+        ],
+    },
+    "scale": {
+        "label": "Scale",
+        "tagline": "Engagement 6 mois",
+        "monthly": 1490, "setup": 1990, "interval": "month",
+        "skus": "1 500 SKU / mois", "commitment_months": 6,
+        "features": [
+            "1 500 SKU par mois",
+            "7 visuels IA par produit",
+            "Multi-marketplace + connecteurs boutique",
+            "Audit compte Amazon mensuel",
+            "Support dédié",
+        ],
+    },
+}
+
+ACCOUNT_TYPES = {"brand", "agency", "reseller", "other"}
+
+
+def public_plans() -> list[dict]:
+    """Catalogue exposé au tunnel d'inscription (sans détail interne)."""
+    out = []
+    for slug, p in SIGNUP_PLANS.items():
+        out.append({
+            "slug": slug,
+            "label": p["label"],
+            "tagline": p["tagline"],
+            "monthly": p["monthly"],
+            "setup": p["setup"],
+            "interval": p["interval"],
+            "skus": p["skus"],
+            "commitment_months": p["commitment_months"],
+            "recommended": bool(p.get("recommended")),
+            "features": p["features"],
+            "first_payment": p["monthly"] + p["setup"],
+        })
+    # ordre d'affichage : du plus léger au plus complet
+    order = ["maintenance", "starter", "business", "scale"]
+    out.sort(key=lambda x: order.index(x["slug"]) if x["slug"] in order else 99)
+    return out
+
+
+def is_configured() -> bool:
+    return bool(os.getenv("STRIPE_SECRET_KEY", "").strip())
+
+
+def create_checkout_session(email: str, plan: str, name: str = "") -> str:
+    """Crée une session Stripe Checkout et renvoie son URL.
+
+    Abonnement récurrent + frais de setup facturés une seule fois sur la
+    première facture (add_invoice_items). Lève RuntimeError si Stripe répond
+    en erreur — l'appelant décide alors quoi montrer au client.
+    """
+    cfg = SIGNUP_PLANS.get(plan)
+    if not cfg:
+        raise ValueError(f"Plan inconnu : {plan}")
+    if not is_configured():
+        raise RuntimeError("Stripe n'est pas configuré (STRIPE_SECRET_KEY absent)")
+
+    import stripe
+    stripe.api_key = os.getenv("STRIPE_SECRET_KEY", "").strip()
+
+    subscription_data = {
+        "metadata": {"synqio_email": email, "synqio_plan": plan},
+    }
+    if cfg["setup"]:
+        subscription_data["add_invoice_items"] = [{
+            "price_data": {
+                "currency": "eur",
+                "unit_amount": cfg["setup"] * 100,
+                "product_data": {"name": f"SynqIO — setup unique ({cfg['label']})"},
+            },
+            "quantity": 1,
+        }]
+
+    session = stripe.checkout.Session.create(
+        mode="subscription",
+        customer_email=email,
+        client_reference_id=email,
+        line_items=[{
+            "price_data": {
+                "currency": "eur",
+                "unit_amount": cfg["monthly"] * 100,
+                "recurring": {"interval": cfg["interval"]},
+                "product_data": {
+                    "name": f"SynqIO {cfg['label']}",
+                    "description": f"{cfg['skus']} — abonnement SynqIO",
+                },
+            },
+            "quantity": 1,
+        }],
+        subscription_data=subscription_data,
+        billing_address_collection="required",
+        tax_id_collection={"enabled": True},
+        allow_promotion_codes=True,
+        locale="auto",
+        metadata={"synqio_email": email, "synqio_plan": plan, "synqio_name": name},
+        success_url=f"{APP_URL}/?signup=success&session_id={{CHECKOUT_SESSION_ID}}",
+        cancel_url=f"{APP_URL}/?signup=cancel&email={email}",
+    )
+    log.info(f"[billing] checkout créé pour {email} — plan {plan} ({session.id})")
+    return session.url

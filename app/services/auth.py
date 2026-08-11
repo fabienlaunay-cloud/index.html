@@ -175,6 +175,7 @@ def list_users() -> list:
     conn = get_db()
     rows = conn.execute(
         """SELECT u.email, u.name, u.is_active, u.is_admin, u.plan, u.agency_enabled, u.created_at,
+                  u.company, u.account_type, u.signup_status,
                   CASE WHEN ac.user_email IS NOT NULL THEN 1 ELSE 0 END AS has_amazon
            FROM users u
            LEFT JOIN amazon_credentials ac ON ac.user_email = u.email
@@ -193,9 +194,13 @@ def delete_user(email: str):
 
 def toggle_user(email: str, active: bool):
     conn = get_db()
-    conn.execute(
-        "UPDATE users SET is_active = ? WHERE email = ?",
-        (1 if active else 0, email.lower()),
-    )
+    if active:
+        # Activation manuelle par l'admin : le compte n'attend plus son paiement
+        conn.execute(
+            "UPDATE users SET is_active = 1, signup_status = 'active' WHERE email = ?",
+            (email.lower(),),
+        )
+    else:
+        conn.execute("UPDATE users SET is_active = 0 WHERE email = ?", (email.lower(),))
     conn.commit()
     conn.close()
