@@ -2592,6 +2592,12 @@ def _render_public_catalog(owner: dict, listings: list, image_urls: dict) -> str
     title = owner.get("title") or (f"Catalogue {brands[0]}" if len(brands) == 1 else "Notre catalogue")
     import datetime as _d
     subtitle = owner.get("subtitle") or f"Collection {_d.date.today().year} — {len(listings)} produits"
+    # Le lecteur peut être anglophone : on prépare la traduction de l'habillage.
+    # Un titre saisi par le client reste tel quel — c'est son texte, pas le nôtre.
+    title_en = title if owner.get("title") else (
+        f"{brands[0]} catalogue" if len(brands) == 1 else "Our catalogue")
+    subtitle_en = subtitle if owner.get("subtitle") else (
+        f"{_d.date.today().year} collection — {len(listings)} products")
     cur = {"amazon_uk": "£", "amazon_pl": "zł", "amazon_se": "kr"}
 
     def product_card(l):
@@ -2602,20 +2608,25 @@ def _render_public_catalog(owner: dict, listings: list, image_urls: dict) -> str
         imgs_attr = e(json.dumps(imgs)) if imgs else ""
         pic = (f'<img src="{e(img)}" alt="" class="zoom" data-imgs="{imgs_attr}" '
                f'data-title="{e(l.get("title") or "")}">' if img
-               else '<div class="noimg">Photo à venir</div>')
+               else '<div class="noimg" data-en="Photo coming soon">Photo à venir</div>')
         return (f'<div class="prd">{pic}<h3>{e(l.get("title") or l.get("sku") or "")}</h3>'
                 + (f'<div class="price">{price:.2f} {sym}</div>' if isinstance(price, (int, float)) else '')
                 + '</div>')
 
     logo = f'<img class="logo" src="{e(owner.get("logo_url") or "")}" alt="">' if owner.get("logo_url") else ''
-    pages = [f'<div class="page cover">{logo}<h1>{e(title)}</h1><p>{e(subtitle)}</p>'
-             f'<span class="hintturn">Cliquez ou utilisez les flèches pour tourner les pages</span></div>']
+    pages = [f'<div class="page cover">{logo}'
+             f'<h1 data-en="{e(title_en)}">{e(title)}</h1>'
+             f'<p data-en="{e(subtitle_en)}">{e(subtitle)}</p>'
+             f'<span class="hintturn" data-en="Click or use the arrows to turn the pages">'
+             f'Cliquez ou utilisez les flèches pour tourner les pages</span></div>']
     for i in range(0, len(listings), 4):
         chunk = listings[i:i + 4]
         pages.append(f'<div class="page">'
                      f'<div class="pgrid">{"".join(product_card(l) for l in chunk)}</div></div>')
-    pages.append(f'<div class="page cover back">{logo}<h1>Merci</h1>{_catalog_contact_html(owner)}'
-                 '<p class="credit">Catalogue généré avec SynqIO</p></div>')
+    pages.append(f'<div class="page cover back">{logo}<h1 data-en="Thank you">Merci</h1>'
+                 f'{_catalog_contact_html(owner)}'
+                 '<p class="credit" data-en="Catalogue generated with SynqIO">'
+                 'Catalogue généré avec SynqIO</p></div>')
     # paper grain overlay on every page
     pages = [p[:-6] + '<i class="gr"></i></div>' for p in pages]
     n = len(pages)
@@ -2705,13 +2716,13 @@ body{{font-family:'Segoe UI',system-ui,sans-serif;background:linear-gradient(125
   <button class="side next" onclick="event.stopPropagation();go(1)">&#8250;</button>
 </div>
 <div class="nav">
-  <button onclick="goStart()" title="Retour au début du catalogue">&#8635; Début</button>
-  <button onclick="go(-1)">&#8249; Précédente</button>
+  <button onclick="goStart()" title="Retour au début du catalogue" data-en-title="Back to the start of the catalogue" data-en="&#8635; Start">&#8635; Début</button>
+  <button onclick="go(-1)" data-en="&#8249; Previous">&#8249; Précédente</button>
   <span class="cnt" id="cnt"></span>
-  <button onclick="go(1)">Suivante &#8250;</button>
-  <button id="snd" onclick="sndMuted=!sndMuted;this.textContent=sndMuted?&#39;Son : coupé&#39;:&#39;Son : activé&#39;" style="font-size:12px;padding:8px 14px">Son : activé</button>
+  <button onclick="go(1)" data-en="Next &#8250;">Suivante &#8250;</button>
+  <button id="snd" onclick="sndToggle()" style="font-size:12px;padding:8px 14px">Son : activé</button>
 </div>
-<div class="lb" id="lb"><button class="x" onclick="lbClose()">&#10005; Fermer</button>
+<div class="lb" id="lb"><button class="x" onclick="lbClose()" data-en="&#10005; Close">&#10005; Fermer</button>
   <img id="lbImg" src="" alt=""><div class="cap" id="lbCap"></div>
   <div class="lnav"><button onclick="lbNav(-1)">&#8249;</button><span class="cnt" id="lbCnt"></span><button onclick="lbNav(1)">&#8250;</button></div>
 </div>
@@ -2856,6 +2867,25 @@ function lbShow(){{document.getElementById('lbImg').src=_lbImgs[_lbIdx];
   document.getElementById('lbCnt').textContent=(_lbIdx+1)+' / '+_lbImgs.length;}}
 function lbNav(d){{_lbIdx=(_lbIdx+d+_lbImgs.length)%_lbImgs.length;lbShow();}}
 function lbClose(){{document.getElementById('lb').classList.remove('open');}}
+</script>
+<script>
+/* ── Langue du lecteur ──────────────────────────────────────────────────────
+   L'habillage suit la langue du navigateur ; le contenu produit reste tel que
+   le client l'a écrit. */
+var CATLANG=(navigator.language||navigator.userLanguage||'fr').toLowerCase().slice(0,2)==='fr'?'fr':'en';
+var TXT={{fr:{{on:'Son : activé',off:'Son : coupé'}},en:{{on:'Sound: on',off:'Sound: off'}}}};
+function sndToggle(){{
+  sndMuted=!sndMuted;
+  document.getElementById('snd').textContent=sndMuted?TXT[CATLANG].off:TXT[CATLANG].on;
+}}
+(function(){{
+  if(CATLANG!=='en')return;
+  document.documentElement.lang='en';
+  document.querySelectorAll('[data-en]').forEach(function(el){{el.textContent=el.getAttribute('data-en');}});
+  document.querySelectorAll('[data-en-title]').forEach(function(el){{el.title=el.getAttribute('data-en-title');}});
+  document.getElementById('snd').textContent=TXT.en.on;
+  document.title=document.querySelector('.cover h1').textContent;
+}})();
 </script>
 </body></html>'''
 

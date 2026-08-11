@@ -4572,7 +4572,18 @@ async function initApp() {
 function showLoginScreen() {
   document.getElementById('login-screen').classList.remove('hidden');
   document.getElementById('app').classList.add('hidden');
+  _agentFab(false);
   closeLoginModal();
+}
+
+/* L'assistant IA est un outil de l'espace client : il ne flotte jamais
+   sur le site vitrine. */
+function _agentFab(show) {
+  if (!show && typeof _closeAgentPanel === 'function') {
+    try { _closeAgentPanel(); } catch (e) { /* panneau pas encore monté */ }
+  }
+  const btn = document.getElementById('agentFloatBtn');
+  if (btn) btn.style.display = show ? 'flex' : 'none';
 }
 
 function showLoginModal() {
@@ -4589,6 +4600,7 @@ function closeLoginModal() {
 function showApp(email) {
   document.getElementById('login-screen').classList.add('hidden');
   document.getElementById('loginModal').classList.add('hidden');
+  _agentFab(true);
   const initial = (email || '?').charAt(0).toUpperCase();
   document.getElementById('userAvatar').textContent = initial;
   document.getElementById('userEmailHeader').textContent = email;
@@ -16357,7 +16369,7 @@ function _laExportBatchCsv() {
 <!-- Floating button -->
 <button id="agentFloatBtn" onclick="_openAgentPanel()"
   title="SynqIO Agent — assistant IA"
-  style="position:fixed;bottom:24px;right:24px;width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#6d28d9);color:white;box-shadow:0 4px 24px rgba(124,58,237,0.45);z-index:300;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:transform .15s,box-shadow .15s"
+  style="position:fixed;bottom:24px;right:24px;width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#6d28d9);color:white;box-shadow:0 4px 24px rgba(124,58,237,0.45);z-index:300;border:none;cursor:pointer;display:none;align-items:center;justify-content:center;transition:transform .15s,box-shadow .15s"
   onmouseover="this.style.transform='scale(1.08)';this.style.boxShadow='0 6px 30px rgba(124,58,237,0.55)'"
   onmouseout="this.style.transform='';this.style.boxShadow='0 4px 24px rgba(124,58,237,0.45)'">
   <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -16446,7 +16458,10 @@ function _openAgentPanel() {
 function _closeAgentPanel() {
   document.getElementById('agentPanel').style.display = 'none';
   document.getElementById('agentOverlay').style.display = 'none';
-  document.getElementById('agentFloatBtn').style.display = 'flex';
+  // La pastille ne revient que dans l'espace client, jamais sur la vitrine
+  const app = document.getElementById('app');
+  const inApp = app && !app.classList.contains('hidden');
+  document.getElementById('agentFloatBtn').style.display = inApp ? 'flex' : 'none';
 }
 
 async function _agentSend() {
