@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="fr"><head><meta charset="UTF-8">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { width:1280px; height:720px; overflow:hidden; font-family:'Segoe UI', system-ui, -apple-system, sans-serif; }
+  .t { width:1280px; height:720px; position:relative; overflow:hidden;
+    background:
+      radial-gradient(700px 520px at 82% 18%, rgba(124,58,237,.45), transparent 60%),
+      radial-gradient(560px 460px at 12% 88%, rgba(255,153,0,.16), transparent 60%),
+      linear-gradient(125deg, #14102e 0%, #2a1f5c 55%, #191243 100%); }
+  .grid { position:absolute; inset:0; opacity:.5;
+    background-image:linear-gradient(rgba(255,255,255,.04) 1px, transparent 1px),
+                     linear-gradient(90deg, rgba(255,255,255,.04) 1px, transparent 1px);
+    background-size:90px 90px; }
+
+  .left { position:absolute; left:56px; top:72px; z-index:10; width:690px; }
+  .brand { display:flex; align-items:center; gap:13px; margin-bottom:24px; }
+  .mark { width:54px; height:54px; border-radius:14px; background:linear-gradient(135deg,#8b5cf6,#4f46e5);
+    display:flex; align-items:center; justify-content:center; box-shadow:0 8px 24px rgba(124,58,237,.6); }
+  .bname { color:#fff; font-size:34px; font-weight:800; letter-spacing:-1px; }
+  h1 { color:#fff; font-size:70px; font-weight:900; line-height:1.04; letter-spacing:-3px;
+    text-shadow:0 6px 30px rgba(0,0,0,.5); }
+  h1 .hl { color:#a78bfa; }
+  .punch { display:inline-block; margin-top:18px; background:linear-gradient(100deg,#ffb020,#ff9900);
+    color:#1a1033; font-size:78px; font-weight:900; letter-spacing:-2px; line-height:1;
+    padding:14px 28px 20px; border-radius:22px; transform:rotate(-2deg);
+    box-shadow:0 18px 50px rgba(255,153,0,.45), inset 0 -5px 0 rgba(0,0,0,.18); }
+  .sub { color:#cfc6ff; font-size:26px; font-weight:600; margin-top:26px; letter-spacing:-.3px; }
+
+  .chip { position:absolute; left:60px; bottom:52px; display:inline-flex; align-items:center; gap:12px;
+    background:rgba(255,255,255,.08); border:2.5px solid rgba(167,139,250,.65); border-radius:16px;
+    padding:11px 22px; color:#e9e4ff; font-size:26px; font-weight:800; letter-spacing:.3px; z-index:10; }
+  .dotg { width:15px; height:15px; border-radius:50%; background:#4ade80; box-shadow:0 0 16px #4ade80; }
+
+  /* Maquette Appstore */
+  .store { position:absolute; right:44px; top:168px; width:480px; z-index:9; transform:rotate(-2deg);
+    filter:drop-shadow(0 32px 62px rgba(0,0,0,.6)); }
+  .win { background:#fff; border-radius:18px; overflow:hidden; }
+  .bar { background:#232f3e; padding:13px 18px; display:flex; align-items:center; gap:10px; }
+  .bar .ttl { color:#fff; font-size:18px; font-weight:700; letter-spacing:-.2px; }
+  .search { margin:16px 18px 12px; display:flex; align-items:center; gap:10px;
+    border:2.5px solid #7c3aed; border-radius:11px; padding:11px 14px; background:#faf8ff; }
+  .search .q { color:#1f2937; font-size:23px; font-weight:800; letter-spacing:-.3px; }
+  .caret { width:2.5px; height:24px; background:#7c3aed; }
+  .res { margin:0 18px 18px; border:2px solid #ede9fe; border-radius:13px; padding:15px;
+    display:flex; gap:14px; align-items:flex-start; background:#fff; box-shadow:0 8px 22px rgba(124,58,237,.13); }
+  .ico { width:56px; height:56px; border-radius:14px; background:linear-gradient(135deg,#8b5cf6,#4f46e5);
+    display:flex; align-items:center; justify-content:center; flex:0 0 56px; }
+  .meta { flex:1; min-width:0; }
+  .nm { color:#111827; font-size:24px; font-weight:900; letter-spacing:-.5px; }
+  .ds { color:#6b7280; font-size:16px; font-weight:600; margin-top:3px; line-height:1.25; }
+  .cta { margin-top:11px; display:inline-block; background:linear-gradient(135deg,#7c3aed,#4f46e5);
+    color:#fff; font-size:17px; font-weight:800; padding:9px 20px; border-radius:9px; }
+  .badge { position:absolute; right:-18px; top:-24px; background:#16a34a; color:#fff;
+    font-size:21px; font-weight:900; padding:9px 18px; border-radius:12px; transform:rotate(4deg);
+    box-shadow:0 12px 30px rgba(22,163,74,.55); letter-spacing:.4px; }
+</style></head>
+<body>
+<div class="t">
+  <div class="grid"></div>
+
+  <div class="left">
+    <div class="brand">
+      <div class="mark">
+        <svg viewBox="0 0 24 24" fill="none" width="30" height="30"><path d="M12 2L2 7l10 5 10-5-10-5z" stroke="#fff" stroke-width="2" stroke-linejoin="round"/><path d="M2 17l10 5 10-5M2 12l10 5 10-5" stroke="#fff" stroke-width="2" stroke-linejoin="round"/></svg>
+      </div>
+      <span class="bname">SynqIO</span>
+    </div>
+    <h1>On est <span class="hl">référencés</span><br>chez Amazon</h1>
+    <div class="punch">L'APPSTORE</div>
+    <div class="sub">Visible par tous les vendeurs Amazon</div>
+  </div>
+
+  <div class="chip"><span class="dotg"></span>Seller Central → Découvrir des applications</div>
+
+  <div class="store">
+    <div class="badge">EN LIGNE</div>
+    <div class="win">
+      <div class="bar">
+        <span class="ttl">Applications et services</span>
+      </div>
+      <div class="search">
+        <svg viewBox="0 0 24 24" fill="none" width="21" height="21" stroke="#7c3aed" stroke-width="3" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.5" y2="16.5"/></svg>
+        <span class="q">SynqIO</span><span class="caret"></span>
+      </div>
+      <div class="res">
+        <div class="ico">
+          <svg viewBox="0 0 24 24" fill="none" width="30" height="30"><path d="M12 2L2 7l10 5 10-5-10-5z" stroke="#fff" stroke-width="2" stroke-linejoin="round"/><path d="M2 17l10 5 10-5M2 12l10 5 10-5" stroke="#fff" stroke-width="2" stroke-linejoin="round"/></svg>
+        </div>
+        <div class="meta">
+          <div class="nm">SynqIO — MarketplaceAI</div>
+          <div class="ds">Fiches produits optimisées COSMO,<br>visuels IA et push direct SP-API</div>
+          <span class="cta">Autoriser</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</body></html>
