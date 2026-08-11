@@ -327,9 +327,24 @@
         <p id="signupSub" class="text-white/50 mt-1 text-sm">Étape 1 sur 2 — vos informations</p>
       </div>
 
-      <div class="flex gap-2 mb-6">
+      <div id="signupBars" class="flex gap-2 mb-6">
         <div id="signupBar1" class="h-1 flex-1 rounded-full gradient-bg"></div>
         <div id="signupBar2" class="h-1 flex-1 rounded-full gradient-bg" style="opacity:.25"></div>
+      </div>
+
+      <!-- Offre déjà choisie depuis la page de tarifs -->
+      <div id="suChosen" class="hidden rounded-2xl p-4 mb-5" style="background:rgba(124,58,237,0.14);border:1px solid rgba(167,139,250,0.3)">
+        <div class="flex items-baseline justify-between gap-3">
+          <div>
+            <p class="text-white/50 text-xs">Offre choisie</p>
+            <p id="suChosenLabel" class="text-white font-bold text-lg leading-tight">—</p>
+          </div>
+          <div class="text-right">
+            <p id="suChosenTotal" class="text-white font-black text-xl leading-tight">—</p>
+            <button onclick="_suChangePlan()" class="text-purple-300 hover:text-white text-xs font-semibold underline transition">Changer d'offre</button>
+          </div>
+        </div>
+        <p id="suChosenDetail" class="text-white/50 text-xs mt-2"></p>
       </div>
 
       <div id="signupError" class="hidden mb-4 bg-red-500/20 border border-red-500/30 rounded-xl px-4 py-3 text-red-300 text-sm text-center"></div>
@@ -379,7 +394,10 @@
           <input id="suTerms" type="checkbox" class="mt-0.5 w-4 h-4 accent-purple-500 flex-shrink-0">
           <span>J'accepte les <a href="/cgu.html" target="_blank" class="text-purple-300 underline">Conditions Générales d'Utilisation</a> et la <a href="/politique-confidentialite.html" target="_blank" class="text-purple-300 underline">politique de confidentialité</a> de SynqIO.</span>
         </label>
-        <button onclick="suNext()" class="btn-login w-full text-white rounded-xl py-3.5 font-semibold text-base shadow-lg mt-2">Continuer — choisir mon offre →</button>
+        <button id="suNextBtn" onclick="suNext()" class="btn-login w-full text-white rounded-xl py-3.5 font-semibold text-base shadow-lg mt-2">Continuer — choisir mon offre →</button>
+        <p id="suDirectNote" class="hidden text-white/35 text-[11px] text-center leading-relaxed">
+          Paiement sécurisé par Stripe — carte bancaire ou prélèvement SEPA. Vous recevez votre facture et un email de confirmation dès l'encaissement.
+        </p>
         <div class="text-center pt-2">
           <button onclick="closeSignup();showLoginModal()" class="text-white/50 hover:text-white text-xs font-semibold transition">Déjà client ? Se connecter</button>
         </div>
@@ -1049,7 +1067,7 @@
           <!-- STRIPE_MAINTENANCE_LINK -->
           <button onclick="openSignup('maintenance')"
              class="block w-full text-center py-3 rounded-2xl font-semibold transition text-sm gradient-bg text-white hover:opacity-90">
-               Commencer — 99 €/mois
+               Commencer — 1 188 € pour 12 mois
              </button>
         </div>
       </div>
@@ -5315,15 +5333,47 @@ function showLoginError(msg) {
    du webhook de paiement : rien n'ouvre l'accès côté navigateur. */
 
 let _suPlans = [], _suPlan = '', _suType_ = 'brand';
+/* Vrai quand l'offre vient d'une carte de tarifs : le client a déjà choisi,
+   on ne lui repropose pas l'étape « choisir mon offre ». */
+let _suPreset = false;
 
 function openSignup(plan) {
   document.getElementById('loginModal').classList.add('hidden');
   document.getElementById('signupModal').classList.remove('hidden');
   document.body.style.overflow = 'hidden';
   _suErr(''); _suNotice('');
+  _suPreset = !!plan;
   if (plan) _suPlan = plan;
   _signupStep(1);
   _suLoadPlans();
+}
+
+/* Repasse en mode « je choisis » : on rend l'étape 2 au client. */
+function _suChangePlan() {
+  _suPreset = false;
+  _suApplyMode();
+  _signupStep(2);
+}
+
+/* Ajuste l'écran selon qu'une offre est déjà retenue ou non. */
+function _suApplyMode() {
+  const chosen = document.getElementById('suChosen');
+  const bars = document.getElementById('signupBars');
+  const next = document.getElementById('suNextBtn');
+  const note = document.getElementById('suDirectNote');
+  chosen.classList.toggle('hidden', !_suPreset);
+  bars.classList.toggle('hidden', _suPreset);
+  note.classList.toggle('hidden', !_suPreset);
+  next.textContent = _suPreset ? 'Payer et activer mon compte →' : 'Continuer — choisir mon offre →';
+  if (_suPreset) _suFillChosen();
+}
+
+function _suFillChosen() {
+  const p = _suPlans.find(x => x.slug === _suPlan);
+  if (!p) return;
+  document.getElementById('suChosenLabel').textContent = p.label;
+  document.getElementById('suChosenTotal').textContent = `${_eur(p.first_payment)} €`;
+  document.getElementById('suChosenDetail').textContent = _suRecapText(p);
 }
 
 function closeSignup() {
@@ -5347,11 +5397,32 @@ function _suNotice(msg) {
 function _signupStep(n) {
   document.getElementById('signupStep1').classList.toggle('hidden', n !== 1);
   document.getElementById('signupStep2').classList.toggle('hidden', n !== 2);
-  document.getElementById('signupSub').textContent = n === 1
-    ? 'Étape 1 sur 2 — vos informations'
-    : 'Étape 2 sur 2 — votre offre';
+  document.getElementById('signupSub').textContent = _suPreset
+    ? 'Vos informations, et c\'est parti'
+    : (n === 1 ? 'Étape 1 sur 2 — vos informations' : 'Étape 2 sur 2 — votre offre');
   document.getElementById('signupBar2').style.opacity = n === 2 ? '1' : '.25';
   document.getElementById('signupModal').scrollTop = 0;
+}
+
+/* 1188 → « 1 188 ». Espace simple volontaire : toLocaleString utilise une
+   espace insécable étroite que la couche bilingue ne reconnaîtrait pas. */
+function _eur(n) { return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ' '); }
+
+/* Détail du premier paiement, partagé par le bloc « offre choisie » et le
+   récapitulatif de l'étape 2. */
+function _suRecapText(p) {
+  if (p.interval === 'year') {
+    const bits = [`${_eur(p.amount)} € réglés aujourd'hui pour 12 mois (${_eur(p.monthly)} €/mois)`];
+    if (p.setup) bits.unshift(`${_eur(p.setup)} € de setup unique`);
+    bits.push('renouvellement annuel');
+    return bits.join(' · ');
+  }
+  const bits = [];
+  if (p.setup) bits.push(`${_eur(p.setup)} € de setup unique + ${_eur(p.monthly)} € pour le premier mois`);
+  else bits.push(`${_eur(p.monthly)} € pour le premier mois`);
+  bits.push(`puis ${_eur(p.monthly)} €/mois`);
+  bits.push(p.commitment_months ? `engagement ${p.commitment_months} mois` : 'sans engagement');
+  return bits.join(' · ');
 }
 
 function _suType(t) {
@@ -5361,7 +5432,7 @@ function _suType(t) {
 }
 
 async function _suLoadPlans() {
-  if (_suPlans.length) { _suRenderPlans(); return; }
+  if (_suPlans.length) { _suRenderPlans(); _suApplyMode(); return; }
   try {
     const r = await fetch(`${API}/api/auth/plans`);
     const d = await r.json();
@@ -5371,6 +5442,7 @@ async function _suLoadPlans() {
       _suPlan = rec ? rec.slug : (_suPlans[0] || {}).slug || '';
     }
     _suRenderPlans();
+    _suApplyMode();
   } catch (e) { _suErr('Impossible de charger les offres — réessayez dans un instant'); }
 }
 
@@ -5386,9 +5458,10 @@ function _suRenderPlans() {
         </div>
         ${p.recommended ? '<span class="text-[10px] font-bold text-white px-2 py-1 rounded-full gradient-bg whitespace-nowrap">Recommandé</span>' : '<span class="tick text-purple-300 text-lg leading-none">●</span>'}
       </div>
-      <p class="text-white font-black text-2xl mt-2">${p.monthly} €<span class="text-white/40 font-normal text-sm">/${p.interval === 'year' ? 'an' : 'mois'}</span></p>
+      <p class="text-white font-black text-2xl mt-2">${_eur(p.monthly)} €<span class="text-white/40 font-normal text-sm">/mois</span></p>
       <p class="text-purple-300 text-xs font-semibold mt-1">${p.skus}</p>
-      ${p.setup ? `<p class="text-white/40 text-xs mt-1">+ ${p.setup} € de setup unique</p>` : '<p class="text-white/40 text-xs mt-1">Sans frais de setup</p>'}
+      ${p.billing_note ? `<p class="text-amber-300/80 text-xs mt-1">${p.billing_note}</p>` : ''}
+      ${p.setup ? `<p class="text-white/40 text-xs mt-1">+ ${_eur(p.setup)} € de setup unique</p>` : '<p class="text-white/40 text-xs mt-1">Sans frais de setup</p>'}
       <ul class="mt-3 space-y-1">
         ${p.features.map(f => `<li class="text-white/55 text-xs flex gap-2"><span class="text-green-400">✓</span>${f}</li>`).join('')}
       </ul>
@@ -5401,15 +5474,8 @@ function _suPickPlan(slug) {
   document.querySelectorAll('[data-plan]').forEach(b => b.classList.toggle('on', b.dataset.plan === slug));
   const p = _suPlans.find(x => x.slug === slug);
   if (!p) return;
-  document.getElementById('suRecapTotal').textContent = `${p.first_payment} €`;
-  const per = p.interval === 'year' ? 'an' : 'mois';
-  const bits = [];
-  if (p.setup) bits.push(`${p.setup} € de setup unique + ${p.monthly} € pour le premier ${per}`);
-  else bits.push(`${p.monthly} € pour le premier ${per}`);
-  bits.push(`puis ${p.monthly} €/${per}`);
-  if (p.commitment_months) bits.push(`engagement ${p.commitment_months} mois`);
-  else bits.push('sans engagement');
-  document.getElementById('suRecapDetail').textContent = bits.join(' · ');
+  document.getElementById('suRecapTotal').textContent = `${_eur(p.first_payment)} €`;
+  document.getElementById('suRecapDetail').textContent = _suRecapText(p);
 }
 
 function suNext() {
@@ -5428,13 +5494,16 @@ function suNext() {
   if (!document.getElementById('suTerms').checked) {
     _suErr("Vous devez accepter les conditions d'utilisation pour continuer"); return;
   }
+  // Offre déjà retenue depuis la page de tarifs : on file au paiement
+  if (_suPreset) { doSignup(); return; }
   _signupStep(2);
 }
 
 async function doSignup() {
   _suErr(''); _suNotice('');
   if (!_suPlan) { _suErr('Choisissez une offre'); return; }
-  const btn = document.getElementById('suPayBtn');
+  // En mode « offre déjà choisie » le paiement part du bouton de l'étape 1
+  const btn = document.getElementById(_suPreset ? 'suNextBtn' : 'suPayBtn');
   btn.disabled = true; btn.textContent = 'Création du compte…';
   try {
     const r = await fetch(`${API}/api/auth/register`, {
@@ -5454,7 +5523,9 @@ async function doSignup() {
     if (!r.ok) throw new Error(data.detail || 'Erreur lors de la création du compte');
     if (data.checkout_url) { btn.textContent = 'Redirection vers le paiement…'; window.location.href = data.checkout_url; return; }
     // Paiement en ligne indisponible : le compte reste en attente, l'équipe prend le relais
+    document.getElementById('signupStep1').classList.add('hidden');
     document.getElementById('signupStep2').classList.add('hidden');
+    document.getElementById('suChosen').classList.add('hidden');
     _suNotice(data.message || "Votre compte est créé. Notre équipe vous contacte pour finaliser l'inscription.");
   } catch (e) {
     _suErr(e.message);

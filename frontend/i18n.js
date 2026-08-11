@@ -497,7 +497,7 @@ SQI18N.add({
 "Colonnes à assigner (": "Columns to assign (",
 "Commencer — 1 990 € setup": "Get started — €{n} setup",
 "Commencer — 490 € setup": "Get started — €{n} setup",
-"Commencer — 99 €/mois": "Get started — €{n}/month",
+"Commencer — 1 188 € pour 12 mois": "Get started — €{n} for {n} months",
 "Commencer — 990 € setup": "Get started — €{n} setup",
 "Comment appliquer sur Amazon :": "How to apply on Amazon:",
 "Comment connecter mon Seller Central ?": "How do I connect my Seller Central?",
@@ -1970,6 +1970,11 @@ SQI18N.add({
 "Plus de 2 000 SKU, un besoin sur mesure ou une question avant de payer ?": "More than {n} SKUs, a bespoke need or a question before paying?",
 "— on construit l'offre avec vous, sans engagement.": "— we build the plan with you, no commitment.",
 "Continuer — choisir mon offre →": "Continue — choose my plan →",
+"Vos informations, et c'est parti": "Your details, and you're set",
+"Offre choisie": "Chosen plan",
+"Changer d'offre": "Change plan",
+"facturé 1 188 € par an, en une fois": "billed €{n} per year, in one payment",
+"1 188 € réglés aujourd'hui pour 12 mois (99 €/mois) · renouvellement annuel": "€{n} paid today for {n} months (€{n}/month) · renews annually",
 "Déjà client ? Se connecter": "Already a client? Sign in",
 "Nous contacter": "Contact us",
 "Premier paiement": "First payment",
@@ -2026,12 +2031,13 @@ SQI18N.add({
 "Commencer — 490 € setup": "Get started — €{n} setup",
 "Commencer — 990 € setup": "Get started — €{n} setup",
 "Commencer — 1 990 € setup": "Get started — €{n} setup",
-"Commencer — 99 €/mois": "Get started — €{n}/month"
+"Commencer — 1 188 € pour 12 mois": "Get started — €{n} for {n} months"
 });
 
 SQI18N.add({
 "+ 490 € de setup unique": "+ €{n} one-off setup",
 "990 € de setup unique + 790 € pour le premier mois · puis 790 €/mois · engagement 3 mois": "€{n} one-off setup + €{n} for the first month · then €{n}/month · {n}-month commitment",
+"1 990 € de setup unique + 1 490 € pour le premier mois · puis 1 490 €/mois · engagement 6 mois": "€{n} one-off setup + €{n} for the first month · then €{n}/month · {n}-month commitment",
 "490 € de setup unique + 390 € pour le premier mois · puis 390 €/mois · sans engagement": "€{n} one-off setup + €{n} for the first month · then €{n}/month · no commitment",
 "99 € pour le premier mois · puis 99 €/mois · engagement 12 mois": "€{n} for the first month · then €{n}/month · {n}-month commitment",
 "99 € pour le premier mois · puis 99 €/mois · sans engagement": "€{n} for the first month · then €{n}/month · no commitment"

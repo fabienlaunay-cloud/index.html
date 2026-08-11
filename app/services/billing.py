@@ -14,12 +14,18 @@ APP_URL = os.getenv("APP_URL", "https://synqio.io")
 
 
 # ── Catalogue d'offres ───────────────────────────────────────────────────────
-# monthly / setup en euros · interval = période de facturation de l'abonnement
+# monthly  : prix affiché au client (toujours ramené au mois)
+# amount   : montant réellement prélevé à chaque échéance
+# interval : périodicité du prélèvement ("month" ou "year")
+# setup    : frais uniques ajoutés à la première facture
+#
+# Pro / Maintenance est un abonnement ANNUEL : 99 €/mois affichés, mais
+# 12 × 99 = 1 188 € encaissés en une seule fois à la souscription.
 SIGNUP_PLANS: dict[str, dict] = {
     "maintenance": {
         "label": "Pro / Maintenance",
         "tagline": "Marque établie, catalogue stable",
-        "monthly": 99, "setup": 0, "interval": "month",
+        "monthly": 99, "amount": 1188, "setup": 0, "interval": "year",
         "skus": "100 SKU / an", "commitment_months": 12,
         "features": [
             "100 SKU par an (pool annuel)",
@@ -31,7 +37,7 @@ SIGNUP_PLANS: dict[str, dict] = {
     "starter": {
         "label": "Starter",
         "tagline": "Sans engagement",
-        "monthly": 390, "setup": 490, "interval": "month",
+        "monthly": 390, "amount": 390, "setup": 490, "interval": "month",
         "skus": "200 SKU / mois", "commitment_months": 0,
         "features": [
             "200 SKU par mois",
@@ -43,7 +49,7 @@ SIGNUP_PLANS: dict[str, dict] = {
     "business": {
         "label": "Business",
         "tagline": "Engagement 3 mois",
-        "monthly": 790, "setup": 990, "interval": "month",
+        "monthly": 790, "amount": 790, "setup": 990, "interval": "month",
         "skus": "600 SKU / mois", "commitment_months": 3,
         "recommended": True,
         "features": [
@@ -57,7 +63,7 @@ SIGNUP_PLANS: dict[str, dict] = {
     "scale": {
         "label": "Scale",
         "tagline": "Engagement 6 mois",
-        "monthly": 1490, "setup": 1990, "interval": "month",
+        "monthly": 1490, "amount": 1490, "setup": 1990, "interval": "month",
         "skus": "1 500 SKU / mois", "commitment_months": 6,
         "features": [
             "1 500 SKU par mois",
@@ -72,22 +78,32 @@ SIGNUP_PLANS: dict[str, dict] = {
 ACCOUNT_TYPES = {"brand", "agency", "reseller", "other"}
 
 
+def _eur(n: int) -> str:
+    """1188 → « 1 188 ». Espace simple : la couche bilingue du front ne
+    reconnaît pas l'espace insécable étroite des locales système."""
+    return f"{n:,}".replace(",", " ")
+
+
 def public_plans() -> list[dict]:
     """Catalogue exposé au tunnel d'inscription (sans détail interne)."""
     out = []
     for slug, p in SIGNUP_PLANS.items():
+        annual = p["interval"] == "year"
         out.append({
             "slug": slug,
             "label": p["label"],
             "tagline": p["tagline"],
             "monthly": p["monthly"],
+            "amount": p["amount"],
             "setup": p["setup"],
             "interval": p["interval"],
             "skus": p["skus"],
             "commitment_months": p["commitment_months"],
             "recommended": bool(p.get("recommended")),
             "features": p["features"],
-            "first_payment": p["monthly"] + p["setup"],
+            # ce que le client règle immédiatement
+            "first_payment": p["amount"] + p["setup"],
+            "billing_note": (f"facturé {_eur(p['amount'])} € par an, en une fois" if annual else ""),
         })
     # ordre d'affichage : du plus léger au plus complet
     order = ["maintenance", "starter", "business", "scale"]
@@ -135,11 +151,17 @@ def create_checkout_session(email: str, plan: str, name: str = "") -> str:
         line_items=[{
             "price_data": {
                 "currency": "eur",
-                "unit_amount": cfg["monthly"] * 100,
+                # amount = ce qui est prélevé par échéance : 1 188 € en une fois
+                # pour l'offre annuelle, le mensuel pour les autres.
+                "unit_amount": cfg["amount"] * 100,
                 "recurring": {"interval": cfg["interval"]},
                 "product_data": {
                     "name": f"SynqIO {cfg['label']}",
-                    "description": f"{cfg['skus']} — abonnement SynqIO",
+                    "description": (
+                        f"{cfg['skus']} — abonnement annuel SynqIO ({cfg['monthly']} €/mois)"
+                        if cfg["interval"] == "year"
+                        else f"{cfg['skus']} — abonnement SynqIO"
+                    ),
                 },
             },
             "quantity": 1,
