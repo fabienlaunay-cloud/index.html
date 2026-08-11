@@ -313,6 +313,7 @@
       <div class="flex items-center gap-4">
         <a href="/integrations.html" class="text-gray-500 hover:text-gray-900 text-sm font-medium transition hidden sm:block">Intégrations</a>
         <a href="https://calendly.com/fl-synqio/30min" target="_blank" class="text-gray-500 hover:text-gray-900 text-sm font-medium transition hidden sm:block">Réserver une démo</a>
+        <div data-lang-switch></div>
         <button onclick="showLoginModal()" class="btn-login px-5 py-2.5 rounded-xl text-white text-sm font-semibold shadow">Se connecter →</button>
       </div>
     </div>
@@ -1214,6 +1215,9 @@
           <div onclick="toggleMkt('amazon_be')" class="mkt-item flex items-center gap-3 px-4 py-2 text-sm text-white hover:bg-white/10 cursor-pointer rounded-lg mx-1" data-mkt="amazon_be"><span class="w-4 h-4 rounded border border-white/40 flex items-center justify-center flex-shrink-0 mkt-check" id="mkt-check-amazon_be"></span>🇧🇪 Belgique</div>
         </div>
       </div>
+
+      <!-- Langue -->
+      <div data-lang-switch="dark"></div>
 
       <!-- User menu -->
       <div class="relative">
@@ -3018,6 +3022,7 @@
       </div>
       <div class="flex items-center gap-2">
         <span id="adminEmailBadge" class="text-xs hidden sm:block" style="color:rgba(255,255,255,0.4)"></span>
+        <div data-lang-switch="dark"></div>
         <button onclick="showMainApp()" class="text-sm px-4 py-1.5 rounded-lg font-medium transition" style="background:rgba(255,255,255,0.08);color:rgba(255,255,255,0.8);border:1px solid rgba(255,255,255,0.12)">← Utiliser l'app</button>
         <button onclick="doLogout()" class="text-sm px-4 py-1.5 rounded-lg font-medium transition" style="background:rgba(220,38,38,0.15);color:#fca5a5;border:1px solid rgba(220,38,38,0.2)">Déconnexion</button>
       </div>
@@ -16566,6 +16571,10 @@ function _copyCobrowseCode() {
   }
 }
 </script>
+
+
+<!-- Couche bilingue FR / EN -->
+<script src="/i18n.js"></script>
 
 </body>
 </html>

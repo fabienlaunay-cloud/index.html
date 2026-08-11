@@ -302,6 +302,14 @@ async def sitemap():
         return Response(content=f.read(), media_type="application/xml")
 
 
+@app.get("/i18n.js", include_in_schema=False)
+async def i18n_js():
+    """Couche bilingue FR/EN — servie aussi côté Railway (Netlify la sert en direct)."""
+    with open("frontend/i18n.js", "r", encoding="utf-8") as f:
+        return Response(content=f.read(), media_type="application/javascript",
+                        headers={"Cache-Control": "public, max-age=300"})
+
+
 def _gather_catalog_for_scan(email: str) -> list:
     """Merge the live SP-API catalog (what is actually published — title/ean/status)
     with the richest generated listing per SKU (bullets/keywords/description). Each
