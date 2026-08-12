@@ -2053,5 +2053,54 @@ SQI18N.add({
 "99 € pour le premier mois · puis 99 €/mois · sans engagement": "€{n} for the first month · then €{n}/month · no commitment"
 });
 
+/* ── Dictionnaire : section « Tout ce qui est inclus » ───────────────────── */
+SQI18N.add({
+"Tout ce qui est inclus": "Everything that's included",
+"Quatre temps : créer, contrôler, publier, piloter — sur la même fiche, sans changer d'outil": "Four moments: create, check, publish, steer — on the same listing, without switching tools",
+"Créer": "Create",
+"Contrôler": "Check",
+"Publier & distribuer": "Publish & distribute",
+"Piloter": "Steer",
+"Import CSV, Excel, JSON ou PDF fournisseur": "Import CSV, Excel, JSON or supplier PDF",
+"Import Google Drive — fichier + dossier photos": "Google Drive import — file + photo folder",
+"Import depuis l'URL de votre site e‑commerce": "Import from your e‑commerce site URL",
+"Import depuis une URL produit Amazon": "Import from an Amazon product URL",
+"Génération IA : titre, bullets, description, keywords backend": "AI generation: title, bullets, description, backend keywords",
+"7 visuels IA par produit — fond blanc, lifestyle, infographie": "{n} AI visuals per product — white background, lifestyle, infographic",
+"Vos photos, 100 % IA, ou hybride : vous choisissez": "Your photos, {n} % AI, or hybrid: you choose",
+"Variations parent‑enfant — tailles, couleurs, bundles": "Parent‑child variations — sizes, colours, bundles",
+"Multi‑marketplace FR, DE, IT, ES, UK en un seul lot": "Multi‑marketplace FR, DE, IT, ES, UK in a single batch",
+"Voix de marque : ton, mots signature, mots à éviter": "Brand voice: tone, signature words, words to avoid",
+"Gardien de conformité — vos fiches en ligne surveillées": "Compliance guardian — your live listings monitored",
+"Mots interdits et mots à risque détectés avant publication": "Banned and risky words caught before publishing",
+"Limites Amazon vérifiées caractère par caractère": "Amazon limits checked character by character",
+"Score SEO sur 100, fiche par fiche": "SEO score out of {n}, listing by listing",
+"Audit du compte entier et fiches les plus faibles": "Whole-account audit and weakest listings",
+"Couverture des mots-clés : présents ou absents, où": "Keyword coverage: present or missing, and where",
+"Migration des titres à la norme ≤ 75 car. du 27/07/2026": "Title migration to the ≤ {n} char. standard of 07/27/2026",
+"Alerte email dès qu'une fiche décroche": "Email alert as soon as a listing slips",
+"Attributs de catégorie et exemption GTIN gérés": "Category attributes and GTIN exemption handled",
+"Push direct dans Seller Central via l'API officielle SP‑API": "Direct push into Seller Central through the official SP‑API",
+"Flat File, Listing Loader et pack Seller Central prêts": "Flat File, Listing Loader and Seller Central pack ready",
+"Connecteurs Shopify et WooCommerce — push en brouillon": "Shopify and WooCommerce connectors — push as drafts",
+"Exports PrestaShop, Akeneo, eBay, Cdiscount, TikTok Shop": "PrestaShop, Akeneo, eBay, Cdiscount, TikTok Shop exports",
+"Flux Google Merchant Center permanent": "Permanent Google Merchant Center feed",
+"API REST documentée et clés révocables": "Documented REST API and revocable keys",
+"Webhooks signés HMAC à chaque génération": "HMAC-signed webhooks on every generation",
+"Catalogue en ligne feuilletable, partageable par lien": "Page-turning online catalogue, shareable by link",
+"Catalogue intégrable en iframe sur votre site": "Catalogue embeddable as an iframe on your site",
+"Médiathèque — toutes vos images par produit, réutilisables": "Media library — every image per product, reusable",
+"Bibliothèque de textes — titres, bullets, descriptions": "Copy library — titles, bullets, descriptions",
+"Suivi post‑publication : sessions, conversion, revenus": "Post‑publication tracking: sessions, conversion, revenue",
+"Test A/B des titres, deux angles générés en parallèle": "A/B title testing, two angles generated in parallel",
+"Veille concurrentielle sur les prix": "Competitor price monitoring",
+"Analyse des avis négatifs de vos produits": "Analysis of your products' negative reviews",
+"Import du rapport de ventes et croisement au catalogue": "Sales report import, matched against the catalogue",
+"Espaces client cloisonnés pour les agences": "Partitioned client workspaces for agencies",
+"Assistant IA et aide en direct dans l'application": "AI assistant and live help inside the app",
+"Médiathèque — vos photos + visuels IA": "Media library — your photos + AI visuals",
+"Médiathèque produit": "Product media library"
+});
+
 /* Démarrage — après le chargement de tous les blocs de dictionnaire. */
 SQI18N.boot();
