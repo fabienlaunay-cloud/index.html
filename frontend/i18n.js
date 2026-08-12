@@ -181,7 +181,9 @@
     'box-shadow:0 2px 8px rgba(124,58,237,.35)}' +
     '.sq-lang.on-dark{border-color:rgba(255,255,255,.14);background:rgba(255,255,255,.06)}' +
     '.sq-lang.on-dark button{color:rgba(255,255,255,.62)}' +
-    '.sq-lang.on-dark button:hover{color:#fff}';
+    '.sq-lang.on-dark button:hover{color:#fff}' +
+    /* cible tactile confortable sur téléphone */
+    '@media (pointer: coarse){.sq-lang button{padding:8px 13px;font-size:12px}}';
 
   function injectCss() {
     if (document.getElementById('sq-lang-css')) return;
