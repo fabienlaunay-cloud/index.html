@@ -208,7 +208,13 @@ from fastapi.exceptions import RequestValidationError
 
 @app.exception_handler(404)
 async def not_found_handler(request: Request, exc):
-    return JSONResponse(status_code=404, content={"detail": "Ressource introuvable"})
+    # Une route inconnue n'a pas de detail : on met le libellé générique.
+    # Mais un 404 levé volontairement dans un handler en porte un, et il est
+    # bien plus utile que « Ressource introuvable » — on le conserve.
+    detail = getattr(exc, "detail", None)
+    if not detail or detail == "Not Found":  # 404 par défaut de Starlette
+        detail = "Ressource introuvable"
+    return JSONResponse(status_code=404, content={"detail": detail})
 
 @app.exception_handler(500)
 async def server_error_handler(request: Request, exc):
@@ -5410,6 +5416,7 @@ async def reviews_fetch(asin: str, marketplace: str = "amazon_fr"):
 
     reviews: list[str] = []
     blocked = False
+    saw_review_markup = False  # la page contenait-elle vraiment des avis ?
 
     async with httpx.AsyncClient(timeout=20, headers=headers, follow_redirects=True) as client:
         for star_filter in ("one_star", "two_star"):
@@ -5434,6 +5441,8 @@ async def reviews_fetch(asin: str, marketplace: str = "amazon_fr"):
 
                     # Extract review body text
                     # Amazon wraps each review in: data-hook="review-body"...<span>text</span>
+                    if 'data-hook="review' in html or "data-hook='review" in html:
+                        saw_review_markup = True
                     chunks = _re_rv.findall(
                         r'data-hook=["\']review-body["\'][^>]*>.*?<span[^>]*>(.*?)</span>',
                         html, _re_rv.DOTALL
@@ -5456,10 +5465,29 @@ async def reviews_fetch(asin: str, marketplace: str = "amazon_fr"):
             if blocked or len(reviews) >= 60:
                 break
 
-    if blocked:
+    # Le scrape direct échoue souvent : Amazon sert désormais les avis derrière
+    # du JavaScript. Si une clé Apify est configurée, on repasse par elle plutôt
+    # que d'annoncer à tort « aucun avis négatif ».
+    if not reviews and os.getenv("APIFY_TOKEN"):
+        try:
+            products = await _apify_run_and_fetch([asin], marketplace, 50)
+            for p in products:
+                if p.get("asin", "").upper() == asin:
+                    reviews = list(p.get("reviews") or [])
+                    break
+            if reviews:
+                return {"reviews": reviews, "count": len(reviews), "asin": asin,
+                        "source": "apify"}
+        except HTTPException:
+            pass  # on retombe sur les messages ci-dessous
+        except Exception as exc:
+            log.error(f"[reviews] repli Apify impossible pour {asin} : {exc}")
+
+    if blocked or (not reviews and not saw_review_markup):
         raise HTTPException(
             503,
-            "BLOCKED: Amazon bloque les requêtes automatisées depuis ce serveur."
+            "BLOCKED: Amazon n'a pas laissé lire les avis depuis ce serveur. "
+            "Ouvrez la page des avis et collez-les manuellement."
         )
     if not reviews:
         raise HTTPException(
@@ -5468,7 +5496,8 @@ async def reviews_fetch(asin: str, marketplace: str = "amazon_fr"):
             + asin + "). Le produit n'a peut-être pas encore d'avis négatifs."
         )
 
-    return {"reviews": reviews, "count": len(reviews), "asin": asin}
+    return {"reviews": reviews, "count": len(reviews), "asin": asin,
+            "source": "scrape"}
 
 
 # ── Apify-backed review fetch (proxy infrastructure → no IP blocking) ────────────
