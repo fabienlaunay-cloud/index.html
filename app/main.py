@@ -3761,6 +3761,60 @@ _AMAZON_HEADERS = {
 }
 
 
+_BOT_SIGNALS = (
+    "api.security-challenge.aws.com",
+    "enter the characters you see below",
+    "robot or an automated system",
+    "captcha",
+    "px-captcha",
+)
+
+
+def _looks_blocked(html_text: str) -> bool:
+    low = html_text.lower()
+    return any(sig in low for sig in _BOT_SIGNALS)
+
+
+async def _fetch_amazon_html(url: str, timeout: float = 12.0) -> str:
+    """Récupère une page Amazon publique. Renvoie '' si l'accès est refusé —
+    Amazon bloque volontiers les requêtes serveur, l'appelant doit le prévoir."""
+    candidates = [url]
+    dp_m = re.search(r"/dp/([A-Z0-9]{10})", url)
+    if dp_m:
+        base = re.match(r"(https?://[^/]+)", url)
+        if base:
+            candidates.insert(0, f"{base.group(1)}/dp/{dp_m.group(1)}")
+    for candidate in candidates:
+        try:
+            async with httpx.AsyncClient(follow_redirects=True, timeout=timeout,
+                                         headers=_AMAZON_HEADERS) as client:
+                resp = await client.get(candidate)
+                resp.raise_for_status()
+                if resp.text and not _looks_blocked(resp.text):
+                    return resp.text
+        except Exception:
+            continue
+    return ""
+
+
+_ASIN_RE = re.compile(r"(?:data-asin=\"|/dp/|/gp/product/)([A-Z0-9]{10})")
+
+
+def _extract_asins(html_text: str, limit: int = 60) -> list[str]:
+    """Liste ordonnée et dédoublonnée des ASIN présents dans une page publique
+    (résultats de recherche, page vendeur, vitrine de marque)."""
+    seen, out = set(), []
+    for m in _ASIN_RE.finditer(html_text or ""):
+        a = m.group(1).upper()
+        if a in seen or not a.startswith("B"):
+            continue
+        seen.add(a)
+        out.append(a)
+        if len(out) >= limit:
+            break
+    return out
+
+
 @app.post("/api/audit/prefill")
 async def audit_prefill(request: Request):
     """Scrape an Amazon product URL, OR parse raw HTML if html_content is provided."""
@@ -3833,6 +3887,96 @@ async def audit_prefill(request: Request):
             "BLOCKED",  # same fallback — page likely JS-rendered
         )
     return {**data, "source": "url_scrape"}
+
+
+class StoreScanRequest(BaseModel):
+    url: str = ""
+    html_content: str = ""
+    marketplace: str = "amazon_fr"
+    limit: int = 30
+
+
+async def _run_store_scan_job(job_id: str, asins: list[str], marketplace: str):
+    """Audite une liste d'ASIN publics : une page produit par fiche, puis le
+    même moteur de conformité que l'audit de boutique par fichier.
+
+    Amazon limite les requêtes serveur : on espace les appels et on tolère les
+    échecs — un audit partiel vaut mieux qu'une erreur sèche."""
+    from app.services.compliance import scan_listings
+    _jobs[job_id]["status"] = "running"
+    domain = {"amazon_fr": "amazon.fr", "amazon_de": "amazon.de", "amazon_it": "amazon.it",
+              "amazon_es": "amazon.es", "amazon_uk": "amazon.co.uk"}.get(marketplace, "amazon.fr")
+    listings, blocked = [], []
+    try:
+        for i, asin in enumerate(asins):
+            html_text = await _fetch_amazon_html(f"https://www.{domain}/dp/{asin}", timeout=10.0)
+            data = _scrape_amazon_for_audit(html_text) if html_text else None
+            if not data or not (data.get("title") or data.get("bullets")):
+                blocked.append(asin)
+            else:
+                item = {
+                    "sku": asin,
+                    "asin": asin,
+                    "title": data.get("title") or "",
+                    "bullet_points": [b for b in (data.get("bullets") or []) if b.strip()],
+                    "image_urls": data.get("image_urls") or [],
+                    "marketplace": marketplace,
+                    "status": "active",
+                }
+                # La page publique n'expose ni la description ni les mots-clés
+                # backend. On omet les clés plutôt que de les envoyer vides :
+                # le moteur ne signale que ce qu'il a réellement pu lire.
+                desc = (data.get("description") or "").strip()
+                if desc:
+                    item["description"] = desc
+                listings.append(item)
+            _jobs[job_id]["progress"] = i + 1
+            if i < len(asins) - 1:
+                await asyncio.sleep(1.2)  # respiration entre deux pages
+        report = scan_listings(listings) if listings else {}
+        _jobs[job_id].update(status="done", result={
+            "report": report,
+            "listings": listings,
+            "scanned": len(listings),
+            "blocked": len(blocked),
+            "blocked_asins": blocked[:20],
+            "partial": True,  # les mots-clés backend ne sont jamais publics
+        })
+    except Exception as exc:
+        log.error(f"[store-scan] {exc}")
+        _jobs[job_id].update(status="error", error=str(exc)[:300])
+
+
+@app.post("/api/audit/store-scan")
+async def audit_store_scan(req: StoreScanRequest, request: Request):
+    """Audite une boutique Amazon **publique** à partir de l'URL d'une page de
+    résultats, d'une page vendeur ou d'une vitrine de marque — sans aucun accès
+    Seller Central. Les mots-clés backend n'étant pas publics, l'audit est
+    partiel par construction."""
+    limit = max(1, min(int(req.limit or 30), 60))
+    html_text = (req.html_content or "").strip()
+
+    if not html_text:
+        url = (req.url or "").strip()
+        if not url.startswith("http"):
+            raise HTTPException(400, "Collez l'URL d'une page Amazon (résultats de recherche, "
+                                     "vendeur ou vitrine de marque)")
+        html_text = await _fetch_amazon_html(url, timeout=15.0)
+        if not html_text:
+            raise HTTPException(403, "BLOCKED")
+
+    asins = _extract_asins(html_text, limit=limit)
+    if not asins:
+        raise HTTPException(422, "Aucun ASIN trouvé sur cette page. Les vitrines de marque "
+                                 "sont souvent construites en JavaScript : essayez une page de "
+                                 "résultats de recherche, ou collez le code source (Ctrl+U).")
+
+    _cleanup_jobs()
+    job_id = uuid4().hex[:16]
+    _jobs[job_id] = {"status": "queued", "progress": 0, "total": len(asins),
+                     "result": None, "error": None, "created_at": time.time()}
+    asyncio.create_task(_run_store_scan_job(job_id, asins, req.marketplace))
+    return {"job_id": job_id, "total": len(asins), "asins": asins[:10]}
 
 
 @app.post("/api/audit")

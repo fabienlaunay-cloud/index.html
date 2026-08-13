@@ -2062,6 +2062,74 @@
     </div>
 
     <!-- SEO — toute la boutique -->
+    <!-- ── Audit d'une boutique publique (sans Seller Central) ────────────── -->
+    <div class="order-2">
+      <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+        <div class="flex items-center gap-3 mb-5">
+          <div class="w-9 h-9 rounded-xl bg-emerald-50 flex items-center justify-center flex-shrink-0">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+          </div>
+          <div>
+            <h2 class="font-semibold text-gray-800 text-base">Une boutique publique</h2>
+            <p class="text-xs text-gray-500">Auditez le catalogue d'une marque depuis une page Amazon publique — aucun accès Seller Central requis</p>
+          </div>
+        </div>
+
+        <label class="text-xs font-medium text-gray-600 block mb-1.5">URL d'une page de résultats, d'un vendeur ou d'une vitrine</label>
+        <div class="flex gap-2 mb-2">
+          <input id="psUrl" type="url" placeholder="https://www.amazon.fr/s?k=delonghi+detartrant"
+            class="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:border-emerald-400 focus:outline-none min-w-0"
+            onkeydown="if(event.key==='Enter') _psScan()">
+          <button onclick="_psScan()" id="psScanBtn"
+            class="bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg px-4 py-2 text-sm font-semibold transition flex-shrink-0">Analyser</button>
+        </div>
+        <div class="flex items-center gap-3 mb-3">
+          <label class="text-xs text-gray-500">Fiches à analyser
+            <select id="psLimit" class="ml-1 border border-gray-200 rounded-lg px-2 py-1 text-xs">
+              <option value="10">10</option>
+              <option value="20" selected>20</option>
+              <option value="30">30</option>
+              <option value="50">50</option>
+            </select>
+          </label>
+          <button onclick="document.getElementById('psPasteBox').classList.toggle('hidden')"
+            class="text-xs text-emerald-700 hover:text-emerald-900 font-semibold underline">Amazon bloque ? Coller le code source</button>
+        </div>
+        <div id="psPasteBox" class="hidden mb-3">
+          <p class="text-xs text-gray-500 mb-1.5">Sur la page Amazon : <span class="font-mono bg-gray-100 px-1 rounded">Ctrl+U</span>, <span class="font-mono bg-gray-100 px-1 rounded">Ctrl+A</span>, <span class="font-mono bg-gray-100 px-1 rounded">Ctrl+C</span>, puis collez ici.</p>
+          <textarea id="psHtml" rows="3" placeholder="Coller le code source HTML ici…"
+            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-xs font-mono focus:border-emerald-400 focus:outline-none"></textarea>
+        </div>
+
+        <div id="psError" class="hidden mb-3 bg-red-50 border border-red-200 rounded-lg px-3 py-2 text-xs text-red-700"></div>
+
+        <div id="psProgress" class="hidden mb-3 space-y-2">
+          <div class="flex items-center gap-3">
+            <div class="w-4 h-4 border-2 border-emerald-200 border-t-emerald-600 rounded-full animate-spin flex-shrink-0"></div>
+            <p class="text-sm text-gray-600">Lecture des fiches : <span id="psProgressLabel" class="font-medium text-gray-800"></span></p>
+          </div>
+          <div class="w-full bg-gray-100 rounded-full h-2">
+            <div id="psProgressBar" class="bg-emerald-500 h-2 rounded-full transition-all duration-300" style="width:0%"></div>
+          </div>
+        </div>
+
+        <div id="psResults" class="hidden">
+          <div class="flex items-center gap-4 mb-3 flex-wrap">
+            <div class="flex items-baseline gap-2">
+              <span id="psScore" class="text-3xl font-black text-gray-900">—</span>
+              <span class="text-sm text-gray-400">/ 100 conformité</span>
+            </div>
+            <p id="psSummary" class="text-xs text-gray-500"></p>
+            <button onclick="_psExportCsv()" class="ml-auto text-xs border border-gray-200 hover:border-emerald-300 rounded-lg px-3 py-1.5 font-semibold text-gray-600 transition">Exporter CSV</button>
+          </div>
+          <div class="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-xs text-amber-800 mb-3">
+            Audit partiel : les mots-clés backend ne sont jamais publics. Pour un score complet, il faut le rapport Seller Central du vendeur.
+          </div>
+          <div id="psList" class="space-y-2 max-h-80 overflow-y-auto pr-1"></div>
+        </div>
+      </div>
+    </div>
+
     <div class="order-3">
       <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
         <div class="flex items-center gap-3 mb-5">
@@ -5463,6 +5531,126 @@ function showLoginError(msg) {
   const el = document.getElementById('loginError');
   el.className = 'mb-4 bg-red-500/20 border border-red-500/30 rounded-xl px-4 py-3 text-red-300 text-sm text-center';
   el.textContent = msg;
+}
+
+/* ══════════════ AUDIT D'UNE BOUTIQUE PUBLIQUE ══════════════
+   Part d'une page Amazon publique (résultats, vendeur, vitrine) : on en tire
+   les ASIN, on lit chaque fiche et on la passe au moteur de conformité.
+   Aucun accès Seller Central — donc jamais les mots-clés backend. */
+
+let _psRows = [];
+
+function _psErr(msg) {
+  const el = document.getElementById('psError');
+  if (!msg) { el.classList.add('hidden'); return; }
+  el.textContent = msg; el.classList.remove('hidden');
+}
+
+async function _psScan() {
+  const url = document.getElementById('psUrl').value.trim();
+  const html = document.getElementById('psHtml').value.trim();
+  if (!url && !html) { _psErr("Collez l'URL d'une page Amazon, ou le code source de la page"); return; }
+  _psErr(''); _psRows = [];
+  document.getElementById('psResults').classList.add('hidden');
+  const btn = document.getElementById('psScanBtn');
+  btn.disabled = true; btn.textContent = 'Lecture…';
+  const prog = document.getElementById('psProgress');
+  prog.classList.remove('hidden');
+  document.getElementById('psProgressBar').style.width = '0%';
+  document.getElementById('psProgressLabel').textContent = 'recherche des fiches…';
+  try {
+    const r = await fetch(`${API}/api/audit/store-scan`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({
+        url, html_content: html,
+        marketplace: (document.getElementById('auditMkt') || {}).value || 'amazon_fr',
+        limit: parseInt(document.getElementById('psLimit').value, 10) || 20,
+      }),
+    });
+    const data = await r.json().catch(() => ({}));
+    if (r.status === 403 || data.detail === 'BLOCKED') {
+      document.getElementById('psPasteBox').classList.remove('hidden');
+      throw new Error("Amazon a bloqué la lecture de cette page. Collez son code source (Ctrl+U) juste en dessous.");
+    }
+    if (!r.ok) throw new Error(data.detail || 'Analyse impossible');
+    await _psPoll(data.job_id, data.total);
+  } catch (e) {
+    prog.classList.add('hidden');
+    _psErr(e.message);
+  } finally { btn.disabled = false; btn.textContent = 'Analyser'; }
+}
+
+async function _psPoll(jobId, total) {
+  for (let i = 0; i < 600; i++) {
+    await new Promise(r => setTimeout(r, 1500));
+    let j;
+    try {
+      const r = await fetch(`${API}/api/jobs/${jobId}`, { headers: { 'Authorization': `Bearer ${token}` } });
+      j = await r.json();
+    } catch (e) { continue; }
+    const done = j.progress || 0;
+    document.getElementById('psProgressLabel').textContent = `${done} / ${total} fiches`;
+    document.getElementById('psProgressBar').style.width = `${Math.round(done / Math.max(total, 1) * 100)}%`;
+    if (j.status === 'done') { document.getElementById('psProgress').classList.add('hidden'); _psRender(j.result); return; }
+    if (j.status === 'error') { document.getElementById('psProgress').classList.add('hidden'); _psErr(j.error || 'Analyse échouée'); return; }
+  }
+  document.getElementById('psProgress').classList.add('hidden');
+  _psErr('Analyse trop longue — relancez avec moins de fiches');
+}
+
+function _psRender(res) {
+  const rep = res.report || {};
+  const listings = res.listings || [];
+  const byAsin = {};
+  (rep.listings || []).forEach(x => { byAsin[x.sku || x.asin] = x; });
+
+  _psRows = listings.map(l => {
+    const r = byAsin[l.sku] || {};
+    const issues = r.issues || [];
+    const crit = issues.filter(i => i.severity === 'critical').length;
+    const warn = issues.filter(i => i.severity === 'warning').length;
+    return { asin: l.sku, title: l.title, titleLen: (l.title || '').length,
+             bullets: (l.bullet_points || []).length, images: (l.image_urls || []).length,
+             crit, warn, issues };
+  });
+
+  document.getElementById('psScore').textContent = (rep.score != null ? rep.score : '—');
+  document.getElementById('psSummary').textContent =
+    `${res.scanned} fiche(s) analysée(s)` + (res.blocked ? ` · ${res.blocked} bloquée(s) par Amazon` : '');
+
+  document.getElementById('psList').innerHTML = _psRows.map(x => {
+    const tone = x.crit ? 'bg-red-50 text-red-700 border-red-200'
+              : (x.warn ? 'bg-amber-50 text-amber-700 border-amber-200'
+                        : 'bg-green-50 text-green-700 border-green-200');
+    const label = x.crit ? `${x.crit} critique(s)` : (x.warn ? `${x.warn} à améliorer` : 'Conforme');
+    return `<div class="border border-gray-100 rounded-xl p-3 hover:bg-gray-50 transition">
+      <div class="flex items-start gap-3">
+        <span class="text-[10px] font-bold px-2 py-1 rounded-lg border flex-shrink-0 ${tone}">${label}</span>
+        <div class="min-w-0 flex-1">
+          <p class="text-sm text-gray-800 font-medium truncate">${_esc(x.title || x.asin)}</p>
+          <p class="text-xs text-gray-400 mt-0.5">${x.asin} · titre ${x.titleLen} car. · ${x.bullets} bullets · ${x.images} images</p>
+          ${x.issues.length ? `<p class="text-xs text-gray-500 mt-1">${_esc(x.issues.slice(0, 3).map(i => (i.message || i.code).split(' —')[0]).join(' · '))}</p>` : ''}
+        </div>
+      </div>
+    </div>`;
+  }).join('') || '<p class="text-sm text-gray-400 text-center py-6">Aucune fiche lisible sur cette page.</p>';
+
+  document.getElementById('psResults').classList.remove('hidden');
+}
+
+function _psExportCsv() {
+  if (!_psRows.length) { showToast('', 'Aucun résultat à exporter'); return; }
+  const esc = v => `"${String(v == null ? '' : v).replace(/"/g, '""')}"`;
+  const lines = [['ASIN', 'Titre', 'Longueur titre', 'Bullets', 'Images', 'Critiques', 'A ameliorer', 'Problemes'].join(';')];
+  _psRows.forEach(x => lines.push([x.asin, x.title, x.titleLen, x.bullets, x.images, x.crit, x.warn,
+    x.issues.map(i => i.message || i.code).join(' | ')].map(esc).join(';')));
+  const blob = new Blob(['\ufeff' + lines.join('\n')], { type: 'text/csv;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'audit-boutique-publique.csv';
+  a.click();
+  URL.revokeObjectURL(a.href);
 }
 
 /* ══════════════════ TUNNEL D'INSCRIPTION ══════════════════

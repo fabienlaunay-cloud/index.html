@@ -2104,5 +2104,33 @@ SQI18N.add({
 "Médiathèque produit": "Product media library"
 });
 
+/* ── Dictionnaire : audit d'une boutique publique ────────────────────────── */
+SQI18N.add({
+"Une boutique publique": "A public storefront",
+"Auditez le catalogue d'une marque depuis une page Amazon publique — aucun accès Seller Central requis": "Audit a brand's catalogue from a public Amazon page — no Seller Central access required",
+"URL d'une page de résultats, d'un vendeur ou d'une vitrine": "URL of a search results, seller or brand storefront page",
+"Analyser": "Analyse",
+"Lecture…": "Reading…",
+"Fiches à analyser": "Listings to analyse",
+"Amazon bloque ? Coller le code source": "Amazon blocking? Paste the source code",
+"Sur la page Amazon : Ctrl+U, Ctrl+A, Ctrl+C, puis collez ici.": "On the Amazon page: Ctrl+U, Ctrl+A, Ctrl+C, then paste here.",
+"Lecture des fiches :": "Reading listings:",
+"Audit partiel : les mots-clés backend ne sont jamais publics. Pour un score complet, il faut le rapport Seller Central du vendeur.": "Partial audit: backend keywords are never public. A complete score needs the seller's Seller Central report.",
+"Collez l'URL d'une page Amazon, ou le code source de la page": "Paste the URL of an Amazon page, or the page source code",
+"Amazon a bloqué la lecture de cette page. Collez son code source (Ctrl+U) juste en dessous.": "Amazon blocked this page. Paste its source code (Ctrl+U) just below.",
+"Analyse impossible": "Analysis failed",
+"Analyse échouée": "Analysis failed",
+"Analyse trop longue — relancez avec moins de fiches": "Analysis took too long — try again with fewer listings",
+"Aucune fiche lisible sur cette page.": "No readable listing on this page.",
+"Aucun résultat à exporter": "No result to export",
+"Conforme": "Compliant",
+"{n} fiche(s) analysée(s)": "{n} listing(s) analysed",
+"2 fiche(s) analysée(s) · 1 bloquée(s) par Amazon": "{n} listing(s) analysed · {n} blocked by Amazon",
+"Collez l'URL d'une page Amazon (résultats de recherche, vendeur ou vitrine de marque)": "Paste the URL of an Amazon page (search results, seller or brand storefront)",
+"Aucun ASIN trouvé sur cette page. Les vitrines de marque sont souvent construites en JavaScript : essayez une page de résultats de recherche, ou collez le code source (Ctrl+U).": "No ASIN found on this page. Brand storefronts are often built in JavaScript: try a search results page, or paste the source code (Ctrl+U).",
+"1 critique(s)": "{n} critical",
+"2 à améliorer": "{n} to improve"
+});
+
 /* Démarrage — après le chargement de tous les blocs de dictionnaire. */
 SQI18N.boot();
