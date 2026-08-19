@@ -10,6 +10,8 @@ check_listing(listing) -> list[Issue]
 scan_listings(listings) -> {score, total, compliant, by_severity, issues, listings}
 """
 import re
+import re as _re
+import unicodedata as _ud
 from typing import List, Optional
 
 from app.models import TITLE_MAX  # 75 (Amazon policy effective 2026-07-27)
@@ -23,6 +25,11 @@ _SUPERLATIVES = ("meilleur", "n°1", "no1", "n1", "best", "top vente", "numéro 
 # we treat >75 as a warning (not critical) so we never cry wolf on media items.
 CRITICAL = "critique"
 WARNING = "avertissement"
+
+
+def _strip_accents(text: str) -> str:
+    n = _ud.normalize("NFD", text or "")
+    return "".join(c for c in n if _ud.category(c) != "Mn")
 
 
 def _issue(code, severity, field, message, fixable=False):
@@ -83,6 +90,21 @@ def check_listing(listing: dict) -> List[dict]:
         if bullets and len(short) >= 3:
             issues.append(_issue("bullets_too_short", WARNING, "bullets",
                                  "Plusieurs bullet points trop courts (< 80 caractères)", fixable=True))
+        # Cinq bullets identiques valent un seul argument : le compte est bon,
+        # la fiche ne l'est pas. On compare après normalisation pour attraper
+        # aussi les répétitions à la ponctuation ou à la casse près.
+        seen, dup = set(), 0
+        for b in bullets:
+            key = re.sub(r"[^a-z0-9]+", " ", _strip_accents(b.lower())).strip()
+            if key in seen:
+                dup += 1
+            else:
+                seen.add(key)
+        if dup:
+            issues.append(_issue(
+                "bullets_duplicated", WARNING, "bullets",
+                f"{len(bullets)} bullet points pour {len(seen)} contenu(s) réellement "
+                f"différent(s) — {dup} répétition(s)", fixable=True))
 
     # ── Backend keywords ─────────────────────────────────────────────────────
     if has_keywords_field:

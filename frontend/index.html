@@ -5639,6 +5639,7 @@ function _psRender(res) {
              bullets: (l.bullet_points || []).length, images: (l.image_urls || []).length,
              crit, warn, issues,
              score: (l.seo_score != null ? l.seo_score : 0),
+             bulletsUnique: (l.bullets_unique != null ? l.bullets_unique : null),
              keywords: l.keywords || {}, bulletLengths: l.bullet_lengths || [],
              hero: l.hero || null, shots: l.images_detail || [], imgSum: l.images_summary || null,
              aplus: (l.has_aplus === undefined ? null : l.has_aplus),
@@ -5681,7 +5682,10 @@ function _psRender(res) {
         <span class="text-[10px] font-bold px-2 py-1 rounded-lg border flex-shrink-0 ${tone}">${label}</span>
         <span class="min-w-0 flex-1">
           <span class="block text-sm text-gray-800 font-medium truncate">${_esc(x.title || x.asin)}</span>
-          <span class="block text-xs text-gray-400 mt-0.5">${x.asin} · titre ${x.titleLen} car. · ${x.bullets} bullets · ${x.images} images</span>
+          <span class="block text-xs text-gray-400 mt-0.5">${x.asin} · titre ${x.titleLen} car. · ${x.bullets} bullets${
+            x.bulletsUnique != null && x.bulletsUnique < x.bullets
+              ? `<span class="text-amber-600 font-semibold"> (dont ${x.bulletsUnique} distinct${x.bulletsUnique > 1 ? 's' : ''})</span>` : ''
+          } · ${x.images} images</span>
         </span>
         <span class="flex items-center gap-2 flex-shrink-0">
           <span class="font-black text-lg ${sc}">${x.score}</span>
@@ -5931,7 +5935,8 @@ function _psDetail(x) {
         <p class="font-bold ${x.titleLen > 75 ? 'text-red-600' : 'text-gray-800'}">${x.titleLen} / 75 car.</p></div>
       <div class="bg-white rounded-lg border border-gray-200 px-2.5 py-2">
         <p class="text-gray-400">Bullets</p>
-        <p class="font-bold ${x.bullets < 5 ? 'text-amber-600' : 'text-gray-800'}">${x.bullets} / 5</p></div>
+        <p class="font-bold ${(x.bullets < 5 || (x.bulletsUnique != null && x.bulletsUnique < x.bullets)) ? 'text-amber-600' : 'text-gray-800'}">${x.bullets} / 5${
+          x.bulletsUnique != null && x.bulletsUnique < x.bullets ? ` · ${x.bulletsUnique} distinct${x.bulletsUnique > 1 ? 's' : ''}` : ''}</p></div>
       <div class="bg-white rounded-lg border border-gray-200 px-2.5 py-2">
         <p class="text-gray-400">Images</p>
         <p class="font-bold ${x.images < 6 ? 'text-amber-600' : 'text-gray-800'}">${x.images}</p></div>

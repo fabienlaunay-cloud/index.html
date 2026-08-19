@@ -2233,5 +2233,11 @@ SQI18N.add({
 "Lecture des visuels illisible — réessayez": "Visual reading unreadable — try again"
 });
 
+SQI18N.add({
+"5 bullet points pour 1 contenu(s) réellement différent(s) — 4 répétition(s)": "{n} bullet points for {n} genuinely different content(s) — {n} repetition(s)",
+"(dont 1 distinct)": "({n} distinct)",
+"1 distinct": "{n} distinct"
+});
+
 /* Démarrage — après le chargement de tous les blocs de dictionnaire. */
 SQI18N.boot();

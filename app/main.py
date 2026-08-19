@@ -3957,6 +3957,13 @@ class StoreScanRequest(BaseModel):
     limit: int = 30
 
 
+def _fold_txt(text: str) -> str:
+    """Minuscules sans accents — pour comparer deux bullets à la ponctuation près."""
+    import unicodedata as _ud
+    n = _ud.normalize("NFD", (text or "").lower())
+    return "".join(c for c in n if _ud.category(c) != "Mn")
+
+
 def _drop_reason(reasons: dict, why: str | None) -> None:
     """Retire un motif d'échec du décompte quand la fiche a finalement été lue."""
     if not why or not reasons.get(why):
@@ -4096,7 +4103,12 @@ async def _run_store_scan_job(job_id: str, asins: list[str], marketplace: str):
                         l.get("title") or "",
                         l.get("bullet_points") or [],
                         l.get("description") or "")
-                    l["bullet_lengths"] = [len(b) for b in (l.get("bullet_points") or [])]
+                    bl = l.get("bullet_points") or []
+                    l["bullet_lengths"] = [len(b) for b in bl]
+                    # Cinq bullets identiques ne valent qu'un argument : on
+                    # expose le nombre de contenus réellement différents.
+                    l["bullets_unique"] = len({
+                        re.sub(r"[^a-z0-9]+", " ", _fold_txt(b)).strip() for b in bl})
                     # Jusqu'à trois visuels par fiche : l'image principale, qui
                     # porte les règles strictes du slot MAIN, et deux secondaires
                     # pour juger de la variété. Budget global pour ne pas allonger
