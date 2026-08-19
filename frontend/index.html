@@ -6645,10 +6645,18 @@ function _locApply(result) {
   renderListingsContainer();
   _renderResultsChips();
   _locClose();
-  const failed = (result.failed || []).length;
-  showToast(failed ? '⚠️' : '✅',
-    failed ? `${added.length} fiche(s) déclinée(s), ${failed} échec(s)`
-           : `${added.length} fiche(s) déclinée(s)`);
+  const failures = result.failed || [];
+  // Un échec total ne doit pas se lire comme un succès à zéro : on remonte la
+  // raison renvoyée par le serveur, sinon l'utilisateur n'a rien à quoi se
+  // raccrocher.
+  if (!added.length && failures.length) {
+    const why = failures[0]?.error ? ` — ${failures[0].error}` : '';
+    showToast('❌', `Aucune fiche déclinée (${failures.length} échec(s))${why}`, true);
+    return;
+  }
+  showToast(failures.length ? '⚠️' : '✅',
+    failures.length ? `${added.length} fiche(s) déclinée(s), ${failures.length} échec(s)`
+                    : `${added.length} fiche(s) déclinée(s)`);
 }
 
 function toggleMktDropdown(e) {

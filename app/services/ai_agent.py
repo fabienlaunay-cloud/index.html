@@ -545,12 +545,16 @@ def _build_localize_prompt(source: AmazonListing, constraints: dict,
                            source_lang: str) -> str:
     bullets = "\n".join(f"  {i + 1}. {b}" for i, b in enumerate(source.bullet_points or []))
     aplus = ""
-    if source.a_plus_content:
+    # `a_plus_content` est un dict libre (cf. AmazonListing), jamais un objet :
+    # y accéder en attribut fait échouer la déclinaison de toute fiche qui en a.
+    a_plus = source.a_plus_content or {}
+    if a_plus:
         mods = "\n".join(
-            f"  - {m.type} | {m.title} | {m.body}"
-            for m in (source.a_plus_content.modules or [])
+            f"  - {m.get('type', '—')} | {m.get('title', '')} | {m.get('body', '')}"
+            for m in (a_plus.get("modules") or [])
+            if isinstance(m, dict)
         )
-        aplus = f"\nContenu A+ :\n  Headline : {source.a_plus_content.headline}\n{mods}\n"
+        aplus = f"\nContenu A+ :\n  Headline : {a_plus.get('headline', '—')}\n{mods}\n"
     attrs = [f"Marque : {source.brand or '—'}", f"Catégorie : {source.category or '—'}"]
     if source.color:     attrs.append(f"Couleur : {source.color}")
     if source.material:  attrs.append(f"Matière : {source.material}")
@@ -670,14 +674,17 @@ async def localize_listing(
                 marketplace=target,
                 **{k: v for k, v in data.items() if k in AmazonListing.model_fields},
             ), token_usage
-        except json.JSONDecodeError:
-            if attempt == retries:
-                raise
-            await asyncio.sleep(1)
-        except anthropic.APIError as e:
+        except anthropic.APIError:
             if attempt == retries:
                 raise
             await asyncio.sleep(2 ** attempt)
+        except (ValueError, KeyError, TypeError):
+            # JSON invalide, réponse tronquée ou champ manquant : tous
+            # rattrapables au réessai. `json.JSONDecodeError` hérite de
+            # `ValueError`, et la troncature lève un `ValueError` explicite.
+            if attempt == retries:
+                raise
+            await asyncio.sleep(1)
 
 
 async def localize_listings_batch(
