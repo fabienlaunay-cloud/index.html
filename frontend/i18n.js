@@ -2238,5 +2238,13 @@ SQI18N.add({
 "1 distinct": "{n} distinct"
 });
 
+SQI18N.add({
+"Effacer": "Clear",
+"Nouvelle analyse": "New analysis",
+"Lire tous les visuels": "Read all visuals",
+"Aucune fiche avec des visuels à lire": "No listing with visuals to read",
+"Visuels lus sur 2 fiche(s)": "Visuals read on {n} listing(s)"
+});
+
 /* Démarrage — après le chargement de tous les blocs de dictionnaire. */
 SQI18N.boot();

@@ -2096,7 +2096,10 @@
             class="text-xs text-emerald-700 hover:text-emerald-900 font-semibold underline">Amazon bloque ? Coller le code source</button>
         </div>
         <div id="psPasteBox" class="hidden mb-3">
-          <p class="text-xs text-gray-500 mb-1.5">Sur la page Amazon : <span class="font-mono bg-gray-100 px-1 rounded">Ctrl+U</span>, <span class="font-mono bg-gray-100 px-1 rounded">Ctrl+A</span>, <span class="font-mono bg-gray-100 px-1 rounded">Ctrl+C</span>, puis collez ici.</p>
+          <div class="flex items-center justify-between gap-2 mb-1.5">
+            <p class="text-xs text-gray-500">Sur la page Amazon : <span class="font-mono bg-gray-100 px-1 rounded">Ctrl+U</span>, <span class="font-mono bg-gray-100 px-1 rounded">Ctrl+A</span>, <span class="font-mono bg-gray-100 px-1 rounded">Ctrl+C</span>, puis collez ici.</p>
+            <button onclick="_psClearHtml()" class="text-xs text-gray-400 hover:text-red-600 font-semibold transition flex-shrink-0">Effacer</button>
+          </div>
           <textarea id="psHtml" rows="3" placeholder="Coller le code source HTML ici…"
             class="w-full border border-gray-200 rounded-lg px-3 py-2 text-xs font-mono focus:border-emerald-400 focus:outline-none"></textarea>
         </div>
@@ -2136,7 +2139,12 @@
               <span class="text-sm text-gray-400">/ 100 conformité</span>
             </div>
             <p id="psSummary" class="text-xs text-gray-500"></p>
-            <button onclick="_psExportCsv()" class="ml-auto text-xs border border-gray-200 hover:border-emerald-300 rounded-lg px-3 py-1.5 font-semibold text-gray-600 transition">Exporter CSV</button>
+            <div class="ml-auto flex items-center gap-2">
+              <button onclick="_psAnalyseAllVisuals()" id="psAiAllBtn"
+                class="text-xs bg-purple-600 hover:bg-purple-700 text-white rounded-lg px-3 py-1.5 font-semibold transition">Lire tous les visuels</button>
+              <button onclick="_psExportCsv()" class="text-xs border border-gray-200 hover:border-emerald-300 rounded-lg px-3 py-1.5 font-semibold text-gray-600 transition">Exporter CSV</button>
+              <button onclick="_psReset()" id="psResetBtn" class="text-xs bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg px-3 py-1.5 font-semibold transition">Nouvelle analyse</button>
+            </div>
           </div>
           <div class="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-xs text-amber-800 mb-3">
             Audit partiel : les mots-clés backend ne sont jamais publics. Pour un score complet, il faut le rapport Seller Central du vendeur.
@@ -6059,6 +6067,48 @@ async function _psAnalyseVisuals(asin) {
   } catch (e) {
     out.innerHTML = `<p class="text-xs text-red-600">${_esc(e.message)}</p>`;
   } finally { btn.disabled = false; btn.textContent = 'Lire les visuels par IA'; }
+}
+
+/* Vider le code source collé : le sélectionner à la main est pénible, et il
+   reste en travers quand on enchaîne les analyses. */
+function _psClearHtml() {
+  const t = document.getElementById('psHtml');
+  t.value = '';
+  t.focus();
+}
+
+/* Repartir sur une nouvelle boutique sans rien effacer à la main. Les audits
+   déjà enregistrés restent disponibles pour la comparaison. */
+function _psReset() {
+  document.getElementById('psUrl').value = '';
+  document.getElementById('psHtml').value = '';
+  document.getElementById('psPasteBox').classList.add('hidden');
+  document.getElementById('psResults').classList.add('hidden');
+  document.getElementById('psCompare').classList.add('hidden');
+  document.getElementById('psProgress').classList.add('hidden');
+  _psErr(''); _psRows = [];
+  const u = document.getElementById('psUrl');
+  u.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  setTimeout(() => u.focus(), 300);
+}
+
+/* Lecture IA des visuels sur toute la liste, une fiche après l'autre. */
+async function _psAnalyseAllVisuals() {
+  const targets = _psRows.filter(x => (x.urls || []).length);
+  if (!targets.length) { showToast('', 'Aucune fiche avec des visuels à lire'); return; }
+  const btn = document.getElementById('psAiAllBtn');
+  btn.disabled = true;
+  for (let i = 0; i < targets.length; i++) {
+    btn.textContent = `Lecture ${i + 1}/${targets.length}…`;
+    await _psAnalyseVisuals(targets[i].asin);
+    // on déplie la fiche pour que le résultat soit visible sans chercher
+    const idx = _psRows.indexOf(targets[i]);
+    const d = document.getElementById('psDetail' + idx);
+    if (d && d.classList.contains('hidden')) _psToggle(idx);
+  }
+  btn.disabled = false;
+  btn.textContent = 'Lire tous les visuels';
+  showToast('', `Visuels lus sur ${targets.length} fiche(s)`);
 }
 
 function _psExportCsv() {
