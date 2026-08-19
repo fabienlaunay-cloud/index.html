@@ -5674,7 +5674,10 @@ def _apify_build_payload(asins: list[str], marketplace: str, max_per: int) -> di
     }
 
 
-APIFY_PRODUCT_ACTOR = os.getenv("APIFY_PRODUCT_ACTOR", "junglee~amazon-product-details")
+# « junglee~amazon-product-details » n'existe pas dans le store Apify : l'acteur
+# produit de junglee s'appelle amazon-crawler. Une variante gratuite existe
+# (junglee~free-amazon-product-scraper) — les deux se règlent par la variable.
+APIFY_PRODUCT_ACTOR = os.getenv("APIFY_PRODUCT_ACTOR", "junglee~amazon-crawler")
 
 
 def _apify_parse_price(raw) -> Optional[float]:
@@ -5758,9 +5761,12 @@ async def _apify_fetch_products(asins: list[str], marketplace: str) -> dict:
     if not token:
         raise HTTPException(503, "APIFY_TOKEN manquant — configurez la clé Apify côté serveur.")
     domain = _KW_DOMAINS.get(marketplace, ("amazon.fr",))[0]
+    # Schéma d'entrée de junglee~amazon-crawler : categoryOrProductUrls, et une
+    # limite par URL de départ (une URL = un produit ici).
     payload = {
-        "productUrls": [{"url": f"https://www.{domain}/dp/{a}"} for a in asins],
-        "maxItems": len(asins),
+        "categoryOrProductUrls": [{"url": f"https://www.{domain}/dp/{a}"} for a in asins],
+        "maxItemsPerStartUrl": 1,
+        "maxOffers": 0,
         "proxyConfiguration": {"useApifyProxy": True},
     }
     base = "https://api.apify.com/v2"
@@ -5769,7 +5775,12 @@ async def _apify_fetch_products(asins: list[str], marketplace: str) -> dict:
         if r.status_code in (401, 403):
             raise HTTPException(502, "APIFY_TOKEN invalide ou sans accès à cet acteur produit.")
         if r.status_code == 404:
-            raise HTTPException(502, f"Acteur produit introuvable : '{APIFY_PRODUCT_ACTOR}' (APIFY_PRODUCT_ACTOR).")
+            raise HTTPException(
+                502,
+                f"Acteur produit introuvable : '{APIFY_PRODUCT_ACTOR}'. "
+                f"Réglez APIFY_PRODUCT_ACTOR sur junglee~amazon-crawler "
+                f"(ou junglee~free-amazon-product-scraper) et ajoutez l'acteur "
+                f"à votre compte Apify.")
         if not r.is_success:
             raise HTTPException(502, f"Apify a renvoyé {r.status_code} : {r.text[:200]}")
         data = (r.json() or {}).get("data", {})
