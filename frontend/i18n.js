@@ -2220,7 +2220,6 @@ SQI18N.add({
 "Vidéo non déterminée": "Video undetermined",
 "Lire les visuels par IA": "Read the visuals with AI",
 "Lecture en cours…": "Reading…",
-"Analyse à la demande — c'est le seul point de l'audit qui consomme des jetons.": "On-demand analysis — the only part of the audit that consumes tokens.",
 "Lecture IA des visuels": "AI reading of the visuals",
 "Pertinence :": "Relevance:",
 "Visuels manquants :": "Missing visuals:",
