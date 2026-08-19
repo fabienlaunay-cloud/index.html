@@ -2113,6 +2113,22 @@
           </div>
         </div>
 
+        <!-- Audits mémorisés : sélection multiple et comparaison -->
+        <div id="psSaved" class="hidden mb-4">
+          <div class="flex items-center justify-between gap-2 mb-2 flex-wrap">
+            <p class="text-xs font-bold text-gray-500 uppercase tracking-wide">Audits enregistrés</p>
+            <div class="flex items-center gap-2">
+              <button onclick="_psCompare()" id="psCompareBtn" disabled
+                class="text-xs bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-200 disabled:text-gray-400 text-white rounded-lg px-3 py-1.5 font-semibold transition">Comparer</button>
+              <button onclick="_psClearSaved()" class="text-xs text-gray-400 hover:text-red-600 transition">Vider</button>
+            </div>
+          </div>
+          <div id="psSavedList" class="grid sm:grid-cols-2 lg:grid-cols-3 gap-2"></div>
+        </div>
+
+        <!-- Comparaison de plusieurs boutiques -->
+        <div id="psCompare" class="hidden mb-4"></div>
+
         <div id="psResults" class="hidden">
           <div class="flex items-center gap-4 mb-3 flex-wrap">
             <div class="flex items-baseline gap-2">
@@ -5541,14 +5557,22 @@ function showLoginError(msg) {
 
 let _psRows = [];
 
+/* La liste des audits mémorisés doit être là avant même un nouveau scan. */
+document.addEventListener('DOMContentLoaded', () => {
+  try { if (document.getElementById('psSavedList')) _psRenderSaved(); } catch (e) {}
+});
+
 function _psErr(msg) {
   const el = document.getElementById('psError');
   if (!msg) { el.classList.add('hidden'); return; }
   el.textContent = msg; el.classList.remove('hidden');
 }
 
+let _psLastUrl = '';
+
 async function _psScan() {
   const url = document.getElementById('psUrl').value.trim();
+  _psLastUrl = url;
   const html = document.getElementById('psHtml').value.trim();
   if (!url && !html) { _psErr("Collez l'URL d'une page Amazon, ou le code source de la page"); return; }
   _psErr(''); _psRows = [];
@@ -5666,6 +5690,215 @@ function _psRender(res) {
   }).join('') || '<p class="text-sm text-gray-400 text-center py-6">Aucune fiche lisible sur cette page.</p>';
 
   document.getElementById('psResults').classList.remove('hidden');
+  if (_psRows.length) _psSaveAudit(res, _psLastUrl);
+}
+
+/* ══════════ MÉMOIRE DES AUDITS & COMPARAISON DE BOUTIQUES ══════════
+   Chaque audit terminé est conservé sous forme condensée (les fiches
+   entières seraient trop lourdes pour le stockage local). On peut ensuite
+   en cocher plusieurs et les mettre face à face. */
+
+const _PS_KEY = 'synqio_store_audits';
+let _psSel = [];
+
+function _psLabelFromUrl(url) {
+  try {
+    const u = new URL(url);
+    const m = u.pathname.match(/\/stores\/([^/]+)/i);
+    if (m) return decodeURIComponent(m[1]).replace(/[-_]/g, ' ');
+    const k = u.searchParams.get('k') || u.searchParams.get('keywords');
+    if (k) return k;
+    const me = u.searchParams.get('me');
+    if (me) return 'vendeur ' + me;
+    return u.hostname.replace('www.', '');
+  } catch (e) { return 'audit'; }
+}
+
+function _psLoad() {
+  try { return JSON.parse(localStorage.getItem(_PS_KEY) || '[]'); } catch (e) { return []; }
+}
+
+function _psSaveAudit(res, url) {
+  const rows = _psRows.map(x => ({
+    asin: x.asin, title: (x.title || '').slice(0, 120), score: x.score,
+    titleLen: x.titleLen, bullets: x.bullets, images: x.images,
+    crit: x.crit, warn: x.warn,
+    white: x.hero ? !!x.hero.white_bg : null,
+    zoom: x.hero ? !!x.hero.zoom_ok : null,
+    kwMissing: (x.keywords && x.keywords.missing_in_title) || [],
+    issues: x.issues.map(i => (i.message || i.code || '').split(' —')[0].split(' :')[0]),
+  }));
+  const audit = {
+    id: 'a' + Date.now(),
+    label: _psLabelFromUrl(url),
+    when: new Date().toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' }),
+    score: (res.report && res.report.score != null) ? res.report.score : null,
+    scanned: res.scanned, blocked: res.blocked,
+    rows,
+  };
+  const all = [audit].concat(_psLoad()).slice(0, 8);  // on garde les huit derniers
+  try { localStorage.setItem(_PS_KEY, JSON.stringify(all)); }
+  catch (e) { try { localStorage.setItem(_PS_KEY, JSON.stringify(all.slice(0, 3))); } catch (e2) {} }
+  _psRenderSaved();
+}
+
+function _psClearSaved() {
+  try { localStorage.removeItem(_PS_KEY); } catch (e) {}
+  _psSel = [];
+  document.getElementById('psCompare').classList.add('hidden');
+  _psRenderSaved();
+}
+
+function _psRenderSaved() {
+  const all = _psLoad();
+  const box = document.getElementById('psSaved');
+  if (!all.length) { box.classList.add('hidden'); return; }
+  box.classList.remove('hidden');
+  document.getElementById('psSavedList').innerHTML = all.map(a => {
+    const on = _psSel.includes(a.id);
+    return `<label class="flex items-center gap-2.5 rounded-xl border px-3 py-2 cursor-pointer transition ${
+      on ? 'border-emerald-400 bg-emerald-50' : 'border-gray-200 hover:border-emerald-200'}">
+      <input type="checkbox" ${on ? 'checked' : ''} onchange="_psSelToggle('${a.id}')"
+        class="w-4 h-4 accent-emerald-600 flex-shrink-0">
+      <span class="min-w-0 flex-1">
+        <span class="block text-sm font-semibold text-gray-800 truncate capitalize">${_esc(a.label)}</span>
+        <span class="block text-xs text-gray-400">${a.scanned} fiche(s) · ${a.when}</span>
+      </span>
+      <span class="font-black text-base ${a.score >= 80 ? 'text-green-600' : (a.score >= 50 ? 'text-amber-600' : 'text-red-600')}">${a.score != null ? a.score : '—'}</span>
+    </label>`;
+  }).join('');
+  const btn = document.getElementById('psCompareBtn');
+  btn.disabled = _psSel.length < 2;
+  btn.textContent = _psSel.length >= 2 ? `Comparer (${_psSel.length})` : 'Comparer';
+}
+
+function _psSelToggle(id) {
+  const i = _psSel.indexOf(id);
+  if (i >= 0) _psSel.splice(i, 1); else if (_psSel.length < 4) _psSel.push(id);
+  _psRenderSaved();
+}
+
+/* Moyennes et part de fiches en défaut, pour une boutique. */
+function _psStats(a) {
+  const r = a.rows || [];
+  const n = r.length || 1;
+  const avg = f => Math.round(r.reduce((s, x) => s + (f(x) || 0), 0) / n);
+  const pct = f => Math.round(100 * r.filter(f).length / n);
+  const withHero = r.filter(x => x.white !== null);
+  return {
+    n: r.length,
+    score: a.score,
+    titleAvg: avg(x => x.titleLen),
+    titleOver: pct(x => x.titleLen > 75),
+    bulletsAvg: avg(x => x.bullets),
+    bulletsIncomplete: pct(x => x.bullets < 5),
+    imagesAvg: avg(x => x.images),
+    whitePct: withHero.length ? Math.round(100 * withHero.filter(x => x.white).length / withHero.length) : null,
+    kwGaps: pct(x => (x.kwMissing || []).length > 0),
+  };
+}
+
+/* Les corrections qui rapportent le plus : anomalies les plus fréquentes. */
+function _psTopActions(a) {
+  const counts = {};
+  (a.rows || []).forEach(x => (x.issues || []).forEach(m => { counts[m] = (counts[m] || 0) + 1; }));
+  return Object.entries(counts).sort((p, q) => q[1] - p[1]).slice(0, 3);
+}
+
+function _psCompare() {
+  const all = _psLoad().filter(a => _psSel.includes(a.id));
+  if (all.length < 2) return;
+  const st = all.map(a => ({ a, s: _psStats(a) }));
+  const best = st.reduce((b, x) => (x.s.score > b.s.score ? x : b), st[0]);
+  const worst = st.reduce((b, x) => (x.s.score < b.s.score ? x : b), st[0]);
+
+  const row = (label, get, fmt, lowerIsBetter) => {
+    const vals = st.map(x => get(x.s));
+    const valid = vals.filter(v => v !== null && v !== undefined);
+    const target = lowerIsBetter ? Math.min(...valid) : Math.max(...valid);
+    return `<tr class="border-t border-gray-100">
+      <td class="py-2 pr-3 text-gray-500">${label}</td>
+      ${vals.map(v => `<td class="py-2 px-3 text-center font-semibold ${v === target ? 'text-green-600' : 'text-gray-800'}">${v === null || v === undefined ? '—' : fmt(v)}</td>`).join('')}
+    </tr>`;
+  };
+
+  document.getElementById('psCompare').innerHTML = `
+    <div class="border border-emerald-200 rounded-2xl overflow-hidden">
+      <div class="bg-emerald-50 px-4 py-2.5 flex items-center justify-between gap-2 flex-wrap">
+        <p class="text-sm font-bold text-emerald-900">Comparaison de ${st.length} boutiques</p>
+        <div class="flex items-center gap-2">
+          <button onclick="_psExportCompare()" class="text-xs border border-emerald-300 hover:bg-white rounded-lg px-3 py-1.5 font-semibold text-emerald-800 transition">Exporter CSV</button>
+          <button onclick="document.getElementById('psCompare').classList.add('hidden')" class="text-xs text-emerald-700 hover:text-emerald-900">Fermer</button>
+        </div>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full min-w-[560px] text-xs">
+          <thead><tr class="bg-white">
+            <th class="text-left py-2 pr-3 pl-4 text-gray-400 font-semibold">Indicateur</th>
+            ${st.map(x => `<th class="py-2 px-3 text-center font-bold text-gray-800 capitalize">${_esc(x.a.label)}</th>`).join('')}
+          </tr></thead>
+          <tbody class="bg-white">
+            ${row('Score de conformité', s => s.score, v => v + ' / 100', false)}
+            ${row('Fiches analysées', s => s.n, v => v, false)}
+            ${row('Titres hors norme (> 75 car.)', s => s.titleOver, v => v + ' %', true)}
+            ${row('Longueur moyenne du titre', s => s.titleAvg, v => v + ' car.', true)}
+            ${row('Bullets en moyenne', s => s.bulletsAvg, v => v + ' / 5', false)}
+            ${row('Fiches à moins de 5 bullets', s => s.bulletsIncomplete, v => v + ' %', true)}
+            ${row('Images en moyenne', s => s.imagesAvg, v => v, false)}
+            ${row('Image principale sur fond blanc', s => s.whitePct, v => v + ' %', false)}
+            ${row('Fiches avec mots-clés hors titre', s => s.kwGaps, v => v + ' %', true)}
+          </tbody>
+        </table>
+      </div>
+      <div class="px-4 py-3 bg-white border-t border-gray-100">
+        <p class="text-xs text-gray-700 mb-2">
+          <span class="font-semibold capitalize">${_esc(best.a.label)}</span> tient le meilleur score (${best.s.score}/100),
+          <span class="font-semibold capitalize">${_esc(worst.a.label)}</span> le plus faible (${worst.s.score}/100).
+        </p>
+        <div class="grid sm:grid-cols-${Math.min(st.length, 3)} gap-3">
+          ${st.map(x => {
+            const acts = _psTopActions(x.a);
+            return `<div class="border border-gray-200 rounded-xl p-3">
+              <p class="text-xs font-bold text-gray-800 mb-1.5"><span class="capitalize">${_esc(x.a.label)}</span> — à corriger en priorité</p>
+              ${acts.length ? `<ol class="space-y-1">${acts.map(([m, c]) =>
+                `<li class="text-[11px] text-gray-600 flex gap-1.5"><span class="font-bold text-emerald-600 flex-shrink-0">${c}×</span>${_esc(m)}</li>`).join('')}</ol>`
+                : '<p class="text-[11px] text-gray-400">Rien à signaler.</p>'}
+            </div>`;
+          }).join('')}
+        </div>
+      </div>
+    </div>`;
+  document.getElementById('psCompare').classList.remove('hidden');
+  document.getElementById('psCompare').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function _psExportCompare() {
+  const all = _psLoad().filter(a => _psSel.includes(a.id));
+  if (all.length < 2) return;
+  const esc = v => `"${String(v == null ? '' : v).replace(/"/g, '""')}"`;
+  const st = all.map(a => ({ a, s: _psStats(a) }));
+  const lines = [['Indicateur'].concat(st.map(x => x.a.label)).map(esc).join(';')];
+  const put = (label, get) => lines.push([label].concat(st.map(x => get(x.s))).map(esc).join(';'));
+  put('Score de conformite', s => s.score);
+  put('Fiches analysees', s => s.n);
+  put('Titres hors norme %', s => s.titleOver);
+  put('Longueur moyenne titre', s => s.titleAvg);
+  put('Bullets moyens', s => s.bulletsAvg);
+  put('Fiches < 5 bullets %', s => s.bulletsIncomplete);
+  put('Images moyennes', s => s.imagesAvg);
+  put('Image principale fond blanc %', s => s.whitePct);
+  put('Fiches mots-cles hors titre %', s => s.kwGaps);
+  lines.push('');
+  st.forEach(x => {
+    lines.push(esc(x.a.label + ' — a corriger en priorite'));
+    _psTopActions(x.a).forEach(([m, c]) => lines.push([c + ' fiches', m].map(esc).join(';')));
+  });
+  const blob = new Blob(['﻿' + lines.join('\n')], { type: 'text/csv;charset=utf-8' });
+  const dl = document.createElement('a');
+  dl.href = URL.createObjectURL(blob);
+  dl.download = 'comparaison-boutiques.csv';
+  dl.click();
+  URL.revokeObjectURL(dl.href);
 }
 
 function _psToggle(i) {

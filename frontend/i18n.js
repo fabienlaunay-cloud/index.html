@@ -2178,5 +2178,25 @@ SQI18N.add({
 "Fond non blanc (bord le plus sombre : 221/255)": "Non-white background (darkest edge: {n}/{n})"
 });
 
+SQI18N.add({
+"Audits enregistrés": "Saved audits",
+"Comparer": "Compare",
+"Vider": "Clear",
+"Fermer": "Close",
+"Comparaison de 2 boutiques": "Comparison of {n} storefronts",
+"Indicateur": "Metric",
+"Score de conformité": "Compliance score",
+"Fiches analysées": "Listings analysed",
+"Titres hors norme (> 75 car.)": "Titles over the limit (> {n} char.)",
+"Longueur moyenne du titre": "Average title length",
+"Bullets en moyenne": "Bullets on average",
+"Fiches à moins de 5 bullets": "Listings with fewer than {n} bullets",
+"Images en moyenne": "Images on average",
+"Image principale sur fond blanc": "Main image on white background",
+"Fiches avec mots-clés hors titre": "Listings with keywords missing from the title",
+"— à corriger en priorité": "— fix these first",
+"Rien à signaler.": "Nothing to report."
+});
+
 /* Démarrage — après le chargement de tous les blocs de dictionnaire. */
 SQI18N.boot();
