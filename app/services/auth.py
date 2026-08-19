@@ -69,7 +69,9 @@ def verify_password(password: str, stored_hash: str) -> bool:
         decoded = base64.b64decode(stored_hash.encode("utf-8"))
         salt, stored_key = decoded[:32], decoded[32:]
         key = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt, 100_000)
-        return key == stored_key
+        # Comparaison à temps constant : `==` s'arrête au premier octet
+        # différent et laisse fuir de l'information par le temps de réponse.
+        return hmac.compare_digest(key, stored_key)
     except Exception:
         return False
 

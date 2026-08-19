@@ -2324,6 +2324,7 @@ async def catalog_from_site(req: SiteImportRequest, request: Request):
     if not _rate_limit(f"{email}:site-import", limit=6, window=3600):
         raise HTTPException(429, "Limite de 6 imports/heure — réessayez plus tard")
     base = req.url.strip()
+    _reject_internal_url(base)  # SSRF : jamais de requête vers le réseau interne
     if not base.startswith("http"):
         base = "https://" + base
     base = base.rstrip("/")
@@ -3838,6 +3839,7 @@ async def audit_prefill(request: Request):
     url = (body.get("url") or "").strip()
     if not url.startswith("http"):
         raise HTTPException(400, "URL invalide")
+    _reject_internal_url(url)  # SSRF : jamais de requête vers le réseau interne
 
     html_text = None
     last_err = ""
@@ -3967,6 +3969,7 @@ async def audit_store_scan(req: StoreScanRequest, request: Request):
         if not url.startswith("http"):
             raise HTTPException(400, "Collez l'URL d'une page Amazon (résultats de recherche, "
                                      "vendeur ou vitrine de marque)")
+        _reject_internal_url(url)  # SSRF : jamais de requête vers le réseau interne
         html_text = await _fetch_amazon_html(url, timeout=15.0)
         if not html_text:
             raise HTTPException(403, "BLOCKED")
