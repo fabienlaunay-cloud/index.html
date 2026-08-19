@@ -2138,5 +2138,15 @@ SQI18N.add({
 "reprise via Apify…": "retrying through Apify…"
 });
 
+SQI18N.add({
+"Motif des échecs :": "Failure reasons:",
+"page anti-robot": "anti-bot page",
+"page lue mais illisible": "page read but unreadable",
+"délai dépassé": "timed out",
+"réponse vide": "empty response",
+"La reprise via Apify n'a rien ramené non plus — vérifiez la clé et l'acteur produit configurés côté serveur.": "The Apify retry returned nothing either — check the key and the product actor configured on the server.",
+"Amazon refuse la lecture de ses pages produit depuis un serveur. En attendant, l'audit d'une fiche isolée fonctionne juste au-dessus, à l'unité.": "Amazon refuses server-side reading of its product pages. In the meantime, the single-listing audit just above works one at a time."
+});
+
 /* Démarrage — après le chargement de tous les blocs de dictionnaire. */
 SQI18N.boot();

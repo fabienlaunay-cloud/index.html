@@ -3768,18 +3768,55 @@ _AMAZON_HEADERS = {
 }
 
 
+# Marqueurs de page anti-robot. « captcha » seul est trop large : le mot
+# apparaît dans des scripts de pages produit parfaitement normales, et le
+# retenir faisait passer pour bloquées des fiches lisibles.
 _BOT_SIGNALS = (
     "api.security-challenge.aws.com",
     "enter the characters you see below",
     "robot or an automated system",
-    "captcha",
     "px-captcha",
+    "/errors/validatecaptcha",
+    "type the characters you see in this image",
 )
 
 
 def _looks_blocked(html_text: str) -> bool:
     low = html_text.lower()
     return any(sig in low for sig in _BOT_SIGNALS)
+
+
+async def _fetch_amazon_page(url: str, timeout: float = 12.0) -> tuple[str, str]:
+    """Comme _fetch_amazon_html, mais renvoie aussi le motif de l'échec :
+    sans motif on ne peut pas distinguer un blocage d'un ASIN mort, et le
+    diagnostic est impossible depuis l'interface."""
+    candidates = [url]
+    dp_m = re.search(r"/dp/([A-Z0-9]{10})", url)
+    if dp_m:
+        base = re.match(r"(https?://[^/]+)", url)
+        if base:
+            candidates.insert(0, f"{base.group(1)}/dp/{dp_m.group(1)}")
+    reason = "inconnu"
+    for candidate in candidates:
+        try:
+            async with httpx.AsyncClient(follow_redirects=True, timeout=timeout,
+                                         headers=_AMAZON_HEADERS) as client:
+                resp = await client.get(candidate)
+            if resp.status_code != 200:
+                reason = f"HTTP {resp.status_code}"
+                continue
+            if _looks_blocked(resp.text):
+                reason = "page anti-robot"
+                continue
+            if not resp.text:
+                reason = "réponse vide"
+                continue
+            return resp.text, "ok"
+        except httpx.TimeoutException:
+            reason = "délai dépassé"
+        except Exception as exc:
+            reason = type(exc).__name__
+    return "", reason
 
 
 async def _fetch_amazon_html(url: str, timeout: float = 12.0) -> str:
@@ -3915,11 +3952,15 @@ async def _run_store_scan_job(job_id: str, asins: list[str], marketplace: str):
     domain = {"amazon_fr": "amazon.fr", "amazon_de": "amazon.de", "amazon_it": "amazon.it",
               "amazon_es": "amazon.es", "amazon_uk": "amazon.co.uk"}.get(marketplace, "amazon.fr")
     listings, blocked = [], []
+    reasons: dict = {}
     try:
         for i, asin in enumerate(asins):
-            html_text = await _fetch_amazon_html(f"https://www.{domain}/dp/{asin}", timeout=10.0)
+            html_text, why = await _fetch_amazon_page(f"https://www.{domain}/dp/{asin}", timeout=10.0)
             data = _scrape_amazon_for_audit(html_text) if html_text else None
             if not data or not (data.get("title") or data.get("bullets")):
+                if why == "ok":
+                    why = "page lue mais illisible"
+                reasons[why] = reasons.get(why, 0) + 1
                 blocked.append(asin)
             else:
                 item = {
@@ -3979,6 +4020,7 @@ async def _run_store_scan_job(job_id: str, asins: list[str], marketplace: str):
             "scanned": len(listings),
             "blocked": len(blocked),
             "blocked_asins": blocked[:20],
+            "reasons": reasons,
             "source": "apify" if used_apify else "scrape",
             "apify_ready": bool(os.getenv("APIFY_TOKEN")),
             "partial": True,  # les mots-clés backend ne sont jamais publics

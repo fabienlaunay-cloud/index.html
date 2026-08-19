@@ -5623,9 +5623,14 @@ function _psRender(res) {
   // Rien de lisible : on explique pourquoi et quoi faire, au lieu d'un vide
   const note = document.getElementById('psNote');
   if (!_psRows.length && res.blocked) {
-    note.innerHTML = res.apify_ready
-      ? "Amazon a refusé la lecture de ces fiches et la reprise via Apify n'a rien ramené. Vérifiez la clé Apify et l'acteur produit configurés côté serveur."
-      : "Amazon refuse la lecture de ses pages produit depuis un serveur. Renseignez <span class=\"font-mono\">APIFY_TOKEN</span> côté serveur pour passer par un parc de proxies — c'est le même mécanisme que la récupération des avis.";
+    const why = Object.entries(res.reasons || {})
+      .sort((a, b) => b[1] - a[1])
+      .map(([k, v]) => `${v} × ${_esc(k)}`).join(' · ');
+    note.innerHTML =
+      (why ? `<span class="font-semibold">Motif des échecs :</span> ${why}.<br>` : '') +
+      (res.apify_ready
+        ? "La reprise via Apify n'a rien ramené non plus — vérifiez la clé et l'acteur produit configurés côté serveur."
+        : "Amazon refuse la lecture de ses pages produit depuis un serveur. En attendant, l'audit d'une fiche isolée fonctionne juste au-dessus, à l'unité.");
     note.classList.remove('hidden');
   } else {
     note.classList.add('hidden');
