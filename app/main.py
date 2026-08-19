@@ -5761,17 +5761,31 @@ async def _apify_fetch_products(asins: list[str], marketplace: str) -> dict:
     if not token:
         raise HTTPException(503, "APIFY_TOKEN manquant — configurez la clé Apify côté serveur.")
     domain = _KW_DOMAINS.get(marketplace, ("amazon.fr",))[0]
-    # Schéma d'entrée de junglee~amazon-crawler : categoryOrProductUrls, et une
-    # limite par URL de départ (une URL = un produit ici).
-    payload = {
-        "categoryOrProductUrls": [{"url": f"https://www.{domain}/dp/{a}"} for a in asins],
-        "maxItemsPerStartUrl": 1,
-        "maxOffers": 0,
-        "proxyConfiguration": {"useApifyProxy": True},
-    }
+    urls = [{"url": f"https://www.{domain}/dp/{a}"} for a in asins]
+
+    def _payload(field: str) -> dict:
+        return {
+            field: urls,
+            "maxItemsPerStartUrl": 1,
+            "maxOffers": 0,
+            "proxyConfiguration": {"useApifyProxy": True},
+        }
+
+    # Le nom du champ d'URL varie d'un acteur Amazon à l'autre (categoryUrls,
+    # categoryOrProductUrls, productUrls…). Plutôt que de le deviner, on tente
+    # le plus courant puis on relit le champ réclamé dans l'erreur d'Apify.
+    field = os.getenv("APIFY_PRODUCT_URL_FIELD", "categoryUrls")
     base = "https://api.apify.com/v2"
     async with httpx.AsyncClient(timeout=120) as client:
-        r = await client.post(f"{base}/acts/{APIFY_PRODUCT_ACTOR}/runs?token={token}", json=payload)
+        r = await client.post(f"{base}/acts/{APIFY_PRODUCT_ACTOR}/runs?token={token}",
+                              json=_payload(field))
+        if r.status_code == 400:
+            asked = re.search(r"Field input\.([A-Za-z0-9_]+) is required", r.text or "")
+            if asked and asked.group(1) != field:
+                field = asked.group(1)
+                log.info(f"[apify] champ d'URL attendu par l'acteur : {field}")
+                r = await client.post(f"{base}/acts/{APIFY_PRODUCT_ACTOR}/runs?token={token}",
+                                      json=_payload(field))
         if r.status_code in (401, 403):
             raise HTTPException(502, "APIFY_TOKEN invalide ou sans accès à cet acteur produit.")
         if r.status_code == 404:
