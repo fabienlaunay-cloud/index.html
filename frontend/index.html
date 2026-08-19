@@ -1475,7 +1475,10 @@
           <span id="mktSelectorLabel" class="hidden sm:inline">Amazon France</span>
           <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>
         </button>
-        <div id="mktSelectorList" class="hidden absolute right-0 top-11 rounded-xl py-2 z-50 min-w-[220px]" style="background:#0f0b1e;border:1px solid rgba(124,58,237,0.2);box-shadow:0 16px 48px rgba(0,0,0,0.5)">
+        <!-- stopPropagation : sans lui, le clic sur une case remonte jusqu'au
+             handler global qui referme tous les menus, et on ne peut jamais
+             cocher plus d'un marché à la fois. -->
+        <div id="mktSelectorList" onclick="event.stopPropagation()" class="hidden absolute right-0 top-11 rounded-xl py-2 z-50 min-w-[220px]" style="background:#0f0b1e;border:1px solid rgba(124,58,237,0.2);box-shadow:0 16px 48px rgba(0,0,0,0.5)">
           <p class="text-white/40 text-xs px-4 pb-1.5">Sélectionnez un ou plusieurs marchés</p>
           <div onclick="toggleMkt('amazon_fr')" class="mkt-item flex items-center gap-3 px-4 py-2 text-sm text-white hover:bg-white/10 cursor-pointer rounded-lg mx-1" data-mkt="amazon_fr"><span class="w-4 h-4 rounded border border-white/40 flex items-center justify-center flex-shrink-0 mkt-check" id="mkt-check-amazon_fr"></span>Amazon France</div>
           <div onclick="toggleMkt('amazon_de')" class="mkt-item flex items-center gap-3 px-4 py-2 text-sm text-white hover:bg-white/10 cursor-pointer rounded-lg mx-1" data-mkt="amazon_de"><span class="w-4 h-4 rounded border border-white/40 flex items-center justify-center flex-shrink-0 mkt-check" id="mkt-check-amazon_de"></span>Amazon Allemagne</div>
