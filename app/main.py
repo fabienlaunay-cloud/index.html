@@ -4066,10 +4066,10 @@ async def _run_store_scan_job(job_id: str, asins: list[str], marketplace: str):
         # principale. Déterministe, donc sans coût ni appel IA.
         if listings:
             from app.services.listing_insights import (
-                extract_keywords, score_listing, inspect_hero_image)
+                extract_keywords, score_listing, analyse_image, summarise_images)
             report = scan_listings(listings)
             by_sku = {r["sku"]: r for r in report.get("listings", [])}
-            hero_budget = 20  # on ne télécharge qu'une image par fiche, et pas au-delà
+            hero_budget = 45  # plafond de téléchargements d'images pour tout l'audit
             async with httpx.AsyncClient(timeout=8.0, follow_redirects=True) as imgc:
                 for l in listings:
                     issues = (by_sku.get(l["sku"]) or {}).get("issues", [])
@@ -4079,15 +4079,27 @@ async def _run_store_scan_job(job_id: str, asins: list[str], marketplace: str):
                         l.get("bullet_points") or [],
                         l.get("description") or "")
                     l["bullet_lengths"] = [len(b) for b in (l.get("bullet_points") or [])]
-                    imgs = l.get("image_urls") or []
-                    if imgs and hero_budget > 0:
+                    # Jusqu'à trois visuels par fiche : l'image principale, qui
+                    # porte les règles strictes du slot MAIN, et deux secondaires
+                    # pour juger de la variété. Budget global pour ne pas allonger
+                    # l'audit indéfiniment.
+                    imgs = (l.get("image_urls") or [])[:3]
+                    shots = []
+                    for idx, url in enumerate(imgs):
+                        if hero_budget <= 0:
+                            break
                         hero_budget -= 1
                         try:
-                            ir = await imgc.get(imgs[0], headers={"Referer": f"https://www.{domain}/"})
+                            ir = await imgc.get(url, headers={"Referer": f"https://www.{domain}/"})
                             if ir.status_code == 200:
-                                l["hero"] = inspect_hero_image(ir.content)
+                                shots.append(analyse_image(ir.content, is_main=(idx == 0)))
                         except Exception:
-                            pass  # une image illisible ne doit pas casser l'audit
+                            shots.append(None)  # une image illisible ne casse pas l'audit
+                    shots = [x for x in shots if x]
+                    if shots:
+                        l["hero"] = shots[0]
+                        l["images_detail"] = shots
+                        l["images_summary"] = summarise_images(shots)
         else:
             report = {}
         _jobs[job_id].update(status="done", result={

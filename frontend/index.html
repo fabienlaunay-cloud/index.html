@@ -5640,7 +5640,7 @@ function _psRender(res) {
              crit, warn, issues,
              score: (l.seo_score != null ? l.seo_score : 0),
              keywords: l.keywords || {}, bulletLengths: l.bullet_lengths || [],
-             hero: l.hero || null };
+             hero: l.hero || null, shots: l.images_detail || [], imgSum: l.images_summary || null };
   });
 
   document.getElementById('psScore').textContent = (rep.score != null ? rep.score : '—');
@@ -5951,24 +5951,47 @@ function _psDetail(x) {
         : '')
     : '<p class="text-xs text-gray-400">Pas assez de texte pour déduire des mots-clés.</p>';
 
-  let heroHtml = '<p class="text-xs text-gray-400">Image principale non vérifiée.</p>';
-  if (x.hero) {
-    const h = x.hero;
-    heroHtml = `<div class="flex flex-wrap gap-2 text-xs">
-      <span class="px-2 py-1 rounded-lg border ${h.white_bg
-        ? 'bg-green-50 text-green-700 border-green-200'
-        : 'bg-red-50 text-red-700 border-red-200'}">${h.white_bg
-          ? 'Fond blanc conforme' : `Fond non blanc (bord le plus sombre : ${h.edge_min}/255)`}</span>
-      <span class="px-2 py-1 rounded-lg border ${h.zoom_ok
-        ? 'bg-green-50 text-green-700 border-green-200'
-        : 'bg-amber-50 text-amber-700 border-amber-200'}">${h.width}×${h.height} px${h.zoom_ok ? '' : ' — sous 1000 px, pas de zoom'}</span>
-    </div>`;
+  let heroHtml = '<p class="text-xs text-gray-400">Visuels non vérifiés.</p>';
+  if (x.shots && x.shots.length) {
+    const chip = (ok, txt, warnOnly) => `<span class="px-2 py-1 rounded-lg border text-[11px] ${ok
+      ? 'bg-green-50 text-green-700 border-green-200'
+      : (warnOnly ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-red-50 text-red-700 border-red-200')}">${txt}</span>`;
+    heroHtml = x.shots.map((h, i) => {
+      const main = i === 0;
+      const bits = [];
+      if (main) {
+        bits.push(chip(h.main_white_ok, h.main_white_ok
+          ? 'Fond blanc conforme'
+          : `Fond non conforme (${Math.round(h.white_ratio * 100)} % de blanc sur le pourtour)`));
+        bits.push(chip(h.main_fill_ok, `Produit sur ${Math.round(h.fill * 100)} % du cadre${h.main_fill_ok ? '' : ' — Amazon en attend 85 %'}`, true));
+      } else {
+        bits.push(chip(true, h.kind === 'mise en situation' ? 'Mise en situation' : (h.kind === 'packshot' ? 'Packshot fond blanc' : 'Visuel mixte')));
+      }
+      bits.push(chip(h.zoom_ok, `${h.width}×${h.height} px${h.zoom_ok ? '' : ' — sous 1000 px, pas de zoom'}`, true));
+      if (!h.square) bits.push(chip(false, 'Pas au format carré', true));
+      return `<div class="mb-1.5">
+        <p class="text-[11px] font-semibold text-gray-600 mb-1">${main ? 'Image principale (slot MAIN)' : 'Visuel ' + (i + 1)}</p>
+        <div class="flex flex-wrap gap-1.5">${bits.join('')}</div></div>`;
+    }).join('');
+
+    const sum = x.imgSum;
+    if (sum) {
+      const alerts = [];
+      if (sum.duplicates) alerts.push(`${sum.duplicates} visuel(s) en double`);
+      if (!sum.has_lifestyle) alerts.push('aucune mise en situation dans les visuels analysés');
+      if (sum.low_res) alerts.push(`${sum.low_res} visuel(s) sous 1000 px`);
+      if (x.images < 6) alerts.push(`${x.images} images au total — Amazon en autorise 7`);
+      if (alerts.length) {
+        heroHtml += `<p class="text-xs text-amber-700 mt-1.5"><span class="font-semibold">À noter :</span> ${_esc(alerts.join(' · '))}</p>`;
+      }
+    }
+    heroHtml += `<p class="text-[11px] text-gray-400 mt-1.5">Mesuré au pixel sur les ${x.shots.length} premiers visuels — fond, cadrage et définition. Le type de visuel est déduit de la blancheur du fond.</p>`;
   }
 
   return block('Anomalies', issues)
        + block('Mesures', mesures)
        + block('Mots-clés déduits de la fiche', kwHtml)
-       + block('Image principale', heroHtml);
+       + block('Visuels', heroHtml);
 }
 
 function _psExportCsv() {

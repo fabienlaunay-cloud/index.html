@@ -130,3 +130,96 @@ def inspect_hero_image(image_bytes: bytes) -> Optional[dict]:
         }
     except Exception:
         return None
+
+
+# ── Analyse d'un jeu d'images ────────────────────────────────────────────────
+
+def _ahash(img) -> int:
+    """Empreinte perceptuelle 64 bits — repère les visuels identiques ou
+    quasi identiques republiés d'un slot à l'autre."""
+    small = img.convert("L").resize((8, 8))
+    px = list(small.getdata())
+    avg = sum(px) / 64.0
+    bits = 0
+    for i, v in enumerate(px):
+        if v > avg:
+            bits |= 1 << i
+    return bits
+
+
+def analyse_image(image_bytes: bytes, is_main: bool = False) -> Optional[dict]:
+    """Mesure une image produit : blancheur du fond, part du cadre occupée par
+    le produit, définition. Rien n'est deviné — tout est mesuré au pixel."""
+    try:
+        import io
+        from PIL import Image
+        img = Image.open(io.BytesIO(image_bytes))
+        img.load()
+        w, h = img.size
+        fingerprint = _ahash(img)
+
+        # Travail sur une vignette : même verdict, coût dérisoire.
+        work = img.convert("RGB")
+        work.thumbnail((320, 320))
+        tw, th = work.size
+        gray = work.convert("L")
+
+        # Blancheur du fond : proportion de pixels blancs sur le pourtour.
+        border = []
+        for x in range(tw):
+            border.append(gray.getpixel((x, 0)))
+            border.append(gray.getpixel((x, th - 1)))
+        for y in range(th):
+            border.append(gray.getpixel((0, y)))
+            border.append(gray.getpixel((tw - 1, y)))
+        white_ratio = sum(1 for v in border if v >= 250) / max(len(border), 1)
+
+        # Part du cadre occupée : boîte englobante de ce qui n'est pas blanc.
+        mask = gray.point(lambda v: 255 if v < 245 else 0)
+        box = mask.getbbox()
+        fill = 0.0
+        if box:
+            # Amazon parle du produit qui « occupe 85 % du cadre » : la mesure
+            # d'usage est linéaire, sur la plus grande dimension de la boîte
+            # englobante. La mesurer en surface serait bien plus sévère et
+            # ferait échouer des packshots parfaitement conformes.
+            fill = max((box[2] - box[0]) / float(tw), (box[3] - box[1]) / float(th))
+
+        kind = ("packshot" if white_ratio >= 0.9
+                else "mise en situation" if white_ratio < 0.5
+                else "mixte")
+        out = {
+            "width": w, "height": h,
+            "white_ratio": round(white_ratio, 3),
+            "fill": round(fill, 3),
+            "kind": kind,
+            "zoom_ok": min(w, h) >= 1000,
+            "square": abs(w - h) <= max(w, h) * 0.02,
+            "hash": fingerprint,
+        }
+        if is_main:
+            # Règles du slot principal : fond blanc pur, produit à 85 % du cadre.
+            out["main_white_ok"] = white_ratio >= 0.98
+            out["main_fill_ok"] = fill >= 0.85
+        return out
+    except Exception:
+        return None
+
+
+def summarise_images(images: list[dict]) -> dict:
+    """Synthèse d'un jeu d'images : variété des types, doublons, définition."""
+    ok = [i for i in images if i]
+    if not ok:
+        return {}
+    kinds: dict[str, int] = {}
+    for i in ok:
+        kinds[i["kind"]] = kinds.get(i["kind"], 0) + 1
+    hashes = [i["hash"] for i in ok]
+    dupes = len(hashes) - len(set(hashes))
+    return {
+        "analysed": len(ok),
+        "kinds": kinds,
+        "duplicates": dupes,
+        "low_res": sum(1 for i in ok if not i["zoom_ok"]),
+        "has_lifestyle": kinds.get("mise en situation", 0) > 0,
+    }

@@ -2198,5 +2198,17 @@ SQI18N.add({
 "Rien à signaler.": "Nothing to report."
 });
 
+SQI18N.add({
+"Visuels": "Visuals",
+"Visuels non vérifiés.": "Visuals not checked.",
+"Image principale (slot MAIN)": "Main image (MAIN slot)",
+"Mise en situation": "Lifestyle",
+"Packshot fond blanc": "White-background packshot",
+"Visuel mixte": "Mixed visual",
+"Pas au format carré": "Not square",
+"À noter :": "Worth noting:",
+"Mesuré au pixel sur les 3 premiers visuels — fond, cadrage et définition. Le type de visuel est déduit de la blancheur du fond.": "Measured pixel by pixel on the first {n} visuals — background, framing and resolution. The visual type is inferred from how white the background is."
+});
+
 /* Démarrage — après le chargement de tous les blocs de dictionnaire. */
 SQI18N.boot();
