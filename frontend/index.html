@@ -5629,7 +5629,9 @@ function _psRender(res) {
     note.innerHTML =
       (why ? `<span class="font-semibold">Motif des échecs :</span> ${why}.<br>` : '') +
       (res.apify_ready
-        ? "La reprise via Apify n'a rien ramené non plus — vérifiez la clé et l'acteur produit configurés côté serveur."
+        ? (res.apify_error
+            ? `Reprise via Apify : <span class="font-semibold">${_esc(res.apify_error)}</span>`
+            : "La reprise via Apify n'a rien ramené non plus.")
         : "Amazon limite la lecture de ses pages produit depuis un serveur. Relancez pour récupérer les fiches manquantes, ou auditez-les à l'unité juste au-dessus.");
     note.classList.remove('hidden');
   } else {

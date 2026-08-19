@@ -3778,6 +3778,10 @@ _BOT_SIGNALS = (
     "px-captcha",
     "/errors/validatecaptcha",
     "type the characters you see in this image",
+    # Écran intermédiaire « Continuer les achats » : HTTP 200, aucun captcha,
+    # mais aucune donnée produit — c'est un refus déguisé.
+    "continuer les achats",
+    "click the button below to continue shopping",
 )
 
 
@@ -4017,10 +4021,14 @@ async def _run_store_scan_job(job_id: str, asins: list[str], marketplace: str):
         # produit. Apify passe par un parc de proxies : si une clé est
         # configurée, on rattrape par elle tout ce qui reste bloqué.
         used_apify = False
+        apify_error = ""
         if blocked and os.getenv("APIFY_TOKEN"):
             _jobs[job_id]["label"] = "reprise via Apify…"
             try:
                 found = await _apify_fetch_products(blocked, marketplace)
+                if not found:
+                    apify_error = ("l'acteur Apify a tourné mais n'a renvoyé aucune fiche "
+                                   "(vérifiez APIFY_PRODUCT_ACTOR et son accès)")
                 rescued = []
                 for asin in list(blocked):
                     p = found.get(asin)
@@ -4040,8 +4048,10 @@ async def _run_store_scan_job(job_id: str, asins: list[str], marketplace: str):
                     used_apify = True
                 blocked = [a for a in blocked if a not in rescued]
             except HTTPException as exc:
+                apify_error = str(exc.detail)[:220]
                 log.warning(f"[store-scan] repli Apify indisponible : {exc.detail}")
             except Exception as exc:
+                apify_error = f"{type(exc).__name__}: {str(exc)[:180]}"
                 log.error(f"[store-scan] repli Apify en erreur : {exc}")
 
         report = scan_listings(listings) if listings else {}
@@ -4054,6 +4064,7 @@ async def _run_store_scan_job(job_id: str, asins: list[str], marketplace: str):
             "reasons": reasons,
             "source": "apify" if used_apify else "scrape",
             "apify_ready": bool(os.getenv("APIFY_TOKEN")),
+            "apify_error": apify_error,
             "partial": True,  # les mots-clés backend ne sont jamais publics
         })
     except Exception as exc:

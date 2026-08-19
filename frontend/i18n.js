@@ -2148,5 +2148,11 @@ SQI18N.add({
 "Amazon refuse la lecture de ses pages produit depuis un serveur. En attendant, l'audit d'une fiche isolée fonctionne juste au-dessus, à l'unité.": "Amazon refuses server-side reading of its product pages. In the meantime, the single-listing audit just above works one at a time."
 });
 
+SQI18N.add({
+"Reprise via Apify :": "Apify retry:",
+"La reprise via Apify n'a rien ramené non plus.": "The Apify retry returned nothing either.",
+"Amazon limite la lecture de ses pages produit depuis un serveur. Relancez pour récupérer les fiches manquantes, ou auditez-les à l'unité juste au-dessus.": "Amazon throttles server-side reading of its product pages. Run it again to pick up the missing listings, or audit them one at a time just above."
+});
+
 /* Démarrage — après le chargement de tous les blocs de dictionnaire. */
 SQI18N.boot();
