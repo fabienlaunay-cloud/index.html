@@ -5640,7 +5640,10 @@ function _psRender(res) {
              crit, warn, issues,
              score: (l.seo_score != null ? l.seo_score : 0),
              keywords: l.keywords || {}, bulletLengths: l.bullet_lengths || [],
-             hero: l.hero || null, shots: l.images_detail || [], imgSum: l.images_summary || null };
+             hero: l.hero || null, shots: l.images_detail || [], imgSum: l.images_summary || null,
+             aplus: (l.has_aplus === undefined ? null : l.has_aplus),
+             video: (l.has_video === undefined ? null : l.has_video),
+             urls: l.image_urls || [] };
   });
 
   document.getElementById('psScore').textContent = (rep.score != null ? rep.score : '—');
@@ -5991,7 +5994,67 @@ function _psDetail(x) {
   return block('Anomalies', issues)
        + block('Mesures', mesures)
        + block('Mots-clés déduits de la fiche', kwHtml)
-       + block('Visuels', heroHtml);
+       + block('Visuels', heroHtml)
+       + block('Autres leviers', _psLevers(x))
+       + `<div id="psAi${x.asin}" class="pt-1"></div>`;
+}
+
+/* Contenu A+ et vidéo : deux leviers de conversion majeurs. On distingue
+   « absent » de « inconnu » — l'information n'est pas toujours lisible. */
+function _psLevers(x) {
+  const chip = (state, yes, no, unknown) => {
+    if (state === null || state === undefined)
+      return `<span class="px-2 py-1 rounded-lg border text-[11px] bg-gray-50 text-gray-400 border-gray-200">${unknown}</span>`;
+    return `<span class="px-2 py-1 rounded-lg border text-[11px] ${state
+      ? 'bg-green-50 text-green-700 border-green-200'
+      : 'bg-amber-50 text-amber-700 border-amber-200'}">${state ? yes : no}</span>`;
+  };
+  return `<div class="flex flex-wrap gap-1.5">
+      ${chip(x.aplus, 'Contenu A+ présent', 'Pas de contenu A+', 'Contenu A+ non déterminé')}
+      ${chip(x.video, 'Vidéo présente', 'Pas de vidéo', 'Vidéo non déterminée')}
+    </div>
+    <button onclick="_psAnalyseVisuals('${x.asin}')" id="psAiBtn${x.asin}"
+      class="mt-2 text-xs bg-purple-600 hover:bg-purple-700 text-white rounded-lg px-3 py-1.5 font-semibold transition">
+      Lire les visuels par IA
+    </button>
+    <span class="text-[11px] text-gray-400 ml-2">Analyse à la demande — c'est le seul point de l'audit qui consomme des jetons.</span>`;
+}
+
+/* Lecture des visuels par IA, fiche par fiche. */
+async function _psAnalyseVisuals(asin) {
+  const x = _psRows.find(r => r.asin === asin);
+  const out = document.getElementById('psAi' + asin);
+  const btn = document.getElementById('psAiBtn' + asin);
+  if (!x || !out) return;
+  if (!(x.urls || []).length) { out.innerHTML = '<p class="text-xs text-gray-400">Aucune image à analyser.</p>'; return; }
+  btn.disabled = true; btn.textContent = 'Lecture en cours…';
+  try {
+    const r = await authFetch('/api/audit/visuals', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: x.title, image_urls: x.urls, asin }),
+    });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(d.detail || 'Lecture impossible');
+    const rows = (d.images || []).map(im => {
+      const flags = [];
+      if (im.has_text) flags.push('texte incrusté');
+      if (im.has_logo) flags.push('logo');
+      if (!im.shows_product) flags.push('produit peu visible');
+      const bad = im.index === 0 && im.main_compliant === false;
+      return `<li class="text-[11px] flex gap-2 ${bad ? 'text-red-700' : 'text-gray-600'}">
+        <span class="font-bold flex-shrink-0">${im.index === 0 ? 'MAIN' : 'PT' + im.index}</span>
+        <span><span class="font-semibold">${_esc(im.type || '—')}</span>${flags.length ? ' · ' + _esc(flags.join(', ')) : ''}${im.comment ? ' — ' + _esc(im.comment) : ''}</span></li>`;
+    }).join('');
+    out.innerHTML = `<div class="border border-purple-200 bg-purple-50 rounded-xl p-3 space-y-2">
+      <p class="text-[11px] font-bold text-purple-800 uppercase tracking-wide">Lecture IA des visuels</p>
+      <ul class="space-y-1">${rows}</ul>
+      ${d.relevance ? `<p class="text-xs text-gray-700"><span class="font-semibold">Pertinence :</span> ${_esc(d.relevance)}</p>` : ''}
+      ${(d.missing_slots || []).length ? `<p class="text-xs text-amber-700"><span class="font-semibold">Visuels manquants :</span> ${_esc(d.missing_slots.join(', '))}</p>` : ''}
+      ${d.verdict ? `<p class="text-xs text-gray-800 font-medium">${_esc(d.verdict)}</p>` : ''}
+    </div>`;
+  } catch (e) {
+    out.innerHTML = `<p class="text-xs text-red-600">${_esc(e.message)}</p>`;
+  } finally { btn.disabled = false; btn.textContent = 'Lire les visuels par IA'; }
 }
 
 function _psExportCsv() {

@@ -2210,5 +2210,28 @@ SQI18N.add({
 "Mesuré au pixel sur les 3 premiers visuels — fond, cadrage et définition. Le type de visuel est déduit de la blancheur du fond.": "Measured pixel by pixel on the first {n} visuals — background, framing and resolution. The visual type is inferred from how white the background is."
 });
 
+SQI18N.add({
+"Autres leviers": "Other levers",
+"Contenu A+ présent": "A+ content present",
+"Pas de contenu A+": "No A+ content",
+"Contenu A+ non déterminé": "A+ content undetermined",
+"Vidéo présente": "Video present",
+"Pas de vidéo": "No video",
+"Vidéo non déterminée": "Video undetermined",
+"Lire les visuels par IA": "Read the visuals with AI",
+"Lecture en cours…": "Reading…",
+"Analyse à la demande — c'est le seul point de l'audit qui consomme des jetons.": "On-demand analysis — the only part of the audit that consumes tokens.",
+"Lecture IA des visuels": "AI reading of the visuals",
+"Pertinence :": "Relevance:",
+"Visuels manquants :": "Missing visuals:",
+"Aucune image à analyser.": "No image to analyse.",
+"Lecture impossible": "Unable to read",
+"texte incrusté": "text overlay",
+"produit peu visible": "product barely visible",
+"Aucune image à analyser pour cette fiche": "No image to analyse for this listing",
+"Aucune image n'a pu être téléchargée": "No image could be downloaded",
+"Lecture des visuels illisible — réessayez": "Visual reading unreadable — try again"
+});
+
 /* Démarrage — après le chargement de tous les blocs de dictionnaire. */
 SQI18N.boot();

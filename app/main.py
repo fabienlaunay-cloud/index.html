@@ -3659,7 +3659,19 @@ def _scrape_amazon_for_audit(html_text: str) -> dict:
     import re as _re, html as _html
     def _clean(t): return _re.sub(r'<[^>]+>', '', _html.unescape(t or '')).strip()
 
-    result: dict = {"title": "", "bullets": [], "image_urls": []}
+    result: dict = {"title": "", "bullets": [], "image_urls": [],
+                    "has_aplus": None, "has_video": None}
+
+    # ── Contenu A+ et vidéo ────────────────────────────────────────────────────
+    # Deux leviers de conversion majeurs, visibles dans le HTML public. On ne
+    # renseigne ces clés que si la page a bien été lue : None = « on ne sait
+    # pas », ce qui n'est pas la même chose que « absent ».
+    low = html_text.lower()
+    result["has_aplus"] = any(k in low for k in (
+        'id="aplus"', "aplus-module", "aplus-v2", "data-aplus"))
+    result["has_video"] = any(k in low for k in (
+        "videoblockatf", "vse-vms-transcoding", "data-video-url",
+        "video-block", '"videos":['))
 
     # ── Title ──────────────────────────────────────────────────────────────────
     # Primary: id="productTitle"
@@ -3986,6 +3998,8 @@ async def _run_store_scan_job(job_id: str, asins: list[str], marketplace: str):
                     "image_urls": data.get("image_urls") or [],
                     "marketplace": marketplace,
                     "status": "active",
+                    "has_aplus": data.get("has_aplus"),
+                    "has_video": data.get("has_video"),
                 }
                 # La page publique n'expose ni la description ni les mots-clés
                 # backend. On omet les clés plutôt que de les envoyer vides :
@@ -4017,6 +4031,8 @@ async def _run_store_scan_job(job_id: str, asins: list[str], marketplace: str):
                     "bullet_points": [b for b in (data.get("bullets") or []) if b.strip()],
                     "image_urls": data.get("image_urls") or [],
                     "marketplace": marketplace, "status": "active",
+                    "has_aplus": data.get("has_aplus"),
+                    "has_video": data.get("has_video"),
                 }
                 desc = (data.get("description") or "").strip()
                 if desc:
@@ -4047,6 +4063,8 @@ async def _run_store_scan_job(job_id: str, asins: list[str], marketplace: str):
                         "bullet_points": [b for b in (p.get("bullets") or []) if b.strip()],
                         "image_urls": p.get("images") or [],
                         "marketplace": marketplace, "status": "active",
+                        "has_aplus": p.get("has_aplus"),
+                        "has_video": p.get("has_video"),
                     }
                     if (p.get("description") or "").strip():
                         item["description"] = p["description"].strip()
@@ -4235,6 +4253,93 @@ IMAGES : {effective_img_count} image(s)"""
         return result
     except Exception:
         raise HTTPException(500, "Erreur d'analyse — réessayez")
+
+
+_VISUALS_SYSTEM = """Tu es un expert des règles d'images produit Amazon. On te donne le titre d'une fiche et ses visuels dans l'ordre des emplacements Amazon (le premier est l'image principale, slot MAIN).
+
+Règles du slot MAIN : fond blanc pur, produit seul, aucun texte, aucun logo, aucun filigrane, aucune vignette incrustée, aucun accessoire non inclus, aucune mise en scène. Les visuels secondaires (PT01 à PT06) accueillent au contraire la mise en situation, l'infographie, le zoom matière, les dimensions et le packaging.
+
+Retourne UNIQUEMENT un objet JSON valide, sans texte avant ni après, sans bloc markdown :
+{
+  "images": [
+    {
+      "index": 0,
+      "type": "packshot" | "lifestyle" | "infographie" | "detail" | "dimensions" | "packaging" | "autre",
+      "shows_product": true | false,
+      "has_text": true | false,
+      "has_logo": true | false,
+      "main_compliant": true | false | null,
+      "comment": "<une phrase factuelle, 15 mots max>"
+    }
+  ],
+  "relevance": "<une phrase : les visuels correspondent-ils au produit annoncé dans le titre ?>",
+  "missing_slots": ["<types de visuels absents et utiles pour ce produit>"],
+  "verdict": "<une phrase de synthèse actionnable>"
+}
+
+Sois factuel et prudent. N'affirme jamais qu'une image est générée par IA : ce n'est pas décidable de façon fiable. "main_compliant" vaut null pour les visuels autres que le premier."""
+
+
+class VisualsRequest(BaseModel):
+    title: str = ""
+    image_urls: list[str] = []
+    asin: str = ""
+
+
+@app.post("/api/audit/visuals")
+async def audit_visuals(req: VisualsRequest, request: Request):
+    """Lecture des visuels par IA : type de chaque image, texte ou logo
+    incrusté, pertinence face au titre, emplacements manquants.
+
+    Déclenché à la demande, fiche par fiche : c'est le seul endroit de l'audit
+    de boutique qui consomme des jetons."""
+    if not os.getenv("ANTHROPIC_API_KEY"):
+        raise HTTPException(503, "Service indisponible")
+    from app.services.ai_agent import get_client
+    import json as _json
+
+    urls = [u for u in (req.image_urls or []) if u.startswith("http")][:4]
+    if not urls:
+        raise HTTPException(400, "Aucune image à analyser pour cette fiche")
+
+    blocks: list = []
+    async with httpx.AsyncClient(timeout=10.0, follow_redirects=True) as client:
+        for u in urls:
+            try:
+                r = await client.get(u, headers={"Referer": "https://www.amazon.fr/"})
+                if r.status_code != 200:
+                    continue
+                ct = r.headers.get("content-type", "image/jpeg").split(";")[0].strip()
+                if ct not in ("image/jpeg", "image/png", "image/gif", "image/webp"):
+                    ct = "image/jpeg"
+                blocks.append({"type": "image", "source": {
+                    "type": "base64", "media_type": ct,
+                    "data": base64.b64encode(r.content).decode()}})
+            except Exception:
+                continue
+    if not blocks:
+        raise HTTPException(502, "Aucune image n'a pu être téléchargée")
+
+    content = blocks + [{"type": "text", "text":
+        f"Titre de la fiche : {req.title or '(inconnu)'}\n"
+        f"{len(blocks)} visuel(s) fourni(s), dans l'ordre des emplacements Amazon."}]
+
+    resp = await get_client().messages.create(
+        model="claude-sonnet-4-6",
+        max_tokens=1200,
+        system=[{"type": "text", "text": _VISUALS_SYSTEM,
+                 "cache_control": {"type": "ephemeral"}}],
+        messages=[{"role": "user", "content": content}],
+    )
+    raw = resp.content[0].text.strip()
+    raw = re.sub(r"^```(?:json)?\s*", "", raw, flags=re.MULTILINE)
+    raw = re.sub(r"\s*```$", "", raw, flags=re.MULTILINE).strip()
+    try:
+        out = _json.loads(raw)
+    except Exception:
+        raise HTTPException(500, "Lecture des visuels illisible — réessayez")
+    out["analysed"] = len(blocks)
+    return out
 
 
 # ── Performance tracking ──────────────────────────────────────────────────────
@@ -5750,6 +5855,18 @@ def _apify_parse_price(raw) -> Optional[float]:
         return None
 
 
+def _apify_flag(item: dict, *keys) -> Optional[bool]:
+    """True/False quand l'acteur renseigne la clé, None quand il se tait."""
+    for k in keys:
+        if k in item and item[k] not in (None, ""):
+            v = item[k]
+            if isinstance(v, bool):
+                return v
+            if isinstance(v, (list, dict, str)):
+                return bool(v)
+    return None
+
+
 def _apify_str_list(raw, url: bool = False) -> list[str]:
     """Normalise un champ Apify en liste de chaînes. Les acteurs renvoient
     tantôt des chaînes, tantôt des objets {url: …} ou {text: …}."""
@@ -5799,7 +5916,10 @@ def _apify_parse_products(items: list) -> dict:
                          "productDetails") or "")[:4000],
                      "images": _apify_str_list(_apify_pick(
                          it, "images", "imageUrlList", "highResolutionImages",
-                         "galleryImages", "productImages", "thumbnailImage"), url=True)}
+                         "galleryImages", "productImages", "thumbnailImage"), url=True),
+                     # None quand l'acteur ne dit rien : « inconnu » et non « absent »
+                     "has_aplus": _apify_flag(it, "aPlusContent", "hasAPlus", "aplus"),
+                     "has_video": _apify_flag(it, "hasVideo", "videos", "videoUrl")}
     return out
 
 
