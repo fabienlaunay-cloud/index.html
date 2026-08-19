@@ -5609,8 +5609,8 @@ function _psRender(res) {
   _psRows = listings.map(l => {
     const r = byAsin[l.sku] || {};
     const issues = r.issues || [];
-    const crit = issues.filter(i => i.severity === 'critical').length;
-    const warn = issues.filter(i => i.severity === 'warning').length;
+    const crit = r.critical || 0;   // compteurs calculés par le moteur —
+    const warn = r.warning || 0;    // les libellés de sévérité sont localisés
     return { asin: l.sku, title: l.title, titleLen: (l.title || '').length,
              bullets: (l.bullet_points || []).length, images: (l.image_urls || []).length,
              crit, warn, issues };
@@ -5622,7 +5622,7 @@ function _psRender(res) {
 
   // Rien de lisible : on explique pourquoi et quoi faire, au lieu d'un vide
   const note = document.getElementById('psNote');
-  if (!_psRows.length && res.blocked) {
+  if (res.blocked) {
     const why = Object.entries(res.reasons || {})
       .sort((a, b) => b[1] - a[1])
       .map(([k, v]) => `${v} × ${_esc(k)}`).join(' · ');
@@ -5630,7 +5630,7 @@ function _psRender(res) {
       (why ? `<span class="font-semibold">Motif des échecs :</span> ${why}.<br>` : '') +
       (res.apify_ready
         ? "La reprise via Apify n'a rien ramené non plus — vérifiez la clé et l'acteur produit configurés côté serveur."
-        : "Amazon refuse la lecture de ses pages produit depuis un serveur. En attendant, l'audit d'une fiche isolée fonctionne juste au-dessus, à l'unité.");
+        : "Amazon limite la lecture de ses pages produit depuis un serveur. Relancez pour récupérer les fiches manquantes, ou auditez-les à l'unité juste au-dessus.");
     note.classList.remove('hidden');
   } else {
     note.classList.add('hidden');

@@ -3982,9 +3982,40 @@ async def _run_store_scan_job(job_id: str, asins: list[str], marketplace: str):
             _jobs[job_id]["progress"] = i + 1
             if i < len(asins) - 1:
                 await asyncio.sleep(1.2)  # respiration entre deux pages
-        # Amazon refuse quasi systématiquement la lecture serveur des pages
+        # Seconde passe, plus lente : les refus d'Amazon sont souvent des
+        # limitations de débit passagères, pas un blocage définitif. Ce qui
+        # échoue deux fois de suite est un vrai refus.
+        if blocked:
+            _jobs[job_id]["label"] = "seconde tentative…"
+            retry, blocked = blocked[:20], blocked[20:]
+            for asin in retry:
+                await asyncio.sleep(4.0)
+                html_text, why = await _fetch_amazon_page(
+                    f"https://www.{domain}/dp/{asin}", timeout=12.0)
+                data = _scrape_amazon_for_audit(html_text) if html_text else None
+                if not data or not (data.get("title") or data.get("bullets")):
+                    blocked.append(asin)
+                    continue
+                item = {
+                    "sku": asin, "asin": asin,
+                    "title": data.get("title") or "",
+                    "bullet_points": [b for b in (data.get("bullets") or []) if b.strip()],
+                    "image_urls": data.get("image_urls") or [],
+                    "marketplace": marketplace, "status": "active",
+                }
+                desc = (data.get("description") or "").strip()
+                if desc:
+                    item["description"] = desc
+                listings.append(item)
+                # le motif de la première passe n'a plus lieu d'être
+                if reasons.get(why):
+                    reasons[why] -= 1
+                    if reasons[why] <= 0:
+                        reasons.pop(why, None)
+
+        # Amazon refuse parfois durablement la lecture serveur des pages
         # produit. Apify passe par un parc de proxies : si une clé est
-        # configurée, on rattrape par elle tout ce qui a été bloqué.
+        # configurée, on rattrape par elle tout ce qui reste bloqué.
         used_apify = False
         if blocked and os.getenv("APIFY_TOKEN"):
             _jobs[job_id]["label"] = "reprise via Apify…"
