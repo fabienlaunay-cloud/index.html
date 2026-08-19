@@ -10159,21 +10159,28 @@ function _listingToText(l) {
   const bullets = l.bullet_points || [];
   const out = [
     `${name.toUpperCase()} — ${code} (${lang})`,
-    `SKU : ${l.sku}${l.brand ? '   |   Marque : ' + l.brand : ''}`,
+    `SKU : ${l.sku}${l.brand ? '   |   Marque / Brand : ' + l.brand : ''}`,
     '='.repeat(60), '',
-    `TITRE  (${title.length}/${_titleMax(l)} caractères)`, rule(), title, '',
+    `TITRE / TITLE  (${title.length}/${_titleMax(l)})`, rule(), title, '',
   ];
   if (hl) {
-    out.push(`ITEM HIGHLIGHTS  (${hl.length}/${_AMZ.highlights} caractères)`, rule(), hl, '');
+    out.push(`POINTS FORTS / ITEM HIGHLIGHTS  (${hl.length}/${_AMZ.highlights})`, rule(), hl, '');
   }
-  out.push(`BULLET POINTS  (${bullets.length}/5)`, rule());
+  out.push(`PUCES / BULLET POINTS  (${bullets.length}/5)`, rule());
   bullets.forEach((b, i) => out.push(`${i + 1}. ${b}`, ''));
-  out.push(`DESCRIPTION  (${(l.description || '').length}/${_AMZ.desc} caractères)`, rule(),
+  out.push(`DESCRIPTION  (${(l.description || '').length}/${_AMZ.desc})`, rule(),
            l.description || '', '');
-  out.push(`MOTS-CLÉS BACKEND — Search Terms  (${_byteLen(kw)}/${_AMZ.kw} octets)`, rule(),
-           'À coller dans Seller Central > Modifier le produit > Mots-clés > Termes de recherche.',
-           'Ce champ n\'est jamais visible par l\'acheteur.', '', kw, '');
-  if (typeof l.seo_score === 'number') out.push(`Score SEO SynqIO : ${l.seo_score}/100`, '');
+  // Les Search Terms se comptent en octets : on l'écrit, c'est le détail que
+  // l'acheteur ne connaît pas et qui prouve qu'on connaît la règle.
+  out.push(`MOTS-CLÉS BACKEND / BACKEND KEYWORDS — Search Terms  (${_byteLen(kw)}/${_AMZ.kw} octets / bytes)`,
+           rule(),
+           'FR — À coller dans Seller Central > Modifier le produit > Mots-clés >',
+           '     Termes de recherche. Jamais visible par l\'acheteur.',
+           'EN — Paste into Seller Central > Edit product > Keywords > Search terms.',
+           '     Never visible to the shopper.', '', kw, '');
+  if (typeof l.seo_score === 'number') {
+    out.push(`Score SEO SynqIO / SynqIO SEO score : ${l.seo_score}/100`, '');
+  }
   return out.join('\n');
 }
 
@@ -10246,33 +10253,41 @@ async function downloadClientPack() {
     // Le même contenu, mais en liens cliquables.
     const link = linkMap[sku];
     if (link && (Object.keys(link.generated).length || link.own.length)) {
-      const lines = [`LIENS DES VISUELS — ${sku}`, '='.repeat(60), '',
-                     'Ces adresses sont publiques : elles s\'ouvrent dans n\'importe quel',
-                     'navigateur, sans compte SynqIO. Utilisables pour un partage rapide,',
-                     'un import par URL ou un envoi par message.', ''];
+      const lines = [`LIENS DES VISUELS / IMAGE LINKS — ${sku}`, '='.repeat(60), '',
+                     'FR — Ces adresses sont publiques : elles s\'ouvrent dans n\'importe quel',
+                     '     navigateur, sans compte SynqIO. Pour un partage rapide, un import',
+                     '     par URL ou un envoi par message.',
+                     'EN — These addresses are public: they open in any browser, no SynqIO',
+                     '     account needed. For quick sharing, URL import or messaging.', ''];
       images.forEach((img, i) => {
         const g = link.generated[img.id];
         if (g) lines.push(`${String(i + 1).padStart(2, '0')} — ${img.label || img.id}`, `    ${g.url}`, '');
       });
       if (link.own.length) {
-        lines.push('', 'PHOTOS D\'ORIGINE FOURNIES', '-'.repeat(60));
+        lines.push('', 'PHOTOS D\'ORIGINE FOURNIES / ORIGINAL PHOTOS SUPPLIED', '-'.repeat(60));
         link.own.forEach(o => lines.push(`    ${o.url}`));
       }
       folder.file('liens-images.txt', lines.join('\n'));
     }
   }
 
+  // Deux notices, toujours : le pack part aussi bien à un vendeur français
+  // qu'à un acheteur anglophone, et aucun des deux ne doit tomber sur une
+  // langue qu'il ne lit pas.
   const mkts = [...new Set(generatedListings.map(l => l.marketplace))];
+  const mktCodes = mkts.map(m => (_MKT_NAMES[m] || [m])[0]).join(', ');
+  const stamp = new Date().toISOString().slice(0, 10);
+
   zip.file('LIRE-MOI.txt', [
     'PACK DE LIVRAISON SYNQIO',
     '='.repeat(60), '',
     `Produits : ${skus.length}`,
-    `Marchés  : ${mkts.map(m => (_MKT_NAMES[m] || [m])[0]).join(', ')}`,
+    `Marchés  : ${mktCodes}`,
     `Fiches   : ${txtCount}   |   Visuels : ${imgCount}`, '',
     'ORGANISATION', '-'.repeat(60),
     'Un dossier par produit, nommé d\'après son SKU. Dans chaque dossier :', '',
     '  FR-amazon_fr.txt, DE-amazon_de.txt, …',
-    '      La fiche rédigée dans la langue du marché — titre, item highlights,',
+    '      La fiche rédigée dans la langue du marché — titre, points forts,',
     '      bullet points, description et mots-clés backend, avec le compte de',
     '      caractères en regard de la limite Amazon. Rédigée, pas traduite.', '',
     '  images/',
@@ -10288,7 +10303,38 @@ async function downloadClientPack() {
     'Onglet Informations essentielles pour le titre et les bullet points,',
     'onglet Mots-clés pour les termes de recherche, onglet Images pour les',
     'visuels. L\'image principale doit être celle numérotée 01.', '',
-    `Généré le ${new Date().toLocaleDateString('fr-FR')} via SynqIO — synqio.io`,
+    'La version anglaise de cette notice se trouve dans README.txt.', '',
+    `Généré le ${stamp} via SynqIO — synqio.io`,
+  ].join('\n'));
+
+  zip.file('README.txt', [
+    'SYNQIO DELIVERY PACK',
+    '='.repeat(60), '',
+    `Products   : ${skus.length}`,
+    `Marketplaces: ${mktCodes}`,
+    `Listings   : ${txtCount}   |   Images : ${imgCount}`, '',
+    'HOW IT IS ORGANISED', '-'.repeat(60),
+    'One folder per product, named after its SKU. Inside each folder:', '',
+    '  FR-amazon_fr.txt, DE-amazon_de.txt, …',
+    '      The listing written in the language of that marketplace — title,',
+    '      item highlights, bullet points, description and backend keywords,',
+    '      each with its character count against the Amazon limit.',
+    '      Written from scratch, not machine-translated.', '',
+    '  images/',
+    '      The visuals, numbered in Amazon slot order.',
+    '      01 = main image (pure white background), then lifestyle, detail, etc.', '',
+    '  liens-images.txt',
+    '      The same visuals as public web addresses.', '',
+    '  fiches-toutes-langues.csv (in the root folder)',
+    '      Every field in one table, one row per product and per marketplace.',
+    '      Opens in Excel, Numbers or Google Sheets.', '',
+    'HOW TO PUBLISH ON AMAZON', '-'.repeat(60),
+    'Seller Central > Inventory > Manage all inventory > Edit product.',
+    'Vital Info tab for the title and bullet points, Keywords tab for the',
+    'search terms, Images tab for the visuals. The main image must be the',
+    'one numbered 01.', '',
+    'The French version of these notes is in LIRE-MOI.txt.', '',
+    `Generated on ${stamp} with SynqIO — synqio.io`,
   ].join('\n'));
 
   const blob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE' });
