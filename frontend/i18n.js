@@ -2159,5 +2159,24 @@ SQI18N.add({
 "Formulation à risque (revue Amazon) :": "Risky wording (Amazon review):"
 });
 
+SQI18N.add({
+"Anomalies": "Issues",
+"Mesures": "Measurements",
+"Mots-clés déduits de la fiche": "Keywords inferred from the listing",
+"Image principale": "Main image",
+"Aucune anomalie détectée sur ce qui est visible publiquement.": "No issue found in what is publicly visible.",
+"Titre": "Title",
+"Bullets": "Bullets",
+"Images": "Images",
+"Bullet le plus long": "Longest bullet",
+"En violet : présent dans le titre.": "In purple: present in the title.",
+"Martelés dans les bullets mais absents du titre :": "Hammered in the bullets but missing from the title:",
+"Pas assez de texte pour déduire des mots-clés.": "Not enough text to infer keywords.",
+"Image principale non vérifiée.": "Main image not checked.",
+"Fond blanc conforme": "Compliant white background",
+"— sous 1000 px, pas de zoom": "— under {n} px, no zoom",
+"Fond non blanc (bord le plus sombre : 221/255)": "Non-white background (darkest edge: {n}/{n})"
+});
+
 /* Démarrage — après le chargement de tous les blocs de dictionnaire. */
 SQI18N.boot();

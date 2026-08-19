@@ -4062,7 +4062,34 @@ async def _run_store_scan_job(job_id: str, asins: list[str], marketplace: str):
                 apify_error = f"{type(exc).__name__}: {str(exc)[:180]}"
                 log.error(f"[store-scan] repli Apify en erreur : {exc}")
 
-        report = scan_listings(listings) if listings else {}
+        # ── Analyse détaillée par fiche : score, mots-clés déduits, image
+        # principale. Déterministe, donc sans coût ni appel IA.
+        if listings:
+            from app.services.listing_insights import (
+                extract_keywords, score_listing, inspect_hero_image)
+            report = scan_listings(listings)
+            by_sku = {r["sku"]: r for r in report.get("listings", [])}
+            hero_budget = 20  # on ne télécharge qu'une image par fiche, et pas au-delà
+            async with httpx.AsyncClient(timeout=8.0, follow_redirects=True) as imgc:
+                for l in listings:
+                    issues = (by_sku.get(l["sku"]) or {}).get("issues", [])
+                    l["seo_score"] = score_listing(issues)
+                    l["keywords"] = extract_keywords(
+                        l.get("title") or "",
+                        l.get("bullet_points") or [],
+                        l.get("description") or "")
+                    l["bullet_lengths"] = [len(b) for b in (l.get("bullet_points") or [])]
+                    imgs = l.get("image_urls") or []
+                    if imgs and hero_budget > 0:
+                        hero_budget -= 1
+                        try:
+                            ir = await imgc.get(imgs[0], headers={"Referer": f"https://www.{domain}/"})
+                            if ir.status_code == 200:
+                                l["hero"] = inspect_hero_image(ir.content)
+                        except Exception:
+                            pass  # une image illisible ne doit pas casser l'audit
+        else:
+            report = {}
         _jobs[job_id].update(status="done", result={
             "report": report,
             "listings": listings,

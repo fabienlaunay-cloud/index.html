@@ -5613,7 +5613,10 @@ function _psRender(res) {
     const warn = r.warning || 0;    // les libellés de sévérité sont localisés
     return { asin: l.sku, title: l.title, titleLen: (l.title || '').length,
              bullets: (l.bullet_points || []).length, images: (l.image_urls || []).length,
-             crit, warn, issues };
+             crit, warn, issues,
+             score: (l.seo_score != null ? l.seo_score : 0),
+             keywords: l.keywords || {}, bulletLengths: l.bullet_lengths || [],
+             hero: l.hero || null };
   });
 
   document.getElementById('psScore').textContent = (rep.score != null ? rep.score : '—');
@@ -5640,31 +5643,113 @@ function _psRender(res) {
     note.classList.add('hidden');
   }
 
-  document.getElementById('psList').innerHTML = _psRows.map(x => {
+  document.getElementById('psList').innerHTML = _psRows.map((x, i) => {
     const tone = x.crit ? 'bg-red-50 text-red-700 border-red-200'
               : (x.warn ? 'bg-amber-50 text-amber-700 border-amber-200'
                         : 'bg-green-50 text-green-700 border-green-200');
     const label = x.crit ? `${x.crit} critique(s)` : (x.warn ? `${x.warn} à améliorer` : 'Conforme');
-    return `<div class="border border-gray-100 rounded-xl p-3 hover:bg-gray-50 transition">
-      <div class="flex items-start gap-3">
+    const sc = x.score >= 80 ? 'text-green-600' : (x.score >= 50 ? 'text-amber-600' : 'text-red-600');
+    return `<div class="border border-gray-100 rounded-xl overflow-hidden">
+      <button type="button" onclick="_psToggle(${i})" class="w-full text-left p-3 hover:bg-gray-50 transition flex items-start gap-3">
         <span class="text-[10px] font-bold px-2 py-1 rounded-lg border flex-shrink-0 ${tone}">${label}</span>
-        <div class="min-w-0 flex-1">
-          <p class="text-sm text-gray-800 font-medium truncate">${_esc(x.title || x.asin)}</p>
-          <p class="text-xs text-gray-400 mt-0.5">${x.asin} · titre ${x.titleLen} car. · ${x.bullets} bullets · ${x.images} images</p>
-          ${x.issues.length ? `<p class="text-xs text-gray-500 mt-1">${_esc(x.issues.slice(0, 3).map(i => (i.message || i.code).split(' —')[0]).join(' · '))}</p>` : ''}
-        </div>
-      </div>
+        <span class="min-w-0 flex-1">
+          <span class="block text-sm text-gray-800 font-medium truncate">${_esc(x.title || x.asin)}</span>
+          <span class="block text-xs text-gray-400 mt-0.5">${x.asin} · titre ${x.titleLen} car. · ${x.bullets} bullets · ${x.images} images</span>
+        </span>
+        <span class="flex items-center gap-2 flex-shrink-0">
+          <span class="font-black text-lg ${sc}">${x.score}</span>
+          <svg id="psCaret${i}" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2.5" stroke-linecap="round" class="transition-transform"><polyline points="6 9 12 15 18 9"/></svg>
+        </span>
+      </button>
+      <div id="psDetail${i}" class="hidden border-t border-gray-100 bg-gray-50 p-4 space-y-3">${_psDetail(x)}</div>
     </div>`;
   }).join('') || '<p class="text-sm text-gray-400 text-center py-6">Aucune fiche lisible sur cette page.</p>';
 
   document.getElementById('psResults').classList.remove('hidden');
 }
 
+function _psToggle(i) {
+  const d = document.getElementById('psDetail' + i);
+  const c = document.getElementById('psCaret' + i);
+  const open = d.classList.toggle('hidden');
+  if (c) c.style.transform = open ? '' : 'rotate(180deg)';
+}
+
+/* Détail d'une fiche : anomalies, mesures, mots-clés déduits, image principale. */
+function _psDetail(x) {
+  const block = (title, body) =>
+    `<div><p class="text-[11px] font-bold text-gray-500 uppercase tracking-wide mb-1.5">${title}</p>${body}</div>`;
+
+  const issues = x.issues.length
+    ? `<ul class="space-y-1">${x.issues.map(i => {
+        const crit = i.severity === 'critique';
+        return `<li class="text-xs flex gap-2 ${crit ? 'text-red-700' : 'text-amber-700'}">
+          <span class="font-bold flex-shrink-0">${crit ? '●' : '○'}</span>${_esc(i.message || i.code)}</li>`;
+      }).join('')}</ul>`
+    : '<p class="text-xs text-green-700">Aucune anomalie détectée sur ce qui est visible publiquement.</p>';
+
+  const bl = (x.bulletLengths || []);
+  const mesures = `<div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+      <div class="bg-white rounded-lg border border-gray-200 px-2.5 py-2">
+        <p class="text-gray-400">Titre</p>
+        <p class="font-bold ${x.titleLen > 75 ? 'text-red-600' : 'text-gray-800'}">${x.titleLen} / 75 car.</p></div>
+      <div class="bg-white rounded-lg border border-gray-200 px-2.5 py-2">
+        <p class="text-gray-400">Bullets</p>
+        <p class="font-bold ${x.bullets < 5 ? 'text-amber-600' : 'text-gray-800'}">${x.bullets} / 5</p></div>
+      <div class="bg-white rounded-lg border border-gray-200 px-2.5 py-2">
+        <p class="text-gray-400">Images</p>
+        <p class="font-bold ${x.images < 6 ? 'text-amber-600' : 'text-gray-800'}">${x.images}</p></div>
+      <div class="bg-white rounded-lg border border-gray-200 px-2.5 py-2">
+        <p class="text-gray-400">Bullet le plus long</p>
+        <p class="font-bold text-gray-800">${bl.length ? Math.max(...bl) : 0} car.</p></div>
+    </div>`;
+
+  const kw = x.keywords || {};
+  const top = (kw.top || []);
+  const kwHtml = top.length
+    ? `<div class="flex flex-wrap gap-1.5">${top.map(k =>
+        `<span class="text-[11px] px-2 py-1 rounded-lg border ${k.in_title
+          ? 'bg-purple-50 text-purple-700 border-purple-200'
+          : 'bg-white text-gray-500 border-gray-200'}">${_esc(k.term)} <span class="opacity-60">×${k.count}</span></span>`
+      ).join('')}</div>
+      <p class="text-[11px] text-gray-400 mt-1.5">En violet : présent dans le titre.</p>` +
+      (kw.missing_in_title && kw.missing_in_title.length
+        ? `<p class="text-xs text-amber-700 mt-2"><span class="font-semibold">Martelés dans les bullets mais absents du titre :</span> ${_esc(kw.missing_in_title.join(', '))}</p>`
+        : '')
+    : '<p class="text-xs text-gray-400">Pas assez de texte pour déduire des mots-clés.</p>';
+
+  let heroHtml = '<p class="text-xs text-gray-400">Image principale non vérifiée.</p>';
+  if (x.hero) {
+    const h = x.hero;
+    heroHtml = `<div class="flex flex-wrap gap-2 text-xs">
+      <span class="px-2 py-1 rounded-lg border ${h.white_bg
+        ? 'bg-green-50 text-green-700 border-green-200'
+        : 'bg-red-50 text-red-700 border-red-200'}">${h.white_bg
+          ? 'Fond blanc conforme' : `Fond non blanc (bord le plus sombre : ${h.edge_min}/255)`}</span>
+      <span class="px-2 py-1 rounded-lg border ${h.zoom_ok
+        ? 'bg-green-50 text-green-700 border-green-200'
+        : 'bg-amber-50 text-amber-700 border-amber-200'}">${h.width}×${h.height} px${h.zoom_ok ? '' : ' — sous 1000 px, pas de zoom'}</span>
+    </div>`;
+  }
+
+  return block('Anomalies', issues)
+       + block('Mesures', mesures)
+       + block('Mots-clés déduits de la fiche', kwHtml)
+       + block('Image principale', heroHtml);
+}
+
 function _psExportCsv() {
   if (!_psRows.length) { showToast('', 'Aucun résultat à exporter'); return; }
   const esc = v => `"${String(v == null ? '' : v).replace(/"/g, '""')}"`;
-  const lines = [['ASIN', 'Titre', 'Longueur titre', 'Bullets', 'Images', 'Critiques', 'A ameliorer', 'Problemes'].join(';')];
-  _psRows.forEach(x => lines.push([x.asin, x.title, x.titleLen, x.bullets, x.images, x.crit, x.warn,
+  const lines = [['ASIN', 'Titre', 'Score SEO', 'Longueur titre', 'Bullets', 'Images',
+                  'Fond blanc', 'Definition', 'Mots-cles absents du titre',
+                  'Critiques', 'A ameliorer', 'Problemes'].join(';')];
+  _psRows.forEach(x => lines.push([
+    x.asin, x.title, x.score, x.titleLen, x.bullets, x.images,
+    x.hero ? (x.hero.white_bg ? 'oui' : 'non') : '',
+    x.hero ? `${x.hero.width}x${x.hero.height}` : '',
+    (x.keywords.missing_in_title || []).join(' | '),
+    x.crit, x.warn,
     x.issues.map(i => i.message || i.code).join(' | ')].map(esc).join(';')));
   const blob = new Blob(['\ufeff' + lines.join('\n')], { type: 'text/csv;charset=utf-8' });
   const a = document.createElement('a');
