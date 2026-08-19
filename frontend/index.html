@@ -1448,6 +1448,14 @@
         <span class="hidden sm:inline">Assistant</span>
       </button>
 
+    </div>
+
+    <!-- Sélecteurs, langue et menu utilisateur : hors de la zone qui défile.
+         `overflow-x:auto` force `overflow-y:auto` : un menu déroulant placé
+         dans cette zone est rogné par la hauteur de l'en-tête (64 px) et
+         devient totalement invisible. -->
+    <div class="flex items-center gap-1.5 flex-shrink-0">
+
       <!-- Workspace (client) selector — shown only in agency mode -->
       <div class="relative hidden" id="wsSelectorWrapper">
         <button type="button" onclick="toggleWsDropdown(event)"
@@ -1493,11 +1501,6 @@
         </div>
       </div>
 
-    </div>
-
-    <!-- Langue + menu utilisateur : hors de la zone qui défile, sinon le
-         menu déroulant se ferait rogner -->
-    <div class="flex items-center gap-1.5 flex-shrink-0">
       <div data-lang-switch="dark"></div>
 
       <!-- User menu -->
