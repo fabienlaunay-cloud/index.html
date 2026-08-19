@@ -2132,5 +2132,11 @@ SQI18N.add({
 "2 à améliorer": "{n} to improve"
 });
 
+SQI18N.add({
+"Amazon refuse la lecture de ses pages produit depuis un serveur. Renseignez APIFY_TOKEN côté serveur pour passer par un parc de proxies — c'est le même mécanisme que la récupération des avis.": "Amazon refuses server-side reading of its product pages. Set APIFY_TOKEN on the server to go through a proxy pool — the same mechanism as review retrieval.",
+"Amazon a refusé la lecture de ces fiches et la reprise via Apify n'a rien ramené. Vérifiez la clé Apify et l'acteur produit configurés côté serveur.": "Amazon refused to serve these listings and the Apify retry returned nothing. Check the Apify key and product actor configured on the server.",
+"reprise via Apify…": "retrying through Apify…"
+});
+
 /* Démarrage — après le chargement de tous les blocs de dictionnaire. */
 SQI18N.boot();

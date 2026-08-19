@@ -2125,6 +2125,7 @@
           <div class="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-xs text-amber-800 mb-3">
             Audit partiel : les mots-clés backend ne sont jamais publics. Pour un score complet, il faut le rapport Seller Central du vendeur.
           </div>
+          <div id="psNote" class="hidden bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 text-xs text-blue-800 mb-3 leading-relaxed"></div>
           <div id="psList" class="space-y-2 max-h-80 overflow-y-auto pr-1"></div>
         </div>
       </div>
@@ -5618,6 +5619,17 @@ function _psRender(res) {
   document.getElementById('psScore').textContent = (rep.score != null ? rep.score : '—');
   document.getElementById('psSummary').textContent =
     `${res.scanned} fiche(s) analysée(s)` + (res.blocked ? ` · ${res.blocked} bloquée(s) par Amazon` : '');
+
+  // Rien de lisible : on explique pourquoi et quoi faire, au lieu d'un vide
+  const note = document.getElementById('psNote');
+  if (!_psRows.length && res.blocked) {
+    note.innerHTML = res.apify_ready
+      ? "Amazon a refusé la lecture de ces fiches et la reprise via Apify n'a rien ramené. Vérifiez la clé Apify et l'acteur produit configurés côté serveur."
+      : "Amazon refuse la lecture de ses pages produit depuis un serveur. Renseignez <span class=\"font-mono\">APIFY_TOKEN</span> côté serveur pour passer par un parc de proxies — c'est le même mécanisme que la récupération des avis.";
+    note.classList.remove('hidden');
+  } else {
+    note.classList.add('hidden');
+  }
 
   document.getElementById('psList').innerHTML = _psRows.map(x => {
     const tone = x.crit ? 'bg-red-50 text-red-700 border-red-200'

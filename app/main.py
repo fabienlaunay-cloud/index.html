@@ -3941,6 +3941,37 @@ async def _run_store_scan_job(job_id: str, asins: list[str], marketplace: str):
             _jobs[job_id]["progress"] = i + 1
             if i < len(asins) - 1:
                 await asyncio.sleep(1.2)  # respiration entre deux pages
+        # Amazon refuse quasi systématiquement la lecture serveur des pages
+        # produit. Apify passe par un parc de proxies : si une clé est
+        # configurée, on rattrape par elle tout ce qui a été bloqué.
+        used_apify = False
+        if blocked and os.getenv("APIFY_TOKEN"):
+            _jobs[job_id]["label"] = "reprise via Apify…"
+            try:
+                found = await _apify_fetch_products(blocked, marketplace)
+                rescued = []
+                for asin in list(blocked):
+                    p = found.get(asin)
+                    if not p or not (p.get("title") or p.get("bullets")):
+                        continue
+                    item = {
+                        "sku": asin, "asin": asin,
+                        "title": p.get("title") or "",
+                        "bullet_points": [b for b in (p.get("bullets") or []) if b.strip()],
+                        "image_urls": p.get("images") or [],
+                        "marketplace": marketplace, "status": "active",
+                    }
+                    if (p.get("description") or "").strip():
+                        item["description"] = p["description"].strip()
+                    listings.append(item)
+                    rescued.append(asin)
+                    used_apify = True
+                blocked = [a for a in blocked if a not in rescued]
+            except HTTPException as exc:
+                log.warning(f"[store-scan] repli Apify indisponible : {exc.detail}")
+            except Exception as exc:
+                log.error(f"[store-scan] repli Apify en erreur : {exc}")
+
         report = scan_listings(listings) if listings else {}
         _jobs[job_id].update(status="done", result={
             "report": report,
@@ -3948,6 +3979,8 @@ async def _run_store_scan_job(job_id: str, asins: list[str], marketplace: str):
             "scanned": len(listings),
             "blocked": len(blocked),
             "blocked_asins": blocked[:20],
+            "source": "apify" if used_apify else "scrape",
+            "apify_ready": bool(os.getenv("APIFY_TOKEN")),
             "partial": True,  # les mots-clés backend ne sont jamais publics
         })
     except Exception as exc:
@@ -5582,6 +5615,26 @@ def _apify_parse_price(raw) -> Optional[float]:
         return None
 
 
+def _apify_str_list(raw, url: bool = False) -> list[str]:
+    """Normalise un champ Apify en liste de chaînes. Les acteurs renvoient
+    tantôt des chaînes, tantôt des objets {url: …} ou {text: …}."""
+    if raw is None:
+        return []
+    if isinstance(raw, str):
+        return [raw.strip()] if raw.strip() else []
+    if not isinstance(raw, (list, tuple)):
+        return []
+    out = []
+    for x in raw:
+        if isinstance(x, str) and x.strip():
+            out.append(x.strip())
+        elif isinstance(x, dict):
+            v = x.get("url") if url else (x.get("text") or x.get("value") or x.get("title"))
+            if isinstance(v, str) and v.strip():
+                out.append(v.strip())
+    return out
+
+
 def _apify_parse_products(items: list) -> dict:
     """Extract {asin: {asin, title, price, rating}} from a product-scraper dataset."""
     out: dict = {}
@@ -5599,7 +5652,19 @@ def _apify_parse_products(items: list) -> dict:
             "price_amount", "salePrice", "listPrice"))
         rating = _apify_parse_rating(_apify_pick(
             it, "productRating", "productOverallRating", "stars", "rating", "averageRating"))
-        out[asin] = {"asin": asin, "title": str(name or "")[:200], "price": price, "rating": rating}
+        out[asin] = {"asin": asin, "title": str(name or "")[:500], "price": price,
+                     "rating": rating,
+                     # champs utiles à l'audit : selon l'acteur Apify, les noms
+                     # de clés varient — on ratisse large et on tolère l'absence
+                     "bullets": _apify_str_list(_apify_pick(
+                         it, "features", "featureBullets", "feature_bullets",
+                         "descriptionBullets", "bulletPoints", "aPlusFeatures")),
+                     "description": str(_apify_pick(
+                         it, "description", "productDescription", "fullDescription",
+                         "productDetails") or "")[:4000],
+                     "images": _apify_str_list(_apify_pick(
+                         it, "images", "imageUrlList", "highResolutionImages",
+                         "galleryImages", "productImages", "thumbnailImage"), url=True)}
     return out
 
 
