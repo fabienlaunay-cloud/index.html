@@ -3945,6 +3945,15 @@ class StoreScanRequest(BaseModel):
     limit: int = 30
 
 
+def _drop_reason(reasons: dict, why: str | None) -> None:
+    """Retire un motif d'échec du décompte quand la fiche a finalement été lue."""
+    if not why or not reasons.get(why):
+        return
+    reasons[why] -= 1
+    if reasons[why] <= 0:
+        reasons.pop(why, None)
+
+
 async def _run_store_scan_job(job_id: str, asins: list[str], marketplace: str):
     """Audite une liste d'ASIN publics : une page produit par fiche, puis le
     même moteur de conformité que l'audit de boutique par fichier.
@@ -3957,6 +3966,7 @@ async def _run_store_scan_job(job_id: str, asins: list[str], marketplace: str):
               "amazon_es": "amazon.es", "amazon_uk": "amazon.co.uk"}.get(marketplace, "amazon.fr")
     listings, blocked = [], []
     reasons: dict = {}
+    reason_of: dict = {}   # asin → motif de la 1re passe, pour le décompte
     try:
         for i, asin in enumerate(asins):
             html_text, why = await _fetch_amazon_page(f"https://www.{domain}/dp/{asin}", timeout=10.0)
@@ -3965,6 +3975,7 @@ async def _run_store_scan_job(job_id: str, asins: list[str], marketplace: str):
                 if why == "ok":
                     why = "page lue mais illisible"
                 reasons[why] = reasons.get(why, 0) + 1
+                reason_of[asin] = why
                 blocked.append(asin)
             else:
                 item = {
@@ -4011,17 +4022,14 @@ async def _run_store_scan_job(job_id: str, asins: list[str], marketplace: str):
                 if desc:
                     item["description"] = desc
                 listings.append(item)
-                # le motif de la première passe n'a plus lieu d'être
-                if reasons.get(why):
-                    reasons[why] -= 1
-                    if reasons[why] <= 0:
-                        reasons.pop(why, None)
+                _drop_reason(reasons, reason_of.pop(asin, None))
 
         # Amazon refuse parfois durablement la lecture serveur des pages
         # produit. Apify passe par un parc de proxies : si une clé est
         # configurée, on rattrape par elle tout ce qui reste bloqué.
         used_apify = False
         apify_error = ""
+        rescued: list = []
         if blocked and os.getenv("APIFY_TOKEN"):
             _jobs[job_id]["label"] = "reprise via Apify…"
             try:
@@ -4029,7 +4037,6 @@ async def _run_store_scan_job(job_id: str, asins: list[str], marketplace: str):
                 if not found:
                     apify_error = ("l'acteur Apify a tourné mais n'a renvoyé aucune fiche "
                                    "(vérifiez APIFY_PRODUCT_ACTOR et son accès)")
-                rescued = []
                 for asin in list(blocked):
                     p = found.get(asin)
                     if not p or not (p.get("title") or p.get("bullets")):
@@ -4045,6 +4052,7 @@ async def _run_store_scan_job(job_id: str, asins: list[str], marketplace: str):
                         item["description"] = p["description"].strip()
                     listings.append(item)
                     rescued.append(asin)
+                    _drop_reason(reasons, reason_of.pop(asin, None))
                     used_apify = True
                 blocked = [a for a in blocked if a not in rescued]
             except HTTPException as exc:
@@ -4063,6 +4071,7 @@ async def _run_store_scan_job(job_id: str, asins: list[str], marketplace: str):
             "blocked_asins": blocked[:20],
             "reasons": reasons,
             "source": "apify" if used_apify else "scrape",
+            "rescued_by_apify": len(rescued) if used_apify else 0,
             "apify_ready": bool(os.getenv("APIFY_TOKEN")),
             "apify_error": apify_error,
             "partial": True,  # les mots-clés backend ne sont jamais publics

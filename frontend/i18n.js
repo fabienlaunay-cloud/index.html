@@ -2154,5 +2154,10 @@ SQI18N.add({
 "Amazon limite la lecture de ses pages produit depuis un serveur. Relancez pour récupérer les fiches manquantes, ou auditez-les à l'unité juste au-dessus.": "Amazon throttles server-side reading of its product pages. Run it again to pick up the missing listings, or audit them one at a time just above."
 });
 
+SQI18N.add({
+"1 fiche(s) récupérée(s)": "{n} listing(s) recovered",
+"Formulation à risque (revue Amazon) :": "Risky wording (Amazon review):"
+});
+
 /* Démarrage — après le chargement de tous les blocs de dictionnaire. */
 SQI18N.boot();

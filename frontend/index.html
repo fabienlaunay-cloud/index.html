@@ -5628,11 +5628,13 @@ function _psRender(res) {
       .map(([k, v]) => `${v} × ${_esc(k)}`).join(' · ');
     note.innerHTML =
       (why ? `<span class="font-semibold">Motif des échecs :</span> ${why}.<br>` : '') +
-      (res.apify_ready
-        ? (res.apify_error
-            ? `Reprise via Apify : <span class="font-semibold">${_esc(res.apify_error)}</span>`
-            : "La reprise via Apify n'a rien ramené non plus.")
-        : "Amazon limite la lecture de ses pages produit depuis un serveur. Relancez pour récupérer les fiches manquantes, ou auditez-les à l'unité juste au-dessus.");
+      (res.apify_error
+        ? `Reprise via Apify : <span class="font-semibold">${_esc(res.apify_error)}</span>`
+        : res.rescued_by_apify
+          ? `Reprise via Apify : <span class="font-semibold">${res.rescued_by_apify} fiche(s) récupérée(s)</span>.`
+          : res.apify_ready
+            ? "La reprise via Apify n'a rien ramené non plus."
+            : "Amazon limite la lecture de ses pages produit depuis un serveur. Relancez pour récupérer les fiches manquantes, ou auditez-les à l'unité juste au-dessus.");
     note.classList.remove('hidden');
   } else {
     note.classList.add('hidden');
