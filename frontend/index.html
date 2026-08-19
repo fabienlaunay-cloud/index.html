@@ -6517,6 +6517,134 @@ const MKT_META = {
   amazon_be: { flag:'🇧🇪', label:'Belgique' },
 };
 
+// ── Déclinaison multilingue ─────────────────────────────────────────────────
+// Partir des fiches déjà écrites, pas du fichier produit d'origine : le travail
+// de rédaction — et les retouches faites à la main — est conservé.
+
+let _locSelected = new Set();
+
+function _locSources() {
+  // Une source par SKU. Si un marché est filtré à l'écran, c'est lui la source
+  // de référence ; sinon on prend la première fiche rencontrée pour ce SKU.
+  const byS = {};
+  for (const l of generatedListings) {
+    if (l.parent_sku) continue;             // les déclinaisons de variation suivent leur parent
+    if (!byS[l.sku]) byS[l.sku] = l;
+    if (activeMarketplaceFilter && l.marketplace === activeMarketplaceFilter) byS[l.sku] = l;
+  }
+  return Object.values(byS);
+}
+
+function _locOpen() {
+  const sources = _locSources();
+  if (!sources.length) return;
+  // Un marché déjà couvert pour TOUS les SKU n'a pas à être recoché par défaut.
+  const covered = {};
+  for (const l of generatedListings) (covered[l.marketplace] = covered[l.marketplace] || new Set()).add(l.sku);
+  const skuCount = sources.length;
+  _locSelected = new Set();
+
+  const rows = Object.entries(MKT_META).map(([mkt, meta]) => {
+    const have = (covered[mkt] || new Set()).size;
+    const full = have >= skuCount;
+    return `<label class="flex items-center gap-3 px-3 py-2.5 rounded-lg border ${full ? 'border-gray-100 bg-gray-50' : 'border-gray-200 hover:border-purple-300 cursor-pointer'} transition">
+      <input type="checkbox" value="${mkt}" onchange="_locToggle(this)" class="w-4 h-4 accent-purple-600">
+      <span class="text-lg leading-none">${meta.flag}</span>
+      <span class="text-sm font-medium text-gray-800 flex-1">${meta.label}</span>
+      ${have ? `<span class="text-[11px] ${full ? 'text-green-600' : 'text-amber-600'} font-medium">${full ? 'déjà couvert' : have + '/' + skuCount + ' fiches'}</span>` : ''}
+    </label>`;
+  }).join('');
+
+  const src = sources[0];
+  const srcMeta = MKT_META[src.marketplace] || { flag:'🌐', label: src.marketplace };
+  document.getElementById('locModal')?.remove();
+  const el = document.createElement('div');
+  el.id = 'locModal';
+  el.className = 'fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/40';
+  el.innerHTML = `<div class="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[88vh] flex flex-col" onclick="event.stopPropagation()">
+    <div class="px-6 pt-5 pb-4 border-b border-gray-100">
+      <h3 class="text-lg font-semibold text-gray-900">Décliner dans d'autres langues</h3>
+      <p class="text-sm text-gray-500 mt-1">${skuCount} fiche(s) source, rédigée(s) pour ${srcMeta.flag} ${srcMeta.label}. Chaque marché coché sera réécrit dans sa langue — mots-clés recherchés à neuf, faits produits inchangés.</p>
+    </div>
+    <div class="px-6 py-4 overflow-y-auto space-y-1.5 flex-1">${rows}</div>
+    <div class="px-6 py-4 border-t border-gray-100 flex items-center gap-3">
+      <span id="locCount" class="text-sm text-gray-500 flex-1">Aucun marché sélectionné</span>
+      <button onclick="_locClose()" class="px-4 py-2 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-100 transition">Annuler</button>
+      <button id="locRun" onclick="_locRun()" disabled class="px-4 py-2 rounded-lg text-sm font-semibold text-white bg-purple-600 hover:bg-purple-700 disabled:opacity-40 disabled:cursor-not-allowed transition">Décliner</button>
+    </div>
+  </div>`;
+  el.onclick = _locClose;
+  document.body.appendChild(el);
+}
+
+function _locClose() { document.getElementById('locModal')?.remove(); }
+
+function _locToggle(cb) {
+  if (cb.checked) _locSelected.add(cb.value); else _locSelected.delete(cb.value);
+  const n = _locSelected.size * _locSources().length;
+  document.getElementById('locCount').textContent = n
+    ? `${n} fiche(s) à produire` : 'Aucun marché sélectionné';
+  document.getElementById('locRun').disabled = !_locSelected.size;
+}
+
+async function _locRun() {
+  const sources = _locSources();
+  const targets = [..._locSelected];
+  if (!sources.length || !targets.length) return;
+  const btn = document.getElementById('locRun');
+  btn.disabled = true; btn.textContent = 'Envoi…';
+  try {
+    const r = await authFetch('/api/listings/localize', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ listings: sources, marketplaces: targets }),
+    });
+    if (!r.ok) {
+      const err = await r.json().catch(() => ({}));
+      throw new Error(err.detail || `Erreur HTTP ${r.status}`);
+    }
+    const { job_id, total } = await r.json();
+    let missed = 0;
+    while (true) {
+      await new Promise(res => setTimeout(res, 2000));
+      const jr = await authFetch(`/api/jobs/${job_id}`).catch(() => null);
+      if (!jr || !jr.ok) {
+        if (++missed >= 4) throw new Error('Le serveur a redémarré — relancez la déclinaison');
+        continue;
+      }
+      missed = 0;
+      const job = await jr.json();
+      btn.textContent = `${job.progress || 0}/${total}…`;
+      if (job.status === 'done') { _locApply(job.result); break; }
+      if (job.status === 'failed') throw new Error(job.error || 'Erreur de déclinaison');
+    }
+  } catch (e) {
+    showToast('❌', e.message, true);
+    if (btn) { btn.disabled = false; btn.textContent = 'Décliner'; }
+  }
+}
+
+function _locApply(result) {
+  const added = result.listings || [];
+  // Une relance ne doit pas empiler deux fois le même couple (SKU, marché).
+  const key = l => `${l.sku}|${l.marketplace}`;
+  const seen = new Set(generatedListings.map(key));
+  for (const l of added) {
+    const i = generatedListings.findIndex(x => key(x) === key(l));
+    if (i >= 0) generatedListings[i] = l;
+    else generatedListings.push(l);
+    seen.add(key(l));
+  }
+  _saveBatches();
+  activeMarketplaceFilter = null;
+  renderListingsContainer();
+  _renderResultsChips();
+  _locClose();
+  const failed = (result.failed || []).length;
+  showToast(failed ? '⚠️' : '✅',
+    failed ? `${added.length} fiche(s) déclinée(s), ${failed} échec(s)`
+           : `${added.length} fiche(s) déclinée(s)`);
+}
+
 function toggleMktDropdown(e) {
   e.stopPropagation();
   document.getElementById('pubMktList')?.classList.add('hidden');
@@ -7088,14 +7216,15 @@ function _renderResultsChips() {
   container.classList.remove('hidden');
   const hasSegments = Object.keys(segMap).length > 0;
 
-  const mktChipsHtml = hasMultiMkt ? `<div class="flex flex-wrap gap-1.5 items-center pb-2 border-b border-gray-100 mb-2 w-full">
-    <span class="text-xs text-gray-400 font-medium mr-1">Marché :</span>
+  const mktChipsHtml = `<div class="flex flex-wrap gap-1.5 items-center pb-2 border-b border-gray-100 mb-2 w-full">
+    ${hasMultiMkt ? `<span class="text-xs text-gray-400 font-medium mr-1">Marché :</span>
     <button onclick="filterByMarketplace(null)" class="text-xs px-2.5 py-1 rounded-full border font-medium transition ${!activeMarketplaceFilter ? 'bg-purple-600 text-white border-purple-600' : 'bg-white text-gray-500 border-gray-200 hover:border-purple-300'}">Tous (${generatedListings.length})</button>
     ${Object.entries(mktMap).map(([mkt, n]) => {
       const meta = MKT_META[mkt] || { flag:'🌐', label: mkt };
       return `<button onclick="filterByMarketplace('${mkt}')" class="text-xs px-2.5 py-1 rounded-full border font-medium transition ${activeMarketplaceFilter === mkt ? 'bg-purple-600 text-white border-purple-600' : 'bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100'}">${meta.flag} ${meta.label} (${n})</button>`;
-    }).join('')}
-  </div>` : '';
+    }).join('')}` : ''}
+    <button onclick="_locOpen()" class="ml-auto text-xs px-3 py-1 rounded-full border border-purple-200 bg-white text-purple-700 font-semibold hover:bg-purple-50 transition inline-flex items-center gap-1.5" title="Réécrire ces fiches pour d'autres marketplaces Amazon">🌍 Décliner dans d'autres langues</button>
+  </div>`;
   container.innerHTML = `<div class="bg-white rounded-2xl shadow-sm border border-gray-100 px-5 py-3 flex items-center gap-3 flex-wrap">
     <div class="flex-1 flex flex-wrap gap-1.5 items-center">
       ${mktChipsHtml}

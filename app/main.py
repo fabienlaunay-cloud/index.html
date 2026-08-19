@@ -49,10 +49,10 @@ from pydantic import BaseModel
 
 from app.models import (
     GenerationRequest, GenerationResult, PublishRequest, PublishResult,
-    RawProduct, Marketplace, AmazonListing,
+    RawProduct, Marketplace, AmazonListing, LocalizeRequest,
 )
 from app.services.ingestion import parse_file, get_headers_and_sample
-from app.services.ai_agent import generate_listings_batch
+from app.services.ai_agent import generate_listings_batch, localize_listings_batch
 from app.services.amazon_sp import publish_listings
 from app.services.auth import verify_token
 from app.services.image_gen import generate_product_images, AMAZON_IMAGE_TYPES, _generate_image_dalle3
@@ -1496,6 +1496,116 @@ async def generate(request: GenerationRequest, req: Request):
         pass
     asyncio.create_task(_run_generation_job(job_id, request, email))
     return {"job_id": job_id, "total": n_total}
+
+
+# ── Déclinaison multilingue ───────────────────────────────────────────────────
+
+async def _run_localize_job(job_id: str, pairs: list, email: Optional[str]):
+    _jobs[job_id]["status"] = "running"
+    n_total = len(pairs)
+    done_count = 0
+
+    def on_progress(done: int, _total: int):
+        nonlocal done_count
+        done_count += 1
+        if job_id in _jobs:
+            _jobs[job_id]["progress"] = done_count
+
+    try:
+        listings, failed, tokens = await localize_listings_batch(pairs, on_progress=on_progress)
+        if email:
+            if listings:
+                log_usage(email, "sku_generated", len(listings))
+            if tokens.get("input_tokens"):
+                log_usage(email, "tokens_in", tokens["input_tokens"])
+            if tokens.get("output_tokens"):
+                log_usage(email, "tokens_out", tokens["output_tokens"])
+        result = {
+            "listings": [l.model_dump() for l in listings],
+            "failed": failed,
+            "total": n_total,
+            "success_count": len(listings),
+        }
+        _jobs[job_id].update({"status": "done", "progress": n_total, "result": result})
+        try:
+            update_job_db(job_id, status="done", progress=n_total,
+                          result_json=json.dumps(result, default=str))
+        except Exception:
+            pass
+    except Exception as e:
+        _jobs[job_id].update({"status": "failed", "error": str(e)})
+        try:
+            update_job_db(job_id, status="failed", error=str(e))
+        except Exception:
+            pass
+
+
+@app.post("/api/listings/localize")
+async def localize(request: LocalizeRequest, req: Request):
+    """Décliner des fiches existantes vers d'autres marchés Amazon.
+
+    Le point d'entrée pour l'usage courant : une fiche rédigée en français,
+    rechargée depuis l'historique, que l'on veut publier sur .de, .it, .es
+    et .co.uk sans repartir du fichier produit d'origine.
+    """
+    if not os.getenv("ANTHROPIC_API_KEY"):
+        raise HTTPException(503, "ANTHROPIC_API_KEY manquante")
+    if not request.listings:
+        raise HTTPException(400, "Aucune fiche à décliner")
+    if not request.marketplaces:
+        raise HTTPException(400, "Aucun marché cible")
+
+    # Une fiche est déjà écrite pour son propre marché : la redemander serait
+    # payer un appel pour rien. Sauf demande explicite de réécriture.
+    existing = {(l.sku, l.marketplace) for l in request.listings}
+    pairs = []
+    for source in request.listings:
+        for target in request.marketplaces:
+            if target == source.marketplace:
+                continue
+            if not request.overwrite and (source.sku, target) in existing:
+                continue
+            pairs.append((source, target))
+    # Un même SKU peut arriver en plusieurs langues : on ne décline qu'une fois
+    # par couple (SKU, marché cible), en gardant la première source rencontrée.
+    seen, deduped = set(), []
+    for source, target in pairs:
+        key = (source.sku, target)
+        if key in seen:
+            continue
+        seen.add(key)
+        deduped.append((source, target))
+    pairs = deduped
+
+    if not pairs:
+        raise HTTPException(400,
+            "Ces fiches existent déjà dans tous les marchés demandés. "
+            "Cochez « réécrire » pour les régénérer.")
+
+    email = getattr(req.state, "user_email", None)
+    if email:
+        usage = get_user_usage(email)
+        remaining = usage["skus_quota"] - usage["skus_used"]
+        if remaining <= 0:
+            raise HTTPException(429,
+                f"Quota atteint — plan {usage['plan_label']} : {usage['skus_quota']} SKU/mois.")
+        if len(pairs) > remaining:
+            raise HTTPException(429,
+                f"Quota insuffisant — il vous reste {remaining} SKU ce mois, "
+                f"cette déclinaison en demande {len(pairs)}.")
+        if not _rate_limit(f"{email}:localize", limit=20, window=3600):
+            raise HTTPException(429, "Trop de déclinaisons — maximum 20/heure.")
+
+    job_id = str(uuid4())
+    _jobs[job_id] = {"status": "pending", "progress": 0,
+                     "total": len(pairs), "created_at": time.time()}
+    _cleanup_jobs()
+    try:
+        save_job(job_id, email, "localize", len(pairs))
+    except Exception:
+        pass
+    asyncio.create_task(_run_localize_job(job_id, pairs, email))
+    return {"job_id": job_id, "total": len(pairs)}
 
 
 async def _run_catalog_sync_job(job_id: str, email: str, marketplace_str: str):

@@ -123,6 +123,17 @@ class GenerationRequest(BaseModel):
     brand_voice: Optional[BrandVoice] = None
 
 
+class LocalizeRequest(BaseModel):
+    """Décliner des fiches déjà générées vers d'autres marchés.
+
+    On part des fiches, pas des produits bruts : le travail de rédaction (et les
+    retouches manuelles) est conservé, seule la langue et les mots-clés changent.
+    """
+    listings: List[AmazonListing]
+    marketplaces: List[Marketplace]
+    overwrite: bool = False   # rejouer un marché déjà présent dans la sélection
+
+
 class GenerationResult(BaseModel):
     listings: List[AmazonListing]
     failed: List[dict] = []

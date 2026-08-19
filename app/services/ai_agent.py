@@ -533,3 +533,177 @@ async def generate_listings_batch(
 
     await asyncio.gather(*[_process(p) for p in products])
     return listings, failed, {"input_tokens": total_input_tokens, "output_tokens": total_output_tokens}
+
+
+# ── Déclinaison d'une fiche existante vers d'autres marchés ──────────────────
+# Une fiche déjà générée — et souvent retouchée à la main — représente un
+# travail validé. La régénérer depuis le produit brut le jetterait. On part
+# donc de la fiche elle-même et on la réécrit pour le marché visé : mêmes
+# faits, même positionnement, mais rédaction et mots-clés natifs.
+
+def _build_localize_prompt(source: AmazonListing, constraints: dict,
+                           source_lang: str) -> str:
+    bullets = "\n".join(f"  {i + 1}. {b}" for i, b in enumerate(source.bullet_points or []))
+    aplus = ""
+    if source.a_plus_content:
+        mods = "\n".join(
+            f"  - {m.type} | {m.title} | {m.body}"
+            for m in (source.a_plus_content.modules or [])
+        )
+        aplus = f"\nContenu A+ :\n  Headline : {source.a_plus_content.headline}\n{mods}\n"
+    attrs = [f"Marque : {source.brand or '—'}", f"Catégorie : {source.category or '—'}"]
+    if source.color:     attrs.append(f"Couleur : {source.color}")
+    if source.material:  attrs.append(f"Matière : {source.material}")
+    if source.weight_kg: attrs.append(f"Poids : {source.weight_kg} kg")
+    return f"""FICHE SOURCE — rédigée en {source_lang} pour un autre marché Amazon.
+
+{chr(10).join(attrs)}
+
+Titre : {source.title}
+Item Highlights : {source.item_highlights or '—'}
+Bullet points :
+{bullets}
+
+Description :
+{source.description}
+
+Mots-clés backend : {source.backend_keywords}
+{aplus}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+TA MISSION — décliner cette fiche pour {constraints['platform']} en {constraints['lang']}.
+
+Ce n'est PAS une traduction. Un acheteur de ce marché doit avoir l'impression
+que la fiche a été écrite pour lui, par quelqu'un de chez lui.
+
+RÈGLES DE DÉCLINAISON
+1. Les FAITS sont intangibles : dimensions, matières, contenu du pack,
+   certifications, compatibilités, chiffres. Ne jamais en inventer, ne jamais
+   en retirer, ne jamais en modifier un seul.
+2. Les MOTS-CLÉS se recherchent à neuf dans la langue cible. Un acheteur
+   allemand ne tape pas la traduction littérale de la requête française.
+   Pars de l'intention d'achat, pas des mots de la fiche source.
+3. Les EXPRESSIONS IDIOMATIQUES, jeux de mots et formules d'accroche se
+   réécrivent. Une accroche traduite mot à mot sonne faux.
+4. Les UNITÉS et formats suivent l'usage local (séparateur décimal, tailles,
+   normes). Ne convertis jamais une mesure : le produit est le même.
+5. La MARQUE et les noms propres ne se traduisent pas.
+6. Les limites de caractères s'appliquent à ta sortie, pas à la source —
+   l'allemand est plus long que le français, resserre si nécessaire.
+
+Génère la fiche déclinée au format JSON exact suivant :
+{{
+  "title": "... (≤ {constraints['title_max']} caractères)",
+  "item_highlights": "... (texte continu, ≤ {constraints['item_highlights_max']} caractères)",
+  "bullet_points": [
+    "BÉNÉFICE 1 — preuve factuelle + mot-clé secondaire...",
+    "BÉNÉFICE 2 — ...",
+    "BÉNÉFICE 3 — ...",
+    "BÉNÉFICE 4 — ...",
+    "BÉNÉFICE 5 — ..."
+  ],
+  "description": "...",
+  "backend_keywords": "longue traîne mot1 mot2 ...",
+  "a_plus_content": {{
+    "headline": "...",
+    "modules": [
+      {{"type": "comparison", "title": "...", "body": "..."}},
+      {{"type": "lifestyle", "title": "...", "body": "..."}}
+    ]
+  }},
+  "seo_score": 0
+}}"""
+
+
+async def localize_listing(
+    source: AmazonListing,
+    target: Marketplace,
+    retries: int = 2,
+) -> tuple:  # (AmazonListing, token_usage)
+    constraints = MARKETPLACE_CONSTRAINTS.get(target, MARKETPLACE_CONSTRAINTS[Marketplace.AMAZON_FR])
+    constraints = constraints_for_category(constraints, source.category)
+    src_constraints = MARKETPLACE_CONSTRAINTS.get(
+        source.marketplace, MARKETPLACE_CONSTRAINTS[Marketplace.AMAZON_FR])
+    system = _build_system_prompt(constraints)
+    user = _build_localize_prompt(source, constraints, src_constraints["lang"])
+    token_usage = {"input_tokens": 0, "output_tokens": 0}
+
+    for attempt in range(retries + 1):
+        try:
+            response = await get_client().messages.create(
+                model="claude-sonnet-4-6",
+                max_tokens=2500,
+                system=[{"type": "text", "text": system, "cache_control": {"type": "ephemeral"}}],
+                messages=[{"role": "user", "content": user}],
+            )
+            token_usage = {
+                "input_tokens": response.usage.input_tokens,
+                "output_tokens": response.usage.output_tokens,
+                "cache_read_input_tokens": getattr(response.usage, "cache_read_input_tokens", 0),
+                "cache_creation_input_tokens": getattr(response.usage, "cache_creation_input_tokens", 0),
+            }
+            raw = response.content[0].text.strip()
+            if raw.startswith("```"):
+                raw = raw.split("\n", 1)[1].rsplit("```", 1)[0]
+            if response.stop_reason != "end_turn":
+                raise ValueError(f"Réponse tronquée (stop_reason={response.stop_reason}). Réessai en cours...")
+            data = json.loads(raw)
+
+            data["seo_score"] = _compute_seo_score(data, constraints)
+            data["title"] = data["title"][: constraints["title_max"]]
+            if data.get("item_highlights"):
+                data["item_highlights"] = data["item_highlights"][: constraints.get("item_highlights_max", 125)]
+            data["bullet_points"] = data["bullet_points"][: constraints["bullets"]]
+            if constraints["keywords_max"] > 0:
+                data["backend_keywords"] = data["backend_keywords"][: constraints["keywords_max"]]
+
+            # Le SKU, la marque et les attributs physiques sont ceux de la fiche
+            # source : c'est le même produit, vendu ailleurs.
+            return AmazonListing(
+                sku=source.sku,
+                brand=source.brand or "",
+                category=source.category or "",
+                price=source.price,
+                ean=source.ean,
+                color=source.color,
+                material=source.material,
+                weight_kg=source.weight_kg,
+                marketplace=target,
+                **{k: v for k, v in data.items() if k in AmazonListing.model_fields},
+            ), token_usage
+        except json.JSONDecodeError:
+            if attempt == retries:
+                raise
+            await asyncio.sleep(1)
+        except anthropic.APIError as e:
+            if attempt == retries:
+                raise
+            await asyncio.sleep(2 ** attempt)
+
+
+async def localize_listings_batch(
+    pairs: List[tuple],          # [(AmazonListing source, Marketplace cible), …]
+    concurrency: int = 10,
+    on_progress=None,            # callable(done: int, total: int)
+) -> tuple:                      # (listings, failed, token_usage)
+    semaphore = asyncio.Semaphore(concurrency)
+    listings, failed = [], []
+    done_count = 0
+    total_in = total_out = 0
+
+    async def _process(source: AmazonListing, target: Marketplace):
+        nonlocal done_count, total_in, total_out
+        async with semaphore:
+            try:
+                listing, tokens = await localize_listing(source, target)
+                listings.append(listing)
+                total_in += tokens.get("input_tokens", 0)
+                total_out += tokens.get("output_tokens", 0)
+            except Exception as e:
+                failed.append({"sku": source.sku, "marketplace": target.value, "error": str(e)})
+            finally:
+                done_count += 1
+                if on_progress:
+                    on_progress(done_count, len(pairs))
+
+    await asyncio.gather(*[_process(s, t) for s, t in pairs])
+    return listings, failed, {"input_tokens": total_in, "output_tokens": total_out}
