@@ -1125,16 +1125,27 @@ async def list_photos(request: Request):
 
 
 @app.get("/api/photos/{filename}")
-async def serve_photo(filename: str):
+async def serve_photo(filename: str, v: str | None = None):
     # When R2 public access is enabled, redirect directly to CDN (no server bandwidth)
     cdn = storage.public_url(filename)
     if cdn:
-        return Response(status_code=302, headers={"Location": cdn})
+        # Une image régénérée écrase le même objet : sans propager `v`, le CDN
+        # renverrait la version en cache, et la redirection elle-même serait
+        # mémorisée par le navigateur.
+        if v:
+            cdn = f"{cdn}{'&' if '?' in cdn else '?'}v={v}"
+        return Response(status_code=302,
+                        headers={"Location": cdn, "Cache-Control": "no-cache"})
     photo = _load_photo(filename)
     if not photo:
         raise HTTPException(404, "Photo non trouvée")
     ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else "jpg"
-    return Response(content=photo, media_type=_IMAGE_CONTENT_TYPES.get(ext, "image/jpeg"))
+    # `v` rend l'URL unique à chaque régénération ; sans `v`, on force la
+    # revalidation pour ne pas figer une image qui a pu changer.
+    cache = "public, max-age=31536000, immutable" if v else "no-cache"
+    return Response(content=photo,
+                    media_type=_IMAGE_CONTENT_TYPES.get(ext, "image/jpeg"),
+                    headers={"Cache-Control": cache})
 
 
 # ── URL Scraping ──────────────────────────────────────────────────────────────
@@ -3207,30 +3218,38 @@ class ImageRequest(BaseModel):
     marketplace: Optional[str] = None
 
 
-async def _persist_images(sku: str, images: list) -> list:
+async def _persist_images(sku: str, images: list, overwrite: bool = False) -> list:
     """Download temp DALL-E URLs / decode base64 → save to storage permanently.
-    Returns the same list with urls replaced by /api/photos/... paths."""
+    Returns the same list with urls replaced by /api/photos/... paths.
+
+    `overwrite` est indispensable à la régénération : le nom de fichier est
+    déterminé par (sku, image_id), donc sans lui l'image fraîchement générée
+    est jetée et l'ancienne renvoyée telle quelle. Le suffixe `?v=` casse en
+    plus le cache du navigateur et du CDN, qui servent le même chemin.
+    """
     import base64 as _b64
+    version = int(time.time())
     for img in images:
         url = img.get("url") or ""
         if not url or not img.get("has_image"):
             continue
         ext = "png"
         filename = f"gen_{sku}_{img.get('id','img')}.{ext}"
-        if storage.exists(filename):
-            img["url"] = f"/api/photos/{filename}"
+        served = f"/api/photos/{filename}" + (f"?v={version}" if overwrite else "")
+        if not overwrite and storage.exists(filename):
+            img["url"] = served
             continue
         try:
             if url.startswith("data:image"):
                 data_part = url.split(",", 1)[1]
                 _save_photo(filename, _b64.b64decode(data_part))
-                img["url"] = f"/api/photos/{filename}"
+                img["url"] = served
             elif url.startswith("http"):
                 async with httpx.AsyncClient(timeout=30) as client:
                     resp = await client.get(url)
                     if resp.status_code == 200:
                         _save_photo(filename, resp.content)
-                        img["url"] = f"/api/photos/{filename}"
+                        img["url"] = served
         except Exception:
             pass  # keep original url as fallback
     return images
@@ -3353,7 +3372,8 @@ async def _run_single_image_job(job_id: str, req: SingleImageRequest, email: str
                 pass
         # Persist to disk
         if url:
-            persisted = await _persist_images(req.sku, [{"id": req.image_id, "url": url, "has_image": True}])
+            persisted = await _persist_images(
+                req.sku, [{"id": req.image_id, "url": url, "has_image": True}], overwrite=True)
             url = persisted[0]["url"] if persisted else url
         result_single = {
             "sku": req.sku,
