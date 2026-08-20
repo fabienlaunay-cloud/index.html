@@ -364,7 +364,8 @@ async def _download_reference_image(url: str) -> Optional[bytes]:
     return None
 
 
-async def _generate_image_dalle3(prompt: str, image_id: str, reference_image: Optional[bytes] = None, _retry: int = 4) -> Optional[str]:
+async def _generate_image_dalle3(prompt: str, image_id: str, reference_image: Optional[bytes] = None,
+                                 _retry: int = 4, _prefixed: bool = False) -> Optional[str]:
     """Génère une image via gpt-image-2.
     Si reference_image fourni → endpoint /images/edits (produit réel comme base).
     Sinon → endpoint /images/generations (text-to-image).
@@ -376,11 +377,14 @@ async def _generate_image_dalle3(prompt: str, image_id: str, reference_image: Op
         return None
 
     quality = "medium" if image_id == "hero" else "low"
-    prompt = prompt[:3500] if len(prompt) > 3500 else prompt
+    # Au réessai le prompt porte déjà le bloc de préservation : le retronquer à
+    # 3500 lui couperait la fin. La limite est alors celle d'après préfixage.
+    _cap = 3900 if _prefixed else 3500
+    prompt = prompt[:_cap] if len(prompt) > _cap else prompt
 
     # Quand une photo de référence est fournie, forcer gpt-image-2 à conserver
     # le produit réel plutôt que d'en inventer un nouveau.
-    if reference_image:
+    if reference_image and not _prefixed:
         preservation = (
             "IMPORTANT: The attached image is the REAL product photo provided by the client. "
             "You MUST reproduce this exact product in the output with complete fidelity — "
@@ -419,7 +423,11 @@ async def _generate_image_dalle3(prompt: str, image_id: str, reference_image: Op
             m = re.search(r"try again in (\d+)s", msg)
             wait = int(m.group(1)) + 2 if m else 15
             await asyncio.sleep(wait)
-            return await _generate_image_dalle3(prompt, image_id, reference_image, _retry - 1)
+            # `_prefixed` : sans ce drapeau, chaque réessai 429 re-tronquait le
+            # prompt à 3500 puis lui recollait le bloc de préservation, rognant
+            # ~400 caractères de brief métier à chaque tour.
+            return await _generate_image_dalle3(prompt, image_id, reference_image,
+                                                _retry - 1, _prefixed=bool(reference_image))
         if not resp.is_success:
             try:
                 detail = resp.json()

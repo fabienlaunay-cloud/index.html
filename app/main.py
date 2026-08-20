@@ -1217,6 +1217,155 @@ async def scrape_url_endpoint(request: Request):
     return data
 
 
+_BROWSER_UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+               "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36")
+
+
+async def _fetch_guarded(client: "httpx.AsyncClient", url: str, *,
+                         max_bytes: int, referer: str = "") -> tuple[bytes, str]:
+    """GET une URL fournie par l'utilisateur en revalidant CHAQUE redirection.
+
+    `follow_redirects=True` contournerait la garde SSRF : un site public peut
+    répondre 302 vers 169.254.169.254. On suit donc les sauts à la main. La
+    réponse est lue en flux et coupée à `max_bytes` pour qu'une page ou une
+    image géante ne fasse pas exploser la mémoire du serveur.
+    """
+    _reject_internal_url(url)
+    current = url
+    headers = {"Referer": referer} if referer else {}
+    for _ in range(6):
+        async with client.stream("GET", current, headers=headers) as resp:
+            if resp.is_redirect and resp.headers.get("location"):
+                current = str(resp.next_request.url) if resp.next_request else resp.headers["location"]
+                _reject_internal_url(current)
+                continue
+            resp.raise_for_status()
+            buf = bytearray()
+            async for chunk in resp.aiter_bytes():
+                buf += chunk
+                if len(buf) > max_bytes:
+                    raise HTTPException(413, "Contenu trop volumineux")
+            return bytes(buf), (resp.headers.get("content-type") or "").lower()
+    raise HTTPException(502, "Trop de redirections")
+
+
+class ProductPhotoFromUrlRequest(BaseModel):
+    url: str                            # URL de la PAGE produit du client
+    sku: str                            # SKU cible → clé de stockage {sku}.{ext}
+    image_url: Optional[str] = None     # si l'utilisateur préfère une autre vignette
+    overwrite: bool = False
+
+
+@app.post("/api/product-photo-from-url")
+async def product_photo_from_url(req: ProductPhotoFromUrlRequest, request: Request):
+    """Extraire la photo produit d'une page du site client et l'enregistrer
+    comme photo de référence du SKU.
+
+    C'est le chaînon qui manquait : `reference_image_url` attend une URL
+    d'IMAGE, pas de page. On stocke sous la clé canonique `{sku}.{ext}`, si
+    bien que la génération relit les octets en local (aucune requête sortante
+    au moment de générer) et bascule sur /images/edits, qui conserve le vrai
+    packaging du client au lieu d'en inventer un.
+    """
+    url = (req.url or "").strip()
+    if not url.startswith("http"):
+        raise HTTPException(400, "URL invalide — elle doit commencer par http:// ou https://")
+
+    sku = (req.sku or "").strip()
+    if not sku or "/" in sku or "\\" in sku or "__" in sku or sku.startswith("gen_"):
+        raise HTTPException(400, "SKU invalide")
+    if not re.fullmatch(r"[A-Za-z0-9._\- ]{1,64}", sku):
+        raise HTTPException(400, "SKU invalide (caractères autorisés : lettres, chiffres, . _ - espace)")
+
+    email = getattr(request.state, "user_email", None)
+    if email and not _rate_limit(f"{email}:refurl", limit=30, window=3600):
+        raise HTTPException(429, "Trop d'extractions de photo — maximum 30/heure.")
+
+    if not req.overwrite:
+        for e in (".jpg", ".png", ".webp"):
+            if storage.exists(f"{sku}{e}"):
+                raise HTTPException(409, f"Une photo existe déjà pour {sku} — cochez « remplacer » pour l'écraser.")
+
+    from app.utils.url_scraper import scrape_product
+    try:
+        async with httpx.AsyncClient(follow_redirects=False, timeout=15.0,
+                                     headers={"User-Agent": _BROWSER_UA}) as client:
+            raw, _ = await _fetch_guarded(client, url, max_bytes=3 * 1024 * 1024)
+            html = raw.decode("utf-8", errors="replace")[:1_500_000]
+
+            try:
+                data = scrape_product(html, url)
+            except ValueError as e:
+                raise HTTPException(422, str(e))
+
+            candidates = [u for u in (data.get("images") or []) if u]
+            if req.image_url:
+                # Sans ce contrôle la route deviendrait un proxy de
+                # téléchargement arbitraire piloté par le client.
+                if req.image_url not in candidates:
+                    raise HTTPException(400, "Cette image ne provient pas de la page indiquée")
+                img_url = req.image_url
+            elif candidates:
+                img_url = candidates[0]
+            else:
+                raise HTTPException(404, "Aucune photo produit détectée sur cette page")
+
+            img, _ctype = await _fetch_guarded(client, img_url,
+                                               max_bytes=10 * 1024 * 1024, referer=url)
+    except HTTPException:
+        raise
+    except httpx.TimeoutException:
+        raise HTTPException(504, "Le site met trop de temps à répondre (délai 15s dépassé)")
+    except httpx.HTTPStatusError as e:
+        raise HTTPException(502, f"Le site a renvoyé une erreur {e.response.status_code}")
+    except Exception as e:
+        raise HTTPException(502, f"Impossible d'accéder à cette URL : {e}")
+
+    # Le Content-Type annoncé par le site n'est pas fiable : on lit les octets.
+    if img[:3] == b"\xff\xd8\xff":
+        ext = ".jpg"
+    elif img[:8] == b"\x89PNG\r\n\x1a\n":
+        ext = ".png"
+    elif img[:4] == b"RIFF" and img[8:12] == b"WEBP":
+        ext = ".webp"
+    else:
+        raise HTTPException(415, "Le fichier récupéré n'est pas une image JPEG, PNG ou WebP")
+
+    # Ré-encodage : neutralise les fichiers polyglottes et borne la taille des
+    # octets qui partiront ensuite en base64 vers Claude Vision.
+    try:
+        from PIL import Image as _PILImage
+        from io import BytesIO as _BytesIO
+        im = _PILImage.open(_BytesIO(img))
+        im.load()
+        im = im.convert("RGB")
+        im.thumbnail((2048, 2048))
+        out = _BytesIO()
+        im.save(out, "JPEG", quality=90, optimize=True)
+        img, ext = out.getvalue(), ".jpg"
+    except HTTPException:
+        raise
+    except Exception:
+        pass  # on garde les octets d'origine, déjà validés par les magic bytes
+
+    ctype = {".jpg": "image/jpeg", ".png": "image/png", ".webp": "image/webp"}[ext]
+    filename = f"{sku}{ext}"
+    _save_photo(filename, img, ctype)
+
+    return {
+        "sku": sku,
+        "filename": filename,
+        "url": f"/api/photos/{filename}",
+        "source_page": url,
+        "source_image": img_url,
+        "candidates": candidates[:8],
+        "bytes": len(img),
+        "content_type": ctype,
+        "product_name": data.get("name") or "",
+        "brand": data.get("brand") or "",
+    }
+
+
 # ── Ingestion ─────────────────────────────────────────────────────────────────
 
 MAX_UPLOAD_SIZE = 10 * 1024 * 1024  # 10 MB
@@ -3265,7 +3414,10 @@ async def _run_image_job(job_id: str, req: ImageRequest, email: str):
         ref_url = req.reference_image_url or None
         ref_bytes = None
         if ref_url and ref_url.startswith("/api/photos/"):
-            fname = ref_url[len("/api/photos/"):]
+            # `.split("?")` : une URL versionnée `…/SKU.jpg?v=123` donnait une
+            # clé de stockage inexistante, donc aucune référence — et une
+            # génération 100 % inventée, sans le moindre message.
+            fname = ref_url[len("/api/photos/"):].split("?", 1)[0]
             ref_bytes = _load_photo(fname)
             ref_url = None  # on a les bytes, inutile de télécharger
 
@@ -3355,13 +3507,24 @@ class SingleImageRequest(BaseModel):
     sku: str
     image_id: str
     prompt: str
+    reference_image_url: Optional[str] = None
 
 
 async def _run_single_image_job(job_id: str, req: SingleImageRequest, email: str):
     _jobs[job_id]["status"] = "running"
     log.info("job started", extra={"job_id": job_id})
     try:
-        url = await _generate_image_dalle3(req.prompt, req.image_id)
+        # Sans référence, la régénération repartait en texte→image et perdait
+        # le vrai produit obtenu au premier passage : le packaging changeait à
+        # chaque clic. On relit les mêmes octets que la génération initiale.
+        ref_bytes = None
+        ref_url = req.reference_image_url or None
+        if ref_url and ref_url.startswith("/api/photos/"):
+            ref_bytes = _load_photo(ref_url[len("/api/photos/"):].split("?", 1)[0])
+        elif ref_url:
+            from app.services.image_gen import _download_reference_image
+            ref_bytes = await _download_reference_image(ref_url)
+        url = await _generate_image_dalle3(req.prompt, req.image_id, ref_bytes)
         openai_ok = bool(os.getenv("OPENAI_API_KEY"))
         if url and email:
             log_usage(email, "image_generated", 1)

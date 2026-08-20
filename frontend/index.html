@@ -8547,6 +8547,13 @@ function buildCardHTML(listing, idx, editMode) {
       </div>
       <div id="content-${idx}-aplus" class="hidden">${listing.a_plus_content ? `<div class="space-y-3"><div class="bg-purple-50 rounded-lg p-3"><p class="font-semibold text-purple-800 text-sm">✨ ${listing.a_plus_content.headline}</p></div>${(listing.a_plus_content.modules||[]).map(m=>`<div class="border border-gray-100 rounded-lg p-3"><p class="text-xs text-gray-500 uppercase tracking-wide mb-1">${(m.type||'').replace('_',' ')}</p><p class="font-semibold text-gray-800 text-sm mb-1">${m.title||''}</p><p class="text-gray-600 text-sm">${m.body||''}</p></div>`).join('')}</div>` : '<p class="text-gray-400 text-sm">Non disponible</p>'}</div>
       <div id="content-${idx}-images" class="hidden">
+        <div class="flex items-center gap-2 mb-2">
+          <input id="refurl-${idx}" type="url" placeholder="https://site-du-client.com/produit/…" value="${_escAttr(_refUrlOf(listing.sku))}"
+                 class="flex-1 border border-purple-200 rounded-lg px-3 py-1.5 text-xs font-mono text-gray-700 focus:ring-2 focus:ring-purple-300 outline-none">
+          <button onclick="fetchRefPhoto(${idx})" class="bg-pink-50 hover:bg-pink-100 text-pink-700 rounded-lg px-3 py-1.5 text-xs font-medium transition whitespace-nowrap">📎 Récupérer la photo</button>
+        </div>
+        <p class="text-[11px] text-gray-400 mb-3">Collez la page produit du client : sa vraie photo servira de référence aux visuels générés.</p>
+        <div id="refurl-status-${idx}" class="mb-3"></div>
         <div id="images-container-${idx}" class="text-center py-6 text-gray-400 text-sm">${imagesCache[listing.sku] ? '' : 'Cliquez sur "Générer les images" pour lancer la création'}</div>
       </div>
       ${isParent ? _buildVariationChildrenTable(listing, idx, editMode) : ''}
@@ -9052,12 +9059,68 @@ function downloadAllPrompts(images) {
   showToast('✅', 'Prompts téléchargés');
 }
 
+// ── Photo de référence depuis la page produit du client ──────────────────────
+// `reference_image_url` attend une URL d'IMAGE, pas de page : le backend lit la
+// page, en extrait la photo et la range sous la clé du SKU. Les visuels générés
+// repartent alors du vrai packaging au lieu d'en inventer un.
+function _setRefPhoto(sku, photoUrl, pageUrl) {
+  let p = parsedProducts.find(x => x.sku === sku);
+  if (!p) { p = { sku, images: [] }; parsedProducts.push(p); }  // session restaurée : la liste peut être vide
+  p.images = [photoUrl, ...(p.images || []).filter(u => u !== photoUrl)];
+  p._refSourceUrl = pageUrl;
+  p._refFromUrl = photoUrl;
+  _saveBatches();
+}
+
+function fetchRefPhoto(idx, overwrite = false) {
+  return _fetchRefPhoto(generatedListings[idx]?.sku, `refurl-${idx}`, `refurl-status-${idx}`,
+                        overwrite, `fetchRefPhoto(${idx}, true)`);
+}
+function fetchRefPhotoDetail(overwrite = false) {
+  return _fetchRefPhoto(generatedListings[currentDetailIdx]?.sku, 'dm-refurl', 'dm-refurl-status',
+                        overwrite, 'fetchRefPhotoDetail(true)');
+}
+
+async function _fetchRefPhoto(sku, inputId, boxId, overwrite, retryCall) {
+  const input = document.getElementById(inputId);
+  const box = document.getElementById(boxId);
+  if (!sku || !input || !box) return;
+  const url = input.value.trim();
+  if (!/^https?:\/\//.test(url)) { showToast('⚠️', 'URL invalide — elle doit commencer par http:// ou https://', true); return; }
+
+  box.innerHTML = `<div class="flex items-center gap-2 py-2"><div class="spinner"></div><p class="text-gray-500 text-xs">Lecture de la page produit…</p></div>`;
+  try {
+    const r = await authFetch('/api/product-photo-from-url', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url, sku, overwrite }),
+    });
+    const data = await r.json().catch(() => ({}));
+    if (r.status === 409 && !overwrite) {
+      box.innerHTML = `<div class="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-800 flex items-center gap-3">
+        <span class="flex-1">Une photo est déjà enregistrée pour ce SKU.</span>
+        <button onclick="${_escAttr(retryCall)}" class="bg-amber-100 hover:bg-amber-200 rounded-lg px-2.5 py-1 font-medium whitespace-nowrap">Remplacer</button></div>`;
+      return;
+    }
+    if (!r.ok) throw new Error(data.detail || 'Extraction impossible');
+    _setRefPhoto(sku, data.url, url);
+    box.innerHTML = `<div class="flex items-center gap-3 bg-green-50 border border-green-200 rounded-xl p-2">
+      <img src="${_escAttr(data.url)}?v=${Date.now()}" alt="" class="w-12 h-12 object-cover rounded-lg">
+      <span class="text-xs text-green-800"><strong>Photo récupérée</strong>${data.product_name ? ` — ${_esc(data.product_name)}` : ''}. Elle servira de référence aux prochaines générations.</span></div>`;
+    showToast('✅', 'Photo de référence enregistrée');
+  } catch (e) {
+    box.innerHTML = `<p class="text-red-500 text-xs py-2">⚠ ${_esc(e.message)}</p>`;
+  }
+}
+
 async function regenerateSingleImage(btn) {
   const card = btn.closest('[data-imgid]');
   const sku = card.dataset.sku;
   const imageId = card.dataset.imgid;
   const prompt = card.querySelector('textarea').value.trim();
   if (!prompt) return;
+  // Sans cette référence, la régénération repartait en texte→image : le produit
+  // changeait d'apparence à chaque clic, même avec le bon prompt.
+  const referenceImageUrl = _refImageFor(parsedProducts.find(p => p.sku === sku)) || null;
   const imgArea = card.querySelector('[data-img-area]');
   if (imgArea) imgArea.innerHTML = '<div class="h-36 flex items-center justify-center"><div class="spinner"></div></div>';
   btn.disabled = true;
@@ -9066,7 +9129,7 @@ async function regenerateSingleImage(btn) {
   try {
     const r = await authFetch('/api/generate-image-single', {
       method: 'POST', headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({sku, image_id: imageId, prompt}),
+      body: JSON.stringify({sku, image_id: imageId, prompt, reference_image_url: referenceImageUrl}),
     });
     if (!r.ok) {
       let msg = 'Erreur serveur';
@@ -11263,7 +11326,16 @@ function openListingDetail(idx) {
     : '<p class="text-gray-400 text-sm py-4 text-center">Contenu A+ non disponible</p>';
   // Images
   const imgContainer = document.getElementById('dm-content-images');
-  imgContainer.innerHTML = '';
+  // Ce conteneur est vidé à chaque ouverture : le champ « URL du produit » est
+  // donc reconstruit ici, avec la valeur mémorisée pour ce SKU.
+  imgContainer.innerHTML = `
+    <div class="flex items-center gap-2 mb-2">
+      <input id="dm-refurl" type="url" placeholder="https://site-du-client.com/produit/…" value="${_escAttr(_refUrlOf(listing.sku))}"
+             class="flex-1 border border-gray-200 rounded-lg px-3 py-1.5 text-xs font-mono text-gray-700 focus:ring-2 focus:ring-purple-300 outline-none">
+      <button onclick="fetchRefPhotoDetail()" class="bg-pink-50 hover:bg-pink-100 text-pink-700 rounded-lg px-3 py-1.5 text-xs font-medium transition whitespace-nowrap">📎 Récupérer la photo</button>
+    </div>
+    <p class="text-[11px] text-gray-400 mb-3">Collez la page produit du client : sa vraie photo servira de référence aux visuels générés.</p>
+    <div id="dm-refurl-status" class="mb-3"></div>`;
   const imgDiv = document.createElement('div');
   imgDiv.id = 'dm-images-container';
   if (imagesCache[listing.sku]) {
@@ -14754,8 +14826,14 @@ function showKwCoverage(idx) {
 // alimentent directement exports, flux et catalogue public).
 function _imgMode() { return localStorage.getItem('synqio_img_mode') || 'auto'; }
 function _refImageFor(rawProduct) {
+  // Une photo récupérée depuis la page du client est une intention explicite :
+  // elle prime sur le mode « 100 % IA », qui sinon l'annulerait en silence.
+  if (rawProduct?._refFromUrl) return rawProduct._refFromUrl;
   if (_imgMode() === 'ai') return '';
   return rawProduct?.images?.[0] || '';
+}
+function _refUrlOf(sku) {
+  return parsedProducts.find(p => p.sku === sku)?._refSourceUrl || '';
 }
 
 // ── Médiathèque ──────────────────────────────────────────────────────────────
