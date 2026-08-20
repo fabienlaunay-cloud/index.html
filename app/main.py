@@ -1249,6 +1249,24 @@ async def _fetch_guarded(client: "httpx.AsyncClient", url: str, *,
     raise HTTPException(502, "Trop de redirections")
 
 
+def _stored_photo_for_sku(sku: str) -> Optional[bytes]:
+    """Octets de la photo de référence rangée sous la clé canonique du SKU.
+
+    Le frontend n'est pas une source de vérité fiable : une session rechargée
+    perd `parsedProducts`, et un conflit 409 ne lui apprend jamais l'URL de la
+    photo déjà stockée. Le serveur va donc la chercher lui-même quand aucune
+    référence n'est transmise — sinon la génération repart en texte→image et
+    réinvente le produit alors que la photo du client est là.
+    """
+    if not sku:
+        return None
+    for ext in (".jpg", ".jpeg", ".png", ".webp"):
+        data = _load_photo(f"{sku}{ext}")
+        if data:
+            return data
+    return None
+
+
 class ProductPhotoFromUrlRequest(BaseModel):
     url: str                            # URL de la PAGE produit du client
     sku: str                            # SKU cible → clé de stockage {sku}.{ext}
@@ -1282,9 +1300,14 @@ async def product_photo_from_url(req: ProductPhotoFromUrlRequest, request: Reque
         raise HTTPException(429, "Trop d'extractions de photo — maximum 30/heure.")
 
     if not req.overwrite:
-        for e in (".jpg", ".png", ".webp"):
+        for e in (".jpg", ".jpeg", ".png", ".webp"):
             if storage.exists(f"{sku}{e}"):
-                raise HTTPException(409, f"Une photo existe déjà pour {sku} — cochez « remplacer » pour l'écraser.")
+                # On renvoie l'URL existante : sans elle, l'interface reste sur
+                # un état vide et la régénération repart sans référence.
+                raise HTTPException(409, {
+                    "message": f"Une photo est déjà enregistrée pour {sku}.",
+                    "existing_url": f"/api/photos/{sku}{e}",
+                })
 
     from app.utils.url_scraper import scrape_product
     try:
@@ -3420,6 +3443,8 @@ async def _run_image_job(job_id: str, req: ImageRequest, email: str):
             fname = ref_url[len("/api/photos/"):].split("?", 1)[0]
             ref_bytes = _load_photo(fname)
             ref_url = None  # on a les bytes, inutile de télécharger
+        if ref_bytes is None and not ref_url:
+            ref_bytes = _stored_photo_for_sku(req.sku)
 
         images, img_tokens = await generate_product_images(
             sku=req.sku,
@@ -3524,6 +3549,8 @@ async def _run_single_image_job(job_id: str, req: SingleImageRequest, email: str
         elif ref_url:
             from app.services.image_gen import _download_reference_image
             ref_bytes = await _download_reference_image(ref_url)
+        if ref_bytes is None:
+            ref_bytes = _stored_photo_for_sku(req.sku)
         url = await _generate_image_dalle3(req.prompt, req.image_id, ref_bytes)
         openai_ok = bool(os.getenv("OPENAI_API_KEY"))
         if url and email:
