@@ -1221,6 +1221,17 @@ _BROWSER_UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
                "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36")
 
 
+# Budget de pixels d'une photo source. 30 Mpx couvre largement un reflex
+# (6000×5000) tout en bornant le pic mémoire du décodage à ~90 Mo.
+_MAX_SOURCE_PIXELS = 30_000_000
+
+
+def _same_origin(a: str, b: str) -> bool:
+    from urllib.parse import urlparse
+    pa, pb = urlparse(a), urlparse(b)
+    return (pa.scheme, pa.hostname, pa.port) == (pb.scheme, pb.hostname, pb.port)
+
+
 async def _fetch_guarded(client: "httpx.AsyncClient", url: str, *,
                          max_bytes: int, referer: str = "") -> tuple[bytes, str]:
     """GET une URL fournie par l'utilisateur en revalidant CHAQUE redirection.
@@ -1232,8 +1243,11 @@ async def _fetch_guarded(client: "httpx.AsyncClient", url: str, *,
     """
     _reject_internal_url(url)
     current = url
-    headers = {"Referer": referer} if referer else {}
     for _ in range(6):
+        # Le Referer ne suit pas une redirection vers un autre domaine : sinon
+        # une URL de page à jeton fuirait vers un hôte que l'utilisateur n'a
+        # jamais choisi. C'est aussi ce que fait un navigateur par défaut.
+        headers = {"Referer": referer} if referer and _same_origin(referer, current) else {}
         async with client.stream("GET", current, headers=headers) as resp:
             if resp.is_redirect and resp.headers.get("location"):
                 current = str(resp.next_request.url) if resp.next_request else resp.headers["location"]
@@ -1247,6 +1261,22 @@ async def _fetch_guarded(client: "httpx.AsyncClient", url: str, *,
                     raise HTTPException(413, "Contenu trop volumineux")
             return bytes(buf), (resp.headers.get("content-type") or "").lower()
     raise HTTPException(502, "Trop de redirections")
+
+
+def _guard_reference_url(ref: Optional[str]) -> None:
+    """Refuser une URL de référence qui pointe vers le réseau interne.
+
+    `_download_reference_image` télécharge cette URL depuis le serveur, en
+    suivant les redirections et sans garde : sans ce contrôle, un client peut
+    faire émettre des requêtes vers 169.254.169.254 ou n'importe quel service
+    interne. On valide côté route, de façon synchrone, pour que l'erreur
+    remonte immédiatement plutôt que d'échouer dans un job de fond.
+    """
+    if not ref:
+        return
+    if ref.startswith("/api/photos/"):   # chemin interne, lu depuis le stockage
+        return
+    _reject_internal_url(ref)
 
 
 def _stored_photo_for_sku(sku: str) -> Optional[bytes]:
@@ -1290,7 +1320,11 @@ async def product_photo_from_url(req: ProductPhotoFromUrlRequest, request: Reque
         raise HTTPException(400, "URL invalide — elle doit commencer par http:// ou https://")
 
     sku = (req.sku or "").strip()
-    if not sku or "/" in sku or "\\" in sku or "__" in sku or sku.startswith("gen_"):
+    # `catlogo_` identifie le logo public d'un compte : sans ce filtre, n'importe
+    # quel utilisateur pourrait écrire sous la clé d'un autre — l'espace de noms
+    # du stockage est plat et global.
+    if (not sku or "/" in sku or "\\" in sku or "__" in sku
+            or sku.startswith("gen_") or sku.startswith("catlogo_")):
         raise HTTPException(400, "SKU invalide")
     if not re.fullmatch(r"[A-Za-z0-9._\- ]{1,64}", sku):
         raise HTTPException(400, "SKU invalide (caractères autorisés : lettres, chiffres, . _ - espace)")
@@ -1313,8 +1347,17 @@ async def product_photo_from_url(req: ProductPhotoFromUrlRequest, request: Reque
     try:
         async with httpx.AsyncClient(follow_redirects=False, timeout=15.0,
                                      headers={"User-Agent": _BROWSER_UA}) as client:
-            raw, _ = await _fetch_guarded(client, url, max_bytes=3 * 1024 * 1024)
-            html = raw.decode("utf-8", errors="replace")[:1_500_000]
+            raw, page_ctype = await _fetch_guarded(client, url, max_bytes=3 * 1024 * 1024)
+            # Beaucoup de boutiques anciennes servent encore en ISO-8859-1 :
+            # décoder en UTF-8 en dur transformerait chaque accent en U+FFFD,
+            # jusque dans les URLs d'images, qui deviendraient introuvables.
+            m_cs = re.search(r"charset=([\w\-]+)", page_ctype or "")
+            enc = (m_cs.group(1) if m_cs else "utf-8").lower()
+            try:
+                html = raw.decode(enc, errors="replace")
+            except LookupError:
+                html = raw.decode("utf-8", errors="replace")
+            html = html[:1_500_000]
 
             try:
                 data = scrape_product(html, url)
@@ -1356,12 +1399,34 @@ async def product_photo_from_url(req: ProductPhotoFromUrlRequest, request: Reque
 
     # Ré-encodage : neutralise les fichiers polyglottes et borne la taille des
     # octets qui partiront ensuite en base64 vers Claude Vision.
+    from PIL import Image as _PILImage
+    from io import BytesIO as _BytesIO
     try:
-        from PIL import Image as _PILImage
-        from io import BytesIO as _BytesIO
-        im = _PILImage.open(_BytesIO(img))
+        im = _PILImage.open(_BytesIO(img))          # ne décode pas encore les pixels
+    except Exception:
+        raise HTTPException(415, "Fichier image illisible")
+
+    # Le plafond de 10 Mo borne les OCTETS, pas les PIXELS : un PNG uni de
+    # 13000×13000 tient dans 200 Ko et fait allouer plus d'un gigaoctet au
+    # décodage. On refuse donc sur les dimensions, lisibles dans l'en-tête,
+    # AVANT de matérialiser la moindre ligne de pixels.
+    w_px, h_px = im.size
+    if w_px * h_px > _MAX_SOURCE_PIXELS:
+        raise HTTPException(413,
+            f"Image trop grande ({w_px}×{h_px} px) — maximum {_MAX_SOURCE_PIXELS // 1_000_000} Mpx")
+    try:
+        im.draft("RGB", (2048, 2048))               # JPEG : décodage déjà réduit
         im.load()
-        im = im.convert("RGB")
+        if im.mode in ("RGBA", "LA", "P"):
+            # Un packshot détouré perdrait son alpha et ressortirait sur fond
+            # NOIR : gpt-image-2 reproduirait fidèlement ce fond, et le
+            # nettoyage de fond ne rattrape que les fonds clairs.
+            im = im.convert("RGBA")
+            flat = _PILImage.new("RGB", im.size, (255, 255, 255))
+            flat.paste(im, mask=im.split()[-1])
+            im = flat
+        else:
+            im = im.convert("RGB")
         im.thumbnail((2048, 2048))
         out = _BytesIO()
         im.save(out, "JPEG", quality=90, optimize=True)
@@ -1369,7 +1434,9 @@ async def product_photo_from_url(req: ProductPhotoFromUrlRequest, request: Reque
     except HTTPException:
         raise
     except Exception:
-        pass  # on garde les octets d'origine, déjà validés par les magic bytes
+        # Le ré-encodage EST un contrôle de sécurité : s'il échoue, on refuse
+        # plutôt que de stocker des octets non normalisés.
+        raise HTTPException(415, "Image illisible ou corrompue")
 
     ctype = {".jpg": "image/jpeg", ".png": "image/png", ".webp": "image/webp"}[ext]
     filename = f"{sku}{ext}"
@@ -3507,6 +3574,7 @@ async def _run_image_job(job_id: str, req: ImageRequest, email: str):
 async def generate_images(req: ImageRequest, request: Request):
     if not os.getenv("ANTHROPIC_API_KEY"):
         raise HTTPException(503, "ANTHROPIC_API_KEY manquante")
+    _guard_reference_url(req.reference_image_url)
     email = getattr(request.state, "user_email", None)
     if email:
         usage = get_user_usage(email)
@@ -3591,6 +3659,7 @@ async def _run_single_image_job(job_id: str, req: SingleImageRequest, email: str
 async def generate_image_single(req: SingleImageRequest, request: Request):
     if not os.getenv("OPENAI_API_KEY"):
         raise HTTPException(503, "OPENAI_API_KEY manquante — impossible de régénérer l'image")
+    _guard_reference_url(req.reference_image_url)
     email = getattr(request.state, "user_email", None)
     if email:
         from app.services.usage import get_image_regen_count, MAX_IMAGE_REGENS
