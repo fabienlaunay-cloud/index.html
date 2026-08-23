@@ -4357,6 +4357,10 @@ class StoreScanRequest(BaseModel):
     html_content: str = ""
     marketplace: str = "amazon_fr"
     limit: int = 30
+    # Une page de résultats mélange la marque visée, les sponsorisés et les
+    # concurrents. Sans ce filtre, l'audit note des fiches qui ne sont pas
+    # celles du vendeur analysé.
+    brand: str = ""
 
 
 def _fold_txt(text: str) -> str:
@@ -4375,7 +4379,7 @@ def _drop_reason(reasons: dict, why: str | None) -> None:
         reasons.pop(why, None)
 
 
-async def _run_store_scan_job(job_id: str, asins: list[str], marketplace: str):
+async def _run_store_scan_job(job_id: str, asins: list[str], marketplace: str, brand: str = ""):
     """Audite une liste d'ASIN publics : une page produit par fiche, puis le
     même moteur de conformité que l'audit de boutique par fichier.
 
@@ -4489,6 +4493,19 @@ async def _run_store_scan_job(job_id: str, asins: list[str], marketplace: str):
                 apify_error = f"{type(exc).__name__}: {str(exc)[:180]}"
                 log.error(f"[store-scan] repli Apify en erreur : {exc}")
 
+        # ── Filtrage par marque ──────────────────────────────────────────────
+        # Appliqué AVANT l'analyse : le budget d'images est global, autant le
+        # réserver aux fiches qui comptent. Le nom de marque ouvre presque
+        # toujours le titre Amazon, la comparaison se fait donc dessus.
+        off_brand = 0
+        if brand.strip():
+            # Espaces parasites normalisés : « Naxos  » saisi à la main ne doit
+            # pas écarter la totalité du catalogue.
+            wanted = _fold_txt(" ".join(brand.split()))
+            kept = [l for l in listings if wanted in _fold_txt(l.get("title") or "")]
+            off_brand = len(listings) - len(kept)
+            listings = kept
+
         # ── Analyse détaillée par fiche : score, mots-clés déduits, image
         # principale. Déterministe, donc sans coût ni appel IA.
         if listings:
@@ -4540,6 +4557,8 @@ async def _run_store_scan_job(job_id: str, asins: list[str], marketplace: str):
             "scanned": len(listings),
             "blocked": len(blocked),
             "blocked_asins": blocked[:20],
+            "off_brand": off_brand,
+            "brand": brand.strip(),
             "reasons": reasons,
             "source": "apify" if used_apify else "scrape",
             "rescued_by_apify": len(rescued) if used_apify else 0,
@@ -4581,7 +4600,7 @@ async def audit_store_scan(req: StoreScanRequest, request: Request):
     job_id = uuid4().hex[:16]
     _jobs[job_id] = {"status": "queued", "progress": 0, "total": len(asins),
                      "result": None, "error": None, "created_at": time.time()}
-    asyncio.create_task(_run_store_scan_job(job_id, asins, req.marketplace))
+    asyncio.create_task(_run_store_scan_job(job_id, asins, req.marketplace, req.brand or ""))
     return {"job_id": job_id, "total": len(asins), "asins": asins[:10]}
 
 

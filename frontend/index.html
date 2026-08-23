@@ -2098,9 +2098,14 @@
               <option value="50">50</option>
             </select>
           </label>
+          <label class="text-xs text-gray-500 flex items-center gap-1.5">Marque
+            <input id="psBrand" type="text" placeholder="Naxos Happy Olives"
+              class="border border-gray-200 rounded-lg px-2 py-1 text-xs w-44 focus:border-emerald-400 focus:outline-none">
+          </label>
           <button onclick="document.getElementById('psPasteBox').classList.toggle('hidden')"
             class="text-xs text-emerald-700 hover:text-emerald-900 font-semibold underline">Amazon bloque ? Coller le code source</button>
         </div>
+        <p class="text-xs text-gray-400 mb-3">Une page de résultats mélange la marque, les sponsorisés et les concurrents. Renseignez la marque pour n'auditer que ses fiches — laissez vide pour tout garder.</p>
         <div id="psPasteBox" class="hidden mb-3">
           <div class="flex items-center justify-between gap-2 mb-1.5">
             <p class="text-xs text-gray-500">Sur la page Amazon : <span class="font-mono bg-gray-100 px-1 rounded">Ctrl+U</span>, <span class="font-mono bg-gray-100 px-1 rounded">Ctrl+A</span>, <span class="font-mono bg-gray-100 px-1 rounded">Ctrl+C</span>, puis collez ici.</p>
@@ -5610,6 +5615,7 @@ async function _psScan() {
         url, html_content: html,
         marketplace: (document.getElementById('auditMkt') || {}).value || 'amazon_fr',
         limit: parseInt(document.getElementById('psLimit').value, 10) || 20,
+        brand: (document.getElementById('psBrand') || {}).value || '',
       }),
     });
     const data = await r.json().catch(() => ({}));
@@ -5668,7 +5674,11 @@ function _psRender(res) {
 
   document.getElementById('psScore').textContent = (rep.score != null ? rep.score : '—');
   document.getElementById('psSummary').textContent =
-    `${res.scanned} fiche(s) analysée(s)` + (res.blocked ? ` · ${res.blocked} bloquée(s) par Amazon` : '');
+    `${res.scanned} fiche(s) analysée(s)`
+    + (res.blocked ? ` · ${res.blocked} bloquée(s) par Amazon` : '')
+    // Dire ce qui a été écarté : sans ça, un filtre trop strict passe pour
+    // une boutique minuscule.
+    + (res.off_brand ? ` · ${res.off_brand} hors marque « ${res.brand} » écartée(s)` : '');
 
   // Rien de lisible : on explique pourquoi et quoi faire, au lieu d'un vide
   const note = document.getElementById('psNote');
