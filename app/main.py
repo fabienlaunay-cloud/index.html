@@ -4130,6 +4130,14 @@ def _scrape_amazon_for_audit(html_text: str) -> dict:
                 result["image_urls"] = [mm.group(1)]
                 break
 
+    # Une page bloquée, tronquée ou remplacée par un captcha ne contient aucun
+    # marqueur A+ : la déclarer « sans contenu A+ » serait un faux négatif, et
+    # ces deux clés alimentent des statistiques de comparaison. Sans titre ni
+    # bullet, on n'a rien lu — on renvoie None, c'est-à-dire « on ne sait pas ».
+    if not result["title"] and not result["bullets"]:
+        result["has_aplus"] = None
+        result["has_video"] = None
+
     return result
 
 

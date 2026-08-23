@@ -5759,6 +5759,12 @@ function _psSaveAudit(res, url) {
     whiteRatio: (x.hero && typeof x.hero.white_ratio === 'number')
       ? Math.round(x.hero.white_ratio * 100) : null,
     zoom: x.hero ? !!x.hero.zoom_ok : null,
+    fillOk: x.hero ? !!x.hero.main_fill_ok : null,
+    // `images_summary` était calculé puis jeté : doublons entre visuels,
+    // définitions insuffisantes, présence d'une mise en situation.
+    imgDup: (x.imgSum && typeof x.imgSum.duplicates === 'number') ? x.imgSum.duplicates : null,
+    imgLowRes: (x.imgSum && typeof x.imgSum.low_res === 'number') ? x.imgSum.low_res : null,
+    lifestyle: (x.imgSum && typeof x.imgSum.has_lifestyle === 'boolean') ? x.imgSum.has_lifestyle : null,
     // Ces quatre-là étaient calculés puis perdus à l'enregistrement : la
     // comparaison ne pouvait donc pas parler de contenu enrichi ni de bullets.
     aplus: x.aplus,
@@ -5847,11 +5853,21 @@ function _psStats(a) {
     bulletsIncomplete: pct(x => x.bullets < 5),
     bulletLenAvg: avgOf('bulletAvg'),
     bulletsShort: pctOf('bulletAvg', x => x.bulletAvg < 80),
-    bulletsDup: pctOf('bulletsUnique', x => x.bulletsUnique === false),
+    // `bullets_unique` est le NOMBRE de bullets distincts, pas un booléen :
+    // il y a doublon dès qu'il est inférieur au nombre de bullets.
+    bulletsDup: pctOf('bulletsUnique', x => x.bulletsUnique < x.bullets),
     imagesAvg: avg(x => x.images),
     imagesThin: pct(x => (x.images || 0) < 6),
     whitePct: pctOf('whiteOk', x => x.whiteOk === true),
     whiteRatioAvg: avgOf('whiteRatio'),
+    // Le budget de téléchargement d'images est plafonné pour tout l'audit :
+    // au-delà, les fiches n'ont pas de visuel analysé. On expose la base
+    // réelle, sinon les pourcentages ci-dessus passent pour exhaustifs.
+    imgAnalysed: r.filter(x => x.whiteOk !== null && x.whiteOk !== undefined).length,
+    fillPct: pctOf('fillOk', x => x.fillOk === true),
+    imgDupPct: pctOf('imgDup', x => x.imgDup > 0),
+    imgLowResPct: pctOf('imgLowRes', x => x.imgLowRes > 0),
+    lifestylePct: pctOf('lifestyle', x => x.lifestyle === true),
     zoomPct: pctOf('zoom', x => x.zoom === true),
     aplusPct: pctOf('aplus', x => x.aplus === true),
     videoPct: pctOf('video', x => x.video === true),
@@ -5942,7 +5958,12 @@ function _psCompare() {
             ${row('Fiches à moins de 6 images', s => s.imagesThin, v => v + ' %', true)}
             ${row('Image principale sur fond blanc', s => s.whitePct, v => v + ' %', false)}
             ${row('Blanc moyen sur le pourtour', s => s.whiteRatioAvg, v => v + ' %', false)}
+            ${row('Produit sur 85 % du cadre', s => s.fillPct, v => v + ' %', false)}
             ${row('Image principale zoomable', s => s.zoomPct, v => v + ' %', false)}
+            ${row('Fiches avec visuel en situation', s => s.lifestylePct, v => v + ' %', false)}
+            ${row('Fiches à visuels dupliqués', s => s.imgDupPct, v => v + ' %', true)}
+            ${row('Fiches à visuels sous 1000 px', s => s.imgLowResPct, v => v + ' %', true)}
+            ${row('Fiches dont les visuels ont été analysés', s => s.imgAnalysed, v => v, false)}
             ${group('Contenu enrichi')}
             ${row('Fiches avec contenu A+', s => s.aplusPct, v => v + ' %', false)}
             ${row('Fiches avec vidéo', s => s.videoPct, v => v + ' %', false)}
@@ -5993,6 +6014,11 @@ function _psExportCompare() {
   put('Fiches < 6 images %', s => s.imagesThin);
   put('Image principale fond blanc %', s => s.whitePct);
   put('Blanc moyen sur le pourtour %', s => s.whiteRatioAvg);
+  put('Produit sur 85% du cadre %', s => s.fillPct);
+  put('Fiches visuel en situation %', s => s.lifestylePct);
+  put('Fiches visuels dupliques %', s => s.imgDupPct);
+  put('Fiches visuels sous 1000 px %', s => s.imgLowResPct);
+  put('Fiches visuels analyses', s => s.imgAnalysed);
   put('Image principale zoomable %', s => s.zoomPct);
   put('Fiches avec contenu A+ %', s => s.aplusPct);
   put('Fiches avec video %', s => s.videoPct);
