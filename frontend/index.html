@@ -5750,6 +5750,14 @@ function _psSaveAudit(res, url) {
     crit: x.crit, warn: x.warn,
     white: x.hero ? !!x.hero.white_bg : null,
     zoom: x.hero ? !!x.hero.zoom_ok : null,
+    // Ces quatre-là étaient calculés puis perdus à l'enregistrement : la
+    // comparaison ne pouvait donc pas parler de contenu enrichi ni de bullets.
+    aplus: x.aplus,
+    video: x.video,
+    bulletAvg: (x.bulletLengths || []).length
+      ? Math.round((x.bulletLengths).reduce((s, v) => s + v, 0) / x.bulletLengths.length)
+      : null,
+    bulletsUnique: x.bulletsUnique,
     kwMissing: (x.keywords && x.keywords.missing_in_title) || [],
     issues: x.issues.map(i => (i.message || i.code || '').split(' —')[0].split(' :')[0]),
   }));
@@ -5809,16 +5817,35 @@ function _psStats(a) {
   const n = r.length || 1;
   const avg = f => Math.round(r.reduce((s, x) => s + (f(x) || 0), 0) / n);
   const pct = f => Math.round(100 * r.filter(f).length / n);
-  const withHero = r.filter(x => x.white !== null);
+  // Un audit enregistré avant l'ajout d'un indicateur n'a pas le champ : on
+  // ne compte que les fiches où il est renseigné, et on renvoie null si
+  // aucune ne l'est — sinon un ancien audit afficherait un faux 0 %.
+  const pctOf = (field, ok) => {
+    const known = r.filter(x => x[field] !== null && x[field] !== undefined);
+    return known.length ? Math.round(100 * known.filter(ok).length / known.length) : null;
+  };
+  const avgOf = field => {
+    const known = r.filter(x => typeof x[field] === 'number');
+    return known.length ? Math.round(known.reduce((s, x) => s + x[field], 0) / known.length) : null;
+  };
+  const withHero = r.filter(x => x.white !== null && x.white !== undefined);
   return {
     n: r.length,
     score: a.score,
+    critAvg: r.length ? Math.round(10 * r.reduce((s, x) => s + (x.crit || 0), 0) / r.length) / 10 : null,
     titleAvg: avg(x => x.titleLen),
     titleOver: pct(x => x.titleLen > 75),
     bulletsAvg: avg(x => x.bullets),
     bulletsIncomplete: pct(x => x.bullets < 5),
+    bulletLenAvg: avgOf('bulletAvg'),
+    bulletsShort: pctOf('bulletAvg', x => x.bulletAvg < 80),
+    bulletsDup: pctOf('bulletsUnique', x => x.bulletsUnique === false),
     imagesAvg: avg(x => x.images),
+    imagesThin: pct(x => (x.images || 0) < 6),
     whitePct: withHero.length ? Math.round(100 * withHero.filter(x => x.white).length / withHero.length) : null,
+    zoomPct: pctOf('zoom', x => x.zoom === true),
+    aplusPct: pctOf('aplus', x => x.aplus === true),
+    videoPct: pctOf('video', x => x.video === true),
     kwGaps: pct(x => (x.kwMissing || []).length > 0),
   };
 }
@@ -5837,15 +5864,38 @@ function _psCompare() {
   const best = st.reduce((b, x) => (x.s.score > b.s.score ? x : b), st[0]);
   const worst = st.reduce((b, x) => (x.s.score < b.s.score ? x : b), st[0]);
 
+  const duel = st.length === 2;   // l'écart n'a de sens qu'entre deux boutiques
+  const cols = st.length + (duel ? 1 : 0);
+
   const row = (label, get, fmt, lowerIsBetter) => {
     const vals = st.map(x => get(x.s));
     const valid = vals.filter(v => v !== null && v !== undefined);
-    const target = lowerIsBetter ? Math.min(...valid) : Math.max(...valid);
+    const target = valid.length ? (lowerIsBetter ? Math.min(...valid) : Math.max(...valid)) : null;
+    let gap = '';
+    if (duel) {
+      const [a, b] = vals;
+      if (a === null || a === undefined || b === null || b === undefined) {
+        gap = `<td class="py-2 px-3 text-center text-gray-300">—</td>`;
+      } else {
+        // Sans cet arrondi, 1 − 0,9 affiche 0.09999999999999998 dans l'écart.
+        const d = Math.round((b - a) * 100) / 100;
+        // Le signe suit la performance, pas l'arithmétique : sur « titres hors
+        // norme », un écart négatif est une bonne nouvelle pour la 2e boutique.
+        const good = lowerIsBetter ? d < 0 : d > 0;
+        const tone = d === 0 ? 'text-gray-400' : good ? 'text-green-600' : 'text-red-500';
+        gap = `<td class="py-2 px-3 text-center font-semibold ${tone}">${d === 0 ? '=' : (d > 0 ? '+' : '') + fmt(d)}</td>`;
+      }
+    }
     return `<tr class="border-t border-gray-100">
-      <td class="py-2 pr-3 text-gray-500">${label}</td>
-      ${vals.map(v => `<td class="py-2 px-3 text-center font-semibold ${v === target ? 'text-green-600' : 'text-gray-800'}">${v === null || v === undefined ? '—' : fmt(v)}</td>`).join('')}
+      <td class="py-2 pr-3 pl-4 text-gray-500">${label}</td>
+      ${vals.map(v => `<td class="py-2 px-3 text-center font-semibold ${v !== null && v !== undefined && v === target ? 'text-green-600' : 'text-gray-800'}">${v === null || v === undefined ? '—' : fmt(v)}</td>`).join('')}
+      ${gap}
     </tr>`;
   };
+
+  const group = title => `<tr class="bg-gray-50/70">
+    <td colspan="${cols + 1}" class="py-1.5 pl-4 text-[10px] font-bold tracking-widest uppercase text-gray-400">${title}</td>
+  </tr>`;
 
   document.getElementById('psCompare').innerHTML = `
     <div class="border border-emerald-200 rounded-2xl overflow-hidden">
@@ -5861,17 +5911,31 @@ function _psCompare() {
           <thead><tr class="bg-white">
             <th class="text-left py-2 pr-3 pl-4 text-gray-400 font-semibold">Indicateur</th>
             ${st.map(x => `<th class="py-2 px-3 text-center font-bold text-gray-800 capitalize">${_esc(x.a.label)}</th>`).join('')}
+            ${duel ? `<th class="py-2 px-3 text-center font-semibold text-gray-400">Écart</th>` : ''}
           </tr></thead>
           <tbody class="bg-white">
+            ${group('Vue d\'ensemble')}
             ${row('Score de conformité', s => s.score, v => v + ' / 100', false)}
             ${row('Fiches analysées', s => s.n, v => v, false)}
+            ${row('Anomalies critiques par fiche', s => s.critAvg, v => v, true)}
+            ${group('Titre')}
             ${row('Titres hors norme (> 75 car.)', s => s.titleOver, v => v + ' %', true)}
             ${row('Longueur moyenne du titre', s => s.titleAvg, v => v + ' car.', true)}
+            ${row('Fiches avec mots-clés hors titre', s => s.kwGaps, v => v + ' %', true)}
+            ${group('Bullet points')}
             ${row('Bullets en moyenne', s => s.bulletsAvg, v => v + ' / 5', false)}
             ${row('Fiches à moins de 5 bullets', s => s.bulletsIncomplete, v => v + ' %', true)}
+            ${row('Longueur moyenne d\'un bullet', s => s.bulletLenAvg, v => v + ' car.', false)}
+            ${row('Fiches à bullets trop courts (< 80 car.)', s => s.bulletsShort, v => v + ' %', true)}
+            ${row('Fiches à bullets dupliqués', s => s.bulletsDup, v => v + ' %', true)}
+            ${group('Visuels')}
             ${row('Images en moyenne', s => s.imagesAvg, v => v, false)}
+            ${row('Fiches à moins de 6 images', s => s.imagesThin, v => v + ' %', true)}
             ${row('Image principale sur fond blanc', s => s.whitePct, v => v + ' %', false)}
-            ${row('Fiches avec mots-clés hors titre', s => s.kwGaps, v => v + ' %', true)}
+            ${row('Image principale zoomable', s => s.zoomPct, v => v + ' %', false)}
+            ${group('Contenu enrichi')}
+            ${row('Fiches avec contenu A+', s => s.aplusPct, v => v + ' %', false)}
+            ${row('Fiches avec vidéo', s => s.videoPct, v => v + ' %', false)}
           </tbody>
         </table>
       </div>
@@ -5906,13 +5970,21 @@ function _psExportCompare() {
   const put = (label, get) => lines.push([label].concat(st.map(x => get(x.s))).map(esc).join(';'));
   put('Score de conformite', s => s.score);
   put('Fiches analysees', s => s.n);
+  put('Anomalies critiques par fiche', s => s.critAvg);
   put('Titres hors norme %', s => s.titleOver);
   put('Longueur moyenne titre', s => s.titleAvg);
+  put('Fiches mots-cles hors titre %', s => s.kwGaps);
   put('Bullets moyens', s => s.bulletsAvg);
   put('Fiches < 5 bullets %', s => s.bulletsIncomplete);
+  put('Longueur moyenne bullet', s => s.bulletLenAvg);
+  put('Fiches bullets trop courts %', s => s.bulletsShort);
+  put('Fiches bullets dupliques %', s => s.bulletsDup);
   put('Images moyennes', s => s.imagesAvg);
+  put('Fiches < 6 images %', s => s.imagesThin);
   put('Image principale fond blanc %', s => s.whitePct);
-  put('Fiches mots-cles hors titre %', s => s.kwGaps);
+  put('Image principale zoomable %', s => s.zoomPct);
+  put('Fiches avec contenu A+ %', s => s.aplusPct);
+  put('Fiches avec video %', s => s.videoPct);
   lines.push('');
   st.forEach(x => {
     lines.push(esc(x.a.label + ' — a corriger en priorite'));
