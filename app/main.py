@@ -4254,7 +4254,12 @@ async def _fetch_amazon_html(url: str, timeout: float = 12.0) -> str:
     return ""
 
 
-_ASIN_RE = re.compile(r"(?:data-asin=\"|/dp/|/gp/product/)([A-Z0-9]{10})")
+# Les vitrines de marque ne rendent presque rien en HTML : leurs produits
+# arrivent dans un payload JSON embarqué, sous forme `"asin":"B0…"`. Sans ce
+# motif, une vitrine de vingt références n'en livrait qu'une ou deux.
+_ASIN_RE = re.compile(
+    r"(?:data-asin=\"|/dp/|/gp/product/|[\"'](?:asin|ASIN)[\"']\s*:\s*[\"'])"
+    r"([A-Z0-9]{10})")
 
 
 def _extract_asins(html_text: str, limit: int = 60) -> list[str]:
