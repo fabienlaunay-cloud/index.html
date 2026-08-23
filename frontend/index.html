@@ -5754,6 +5754,10 @@ function _psSaveAudit(res, url) {
     // Le champ est renommé pour que les audits enregistrés avant ce
     // correctif affichent « — » au lieu de propager le faux zéro.
     whiteOk: x.hero ? !!x.hero.main_white_ok : null,
+    // Le oui/non dit qu'on échoue, pas de combien. Ce ratio mesuré sur le
+    // pourtour indique l'effort réel : 87 % en moyenne, c'est à portée.
+    whiteRatio: (x.hero && typeof x.hero.white_ratio === 'number')
+      ? Math.round(x.hero.white_ratio * 100) : null,
     zoom: x.hero ? !!x.hero.zoom_ok : null,
     // Ces quatre-là étaient calculés puis perdus à l'enregistrement : la
     // comparaison ne pouvait donc pas parler de contenu enrichi ni de bullets.
@@ -5847,6 +5851,7 @@ function _psStats(a) {
     imagesAvg: avg(x => x.images),
     imagesThin: pct(x => (x.images || 0) < 6),
     whitePct: pctOf('whiteOk', x => x.whiteOk === true),
+    whiteRatioAvg: avgOf('whiteRatio'),
     zoomPct: pctOf('zoom', x => x.zoom === true),
     aplusPct: pctOf('aplus', x => x.aplus === true),
     videoPct: pctOf('video', x => x.video === true),
@@ -5936,6 +5941,7 @@ function _psCompare() {
             ${row('Images en moyenne', s => s.imagesAvg, v => v, false)}
             ${row('Fiches à moins de 6 images', s => s.imagesThin, v => v + ' %', true)}
             ${row('Image principale sur fond blanc', s => s.whitePct, v => v + ' %', false)}
+            ${row('Blanc moyen sur le pourtour', s => s.whiteRatioAvg, v => v + ' %', false)}
             ${row('Image principale zoomable', s => s.zoomPct, v => v + ' %', false)}
             ${group('Contenu enrichi')}
             ${row('Fiches avec contenu A+', s => s.aplusPct, v => v + ' %', false)}
@@ -5986,6 +5992,7 @@ function _psExportCompare() {
   put('Images moyennes', s => s.imagesAvg);
   put('Fiches < 6 images %', s => s.imagesThin);
   put('Image principale fond blanc %', s => s.whitePct);
+  put('Blanc moyen sur le pourtour %', s => s.whiteRatioAvg);
   put('Image principale zoomable %', s => s.zoomPct);
   put('Fiches avec contenu A+ %', s => s.aplusPct);
   put('Fiches avec video %', s => s.videoPct);
