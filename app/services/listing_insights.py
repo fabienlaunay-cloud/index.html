@@ -100,38 +100,6 @@ def score_listing(issues: list[dict]) -> int:
     return max(0, 100 - penalty)
 
 
-# ── Contrôle de l'image principale ───────────────────────────────────────────
-
-def inspect_hero_image(image_bytes: bytes) -> Optional[dict]:
-    """Vérifie l'image principale au regard des règles Amazon : fond blanc pur
-    et définition suffisante pour le zoom. Renvoie None si l'image est
-    illisible."""
-    try:
-        import io
-        from PIL import Image
-        img = Image.open(io.BytesIO(image_bytes))
-        img.load()
-        w, h = img.size
-        rgb = img.convert("RGB")
-        # Échantillonnage des quatre coins et du milieu de chaque bord :
-        # le fond d'une photo principale conforme y est blanc partout.
-        pts = [(0, 0), (w - 1, 0), (0, h - 1), (w - 1, h - 1),
-               (w // 2, 0), (w // 2, h - 1), (0, h // 2), (w - 1, h // 2)]
-        samples = [rgb.getpixel(p) for p in pts]
-        # Tolérance 250 et non 255 : la compression JPEG décale légèrement le
-        # blanc pur, l'exiger au pixel près produirait de faux positifs.
-        white = all(all(c >= 250 for c in px) for px in samples)
-        darkest = min(min(px) for px in samples)
-        return {
-            "width": w, "height": h,
-            "white_bg": white,
-            "edge_min": darkest,
-            "zoom_ok": min(w, h) >= 1000,
-        }
-    except Exception:
-        return None
-
-
 # ── Analyse d'un jeu d'images ────────────────────────────────────────────────
 
 def _ahash(img) -> int:

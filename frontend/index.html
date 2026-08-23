@@ -5748,7 +5748,12 @@ function _psSaveAudit(res, url) {
     asin: x.asin, title: (x.title || '').slice(0, 120), score: x.score,
     titleLen: x.titleLen, bullets: x.bullets, images: x.images,
     crit: x.crit, warn: x.warn,
-    white: x.hero ? !!x.hero.white_bg : null,
+    // `white_bg` n'a jamais existé : l'analyseur produit `main_white_ok`.
+    // `!!undefined` valant false, chaque fiche était comptée « fond non
+    // conforme » et l'indicateur affichait 0 % en toute circonstance.
+    // Le champ est renommé pour que les audits enregistrés avant ce
+    // correctif affichent « — » au lieu de propager le faux zéro.
+    whiteOk: x.hero ? !!x.hero.main_white_ok : null,
     zoom: x.hero ? !!x.hero.zoom_ok : null,
     // Ces quatre-là étaient calculés puis perdus à l'enregistrement : la
     // comparaison ne pouvait donc pas parler de contenu enrichi ni de bullets.
@@ -5828,7 +5833,6 @@ function _psStats(a) {
     const known = r.filter(x => typeof x[field] === 'number');
     return known.length ? Math.round(known.reduce((s, x) => s + x[field], 0) / known.length) : null;
   };
-  const withHero = r.filter(x => x.white !== null && x.white !== undefined);
   return {
     n: r.length,
     score: a.score,
@@ -5842,7 +5846,7 @@ function _psStats(a) {
     bulletsDup: pctOf('bulletsUnique', x => x.bulletsUnique === false),
     imagesAvg: avg(x => x.images),
     imagesThin: pct(x => (x.images || 0) < 6),
-    whitePct: withHero.length ? Math.round(100 * withHero.filter(x => x.white).length / withHero.length) : null,
+    whitePct: pctOf('whiteOk', x => x.whiteOk === true),
     zoomPct: pctOf('zoom', x => x.zoom === true),
     aplusPct: pctOf('aplus', x => x.aplus === true),
     videoPct: pctOf('video', x => x.video === true),
@@ -6201,7 +6205,7 @@ function _psExportCsv() {
                   'Critiques', 'A ameliorer', 'Problemes'].join(';')];
   _psRows.forEach(x => lines.push([
     x.asin, x.title, x.score, x.titleLen, x.bullets, x.images,
-    x.hero ? (x.hero.white_bg ? 'oui' : 'non') : '',
+    x.hero ? (x.hero.main_white_ok ? 'oui' : 'non') : '',
     x.hero ? `${x.hero.width}x${x.hero.height}` : '',
     (x.keywords.missing_in_title || []).join(' | '),
     x.crit, x.warn,
