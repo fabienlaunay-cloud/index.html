@@ -4048,7 +4048,7 @@ def _scrape_amazon_for_audit(html_text: str) -> dict:
     import re as _re, html as _html
     def _clean(t): return _re.sub(r'<[^>]+>', '', _html.unescape(t or '')).strip()
 
-    result: dict = {"title": "", "bullets": [], "image_urls": [],
+    result: dict = {"title": "", "bullets": [], "image_urls": [], "brand": "",
                     "has_aplus": None, "has_video": None}
 
     # ── Contenu A+ et vidéo ────────────────────────────────────────────────────
@@ -4129,6 +4129,27 @@ def _scrape_amazon_for_audit(html_text: str) -> dict:
             if mm:
                 result["image_urls"] = [mm.group(1)]
                 break
+
+    # ── Marque ─────────────────────────────────────────────────────────────────
+    # Le byline (« Visiter la boutique X », « Marque : X ») est bien plus fiable
+    # que le titre, que le vendeur rédige librement : c'est lui qui permet de
+    # dire si une fiche appartient vraiment à la marque auditée.
+    for pat in (
+        r'id=["\']bylineInfo["\'][^>]*>(.*?)</a>',
+        r'>\s*(?:Marque|Brand|Marca|Marke)\s*</span>\s*</td>\s*<td[^>]*>\s*'
+        r'<span[^>]*>(.*?)</span>',
+        r'"brand"\s*:\s*"([^"]{2,60})"',
+    ):
+        mb = _re.search(pat, html_text, _re.DOTALL | _re.IGNORECASE)
+        if not mb:
+            continue
+        b = _clean(mb.group(1))
+        b = _re.sub(r'^(?:Visiter la boutique|Visit the|Marque|Brand|Marca|Marke)'
+                    r'\s*:?\s*', '', b, flags=_re.IGNORECASE).strip()
+        b = _re.sub(r'\s+(?:Store|Boutique)$', '', b, flags=_re.IGNORECASE).strip()
+        if 1 < len(b) <= 60:
+            result["brand"] = b
+            break
 
     # Une page bloquée, tronquée ou remplacée par un captcha ne contient aucun
     # marqueur A+ : la déclarer « sans contenu A+ » serait un faux négatif, et
@@ -4277,6 +4298,64 @@ def _extract_asins(html_text: str, limit: int = 60) -> list[str]:
     return out
 
 
+# Libellé d'une fiche, tel qu'il apparaît dans une grille de résultats ou dans
+# le payload JSON d'une vitrine. Essayés dans cet ordre : le titre de carte, le
+# champ JSON, puis l'attribut alt de la vignette.
+_PROD_TITLE_PATS = (
+    re.compile(r"<h2[^>]*>(.{3,400}?)</h2>", re.S | re.I),
+    re.compile(r'"(?:title|productTitle|displayName)"\s*:\s*"([^"]{3,400})"'),
+    re.compile(r'<img[^>]+alt="([^"]{6,400})"', re.I),
+)
+
+
+def _unescape_json_text(raw: str) -> str:
+    """Les vitrines encodent leurs libellés en JSON : « Hu\\u00e9lva », « a\\/b »."""
+    if "\\u" in raw:
+        raw = re.sub(r"\\u([0-9a-fA-F]{4})",
+                     lambda g: chr(int(g.group(1), 16)), raw)
+    return raw.replace("\\/", "/").replace('\\"', '"')
+
+
+def _extract_products(html_text: str, limit: int = 60) -> list[dict]:
+    """ASIN **et** libellé, lus d'un seul coup sur la page de liste.
+
+    Bien moins coûteux qu'une lecture fiche par fiche : c'est ce qui permet de
+    montrer les fiches trouvées et de laisser choisir celles à auditer, au lieu
+    de deviner la marque à partir du seul titre."""
+    import html as _html
+    hits = [(m.start(), m.end(), m.group(1).upper())
+            for m in _ASIN_RE.finditer(html_text or "")]
+    seen, out = set(), []
+    for i, (_, end, asin) in enumerate(hits):
+        if asin in seen or not asin.startswith("B"):
+            continue
+        seen.add(asin)
+        # La fenêtre s'arrête au produit suivant : sans cette borne, une carte
+        # sans libellé récupérait celui de sa voisine. Les répétitions du même
+        # ASIN (data-asin puis /dp/) restent dans la fenêtre, elles font partie
+        # de la même carte.
+        stop = len(html_text)
+        for nxt_start, _, nxt_asin in hits[i + 1:]:
+            if nxt_asin != asin:
+                stop = nxt_start
+                break
+        window = html_text[end: min(stop, end + 4000)]
+        title = ""
+        for pat in _PROD_TITLE_PATS:
+            mm = pat.search(window)
+            if not mm:
+                continue
+            t = _html.unescape(_unescape_json_text(mm.group(1)))
+            t = re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", t)).strip()
+            if len(t) >= 6:
+                title = t[:300]
+                break
+        out.append({"asin": asin, "title": title})
+        if len(out) >= limit:
+            break
+    return out
+
+
 @app.post("/api/audit/prefill")
 async def audit_prefill(request: Request):
     """Scrape an Amazon product URL, OR parse raw HTML if html_content is provided."""
@@ -4361,6 +4440,19 @@ class StoreScanRequest(BaseModel):
     # concurrents. Sans ce filtre, l'audit note des fiches qui ne sont pas
     # celles du vendeur analysé.
     brand: str = ""
+    # Sélection explicite : quand l'utilisateur a coché lui-même ses fiches,
+    # elles priment sur la découverte automatique et sur le filtre de marque.
+    asins: list[str] = []
+
+
+class StoreDiscoverRequest(BaseModel):
+    url: str = ""
+    html_content: str = ""
+    limit: int = 60
+    brand: str = ""
+
+
+_ASIN_OK = re.compile(r"^B[A-Z0-9]{9}$")
 
 
 def _fold_txt(text: str) -> str:
@@ -4368,6 +4460,45 @@ def _fold_txt(text: str) -> str:
     import unicodedata as _ud
     n = _ud.normalize("NFD", (text or "").lower())
     return "".join(c for c in n if _ud.category(c) != "Mn")
+
+
+# Une vitrine s'annonce « LA ESPAÑOLA - Huile d'olive vierge extra » : c'est ce
+# libellé complet que l'utilisateur recopie. Exiger la phrase entière dans chaque
+# titre écartait 30 fiches sur 34 — on ne garde donc que le segment identifiant.
+_BRAND_SEP = re.compile(r"\s+[-–—|:•]\s+|\s*[|•]\s*")
+
+
+def _brand_key(text: str) -> str:
+    """Forme comparable d'un nom de marque : minuscules, sans accent ni ponctuation."""
+    return re.sub(r"[^a-z0-9]+", " ", _fold_txt(text or "")).strip()
+
+
+def _brand_probe(brand: str) -> tuple[str, list[str]]:
+    """(phrase, jetons) du segment identifiant de la marque saisie."""
+    head = _BRAND_SEP.split((brand or "").strip(), 1)[0]
+    phrase = _brand_key(head)
+    # « la », « de », « & » n'identifient rien : exiger leur présence isolée
+    # rendrait le filtre à la fois plus strict et moins juste.
+    return phrase, [t for t in phrase.split() if len(t) > 2]
+
+
+def _brand_matches(probe: tuple[str, list[str]], title: str,
+                   brand_field: str = "") -> bool:
+    """La fiche appartient-elle à la marque visée ?
+
+    Trois niveaux, du plus fiable au plus tolérant : le champ « Marque » de la
+    page, la marque citée telle quelle dans le titre, puis tous ses jetons
+    présents dans le désordre. Sans marque saisie, tout passe."""
+    phrase, tokens = probe
+    if not phrase:
+        return True
+    field = _brand_key(brand_field)
+    if field and (phrase in field or field in phrase):
+        return True
+    hay = _brand_key(title)
+    if phrase in hay:
+        return True
+    return bool(tokens) and all(t in hay for t in tokens)
 
 
 def _drop_reason(reasons: dict, why: str | None) -> None:
@@ -4411,6 +4542,7 @@ async def _run_store_scan_job(job_id: str, asins: list[str], marketplace: str, b
                     "image_urls": data.get("image_urls") or [],
                     "marketplace": marketplace,
                     "status": "active",
+                    "brand": data.get("brand") or "",
                     "has_aplus": data.get("has_aplus"),
                     "has_video": data.get("has_video"),
                 }
@@ -4444,6 +4576,7 @@ async def _run_store_scan_job(job_id: str, asins: list[str], marketplace: str, b
                     "bullet_points": [b for b in (data.get("bullets") or []) if b.strip()],
                     "image_urls": data.get("image_urls") or [],
                     "marketplace": marketplace, "status": "active",
+                    "brand": data.get("brand") or "",
                     "has_aplus": data.get("has_aplus"),
                     "has_video": data.get("has_video"),
                 }
@@ -4476,6 +4609,7 @@ async def _run_store_scan_job(job_id: str, asins: list[str], marketplace: str, b
                         "bullet_points": [b for b in (p.get("bullets") or []) if b.strip()],
                         "image_urls": p.get("images") or [],
                         "marketplace": marketplace, "status": "active",
+                        "brand": p.get("brand") or "",
                         "has_aplus": p.get("has_aplus"),
                         "has_video": p.get("has_video"),
                     }
@@ -4498,12 +4632,18 @@ async def _run_store_scan_job(job_id: str, asins: list[str], marketplace: str, b
         # réserver aux fiches qui comptent. Le nom de marque ouvre presque
         # toujours le titre Amazon, la comparaison se fait donc dessus.
         off_brand = 0
+        off_brand_titles: list[str] = []
         if brand.strip():
-            # Espaces parasites normalisés : « Naxos  » saisi à la main ne doit
-            # pas écarter la totalité du catalogue.
-            wanted = _fold_txt(" ".join(brand.split()))
-            kept = [l for l in listings if wanted in _fold_txt(l.get("title") or "")]
-            off_brand = len(listings) - len(kept)
+            probe = _brand_probe(brand)
+            kept, dropped = [], []
+            for l in listings:
+                (kept if _brand_matches(probe, l.get("title") or "",
+                                        l.get("brand") or "") else dropped).append(l)
+            off_brand = len(dropped)
+            # Dire *lesquelles* ont été écartées : un filtre trop strict passait
+            # sinon pour une boutique minuscule, sans moyen de s'en apercevoir.
+            off_brand_titles = [(l.get("title") or l.get("asin") or "")[:110]
+                                for l in dropped[:12]]
             listings = kept
 
         # ── Analyse détaillée par fiche : score, mots-clés déduits, image
@@ -4558,6 +4698,7 @@ async def _run_store_scan_job(job_id: str, asins: list[str], marketplace: str, b
             "blocked": len(blocked),
             "blocked_asins": blocked[:20],
             "off_brand": off_brand,
+            "off_brand_titles": off_brand_titles,
             "brand": brand.strip(),
             "reasons": reasons,
             "source": "apify" if used_apify else "scrape",
@@ -4578,6 +4719,25 @@ async def audit_store_scan(req: StoreScanRequest, request: Request):
     Seller Central. Les mots-clés backend n'étant pas publics, l'audit est
     partiel par construction."""
     limit = max(1, min(int(req.limit or 30), 60))
+
+    # ── Sélection explicite ───────────────────────────────────────────────────
+    # L'utilisateur a coché ses fiches : on ne relit pas la page et surtout on
+    # ne refiltre pas sur la marque, ce qui reviendrait à défaire ses choix.
+    picked, seen_a = [], set()
+    for a in (req.asins or [])[:120]:
+        a = (a or "").strip().upper()
+        if _ASIN_OK.match(a) and a not in seen_a:
+            seen_a.add(a)
+            picked.append(a)
+    if picked:
+        asins, brand = picked[:60], ""
+        _cleanup_jobs()
+        job_id = uuid4().hex[:16]
+        _jobs[job_id] = {"status": "queued", "progress": 0, "total": len(asins),
+                         "result": None, "error": None, "created_at": time.time()}
+        asyncio.create_task(_run_store_scan_job(job_id, asins, req.marketplace, brand))
+        return {"job_id": job_id, "total": len(asins), "asins": asins[:10]}
+
     html_text = (req.html_content or "").strip()
 
     if not html_text:
@@ -4602,6 +4762,48 @@ async def audit_store_scan(req: StoreScanRequest, request: Request):
                      "result": None, "error": None, "created_at": time.time()}
     asyncio.create_task(_run_store_scan_job(job_id, asins, req.marketplace, req.brand or ""))
     return {"job_id": job_id, "total": len(asins), "asins": asins[:10]}
+
+
+@app.post("/api/audit/store-discover")
+async def audit_store_discover(req: StoreDiscoverRequest, request: Request):
+    """Liste les fiches présentes sur une page publique **sans les auditer**.
+
+    Une page de résultats — et même une vitrine de marque — mélange le catalogue
+    du vendeur, les sponsorisés et les concurrents. Plutôt que de deviner à
+    partir du seul titre, on montre ce qu'on a trouvé et on laisse cocher. La
+    lecture se fait sur la page de liste : une requête, pas une par fiche."""
+    limit = max(1, min(int(req.limit or 60), 60))
+    html_text = (req.html_content or "").strip()
+
+    if not html_text:
+        url = (req.url or "").strip()
+        if not url.startswith("http"):
+            raise HTTPException(400, "Collez l'URL d'une page Amazon (résultats de recherche, "
+                                     "vendeur ou vitrine de marque)")
+        _reject_internal_url(url)  # SSRF : jamais de requête vers le réseau interne
+        html_text = await _fetch_amazon_html(url, timeout=15.0)
+        if not html_text:
+            raise HTTPException(403, "BLOCKED")
+
+    products = _extract_products(html_text, limit=limit)
+    if not products:
+        raise HTTPException(422, "Aucune fiche trouvée sur cette page. Les vitrines de marque "
+                                 "sont souvent construites en JavaScript : essayez une page de "
+                                 "résultats de recherche, ou collez le code source (Ctrl+U).")
+
+    probe = _brand_probe(req.brand or "")
+    for p in products:
+        p["match"] = _brand_matches(probe, p.get("title") or "")
+    return {
+        "products": products,
+        "total": len(products),
+        "brand": (req.brand or "").strip(),
+        "matched": sum(1 for p in products if p["match"]),
+        # Un libellé manquant n'est pas une erreur : la vitrine ne l'expose pas
+        # toujours. On le signale pour que l'interface ne présente pas une case
+        # à cocher vide comme un choix éclairé.
+        "untitled": sum(1 for p in products if not p.get("title")),
+    }
 
 
 @app.post("/api/audit")

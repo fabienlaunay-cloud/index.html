@@ -2086,8 +2086,10 @@
           <input id="psUrl" type="url" placeholder="https://www.amazon.fr/s?k=delonghi+detartrant"
             class="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:border-emerald-400 focus:outline-none min-w-0"
             onkeydown="if(event.key==='Enter') _psScan()">
+          <button onclick="_psDiscover()" id="psFindBtn"
+            class="bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg px-4 py-2 text-sm font-semibold transition flex-shrink-0">Repérer les fiches</button>
           <button onclick="_psScan()" id="psScanBtn"
-            class="bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg px-4 py-2 text-sm font-semibold transition flex-shrink-0">Analyser</button>
+            class="border border-gray-200 text-gray-600 hover:bg-gray-50 rounded-lg px-4 py-2 text-sm font-semibold transition flex-shrink-0">Tout analyser</button>
         </div>
         <div class="flex items-center gap-3 mb-3">
           <label class="text-xs text-gray-500">Fiches à analyser
@@ -2105,7 +2107,7 @@
           <button onclick="document.getElementById('psPasteBox').classList.toggle('hidden')"
             class="text-xs text-emerald-700 hover:text-emerald-900 font-semibold underline">Amazon bloque ? Coller le code source</button>
         </div>
-        <p class="text-xs text-gray-400 mb-3">Une page de résultats mélange la marque, les sponsorisés et les concurrents. Renseignez la marque pour n'auditer que ses fiches — laissez vide pour tout garder.</p>
+        <p class="text-xs text-gray-400 mb-3"><strong class="font-semibold text-gray-500">Repérer les fiches</strong> liste d'abord ce que contient la page et vous laisse cocher celles à auditer — c'est la voie sûre. La marque ne sert alors qu'à pré-cocher : n'indiquez que son nom (<span class="font-mono">La Española</span>), pas le libellé complet de la vitrine.</p>
         <div id="psPasteBox" class="hidden mb-3">
           <div class="flex items-center justify-between gap-2 mb-1.5">
             <p class="text-xs text-gray-500">Sur la page Amazon : <span class="font-mono bg-gray-100 px-1 rounded">Ctrl+U</span>, <span class="font-mono bg-gray-100 px-1 rounded">Ctrl+A</span>, <span class="font-mono bg-gray-100 px-1 rounded">Ctrl+C</span>, puis collez ici.</p>
@@ -2114,6 +2116,23 @@
           </div>
           <textarea id="psHtml" rows="3" placeholder="Coller le code source HTML ici…"
             class="w-full border border-gray-200 rounded-lg px-3 py-2 text-xs font-mono focus:border-emerald-400 focus:outline-none"></textarea>
+        </div>
+
+        <!-- ── Fiches trouvées : on montre, on laisse cocher, puis on audite ── -->
+        <div id="psPick" class="hidden mb-3 border border-gray-200 rounded-lg overflow-hidden">
+          <div class="flex items-center gap-3 flex-wrap px-3 py-2 bg-gray-50 border-b border-gray-200">
+            <span id="psPickCount" class="text-xs font-semibold text-gray-700"></span>
+            <span class="flex-1"></span>
+            <button onclick="_psPickSet(true)" class="text-xs text-emerald-700 hover:text-emerald-900 font-semibold underline">Tout cocher</button>
+            <button onclick="_psPickSet(false)" class="text-xs text-gray-500 hover:text-gray-700 font-semibold underline">Tout décocher</button>
+            <button id="psPickBrandBtn" onclick="_psPickBrandOnly()" class="hidden text-xs text-emerald-700 hover:text-emerald-900 font-semibold underline">Ne garder que la marque</button>
+          </div>
+          <div id="psPickList" class="max-h-72 overflow-y-auto divide-y divide-gray-100"></div>
+          <div class="px-3 py-2 border-t border-gray-200 flex items-center gap-3 flex-wrap">
+            <button onclick="_psScanSelected()" id="psPickGo"
+              class="bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg px-4 py-2 text-sm font-semibold transition disabled:opacity-40">Auditer la sélection</button>
+            <p class="text-xs text-gray-400">Chaque fiche cochée est lue sur Amazon : comptez environ 2 s par fiche.</p>
+          </div>
         </div>
 
         <div id="psError" class="hidden mb-3 bg-red-50 border border-red-200 rounded-lg px-3 py-2 text-xs text-red-700"></div>
@@ -2163,6 +2182,7 @@
             Audit partiel : les mots-clés backend ne sont jamais publics. Pour un score complet, il faut le rapport Seller Central du vendeur.
           </div>
           <div id="psNote" class="hidden bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 text-xs text-blue-800 mb-3 leading-relaxed"></div>
+          <div id="psDropped" class="hidden bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-xs text-amber-800 mb-3 leading-relaxed"></div>
           <div id="psList" class="space-y-2 max-h-80 overflow-y-auto pr-1"></div>
         </div>
       </div>
@@ -5594,6 +5614,109 @@ function _psErr(msg) {
 }
 
 let _psLastUrl = '';
+let _psFound = [];   // fiches repérées sur la page, avant tout audit
+
+// Repérage : une seule requête, sur la page de liste. On n'audite rien tant que
+// l'utilisateur n'a pas validé sa sélection — deviner la marque à partir du seul
+// titre écartait des fiches sans qu'on puisse s'en rendre compte.
+async function _psDiscover() {
+  const url = document.getElementById('psUrl').value.trim();
+  _psLastUrl = url;
+  const html = document.getElementById('psHtml').value.trim();
+  if (!url && !html) { _psErr("Collez l'URL d'une page Amazon, ou le code source de la page"); return; }
+  _psErr('');
+  document.getElementById('psPick').classList.add('hidden');
+  const btn = document.getElementById('psFindBtn');
+  btn.disabled = true; btn.textContent = 'Lecture…';
+  try {
+    const r = await fetch(`${API}/api/audit/store-discover`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({
+        url, html_content: html,
+        limit: parseInt(document.getElementById('psLimit').value, 10) || 20,
+        brand: (document.getElementById('psBrand') || {}).value || '',
+      }),
+    });
+    const data = await r.json().catch(() => ({}));
+    if (r.status === 403 || data.detail === 'BLOCKED') {
+      document.getElementById('psPasteBox').classList.remove('hidden');
+      throw new Error("Amazon a bloqué la lecture de cette page. Collez son code source (Ctrl+U) juste en dessous.");
+    }
+    if (!r.ok) throw new Error(data.detail || 'Lecture impossible');
+    const hasBrand = !!(data.brand || '').trim();
+    _psFound = (data.products || []).map(p => ({ ...p, on: hasBrand ? !!p.match : true }));
+    _psRenderPick(hasBrand);
+  } catch (e) {
+    _psErr(e.message);
+  } finally { btn.disabled = false; btn.textContent = 'Repérer les fiches'; }
+}
+
+function _psRenderPick(hasBrand) {
+  document.getElementById('psPickList').innerHTML = _psFound.map((p, i) => `
+    <label class="flex items-start gap-2 px-3 py-2 hover:bg-gray-50 cursor-pointer">
+      <input type="checkbox" ${p.on ? 'checked' : ''} class="mt-0.5 flex-shrink-0"
+        onchange="_psFound[${i}].on = this.checked; _psPickCount()">
+      <span class="min-w-0">
+        <span class="block text-xs text-gray-700 leading-snug">${_esc(p.title || '(libellé non exposé par cette page)')}</span>
+        <span class="block text-[11px] text-gray-400 font-mono">${_esc(p.asin)}</span>
+      </span>
+    </label>`).join('');
+  document.getElementById('psPickBrandBtn').classList.toggle('hidden', !hasBrand);
+  document.getElementById('psPick').classList.remove('hidden');
+  _psPickCount();
+}
+
+function _psPickCount() {
+  const n = _psFound.filter(p => p.on).length;
+  document.getElementById('psPickCount').textContent =
+    `${n} fiche(s) cochée(s) sur ${_psFound.length} trouvée(s)`;
+  document.getElementById('psPickGo').disabled = !n;
+}
+
+function _psPickSet(on) {
+  _psFound.forEach(p => { p.on = on; });
+  document.querySelectorAll('#psPickList input[type=checkbox]').forEach(c => { c.checked = on; });
+  _psPickCount();
+}
+
+function _psPickBrandOnly() {
+  _psFound.forEach(p => { p.on = !!p.match; });
+  document.querySelectorAll('#psPickList input[type=checkbox]')
+    .forEach((c, i) => { c.checked = !!(_psFound[i] || {}).on; });
+  _psPickCount();
+}
+
+// La sélection prime : le serveur n'applique aucun filtre de marque sur une
+// liste d'ASIN explicite, sans quoi les cases cochées seraient défaites.
+async function _psScanSelected() {
+  const asins = _psFound.filter(p => p.on).map(p => p.asin);
+  if (!asins.length) { _psErr('Cochez au moins une fiche à auditer'); return; }
+  _psErr(''); _psRows = [];
+  document.getElementById('psResults').classList.add('hidden');
+  const btn = document.getElementById('psPickGo');
+  btn.disabled = true;
+  const prog = document.getElementById('psProgress');
+  prog.classList.remove('hidden');
+  document.getElementById('psProgressBar').style.width = '0%';
+  document.getElementById('psProgressLabel').textContent = `0 / ${asins.length} fiches`;
+  try {
+    const r = await fetch(`${API}/api/audit/store-scan`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({
+        asins,
+        marketplace: (document.getElementById('auditMkt') || {}).value || 'amazon_fr',
+      }),
+    });
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(data.detail || 'Analyse impossible');
+    await _psPoll(data.job_id, data.total);
+  } catch (e) {
+    prog.classList.add('hidden');
+    _psErr(e.message);
+  } finally { btn.disabled = false; }
+}
 
 async function _psScan() {
   const url = document.getElementById('psUrl').value.trim();
@@ -5629,7 +5752,7 @@ async function _psScan() {
   } catch (e) {
     prog.classList.add('hidden');
     _psErr(e.message);
-  } finally { btn.disabled = false; btn.textContent = 'Analyser'; }
+  } finally { btn.disabled = false; btn.textContent = 'Tout analyser'; }
 }
 
 async function _psPoll(jobId, total) {
@@ -5680,6 +5803,18 @@ function _psRender(res) {
     // Dire ce qui a été écarté : sans ça, un filtre trop strict passe pour
     // une boutique minuscule.
     + (res.off_brand ? ` · ${res.off_brand} hors marque « ${res.brand} » écartée(s)` : '');
+
+  // Un filtre trop strict passait pour une boutique minuscule : on montre ce
+  // qu'il a rejeté pour qu'une erreur de saisie se voie tout de suite.
+  const drop = document.getElementById('psDropped');
+  if (res.off_brand && (res.off_brand_titles || []).length) {
+    drop.innerHTML = '<span class="font-semibold">Écartées comme hors marque :</span> '
+      + res.off_brand_titles.map(t => _esc(t)).join(' · ')
+      + (res.off_brand > res.off_brand_titles.length
+          ? ` … et ${res.off_brand - res.off_brand_titles.length} autre(s)` : '')
+      + ' — si l\'une d\'elles vous intéresse, passez par « Repérer les fiches ».';
+    drop.classList.remove('hidden');
+  } else { drop.classList.add('hidden'); }
 
   // Rien de lisible : on explique pourquoi et quoi faire, au lieu d'un vide
   const note = document.getElementById('psNote');
