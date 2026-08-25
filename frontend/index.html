@@ -5690,12 +5690,23 @@ function _gpRender(d) {
   const findings = d.findings || [];
   const rc = d.recalls || {};
 
-  const line = (label, value) => `
+  // Une ligne ne passe au rouge que si une règle la vise : sinon on reprochait
+  // une absence qui n'est pas une obligation (organisme notifié sur une huile,
+  // responsable UE sur un producteur européen).
+  const flagged = {};
+  findings.forEach(x => { flagged[x.field] = x.severity; });
+  const line = (label, value, field) => {
+    const sev = flagged[field];
+    const tone = value ? 'text-gray-800'
+      : sev === 'critique' ? 'text-red-600 font-semibold'
+      : sev ? 'text-amber-600 font-semibold' : 'text-gray-400';
+    return `
     <div class="flex items-start gap-2 py-1.5 border-b border-gray-100 last:border-0">
       <span class="text-xs text-gray-500 w-44 flex-shrink-0">${_esc(label)}</span>
-      <span class="text-xs ${value ? 'text-gray-800' : 'text-red-600 font-semibold'} min-w-0 break-words">
-        ${value ? _esc(String(value)) : 'non détectée'}</span>
+      <span class="text-xs ${tone} min-w-0 break-words">
+        ${value ? _esc(String(value)) : (sev ? 'non détectée' : 'non renseignée — sans objet ici')}</span>
     </div>`;
+  };
 
   // Rappels : « indisponible » ne doit jamais se lire comme « aucun rappel ».
   let recallHtml;
@@ -5725,11 +5736,11 @@ function _gpRender(d) {
           ${findings.length} mention(s) manquante(s)${d.critical ? ` · ${d.critical} critique(s)` : ''}</span>
       </div>
       <div class="px-3 py-2">
-        ${line('Fabricant', f.manufacturer)}
-        ${line("Responsable dans l'UE", f.eu_responsible)}
-        ${line('Informations de sécurité', f.safety_info)}
-        ${line('Identifiant EAN/GTIN', f.gtin)}
-        ${line('Organisme notifié (CE)', f.ce_notified_body)}
+        ${line('Fabricant', f.manufacturer, 'fabricant')}
+        ${line("Responsable dans l'UE", f.eu_responsible, 'responsable_ue')}
+        ${line('Informations de sécurité', f.safety_info, 'securite')}
+        ${line('Identifiant EAN/GTIN', f.gtin, 'gtin')}
+        ${d.ce_relevant ? line('Organisme notifié (CE)', f.ce_notified_body, 'marquage_ce') : ''}
       </div>
       ${findings.length ? `<div class="px-3 py-2 border-t border-gray-100 space-y-1">
         ${findings.map(x => `<p class="text-xs ${x.severity === 'critique' ? 'text-red-700' : 'text-amber-700'} leading-snug">

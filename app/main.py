@@ -4846,6 +4846,9 @@ async def audit_gpsr(req: GpsrCheckRequest, request: Request):
         "brand": data.get("brand") or "",
         "sector": _gpsr.sector_hint(title),
         "fields": fields,
+        # Le marquage CE ne concerne pas toutes les catégories : sans ce drapeau,
+        # l'interface affichait « non détectée » en rouge sur une huile d'olive.
+        "ce_relevant": _gpsr.sector_hint(title) in _gpsr.CE_SECTORS,
         "findings": findings,
         "critical": sum(1 for f in findings if f["severity"] == _gpsr.CRITICAL),
         "recalls": recalls,

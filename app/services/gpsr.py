@@ -135,6 +135,47 @@ _SECTOR_HINTS = {
 }
 
 
+# Établissement du fabricant. Deux listes volontairement asymétriques : les
+# formes juridiques ne servent que d'indice *européen* (GmbH, SARL, BV ne se
+# rencontrent qu'ici), jamais d'indice inverse — « Ltd » se lit aussi bien à
+# Dublin qu'à Shenzhen, et s'en servir recréerait le faux positif qu'on corrige.
+_EU_HINTS = (
+    "france", "allemagne", "germany", "deutschland", "espagne", "spain", "españa",
+    "italie", "italy", "italia", "grece", "greece", "hellas", "belgique", "belgium",
+    "pays-bas", "netherlands", "nederland", "portugal", "irlande", "ireland",
+    "autriche", "austria", "pologne", "poland", "polska", "suede", "sweden",
+    "danemark", "denmark", "finlande", "finland", "tchequie", "czech", "roumanie",
+    "romania", "hongrie", "hungary", "bulgarie", "bulgaria", "croatie", "croatia",
+    "slovaquie", "slovakia", "slovenie", "slovenia", "lituanie", "lithuania",
+    "lettonie", "latvia", "estonie", "estonia", "luxembourg", "malte", "malta",
+    "chypre", "cyprus",
+    " sas", " sarl", " gmbh", " b.v", " bv", " n.v", " srl", " s.r.l", " s.p.a",
+    " oy", " aps", " s.l", " lda", " sp. z",
+)
+_NON_EU_HINTS = (
+    "chine", "china", "shenzhen", "guangdong", "shanghai", "hong kong", "taiwan",
+    "etats-unis", "united states", "u.s.a", "usa", "royaume-uni", "united kingdom",
+    "turquie", "turkey", "inde", "india", "vietnam", "japon", "japan", "coree",
+    "korea", "suisse", "switzerland", "norvege", "norway", "bresil", "brazil",
+)
+
+
+def _looks_eu(text: str) -> bool:
+    hay = " " + _fold(text) + " "
+    return any(h in hay for h in _EU_HINTS)
+
+
+def _looks_non_eu(text: str) -> bool:
+    hay = " " + _fold(text) + " "
+    return any(h in hay for h in _NON_EU_HINTS)
+
+
+# Catégories dont le marquage CE doit porter un numéro d'organisme notifié. Une
+# huile d'olive n'en a pas : afficher la ligne en rouge serait un reproche
+# infondé.
+CE_SECTORS = ("dispositif médical", "jouet", "équipement électrique")
+
+
 def sector_hint(title: str) -> str:
     """Catégorie sectorielle probable, déduite du titre. Indicatif uniquement."""
     hay = _fold(title)
@@ -158,11 +199,24 @@ def check(data: dict, title: str = "") -> list[dict]:
             f"Identité du fabricant {_UNSEEN} — mention exigée dans toute offre "
             "en vente à distance (art. 19 GPSR)."))
 
+    # L'obligation de désigner un responsable dans l'UE est *conditionnelle* :
+    # elle ne vaut que si le fabricant est établi hors Union. La signaler comme
+    # critique sur un producteur européen serait un faux positif — exactement ce
+    # qu'un outil de conformité ne peut pas se permettre.
     if not (data.get("eu_responsible") or "").strip():
-        out.append(_finding(
-            "GPSR_RESPONSABLE_UE", CRITICAL, "responsable_ue",
-            f"Personne responsable établie dans l'UE {_UNSEEN} — obligatoire dès "
-            "lors que le fabricant est hors Union."))
+        manuf = data.get("manufacturer") or ""
+        if _looks_non_eu(manuf):
+            out.append(_finding(
+                "GPSR_RESPONSABLE_UE", CRITICAL, "responsable_ue",
+                f"Personne responsable établie dans l'UE {_UNSEEN}, alors que le "
+                "fabricant paraît établi hors Union : la mention est alors "
+                "obligatoire."))
+        elif not _looks_eu(manuf):
+            out.append(_finding(
+                "GPSR_RESPONSABLE_UE", WARNING, "responsable_ue",
+                f"Personne responsable établie dans l'UE {_UNSEEN}. Obligatoire "
+                "seulement si le fabricant est hors Union — son établissement "
+                "n'a pas pu être déterminé depuis la page."))
 
     if not (data.get("safety_info") or "").strip():
         out.append(_finding(
