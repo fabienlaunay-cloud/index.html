@@ -4151,6 +4151,13 @@ def _scrape_amazon_for_audit(html_text: str) -> dict:
             result["brand"] = b
             break
 
+    # ── Mentions obligatoires en vente à distance (art. 19 GPSR) ──────────────
+    # Motif de suspension le plus courant sur les places de marché. On repère,
+    # on ne juge pas : ces champs disent ce que l'annonce affiche, pas si le
+    # produit est conforme.
+    from app.services import gpsr as _gpsr
+    result["gpsr"] = _gpsr.extract(html_text)
+
     # Une page bloquée, tronquée ou remplacée par un captcha ne contient aucun
     # marqueur A+ : la déclarer « sans contenu A+ » serait un faux négatif, et
     # ces deux clés alimentent des statistiques de comparaison. Sans titre ni
@@ -4158,6 +4165,9 @@ def _scrape_amazon_for_audit(html_text: str) -> dict:
     if not result["title"] and not result["bullets"]:
         result["has_aplus"] = None
         result["has_video"] = None
+        # Rien lu = rien à constater. Sans ça, une page bloquée ressortirait
+        # avec « fabricant absent », ce qui serait un pur artefact.
+        result["gpsr"] = None
 
     return result
 
@@ -4543,6 +4553,7 @@ async def _run_store_scan_job(job_id: str, asins: list[str], marketplace: str, b
                     "marketplace": marketplace,
                     "status": "active",
                     "brand": data.get("brand") or "",
+                    "gpsr": data.get("gpsr") or {},
                     "has_aplus": data.get("has_aplus"),
                     "has_video": data.get("has_video"),
                 }
@@ -4577,6 +4588,7 @@ async def _run_store_scan_job(job_id: str, asins: list[str], marketplace: str, b
                     "image_urls": data.get("image_urls") or [],
                     "marketplace": marketplace, "status": "active",
                     "brand": data.get("brand") or "",
+                    "gpsr": data.get("gpsr") or {},
                     "has_aplus": data.get("has_aplus"),
                     "has_video": data.get("has_video"),
                 }
@@ -4646,6 +4658,24 @@ async def _run_store_scan_job(job_id: str, asins: list[str], marketplace: str, b
                                 for l in dropped[:12]]
             listings = kept
 
+        # ── Mentions obligatoires (GPSR) et rappels officiels ────────────────
+        # Sans coût ni IA. Le croisement RappelConso est borné par un
+        # coupe-circuit : une API muette ne doit pas allonger l'audit.
+        from app.services import gpsr as _gpsr, rappelconso as _rc
+        gpsr_missing = 0
+        recalls_hits, recalls_seen = 0, set()
+        for l in listings:
+            g = l.get("gpsr") or {}
+            l["gpsr_issues"] = _gpsr.check(g, l.get("title") or "") if g else []
+            l["sector"] = _gpsr.sector_hint(l.get("title") or "")
+            if l["gpsr_issues"]:
+                gpsr_missing += 1
+            rc = await _rc.for_listing(g.get("gtin") or "", l.get("brand") or "")
+            l["recalls"] = rc
+            recalls_seen.add(rc.get("status") or "skipped")
+            if rc.get("status") == "ok" and rc.get("recalls"):
+                recalls_hits += 1
+
         # ── Analyse détaillée par fiche : score, mots-clés déduits, image
         # principale. Déterministe, donc sans coût ni appel IA.
         if listings:
@@ -4697,6 +4727,17 @@ async def _run_store_scan_job(job_id: str, asins: list[str], marketplace: str, b
             "scanned": len(listings),
             "blocked": len(blocked),
             "blocked_asins": blocked[:20],
+            "gpsr": {
+                "checked": len(listings),
+                "with_missing": gpsr_missing if listings else 0,
+                "recalls_hits": recalls_hits if listings else 0,
+                # « indisponible » n'est pas « aucun rappel » : l'interface doit
+                # pouvoir dire qu'elle n'a pas pu vérifier.
+                # Une seule vérification ratée suffit à ne plus pouvoir dire
+                # « aucun rappel » : le pire cas l'emporte sur le reste.
+                "recalls_status": ("unavailable" if "unavailable" in recalls_seen
+                                   else "ok" if "ok" in recalls_seen else "skipped"),
+            },
             "off_brand": off_brand,
             "off_brand_titles": off_brand_titles,
             "brand": brand.strip(),
@@ -4762,6 +4803,58 @@ async def audit_store_scan(req: StoreScanRequest, request: Request):
                      "result": None, "error": None, "created_at": time.time()}
     asyncio.create_task(_run_store_scan_job(job_id, asins, req.marketplace, req.brand or ""))
     return {"job_id": job_id, "total": len(asins), "asins": asins[:10]}
+
+
+class GpsrCheckRequest(BaseModel):
+    url: str = ""
+    html_content: str = ""
+    marketplace: str = "amazon_fr"
+
+
+@app.post("/api/audit/gpsr")
+async def audit_gpsr(req: GpsrCheckRequest, request: Request):
+    """Mentions obligatoires en vente à distance (art. 19 GPSR) sur **une** fiche,
+    et croisement avec les rappels officiels RappelConso.
+
+    Ne conclut jamais à la conformité d'un produit — c'est impossible depuis une
+    page web, et ce n'est pas le rôle d'un outil privé. Constate seulement ce que
+    l'annonce affiche : c'est ce que contrôlent les places de marché avant de
+    suspendre une fiche."""
+    from app.services import gpsr as _gpsr, rappelconso as _rc
+
+    html_text = (req.html_content or "").strip()
+    if not html_text:
+        url = (req.url or "").strip()
+        if not url.startswith("http"):
+            raise HTTPException(400, "Collez l'URL d'une fiche produit Amazon")
+        _reject_internal_url(url)  # SSRF : jamais de requête vers le réseau interne
+        html_text, why = await _fetch_amazon_page(url, timeout=15.0)
+        if not html_text:
+            raise HTTPException(403, "BLOCKED" if why != "ok" else "Page illisible")
+
+    data = _scrape_amazon_for_audit(html_text)
+    if data.get("gpsr") is None:
+        raise HTTPException(422, "BLOCKED")
+
+    title = data.get("title") or ""
+    fields = data.get("gpsr") or {}
+    findings = _gpsr.check(fields, title)
+    recalls = await _rc.for_listing(fields.get("gtin") or "", data.get("brand") or "")
+
+    return {
+        "title": title,
+        "brand": data.get("brand") or "",
+        "sector": _gpsr.sector_hint(title),
+        "fields": fields,
+        "findings": findings,
+        "critical": sum(1 for f in findings if f["severity"] == _gpsr.CRITICAL),
+        "recalls": recalls,
+        # Rappelé explicitement dans la réponse : tout consommateur de cette API
+        # doit savoir ce qu'elle ne dit pas.
+        "disclaimer": ("Constat de mentions affichées sur l'annonce. Ne préjuge "
+                       "en rien de la conformité réelle du produit, qui ne peut "
+                       "être établie que par un organisme notifié."),
+    }
 
 
 @app.post("/api/audit/store-discover")

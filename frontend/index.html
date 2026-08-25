@@ -2183,8 +2183,47 @@
           </div>
           <div id="psNote" class="hidden bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 text-xs text-blue-800 mb-3 leading-relaxed"></div>
           <div id="psDropped" class="hidden bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-xs text-amber-800 mb-3 leading-relaxed"></div>
+          <div id="psGpsr" class="hidden bg-rose-50 border border-rose-200 rounded-lg px-3 py-2 text-xs text-rose-800 mb-3 leading-relaxed"></div>
           <div id="psList" class="space-y-2 max-h-80 overflow-y-auto pr-1"></div>
         </div>
+      </div>
+    </div>
+
+    <!-- ── Mentions obligatoires (GPSR) sur une fiche ────────────────────── -->
+    <div class="order-2">
+      <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+        <div class="flex items-center gap-3 mb-5">
+          <div class="w-9 h-9 rounded-xl bg-rose-50 flex items-center justify-center flex-shrink-0">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#e11d48" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          </div>
+          <div>
+            <h2 class="font-semibold text-gray-800 text-base">Risque de suspension</h2>
+            <p class="text-xs text-gray-500">Mentions obligatoires en vente à distance (art. 19 GPSR) et rappels officiels — collez l'URL d'une fiche</p>
+          </div>
+        </div>
+
+        <div class="flex gap-2 mb-2">
+          <input id="gpUrl" type="url" placeholder="https://www.amazon.fr/dp/B0XXXXXXXX"
+            class="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:border-rose-400 focus:outline-none min-w-0"
+            onkeydown="if(event.key==='Enter') _gpCheck()">
+          <button onclick="_gpCheck()" id="gpBtn"
+            class="bg-rose-600 hover:bg-rose-700 text-white rounded-lg px-4 py-2 text-sm font-semibold transition flex-shrink-0">Vérifier</button>
+        </div>
+        <button onclick="document.getElementById('gpPasteBox').classList.toggle('hidden')"
+          class="text-xs text-rose-700 hover:text-rose-900 font-semibold underline mb-3">Amazon bloque ? Coller le code source</button>
+        <div id="gpPasteBox" class="hidden mb-3">
+          <textarea id="gpHtml" rows="3" placeholder="Coller le code source HTML de la fiche (Ctrl+U)…"
+            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-xs font-mono focus:border-rose-400 focus:outline-none"></textarea>
+        </div>
+
+        <div id="gpError" class="hidden mb-3 bg-red-50 border border-red-200 rounded-lg px-3 py-2 text-xs text-red-700"></div>
+        <div id="gpResult" class="hidden"></div>
+
+        <p class="text-xs text-gray-400 mt-3 leading-relaxed">
+          Ce contrôle constate ce que l'annonce affiche. Il ne dit pas si le produit
+          est réellement conforme : cela ne peut être établi que par un organisme
+          notifié, jamais depuis une page web.
+        </p>
       </div>
     </div>
 
@@ -5613,6 +5652,94 @@ function _psErr(msg) {
   el.textContent = msg; el.classList.remove('hidden');
 }
 
+// ── Mentions obligatoires GPSR sur une fiche ────────────────────────────────
+function _gpErr(msg) {
+  const el = document.getElementById('gpError');
+  if (!msg) { el.classList.add('hidden'); return; }
+  el.textContent = msg; el.classList.remove('hidden');
+}
+
+async function _gpCheck() {
+  const url = document.getElementById('gpUrl').value.trim();
+  const html = document.getElementById('gpHtml').value.trim();
+  if (!url && !html) { _gpErr("Collez l'URL d'une fiche produit, ou son code source"); return; }
+  _gpErr('');
+  document.getElementById('gpResult').classList.add('hidden');
+  const btn = document.getElementById('gpBtn');
+  btn.disabled = true; btn.textContent = 'Lecture…';
+  try {
+    const r = await fetch(`${API}/api/audit/gpsr`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ url, html_content: html }),
+    });
+    const data = await r.json().catch(() => ({}));
+    if (r.status === 403 || r.status === 422 || data.detail === 'BLOCKED') {
+      document.getElementById('gpPasteBox').classList.remove('hidden');
+      throw new Error("Amazon a bloqué la lecture de cette fiche. Collez son code source (Ctrl+U) juste en dessous.");
+    }
+    if (!r.ok) throw new Error(data.detail || 'Vérification impossible');
+    _gpRender(data);
+  } catch (e) {
+    _gpErr(e.message);
+  } finally { btn.disabled = false; btn.textContent = 'Vérifier'; }
+}
+
+function _gpRender(d) {
+  const f = d.fields || {};
+  const findings = d.findings || [];
+  const rc = d.recalls || {};
+
+  const line = (label, value) => `
+    <div class="flex items-start gap-2 py-1.5 border-b border-gray-100 last:border-0">
+      <span class="text-xs text-gray-500 w-44 flex-shrink-0">${_esc(label)}</span>
+      <span class="text-xs ${value ? 'text-gray-800' : 'text-red-600 font-semibold'} min-w-0 break-words">
+        ${value ? _esc(String(value)) : 'non détectée'}</span>
+    </div>`;
+
+  // Rappels : « indisponible » ne doit jamais se lire comme « aucun rappel ».
+  let recallHtml;
+  if (rc.status === 'ok' && (rc.recalls || []).length) {
+    recallHtml = `<div class="bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+      <p class="text-xs font-bold text-red-800 mb-1">${rc.recalls.length} rappel(s) officiel(s) —
+        rapprochement par ${rc.match === 'gtin' ? 'code-barres' : 'marque, à confirmer'}</p>
+      ${rc.recalls.slice(0, 4).map(x => `
+        <p class="text-xs text-red-700 leading-snug mt-1">
+          <span class="font-semibold">${_esc(x.date || '')}</span> ${_esc(x.libelle || x.marque || '')}
+          ${x.motif ? ' — ' + _esc(x.motif) : ''}
+          ${x.lien ? ` <a href="${_esc(x.lien)}" target="_blank" rel="noopener" class="underline">fiche</a>` : ''}
+        </p>`).join('')}
+    </div>`;
+  } else if (rc.status === 'ok') {
+    recallHtml = `<p class="text-xs text-emerald-700">Aucun rappel publié pour ce produit au moment de la vérification.</p>`;
+  } else {
+    recallHtml = `<p class="text-xs text-gray-500">Rappels non vérifiés — ${_esc(rc.error || 'source indisponible')}.</p>`;
+  }
+
+  document.getElementById('gpResult').innerHTML = `
+    <div class="border border-gray-200 rounded-lg overflow-hidden">
+      <div class="px-3 py-2 bg-gray-50 border-b border-gray-200 flex items-center gap-2 flex-wrap">
+        <span class="text-xs font-semibold text-gray-800 min-w-0 truncate">${_esc(d.title || 'Fiche')}</span>
+        ${d.sector ? `<span class="text-[11px] bg-indigo-50 text-indigo-700 rounded px-1.5 py-0.5">${_esc(d.sector)}</span>` : ''}
+        <span class="ml-auto text-xs font-bold ${d.critical ? 'text-red-600' : 'text-emerald-600'}">
+          ${findings.length} mention(s) manquante(s)${d.critical ? ` · ${d.critical} critique(s)` : ''}</span>
+      </div>
+      <div class="px-3 py-2">
+        ${line('Fabricant', f.manufacturer)}
+        ${line("Responsable dans l'UE", f.eu_responsible)}
+        ${line('Informations de sécurité', f.safety_info)}
+        ${line('Identifiant EAN/GTIN', f.gtin)}
+        ${line('Organisme notifié (CE)', f.ce_notified_body)}
+      </div>
+      ${findings.length ? `<div class="px-3 py-2 border-t border-gray-100 space-y-1">
+        ${findings.map(x => `<p class="text-xs ${x.severity === 'critique' ? 'text-red-700' : 'text-amber-700'} leading-snug">
+          <span class="font-semibold">${x.severity === 'critique' ? 'Critique' : 'À vérifier'} :</span> ${_esc(x.message)}</p>`).join('')}
+      </div>` : ''}
+      <div class="px-3 py-2 border-t border-gray-100">${recallHtml}</div>
+    </div>`;
+  document.getElementById('gpResult').classList.remove('hidden');
+}
+
 let _psLastUrl = '';
 let _psFound = [];   // fiches repérées sur la page, avant tout audit
 
@@ -5806,6 +5933,28 @@ function _psRender(res) {
 
   // Un filtre trop strict passait pour une boutique minuscule : on montre ce
   // qu'il a rejeté pour qu'une erreur de saisie se voie tout de suite.
+  // Mentions obligatoires : le motif de suspension le plus courant.
+  const gp = document.getElementById('psGpsr');
+  const g = res.gpsr || {};
+  if (g.checked) {
+    const parts = [];
+    if (g.with_missing) {
+      parts.push(`<span class="font-semibold">${g.with_missing} fiche(s) sur ${g.checked}</span> `
+        + "n'affichent pas toutes les mentions obligatoires en vente à distance "
+        + '(art. 19 GPSR) — c\'est le motif de suspension le plus courant.');
+    } else {
+      parts.push(`Les ${g.checked} fiches analysées affichent les mentions obligatoires repérables.`);
+    }
+    if (g.recalls_hits) {
+      parts.push(`<span class="font-semibold">${g.recalls_hits} fiche(s) rapprochée(s) d'un rappel officiel</span> — à confirmer sur RappelConso.`);
+    } else if (g.recalls_status && g.recalls_status !== 'ok') {
+      // Ne jamais laisser croire que l'absence de résultat vaut absence de rappel.
+      parts.push('Rappels officiels non vérifiés pour cet audit (source indisponible).');
+    }
+    gp.innerHTML = parts.join('<br>');
+    gp.classList.remove('hidden');
+  } else { gp.classList.add('hidden'); }
+
   const drop = document.getElementById('psDropped');
   if (res.off_brand && (res.off_brand_titles || []).length) {
     drop.innerHTML = '<span class="font-semibold">Écartées comme hors marque :</span> '
