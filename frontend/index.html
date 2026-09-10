@@ -2240,7 +2240,23 @@
           </div>
         </div>
 
-        <label class="text-xs font-medium text-gray-600 block mb-1.5">URL de la boutique (Shopify)</label>
+        <!-- Découverte par secteur : on n'a plus besoin de connaître la boutique -->
+        <label class="text-xs font-medium text-gray-600 block mb-1.5">Trouver des boutiques par secteur</label>
+        <div class="flex gap-2 mb-2">
+          <input id="dscSector" type="text" placeholder="cosmétique bio, épicerie fine, accessoires chien…"
+            class="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:border-amber-400 focus:outline-none min-w-0"
+            onkeydown="if(event.key==='Enter') _dscRun()">
+          <button onclick="_dscRun()" id="dscBtn"
+            class="bg-gray-900 hover:bg-gray-700 text-white rounded-lg px-4 py-2 text-sm font-semibold transition flex-shrink-0">Chercher</button>
+        </div>
+        <div id="dscProgress" class="hidden mb-2">
+          <div class="h-1.5 bg-gray-100 rounded-full overflow-hidden"><div id="dscBar" class="h-full bg-gray-900 transition-all" style="width:0%"></div></div>
+          <p id="dscLabel" class="text-xs text-gray-500 mt-1"></p>
+        </div>
+        <div id="dscResult" class="hidden mb-4"></div>
+
+        <div class="border-t border-gray-100 pt-4 mb-1"></div>
+        <label class="text-xs font-medium text-gray-600 block mb-1.5">…ou analyser une boutique précise</label>
         <input id="gapSite" type="url" placeholder="https://www.marque.com"
           class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:border-amber-400 focus:outline-none mb-2"
           onkeydown="if(event.key==='Enter') _gapRun()">
@@ -5691,6 +5707,87 @@ function _psErr(msg) {
   const el = document.getElementById('psError');
   if (!msg) { el.classList.add('hidden'); return; }
   el.textContent = msg; el.classList.remove('hidden');
+}
+
+// ── Découverte de boutiques par secteur ─────────────────────────────────────
+async function _dscRun() {
+  const sector = document.getElementById('dscSector').value.trim();
+  if (sector.length < 3) { _gapErr("Indiquez un secteur d'activité"); return; }
+  _gapErr('');
+  document.getElementById('dscResult').classList.add('hidden');
+  const btn = document.getElementById('dscBtn');
+  btn.disabled = true; btn.textContent = 'Recherche…';
+  const prog = document.getElementById('dscProgress');
+  prog.classList.remove('hidden');
+  document.getElementById('dscBar').style.width = '0%';
+  document.getElementById('dscLabel').textContent = 'interrogation du moteur…';
+  try {
+    const r = await fetch(`${API}/api/prospect/discover`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ sector, limit: 20 }),
+    });
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(data.detail || 'Recherche impossible');
+    await _dscPoll(data.job_id);
+  } catch (e) {
+    prog.classList.add('hidden');
+    _gapErr(e.message);
+  } finally { btn.disabled = false; btn.textContent = 'Chercher'; }
+}
+
+async function _dscPoll(jobId) {
+  for (let i = 0; i < 400; i++) {
+    await new Promise(r => setTimeout(r, 1200));
+    let j;
+    try {
+      const r = await fetch(`${API}/api/jobs/${jobId}`, { headers: { 'Authorization': `Bearer ${token}` } });
+      j = await r.json();
+    } catch (e) { continue; }
+    const done = j.progress || 0, tot = j.total || 0;
+    document.getElementById('dscLabel').textContent =
+      tot ? `${done} / ${tot} sites vérifiés` : (j.label || 'recherche…');
+    document.getElementById('dscBar').style.width = `${tot ? Math.round(done / tot * 100) : 8}%`;
+    if (j.status === 'done') { document.getElementById('dscProgress').classList.add('hidden'); _dscRender(j.result); return; }
+    if (j.status === 'error') { document.getElementById('dscProgress').classList.add('hidden'); _gapErr(j.error || 'Recherche échouée'); return; }
+  }
+  document.getElementById('dscProgress').classList.add('hidden');
+  _gapErr('Recherche trop longue');
+}
+
+function _dscRender(res) {
+  const shops = res.shops || [];
+  const el = document.getElementById('dscResult');
+  // Le moteur propose, la lecture du catalogue dispose : dire les deux
+  // chiffres évite de croire que le secteur ne contient que ça.
+  const entete = `${shops.length} boutique(s) Shopify sur ${res.candidates} site(s) examiné(s)`
+    + (res.search_status && res.search_status !== 'ok'
+        ? ` · moteur : ${_esc(res.search_error || res.search_status)}` : '');
+
+  el.innerHTML = shops.length ? `
+    <p class="text-xs text-gray-600 mb-1.5">${entete}</p>
+    <div class="border border-gray-200 rounded-lg divide-y divide-gray-100 max-h-72 overflow-y-auto">
+      ${shops.map(s => `
+        <div class="flex items-center gap-2 px-3 py-2">
+          <span class="min-w-0 flex-1">
+            <span class="block text-xs font-semibold text-gray-800 truncate">${_esc(s.brand || s.domain)}</span>
+            <span class="block text-[11px] text-gray-500">${_esc(s.domain)} · ${s.products} référence(s)${
+              s.maturity && s.maturity.median_price != null
+                ? ' · panier médian ' + Number(s.maturity.median_price).toLocaleString('fr-FR',
+                    { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €' : ''}</span>
+          </span>
+          <button onclick="_dscPick('${_esc(s.url)}')"
+            class="flex-shrink-0 text-xs bg-amber-500 hover:bg-amber-600 text-white rounded-lg px-2.5 py-1.5 font-semibold transition">Analyser</button>
+        </div>`).join('')}
+    </div>` : `<p class="text-xs text-gray-600">${entete}. Essayez un secteur plus précis, ou une autre formulation.</p>`;
+  el.classList.remove('hidden');
+}
+
+// Un clic remplit le champ du bas et lance l'analyse complète.
+function _dscPick(url) {
+  document.getElementById('gapSite').value = url;
+  document.getElementById('gapSite').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  _gapRun();
 }
 
 // ── Écart catalogue boutique ↔ Amazon ───────────────────────────────────────

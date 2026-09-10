@@ -1172,6 +1172,15 @@ def _reject_internal_url(url: str) -> None:
             raise HTTPException(400, "URL non autorisée (adresse interne)")
 
 
+async def _reject_internal_url_async(url: str) -> None:
+    """Même garde, sans figer la boucle d'événements.
+
+    `socket.getaddrinfo` est bloquant. Sur une requête isolée cela ne se voit
+    pas ; sur un lot de plusieurs dizaines de domaines, l'API cesse de répondre
+    aux autres utilisateurs pendant toute la durée du scan."""
+    await asyncio.to_thread(_reject_internal_url, url)
+
+
 @app.post("/api/scrape-url")
 async def scrape_url_endpoint(request: Request):
     """Fetch a product URL and extract name, brand, price, EAN, images, etc."""
@@ -1241,7 +1250,7 @@ async def _fetch_guarded(client: "httpx.AsyncClient", url: str, *,
     réponse est lue en flux et coupée à `max_bytes` pour qu'une page ou une
     image géante ne fasse pas exploser la mémoire du serveur.
     """
-    _reject_internal_url(url)
+    await _reject_internal_url_async(url)
     current = url
     for _ in range(6):
         # Le Referer ne suit pas une redirection vers un autre domaine : sinon
@@ -1251,7 +1260,7 @@ async def _fetch_guarded(client: "httpx.AsyncClient", url: str, *,
         async with client.stream("GET", current, headers=headers) as resp:
             if resp.is_redirect and resp.headers.get("location"):
                 current = str(resp.next_request.url) if resp.next_request else resp.headers["location"]
-                _reject_internal_url(current)
+                await _reject_internal_url_async(current)
                 continue
             resp.raise_for_status()
             buf = bytearray()
@@ -4824,7 +4833,8 @@ def _origin_of(url: str) -> str:
     return f"{u.scheme or 'https'}://{u.netloc}"
 
 
-async def _read_shopify_catalog(origin: str, limit: int) -> tuple[list[dict], str]:
+async def _read_shopify_catalog(origin: str, limit: int,
+                                pages: int = 4) -> tuple[list[dict], str]:
     """Catalogue public d'une boutique Shopify, page par page.
 
     Renvoie (produits, motif d'échec). Le motif est vide en cas de succès —
@@ -4834,7 +4844,7 @@ async def _read_shopify_catalog(origin: str, limit: int) -> tuple[list[dict], st
     out: list[dict] = []
     why = ""
     async with httpx.AsyncClient(timeout=12.0, headers=_AMAZON_HEADERS) as client:
-        for page in range(1, 5):          # 4 pages = 1 000 références au plus
+        for page in range(1, pages + 1):   # 4 pages = 1 000 références au plus
             url = (f"{origin}{sf.SHOPIFY_CATALOG}"
                    f"?limit={sf.SHOPIFY_PAGE_SIZE}&page={page}")
             try:
@@ -4849,6 +4859,123 @@ async def _read_shopify_catalog(origin: str, limit: int) -> tuple[list[dict], st
             if len(batch) < sf.SHOPIFY_PAGE_SIZE or len(out) >= limit:
                 break
     return out[:limit], why
+
+
+class DiscoverRequest(BaseModel):
+    sector: str = ""
+    country: str = "fr"
+    limit: int = 20          # boutiques qualifiées au plus
+
+
+async def _qualify_shop(cand: dict) -> dict:
+    """Cette adresse est-elle une boutique Shopify, et de quelle taille ?
+
+    Une seule page de catalogue suffit à trancher : on cherche à trier des
+    candidats, pas encore à les auditer."""
+    from app.services import storefront as sf
+    row = {**cand, "shopify": False, "products": 0, "brand": "", "error": ""}
+    try:
+        await _reject_internal_url_async(cand["url"])
+        prods, why = await _read_shopify_catalog(cand["url"], 250, pages=1)
+        if prods:
+            row.update(shopify=True, products=len(prods),
+                       brand=sf.brand_from_catalog(prods) or cand.get("title", ""),
+                       maturity=sf.maturity(prods))
+        else:
+            row["error"] = why or "catalogue non exposé"
+    except HTTPException as exc:
+        row["error"] = str(exc.detail)[:80]
+    except Exception as exc:
+        row["error"] = type(exc).__name__
+    return row
+
+
+async def _run_discover_job(job_id: str, sector: str, country: str, limit: int):
+    """Secteur → boutiques Shopify qualifiées.
+
+    Le moteur de recherche ne sert qu'à proposer des candidats ; c'est la
+    lecture du catalogue qui tranche. Un moteur qui se trompe ne produit donc
+    pas de faux prospect, seulement une adresse écartée."""
+    from app.services import websearch as ws
+    _jobs[job_id]["status"] = "running"
+    try:
+        queries = ws.queries_for(sector, country)
+        batches, search_status, search_error = [], "", ""
+        for i, q in enumerate(queries):
+            res = await ws.search(q, count=20, country=country)
+            search_status = res["status"]
+            search_error = search_error or res.get("error", "")
+            batches.append(res["results"])
+            _jobs[job_id]["label"] = f"recherche {i + 1}/{len(queries)}"
+            if res["status"] != ws.OK:
+                break
+
+        cands = ws.candidates(batches, limit=max(limit * 2, 20))
+        _jobs[job_id]["total"] = len(cands)
+
+        # Cinq lectures en parallèle : assez pour que ce soit rapide, assez peu
+        # pour ne marteler aucun serveur.
+        shops, done = [], 0
+        sem = asyncio.Semaphore(5)
+
+        async def one(c):
+            nonlocal done
+            async with sem:
+                r = await _qualify_shop(c)
+            done += 1
+            _jobs[job_id]["progress"] = done
+            return r
+
+        for row in await asyncio.gather(*(one(c) for c in cands)):
+            if row["shopify"]:
+                shops.append(row)
+
+        # Le plus gros catalogue d'abord : c'est là que l'écart avec Amazon a
+        # le plus de chances d'être élevé.
+        shops.sort(key=lambda r: -r["products"])
+
+        _jobs[job_id].update(status="done", result={
+            "sector": sector,
+            "provider": ws.provider(),
+            "search_status": search_status,
+            "search_error": search_error,
+            "candidates": len(cands),
+            "shops": shops[:limit],
+            "shopify_found": len(shops),
+        })
+    except Exception as exc:
+        log.error(f"[discover] {exc}")
+        _jobs[job_id].update(status="error", error=str(exc)[:300])
+
+
+@app.post("/api/prospect/discover")
+async def prospect_discover(req: DiscoverRequest, request: Request):
+    """Boutiques Shopify d'un secteur, sans avoir à les connaître d'avance."""
+    from app.services import websearch as ws
+
+    sector = (req.sector or "").strip()
+    if len(sector) < 3:
+        raise HTTPException(400, "Indiquez un secteur d'activité "
+                                 "(ex. « cosmétique bio », « épicerie fine »)")
+    if not ws.provider():
+        raise HTTPException(503, "Recherche par secteur indisponible : aucune clé "
+                                 "de moteur configurée sur le serveur "
+                                 "(BRAVE_SEARCH_KEY ou SERPAPI_KEY).")
+
+    # Chaque recherche consomme des requêtes payantes chez le moteur : la
+    # limite protège la facture autant que le service.
+    email = getattr(request.state, "user_email", None)
+    if email and not _rate_limit(f"{email}:discover", limit=20, window=3600):
+        raise HTTPException(429, "Trop de recherches — maximum 20 par heure.")
+
+    _cleanup_jobs()
+    job_id = uuid4().hex[:16]
+    _jobs[job_id] = {"status": "queued", "progress": 0, "total": 0,
+                     "result": None, "error": None, "created_at": time.time()}
+    asyncio.create_task(_run_discover_job(
+        job_id, sector, (req.country or "fr")[:2].lower(),
+        max(1, min(int(req.limit or 20), 40))))
+    return {"job_id": job_id, "sector": sector, "provider": ws.provider()}
 
 
 @app.post("/api/prospect/gap")
