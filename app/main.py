@@ -4805,6 +4805,135 @@ async def audit_store_scan(req: StoreScanRequest, request: Request):
     return {"job_id": job_id, "total": len(asins), "asins": asins[:10]}
 
 
+class GapRequest(BaseModel):
+    site_url: str = ""
+    # Repli quand la boutique refuse la lecture serveur : l'utilisateur ouvre
+    # /products.json dans son navigateur et colle le contenu.
+    site_json: str = ""
+    amazon_url: str = ""
+    amazon_html: str = ""
+    brand: str = ""
+    limit: int = 250
+
+
+def _origin_of(url: str) -> str:
+    from urllib.parse import urlparse
+    u = urlparse(url if "://" in url else "https://" + url)
+    if not u.netloc:
+        raise HTTPException(400, "URL de boutique invalide")
+    return f"{u.scheme or 'https'}://{u.netloc}"
+
+
+async def _read_shopify_catalog(origin: str, limit: int) -> tuple[list[dict], str]:
+    """Catalogue public d'une boutique Shopify, page par page.
+
+    Renvoie (produits, motif d'échec). Le motif est vide en cas de succès —
+    c'est lui qui permet à l'interface de distinguer « boutique vide » de
+    « lecture impossible », deux situations que rien ne doit confondre."""
+    from app.services import storefront as sf
+    out: list[dict] = []
+    why = ""
+    async with httpx.AsyncClient(timeout=12.0, headers=_AMAZON_HEADERS) as client:
+        for page in range(1, 5):          # 4 pages = 1 000 références au plus
+            url = (f"{origin}{sf.SHOPIFY_CATALOG}"
+                   f"?limit={sf.SHOPIFY_PAGE_SIZE}&page={page}")
+            try:
+                raw, _ = await _fetch_guarded(client, url, max_bytes=6_000_000)
+            except HTTPException:
+                raise
+            except Exception as exc:
+                why = f"{type(exc).__name__}"
+                break
+            batch = sf.parse_shopify(raw)
+            out.extend(batch)
+            if len(batch) < sf.SHOPIFY_PAGE_SIZE or len(out) >= limit:
+                break
+    return out[:limit], why
+
+
+@app.post("/api/prospect/gap")
+async def prospect_gap(req: GapRequest, request: Request):
+    """Écart entre le catalogue d'une boutique et sa présence sur Amazon.
+
+    Le catalogue Shopify est public (`/products.json`) ; celui d'Amazon se lit
+    depuis une page de résultats ou une vitrine. La soustraction des deux donne
+    les références absentes d'Amazon — et donc le manque à gagner."""
+    from app.services import storefront as sf
+
+    limit = max(1, min(int(req.limit or 250), 1000))
+
+    # ── Côté boutique ────────────────────────────────────────────────────────
+    platform, site_why = "", ""
+    if (req.site_json or "").strip():
+        products = sf.parse_shopify(req.site_json.strip())
+        platform = sf.SHOPIFY if products else ""
+        if not products:
+            raise HTTPException(422, "Ce contenu n'est pas un catalogue Shopify "
+                                     "valide (attendu : le JSON de /products.json).")
+        origin = _origin_of(req.site_url) if req.site_url.strip() else ""
+    else:
+        if not (req.site_url or "").strip():
+            raise HTTPException(400, "Indiquez l'URL de la boutique")
+        origin = _origin_of(req.site_url.strip())
+        _reject_internal_url(origin)
+        products, site_why = await _read_shopify_catalog(origin, limit)
+        platform = sf.SHOPIFY if products else ""
+        if not products:
+            # Sans catalogue, on lit la page d'accueil pour au moins dire à
+            # l'utilisateur *pourquoi* : plateforme non gérée, ou endpoint fermé.
+            try:
+                async with httpx.AsyncClient(timeout=10.0,
+                                             headers=_AMAZON_HEADERS) as c:
+                    body, _ = await _fetch_guarded(c, origin, max_bytes=3_000_000)
+                platform = sf.detect_platform(body.decode("utf-8", "replace"))
+            except Exception:
+                platform = ""
+            raise HTTPException(422, (
+                f"Catalogue illisible sur cette boutique"
+                + (f" (plateforme détectée : {platform})" if platform else "")
+                + ". Seul Shopify expose son catalogue publiquement, et le "
+                  "marchand peut l'avoir désactivé. Repli : ouvrez "
+                  f"{origin}/products.json dans votre navigateur et collez le "
+                  "contenu."))
+
+    brand = (req.brand or "").strip() or sf.brand_from_catalog(products)
+
+    # ── Côté Amazon ──────────────────────────────────────────────────────────
+    # Facultatif : le seul catalogue de la boutique a déjà de la valeur, et
+    # Amazon refuse souvent la lecture serveur. On dégrade au lieu d'échouer.
+    amazon_titles: list[str] = []
+    amazon_status = "skipped"
+    amz_html = (req.amazon_html or "").strip()
+    if not amz_html and (req.amazon_url or "").strip():
+        _reject_internal_url(req.amazon_url.strip())
+        amz_html = await _fetch_amazon_html(req.amazon_url.strip(), timeout=15.0)
+        amazon_status = "ok" if amz_html else "blocked"
+    elif amz_html:
+        amazon_status = "ok"
+    if amz_html:
+        found = _extract_products(amz_html, limit=60)
+        amazon_titles = [p["title"] for p in found if p.get("title")]
+        if not amazon_titles:
+            amazon_status = "empty"
+
+    gap = (sf.match_gap(products, amazon_titles, brand=brand)
+           if amazon_titles else None)
+
+    return {
+        "origin": origin,
+        "platform": platform,
+        "brand": brand,
+        "site_total": len(products),
+        "site_truncated": len(products) >= limit,
+        "site_error": site_why,
+        "amazon_status": amazon_status,
+        "amazon_total": len(amazon_titles),
+        "gap": gap,
+        "sample": [{"title": p["title"], "price": p["price"], "sku": p["sku"]}
+                   for p in products[:10]],
+    }
+
+
 class GpsrCheckRequest(BaseModel):
     url: str = ""
     html_content: str = ""
