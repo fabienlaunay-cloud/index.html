@@ -5773,6 +5773,58 @@ function _gapRender(d) {
       <span id="gapCopied" class="hidden text-xs text-emerald-600 font-semibold ml-2">Copié</span>`;
   }
 
+  // ── Maturité : de quoi décider si ça vaut un appel ──────────────────────
+  const mt = d.maturity || {};
+  const matu = mt.count ? `
+    <div class="px-3 py-2 border-t border-gray-100 text-xs text-gray-600 leading-relaxed">
+      <span class="font-semibold text-gray-800">Boutique ${_esc(mt.label || '')}</span>
+      — ${mt.with_image} % des produits ont un visuel${mt.median_price != null
+        ? `, panier médian ${euro(mt.median_price)}` : ''}${mt.avg_variants
+        ? `, ${String(mt.avg_variants).replace('.', ',')} variante(s) par produit` : ''}${mt.last_published
+        ? `. Dernière mise en ligne : ${_esc(mt.last_published)}` : ''}
+    </div>` : '';
+
+  // ── Identité légale : « non vérifié » ne doit jamais se lire « inexistant »
+  const L = d.legal || {};
+  const C = L.company;
+  let legal;
+  if (L.status === 'ok' && C) {
+    const det = [];
+    if (C.siren) det.push(`SIREN ${_esc(C.siren)}`);
+    if (C.date_creation) det.push(`créée en ${_esc(String(C.date_creation).slice(0, 4))}`);
+    if (C.effectif) det.push(`${_esc(C.effectif)} salarié(s)`);
+    if (C.ville) det.push(_esc(C.ville));
+    if (C.ca != null) det.push(`CA ${Number(C.ca).toLocaleString('fr-FR')} € (${_esc(C.ca_exercice)})`);
+    legal = `
+      <div class="px-3 py-2 border-t border-gray-100">
+        <p class="text-xs font-semibold text-gray-800 mb-1">
+          ${_esc(C.nom || '')}
+          ${C.active ? '' : '<span class="text-red-600 font-bold">· société cessée</span>'}
+          <span class="font-normal text-gray-400">· rapprochement ${_esc(L.confidence || '')}</span>
+        </p>
+        <p class="text-xs text-gray-600 leading-relaxed">${det.join(' · ')}</p>
+        ${C.activite ? `<p class="text-xs text-gray-500 mt-0.5">${_esc(C.activite)}</p>` : ''}
+        ${(C.dirigeants || []).length ? `<p class="text-xs text-gray-600 mt-1">
+          <span class="font-semibold">Dirigeant(s) :</span>
+          ${C.dirigeants.map(x => _esc(x.nom) + (x.qualite ? ` (${_esc(x.qualite)})` : '')).join(', ')}</p>` : ''}
+      </div>`;
+  } else {
+    legal = `<div class="px-3 py-2 border-t border-gray-100">
+      <p class="text-xs text-gray-500">Identité légale : ${_esc(L.error || 'non recherchée')}.</p></div>`;
+  }
+
+  // ── Vérifications à faire soi-même. La marque déposée conditionne le Brand
+  // Registry, donc le contenu A+ : c'est un angle de vente, pas un détail.
+  const K = d.links || {};
+  const liens = Object.keys(K).length ? `
+    <div class="px-3 py-2 border-t border-gray-100 flex flex-wrap gap-x-3 gap-y-1 text-xs">
+      <span class="text-gray-500">À vérifier :</span>
+      ${K.inpi ? `<a href="${_esc(K.inpi)}" target="_blank" rel="noopener" class="text-amber-700 underline font-semibold">marque déposée (INPI)</a>` : ''}
+      ${K.euipo ? `<a href="${_esc(K.euipo)}" target="_blank" rel="noopener" class="text-amber-700 underline">Europe (TMview)</a>` : ''}
+      ${K.annuaire ? `<a href="${_esc(K.annuaire)}" target="_blank" rel="noopener" class="text-amber-700 underline">annuaire des entreprises</a>` : ''}
+      ${K.amazon ? `<a href="${_esc(K.amazon)}" target="_blank" rel="noopener" class="text-amber-700 underline">la marque sur Amazon</a>` : ''}
+    </div>` : '';
+
   document.getElementById('gapResult').innerHTML = `
     <div class="border border-gray-200 rounded-lg overflow-hidden">
       <div class="px-3 py-2 bg-gray-50 border-b border-gray-200 flex items-center gap-2 flex-wrap">
@@ -5781,6 +5833,7 @@ function _gapRender(d) {
         ${d.site_truncated ? '<span class="text-[11px] bg-amber-50 text-amber-700 rounded px-1.5 py-0.5">catalogue tronqué</span>' : ''}
       </div>
       <div class="px-3 py-3">${corps}</div>
+      ${matu}${legal}${liens}
     </div>`;
   document.getElementById('gapResult').classList.remove('hidden');
 }

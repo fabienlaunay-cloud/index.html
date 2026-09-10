@@ -4919,6 +4919,28 @@ async def prospect_gap(req: GapRequest, request: Request):
     gap = (sf.match_gap(products, amazon_titles, brand=brand)
            if amazon_titles else None)
 
+    # ── Identité légale ──────────────────────────────────────────────────────
+    # Facultative elle aussi : l'API publique peut être indisponible, et le
+    # rapprochement marque → société reste indicatif.
+    from app.services import company as co
+    legal = await co.lookup(brand) if brand else {
+        "status": "skipped", "company": None,
+        "error": "marque non déterminée depuis le catalogue"}
+
+    # Marque déposée : l'API INPI demande un compte, donc on ne prétend pas la
+    # vérifier. On donne le lien de recherche — sans marque déposée, pas de
+    # Brand Registry, donc pas de contenu A+ ni de vitrine sur Amazon.
+    from urllib.parse import quote_plus
+    q = quote_plus(brand) if brand else ""
+    links = {
+        "inpi": f"https://data.inpi.fr/search?q={q}" if q else "",
+        "euipo": (f"https://www.tmdn.org/tmview/#/tmview/results?criteria=BASIC"
+                  f"&basicSearch={q}") if q else "",
+        "annuaire": (f"https://annuaire-entreprises.data.gouv.fr/rechercher?terme={q}"
+                     if q else ""),
+        "amazon": (f"https://www.amazon.fr/s?k={q}" if q else ""),
+    } if q else {}
+
     return {
         "origin": origin,
         "platform": platform,
@@ -4929,6 +4951,9 @@ async def prospect_gap(req: GapRequest, request: Request):
         "amazon_status": amazon_status,
         "amazon_total": len(amazon_titles),
         "gap": gap,
+        "maturity": sf.maturity(products),
+        "legal": legal,
+        "links": links,
         "sample": [{"title": p["title"], "price": p["price"], "sku": p["sku"]}
                    for p in products[:10]],
     }

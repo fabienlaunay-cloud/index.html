@@ -104,6 +104,41 @@ def brand_from_catalog(products: list[dict]) -> str:
     return best if n >= max(2, len(products) * 0.4) else ""
 
 
+# ── Maturité de la boutique ──────────────────────────────────────────────────
+def maturity(products: list[dict]) -> dict:
+    """Signaux de sérieux d'une boutique, tirés du seul catalogue.
+
+    Sert à trier les prospects : une boutique de 3 références sans photo et
+    sans publication depuis deux ans ne vaut pas un appel."""
+    if not products:
+        return {"size": "", "label": "", "with_image": None, "median_price": None,
+                "avg_variants": None, "last_published": ""}
+
+    n = len(products)
+    prices = sorted(p["price"] for p in products if p.get("price") is not None)
+    imgs = sum(1 for p in products if p.get("image"))
+    variants = [p.get("variants") or 0 for p in products]
+    dates = sorted((p.get("published") or "") for p in products if p.get("published"))
+
+    size = "vitrine" if n < 10 else "établie" if n <= 60 else "large"
+    # Un catalogue sans visuels ou figé depuis longtemps ne se travaille pas
+    # de la même façon — autant le voir avant de décrocher le téléphone.
+    label = size
+    if imgs / n < 0.5:
+        label += " · visuels incomplets"
+    return {
+        "count": n,
+        "size": size,
+        "label": label,
+        "with_image": round(imgs / n * 100),
+        "median_price": prices[len(prices) // 2] if prices else None,
+        "price_min": prices[0] if prices else None,
+        "price_max": prices[-1] if prices else None,
+        "avg_variants": round(sum(variants) / n, 1) if n else None,
+        "last_published": dates[-1][:10] if dates else "",
+    }
+
+
 # ── Rapprochement site ↔ Amazon ──────────────────────────────────────────────
 # Mots trop courants pour distinguer deux produits : les garder ferait matcher
 # « Huile d'olive 50 cl » avec « Huile d'olive 1 L ».
