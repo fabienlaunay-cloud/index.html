@@ -5915,6 +5915,10 @@ function _gapRender(d) {
         ${(C.dirigeants || []).length ? `<p class="text-xs text-gray-600 mt-1">
           <span class="font-semibold">Dirigeant(s) :</span>
           ${C.dirigeants.map(x => _esc(x.nom) + (x.qualite ? ` (${_esc(x.qualite)})` : '')).join(', ')}</p>` : ''}
+        ${L.ceased ? `<p class="text-xs text-gray-500 mt-1">
+          Une structure antérieure au même nom a été radiée :
+          ${_esc(L.ceased.nom)}${L.ceased.siren ? ` (SIREN ${_esc(L.ceased.siren)})` : ''}.
+          La société ci-dessus semble lui avoir succédé.</p>` : ''}
       </div>`;
   } else {
     legal = `<div class="px-3 py-2 border-t border-gray-100">

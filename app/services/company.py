@@ -172,7 +172,16 @@ async def lookup(name: str) -> dict:
         _store(key, out)
         return out
 
-    best = _normalise(results[0]) if isinstance(results[0], dict) else None
+    rows = [_normalise(x) for x in results if isinstance(x, dict)]
+    best = rows[0] if rows else None
+    # Une société radiée n'est pas un prospect — mais la marque lui a souvent
+    # survécu dans une structure neuve. Quand le premier résultat est cessé et
+    # qu'un autre est actif, c'est ce dernier qui intéresse l'utilisateur.
+    successor = None
+    if best and not best["active"]:
+        successor = next((r for r in rows[1:] if r["active"]), None)
+        if successor:
+            best, successor = successor, best
     # Confiance : le nom de la société contient-il celui de la marque ?
     folded = re.sub(r"[^a-z0-9]+", "", q.lower())
     cand = re.sub(r"[^a-z0-9]+", "", (best or {}).get("nom", "").lower())
@@ -182,9 +191,11 @@ async def lookup(name: str) -> dict:
         "status": OK,
         "company": best,
         "confidence": confidence,
+        # La société cessée qu'on a écartée : la mentionner évite de laisser
+        # croire qu'on n'a rien vu, et explique le changement de structure.
+        "ceased": successor,
         "total": payload.get("total_results") or len(results),
-        "candidates": [_normalise(x)
-                       for x in results[1:4] if isinstance(x, dict)],
+        "candidates": [r for r in rows[1:4] if r is not best],
         "error": "",
     }
     _store(key, out)
