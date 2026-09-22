@@ -5044,7 +5044,12 @@ async def prospect_gap(req: GapRequest, request: Request):
         # appartiennent aux produits recommandés — ceux des concurrents.
         # Les comparer au catalogue donnait un taux de couverture de 0 %
         # parfaitement faux, et un argument de prospection indéfendable.
-        solo = _scrape_amazon_for_audit(amz_html)
+        # On reconnaît une page produit à la présence de `productTitle`, et non
+        # au titre que renvoie le scraper : celui-ci retombe sur `og:title`,
+        # que **toute** page Amazon possède. Une vitrine vendeur était donc
+        # prise pour une fiche unique, avec « Amazon.fr : … » pour seul titre.
+        solo = (_scrape_amazon_for_audit(amz_html)
+                if re.search(r'id=["\']productTitle["\']', amz_html) else {})
         if solo.get("title"):
             amazon_titles = [solo["title"]]
             amazon_scope = "product"
