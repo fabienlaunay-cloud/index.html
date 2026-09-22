@@ -5037,9 +5037,21 @@ async def prospect_gap(req: GapRequest, request: Request):
         amazon_status = "ok" if amz_html else "blocked"
     elif amz_html:
         amazon_status = "ok"
+    amazon_scope = ""
     if amz_html:
-        found = _extract_products(amz_html, limit=60)
-        amazon_titles = [p["title"] for p in found if p.get("title")]
+        # Une page produit n'est pas une page de liste. Son titre est dans
+        # `productTitle` ; les seuls <h2> et attributs alt qu'on y trouve
+        # appartiennent aux produits recommandés — ceux des concurrents.
+        # Les comparer au catalogue donnait un taux de couverture de 0 %
+        # parfaitement faux, et un argument de prospection indéfendable.
+        solo = _scrape_amazon_for_audit(amz_html)
+        if solo.get("title"):
+            amazon_titles = [solo["title"]]
+            amazon_scope = "product"
+        else:
+            found = _extract_products(amz_html, limit=60)
+            amazon_titles = [p["title"] for p in found if p.get("title")]
+            amazon_scope = "listing"
         if not amazon_titles:
             amazon_status = "empty"
 
@@ -5076,6 +5088,9 @@ async def prospect_gap(req: GapRequest, request: Request):
         "site_truncated": len(products) >= limit,
         "site_error": site_why,
         "amazon_status": amazon_status,
+        # « product » = une seule fiche comparée : le taux de couverture n'a
+        # alors aucun sens, l'interface doit le dire au lieu de l'afficher.
+        "amazon_scope": amazon_scope,
         "amazon_total": len(amazon_titles),
         "gap": gap,
         "maturity": sf.maturity(products),
