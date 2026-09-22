@@ -5067,8 +5067,11 @@ async def prospect_gap(req: GapRequest, request: Request):
         "error": "marque non déterminée depuis le catalogue"}
 
     # Marque déposée : l'API INPI demande un compte, donc on ne prétend pas la
-    # vérifier. On donne le lien de recherche — sans marque déposée, pas de
+    # vérifier. On donne les liens de recherche — sans marque déposée, pas de
     # Brand Registry, donc pas de contenu A+ ni de vitrine sur Amazon.
+    # TMview d'abord : c'est la base des *marques*. data.inpi.fr mélange le
+    # registre des entreprises et celui des marques, et renvoie le plus souvent
+    # sur la fiche société — ce qui ne prouve rien sur la protection du nom.
     from urllib.parse import quote_plus
     q = quote_plus(brand) if brand else ""
     links = {

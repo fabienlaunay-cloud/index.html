@@ -5927,8 +5927,8 @@ function _gapRender(d) {
   const liens = Object.keys(K).length ? `
     <div class="px-3 py-2 border-t border-gray-100 flex flex-wrap gap-x-3 gap-y-1 text-xs">
       <span class="text-gray-500">À vérifier :</span>
-      ${K.inpi ? `<a href="${_esc(K.inpi)}" target="_blank" rel="noopener" class="text-amber-700 underline font-semibold">marque déposée (INPI)</a>` : ''}
-      ${K.euipo ? `<a href="${_esc(K.euipo)}" target="_blank" rel="noopener" class="text-amber-700 underline">Europe (TMview)</a>` : ''}
+      ${K.euipo ? `<a href="${_esc(K.euipo)}" target="_blank" rel="noopener" class="text-amber-700 underline font-semibold">marque déposée (TMview)</a>` : ''}
+      ${K.inpi ? `<a href="${_esc(K.inpi)}" target="_blank" rel="noopener" class="text-amber-700 underline">INPI — entreprise et marques</a>` : ''}
       ${K.annuaire ? `<a href="${_esc(K.annuaire)}" target="_blank" rel="noopener" class="text-amber-700 underline">annuaire des entreprises</a>` : ''}
       ${K.amazon ? `<a href="${_esc(K.amazon)}" target="_blank" rel="noopener" class="text-amber-700 underline">la marque sur Amazon</a>` : ''}
     </div>` : '';
