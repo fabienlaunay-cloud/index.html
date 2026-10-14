@@ -2256,3 +2256,42 @@ SQI18N.add({
 
 /* Démarrage — après le chargement de tous les blocs de dictionnaire. */
 SQI18N.boot();
+
+/* ── Offre unique — 45 €/mois (octobre 2026) ─────────────────────────────── */
+SQI18N.add({
+"Un seul prix. Tout est dedans.": "One price. Everything included.",
+"Pas de palier à comparer, pas de frais d'entrée, pas d'engagement. Vous payez 45 € et vous avez toute la plateforme.":
+  "No tiers to compare, no joining fee, no commitment. You pay €{n} and you get the whole platform.",
+"Sans engagement": "No commitment",
+"Sans engagement.": "No commitment.",
+"Résiliable à tout moment, en un clic depuis votre compte.": "Cancel any time, in one click from your account.",
+"Sans engagement, sans frais d'entrée": "No commitment, no joining fee",
+"/mois HT": "/month excl. VAT",
+"100 SKU par mois": "{n} SKUs per month",
+"· 200 visuels IA": "· {n} AI visuals",
+"200 visuels IA par mois": "{n} AI visuals per month",
+"100 SKU / mois": "{n} SKUs / month",
+"Tout compris": "All-inclusive",
+"Aucun frais d'entrée": "No joining fee",
+"Actif en 5 minutes": "Live in {n} minutes",
+"Commencer — 45 €": "Get started — €{n}",
+"Vos fiches et visuels vous restent après résiliation.": "Your listings and visuals stay yours after cancelling.",
+"Plus de 100 SKU par mois, ou besoin d'un accompagnement ?": "More than {n} SKUs a month, or need hands-on support?",
+"Avec SynqIO": "With SynqIO",
+"100 SKU · 200 visuels · sans engagement": "{n} SKUs · {n} visuals · no commitment",
+"Titre, bullets, mots-clés": "Title, bullets, keywords",
+"Contenu A+": "A+ content",
+"Visuels IA à partir de vos photos": "AI visuals from your own photos",
+"5 marketplaces en une fois": "{n} marketplaces at once",
+"Multi-marketplace simultané (FR, DE, IT, ES, UK)": "Simultaneous multi-marketplace (FR, DE, IT, ES, UK)",
+"Alerte si une fiche décroche": "Alert when a listing slips",
+"Que se passe-t-il si je dépasse 100 SKU dans le mois ?": "What happens if I go over {n} SKUs in a month?",
+"La génération se met en pause jusqu'au mois suivant, où le compteur repart à 100. Rien n'est facturé en plus, et vous gardez l'accès à tout ce qui a déjà été généré — fiches, visuels, audits. Si votre catalogue demande régulièrement plus de 100 fiches par mois, écrivez-nous : on regarde ensemble, mais ce n'est pas le cas de la grande majorité des comptes, qui traitent leur catalogue le premier mois puis quelques fiches ensuite.":
+  "Generation pauses until the next month, when the counter resets to {n}. Nothing extra is charged, and you keep access to everything already generated — listings, visuals, audits. If your catalogue regularly needs more than {n} listings a month, write to us and we'll look at it together; that said, most accounts process their catalogue in the first month and only a handful of listings after that.",
+"Aucun. L'abonnement est mensuel, sans durée minimale et sans frais d'entrée : vous résiliez en un clic depuis votre compte, et la facturation s'arrête à la fin du mois en cours. Vous conservez l'accès à vos fiches et visuels générés même après résiliation.":
+  "None. The subscription is monthly, with no minimum term and no joining fee: cancel in one click from your account and billing stops at the end of the current month. You keep access to the listings and visuals you generated, even after cancelling.",
+"SynqIO génère des fiches optimisées pour Amazon France, Allemagne, Italie, Espagne et Royaume-Uni. Pour chaque marketplace, les textes sont rédigés dans la langue locale (FR, DE, IT, ES, EN) avec une optimisation SEO adaptée aux habitudes de recherche du pays. La génération multi-pays en un seul import est incluse.":
+  "SynqIO generates listings optimised for Amazon France, Germany, Italy, Spain and the United Kingdom. For each marketplace the copy is written in the local language (FR, DE, IT, ES, EN) with SEO tuned to that country's search habits. Multi-country generation from a single import is included.",
+"Nous écrire": "Contact us",
+"Nous écrire →": "Contact us →"
+});

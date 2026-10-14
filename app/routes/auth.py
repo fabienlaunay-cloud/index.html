@@ -64,7 +64,7 @@ class RegisterRequest(BaseModel):
     password: str
     company: str = ""
     account_type: str = "brand"
-    plan: str = "starter"
+    plan: str = "standard"
     accept_terms: bool = False
 
 
@@ -298,7 +298,7 @@ async def register(req: RegisterRequest, request: Request):
 @router.post("/resume-checkout")
 async def resume_checkout(req: ResumeCheckoutRequest, request: Request):
     """Relance le paiement d'un compte créé mais jamais réglé."""
-    from app.services.billing import SIGNUP_PLANS
+    from app.services.billing import SIGNUP_PLANS, DEFAULT_PLAN
 
     ip = _get_ip(request)
     if not check_rate_limit(ip):
@@ -311,9 +311,11 @@ async def resume_checkout(req: ResumeCheckoutRequest, request: Request):
         record_failed_attempt(ip)
         raise HTTPException(401, "Email ou mot de passe incorrect")
 
-    plan = req.plan if req.plan in SIGNUP_PLANS else (row.get("plan") or "starter")
+    # Un compte créé sous une ancienne offre et jamais réglé bascule sur
+    # l'offre en cours : son ancien tarif n'est plus encaissable.
+    plan = req.plan if req.plan in SIGNUP_PLANS else (row.get("plan") or DEFAULT_PLAN)
     if plan not in SIGNUP_PLANS:
-        plan = "starter"
+        plan = DEFAULT_PLAN
     if plan != row.get("plan"):
         conn = get_db()
         conn.execute("UPDATE users SET plan = ? WHERE email = ?", (plan, row["email"]))
@@ -638,7 +640,10 @@ async def update_admin_role(email: str, req: UpdateAdminRequest, authorization: 
 @admin_router.patch("/users/{email}/plan")
 async def update_plan(email: str, req: UpdatePlanRequest, authorization: str = Header(None)):
     _require_admin(authorization)
-    if req.plan not in ("starter", "business", "scale", "maintenance"):
+    # Anciennes offres comprises : un admin doit pouvoir remettre un compte
+    # sur le plan qu'il portait avant la bascule tarifaire.
+    from app.services.usage import PLAN_QUOTAS
+    if req.plan not in PLAN_QUOTAS:
         raise HTTPException(400, "Plan invalide")
     conn = get_db()
     conn.execute("UPDATE users SET plan = ? WHERE email = ?", (req.plan, email.lower()))

@@ -14,24 +14,36 @@ def _owner(user_email: str) -> str:
             return user_email
     return user_email
 
+# Seule offre souscriptible. Les quatre suivantes ne sont plus vendues mais
+# restent décrites ici : des comptes les portent toujours en base, et les
+# supprimer ferait tomber leur quota sur un repli arbitraire.
 PLAN_QUOTAS = {
     # skus = quota mensuel sauf maintenance (annual_pool=True → quota annuel de 100)
+    "standard":    {"skus": 100,  "images": 200, "label": "Tout compris",     "commitment_months": 0,  "price_monthly": 45,   "price_setup": 0,    "annual_pool": False},
+    # ── Anciennes offres, fermées à la souscription ──────────────────────────
     "starter":     {"skus": 200,  "images": 50,  "label": "Starter",          "commitment_months": 0,  "price_monthly": 390,  "price_setup": 490,  "annual_pool": False},
     "business":    {"skus": 600,  "images": 200, "label": "Business",         "commitment_months": 3,  "price_monthly": 790,  "price_setup": 990,  "annual_pool": False},
     "scale":       {"skus": 1500, "images": 500, "label": "Scale",            "commitment_months": 6,  "price_monthly": 1490, "price_setup": 1990, "annual_pool": False},
     "maintenance": {"skus": 100,  "images": 100, "label": "Pro / Maintenance","commitment_months": 12, "price_monthly": 99,   "price_setup": 0,    "annual_pool": True},
 }
 
+# Plan attribué à un compte sans plan explicite en base.
+DEFAULT_PLAN = "standard"
+
 # Limite de régénération par visuel : chaque image d'une fiche (sku + image_id)
 # peut être régénérée au maximum N fois, tous plans confondus — la génération
 # initiale (lot complet) n'est pas comptée.
 MAX_IMAGE_REGENS = 3
 
-# Plan suivant proposé quand le quota est atteint (None = contacter l'équipe)
+# Plan suivant proposé quand le quota est atteint (None = contacter l'équipe).
+# Avec une offre unique il n'y a plus de palier au-dessus : l'abonné qui sature
+# ses 100 SKU n'a rien à acheter, on lui écrit. Les anciennes offres restent
+# mappées pour ne pas proposer un downgrade à ceux qui les portent encore.
 NEXT_PLAN = {
-    "maintenance": "starter",
-    "starter": "business",
-    "business": "scale",
+    "standard": None,
+    "maintenance": None,
+    "starter": None,
+    "business": None,
     "scale": None,
 }
 
@@ -107,8 +119,8 @@ def get_user_usage(user_email: str, month: str = None) -> dict:
     plan_row = conn.execute(
         "SELECT plan FROM users WHERE email = ?", (user_email,)
     ).fetchone()
-    plan = (plan_row["plan"] if plan_row and plan_row["plan"] else None) or "starter"
-    quota = PLAN_QUOTAS.get(plan, PLAN_QUOTAS["starter"])
+    plan = (plan_row["plan"] if plan_row and plan_row["plan"] else None) or DEFAULT_PLAN
+    quota = PLAN_QUOTAS.get(plan, PLAN_QUOTAS[DEFAULT_PLAN])
 
     if quota.get("annual_pool"):
         # Pool annuel : on agrège tous les mois de l'année en cours
@@ -166,8 +178,8 @@ def get_all_users_usage(month: str = None) -> list:
             (u["email"], month),
         ).fetchall()
         usage = {r["action"]: r["total"] for r in rows}
-        plan = u["plan"] or "starter"
-        quota = PLAN_QUOTAS.get(plan, PLAN_QUOTAS["starter"])
+        plan = u["plan"] or DEFAULT_PLAN
+        quota = PLAN_QUOTAS.get(plan, PLAN_QUOTAS[DEFAULT_PLAN])
         tokens_in   = usage.get("tokens_in", 0)
         tokens_out  = usage.get("tokens_out", 0)
         images_used = usage.get("image_generated", 0)

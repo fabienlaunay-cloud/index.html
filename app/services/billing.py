@@ -19,33 +19,21 @@ APP_URL = os.getenv("APP_URL", "https://synqio.io")
 # interval : périodicité du prélèvement ("month" ou "year")
 # setup    : frais uniques ajoutés à la première facture
 #
-# Pro / Maintenance est un abonnement ANNUEL : 99 €/mois affichés, mais
-# 12 × 99 = 1 188 € encaissés en une seule fois à la souscription.
+# Offre unique depuis octobre 2026 : un seul prix, tout inclus, sans
+# engagement ni frais d'entrée. Les anciennes offres (starter, business,
+# scale, maintenance) ne sont plus souscriptibles mais restent décrites dans
+# `usage.PLAN_QUOTAS` — les comptes qui les portent continuent de tourner.
 SIGNUP_PLANS: dict[str, dict] = {
-    "maintenance": {
-        "label": "Pro / Maintenance",
-        "tagline": "Marque établie, catalogue stable",
-        "monthly": 99, "amount": 1188, "setup": 0, "interval": "year",
-        "skus": "100 SKU / an", "commitment_months": 12,
+    "standard": {
+        "label": "Tout compris",
+        "tagline": "Sans engagement, sans frais d'entrée",
+        "monthly": 45, "amount": 45, "setup": 0, "interval": "month",
+        "skus": "100 SKU / mois", "commitment_months": 0,
         "features": [
-            "100 SKU par an (pool annuel)",
+            "100 SKU par mois",
+            "200 visuels IA par mois",
             "Titre, bullets, mots-clés, contenu A+",
-            "Audit trimestriel + score SEO par fiche",
-            "Gardien de conformité en continu",
-            "Rapport email dès qu'une fiche décroche",
-            "Catalogue en ligne à partager par lien",
-            "Médiathèque — vos photos + visuels IA",
-            "Support standard",
-        ],
-    },
-    "starter": {
-        "label": "Starter",
-        "tagline": "Sans engagement",
-        "monthly": 390, "amount": 390, "setup": 490, "interval": "month",
-        "skus": "200 SKU / mois", "commitment_months": 0,
-        "features": [
-            "200 SKU par mois",
-            "7 visuels IA par produit",
+            "Multi-marketplace simultané (FR, DE, IT, ES, UK)",
             "Push direct Amazon (SP-API)",
             "Audit du compte + score SEO /100 par fiche",
             "Gardien de conformité en continu",
@@ -54,42 +42,11 @@ SIGNUP_PLANS: dict[str, dict] = {
             "Médiathèque — vos photos + visuels IA",
         ],
     },
-    "business": {
-        "label": "Business",
-        "tagline": "Engagement 3 mois",
-        "monthly": 790, "amount": 790, "setup": 990, "interval": "month",
-        "skus": "600 SKU / mois", "commitment_months": 3,
-        "recommended": True,
-        "features": [
-            "600 SKU par mois",
-            "7 visuels IA par produit",
-            "Multi-marketplace simultané",
-            "Audit trimestriel + score SEO par fiche",
-            "Gardien de conformité en continu",
-            "Rapport email dès qu'une fiche décroche",
-            "Catalogue en ligne à partager par lien",
-            "Médiathèque — vos photos + visuels IA",
-            "Support dédié",
-        ],
-    },
-    "scale": {
-        "label": "Scale",
-        "tagline": "Engagement 6 mois",
-        "monthly": 1490, "amount": 1490, "setup": 1990, "interval": "month",
-        "skus": "1 500 SKU / mois", "commitment_months": 6,
-        "features": [
-            "1 500 SKU par mois",
-            "7 visuels IA par produit",
-            "Multi-marketplace + connecteurs boutique",
-            "Audit mensuel + score SEO par fiche",
-            "Gardien de conformité en continu",
-            "Rapport email dès qu'une fiche décroche",
-            "Catalogue en ligne à partager par lien",
-            "Médiathèque — vos photos + visuels IA",
-            "Support dédié",
-        ],
-    },
 }
+
+# Seule offre ouverte à la souscription : sert de repli partout où un plan
+# inconnu ou absent doit être remplacé par quelque chose de valide.
+DEFAULT_PLAN = "standard"
 
 ACCOUNT_TYPES = {"brand", "agency", "reseller", "other"}
 
@@ -122,7 +79,7 @@ def public_plans() -> list[dict]:
             "billing_note": (f"facturé {_eur(p['amount'])} € par an, en une fois" if annual else ""),
         })
     # ordre d'affichage : du plus léger au plus complet
-    order = ["maintenance", "starter", "business", "scale"]
+    order = ["standard"]
     out.sort(key=lambda x: order.index(x["slug"]) if x["slug"] in order else 99)
     return out
 

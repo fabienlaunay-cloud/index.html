@@ -8,8 +8,14 @@ router = APIRouter(prefix="/api/stripe", tags=["stripe"])
 
 # Amount in cents → plan slug
 # Covers both monthly-only links and setup+first-month links
+#
+# Repli seulement : le tunnel d'inscription fait voyager le slug dans les
+# métadonnées Stripe. Ce tableau ne sert que pour les liens de paiement créés
+# à la main, d'où la présence des anciens montants — d'anciens liens circulent.
 _AMOUNT_TO_PLAN: dict[int, str] = {
-    # Monthly recurring links (mensualité seule)
+    # Offre en cours
+    4500:   "standard",
+    # Anciens liens (offres fermées, mais les URL restent valides)
     9900:   "maintenance",
     39000:  "starter",
     79000:  "business",
