@@ -5,6 +5,10 @@ build-backend = "setuptools.backends.legacy:build"
 [project]
 name = "marketplace-ai-agent"
 version = "1.0.0"
+# anthropic 1.x exige 3.10+. Sans ce plancher, un environnement de build en 3.9
+# résoudrait silencieusement la dernière 0.x et l'application démarrerait avec
+# un SDK d'une version majeure en retard.
+requires-python = ">=3.10"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
